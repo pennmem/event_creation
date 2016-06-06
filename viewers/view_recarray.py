@@ -3,10 +3,12 @@ import numpy as np
 
 PPRINT_PADDING = 2
 
+
 def pprint_rec(arr, recurse=True):
     print(pformat_rec(arr, recurse))
 
-def pformat_rec(arr, recurse=True, init_indent = 0):
+
+def pformat_rec(arr, recurse=True, init_indent=0):
     names = arr.dtype.names
     lens = [len(name) for name in names]
     padding_max = max(lens) + PPRINT_PADDING
@@ -22,7 +24,8 @@ def pformat_rec(arr, recurse=True, init_indent = 0):
         formatted.append('%s%s:%s%s' % (init_padding, name, ' '*paddings[i], formatted_value))
     return '\n'.join(formatted)
 
-def _format_and_indent(input, indent):
-    formatted = pprint.pformat(input)
+
+def _format_and_indent(this_input, indent):
+    formatted = pprint.pformat(this_input)
     stripped = [x.strip() for x in formatted.split('\n')]
     return ('\n'+' '*indent).join(stripped)
