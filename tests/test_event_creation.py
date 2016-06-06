@@ -9,7 +9,8 @@ import os
 FR3_SESSIONS = {'R1170J_1': 0}
 TEST_DIR = './test_data'
 
-def test_FR3_event_creation():
+
+def test_fr3_event_creation():
     def exceptions(event1, event2, field):
         if field == 'recalled' and event1['recalled'] == False and event2['recalled'] == -999:
             return True
@@ -47,8 +48,9 @@ def test_FR3_event_creation():
         py_events = parse_fr3_session_log(subject, session, 'FR3', base_dir=TEST_DIR)
 
         mat_fr3_events_reader = \
-            BaseEventReader(filename=os.path.join(TEST_DIR, subject, 'behavioral','FR3','session_%d' % session, 'events.mat'),
-                            common_root=TEST_DIR)
+            BaseEventReader(
+                    filename=os.path.join(TEST_DIR, subject, 'behavioral', 'FR3', 'session_%d' % session, 'events.mat'),
+                    common_root=TEST_DIR)
 
         mat_events = mat_fr3_events_reader.read()
 
