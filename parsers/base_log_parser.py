@@ -1,5 +1,5 @@
 import numpy as np
-from viewers.view_recarray import pprint_rec, pformat_rec
+from viewers.view_recarray import pformat_rec
 import os
 import re
 
@@ -49,7 +49,6 @@ class BaseSessionLogParser:
         def fn(events):
             return events_mofidied
     """
-
 
     # Index in split line corresponding to these fields
     _MSTIME_INDEX = 0
@@ -145,7 +144,8 @@ class BaseSessionLogParser:
         event.subject = self._subject
         return event
 
-    def _event_skip(self, *_):
+    @staticmethod
+    def _event_skip(*_):
         return False
 
     def _event_default(self, split_line):
@@ -167,19 +167,19 @@ class BaseSessionLogParser:
         """
         events = self._empty_event
         for split_line in self._contents:
-            type = split_line[self._TYPE_INDEX]
-            if type in self._type_to_new_event:
-                new_event = self._type_to_new_event[type](split_line)
-                if not isinstance(new_event, (np.recarray)) and new_event!=False:
+            this_type = split_line[self._TYPE_INDEX]
+            if this_type in self._type_to_new_event:
+                new_event = self._type_to_new_event[this_type](split_line)
+                if not isinstance(new_event, np.recarray) and not (new_event is False):
                     raise Exception()
-                elif isinstance(new_event, (np.recarray)):
+                elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
             elif self._allow_unparsed_events:
-                print('Warning: type %s not found' % type)
+                print('Warning: type %s not found' % this_type)
             else:
-                raise UnparsableLineException("Event type %s not parseable" % type)
-            if type in self._type_to_modify_events:
-                events = self._type_to_modify_events[type](events.view(np.recarray))
+                raise UnparsableLineException("Event type %s not parseable" % this_type)
+            if this_type in self._type_to_modify_events:
+                events = self._type_to_modify_events[this_type](events.view(np.recarray))
 
         # Remove first (empty) event
         return events[1:]
@@ -195,15 +195,14 @@ class BaseSessionLogParser:
         return [(float(line[0]), int(line[1]), line[2]) for line in split_lines]
 
 
-
-class EventComparator():
+class EventComparator:
     """
     Compares two sets of np.recarray events
     """
 
     SHOW_FULL_EVENTS = True
 
-    def __init__(self, events1, events2, field_switch = None, field_ignore = None, exceptions = None, type_ignore = None):
+    def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None):
         """
         :param events1:
         :param events2:
@@ -218,7 +217,7 @@ class EventComparator():
         self.field_switch = field_switch if field_switch else {}
         self.field_ignore = field_ignore if field_ignore else []
         self.type_ignore = type_ignore if type_ignore else []
-        self.exceptions = exceptions if exceptions else lambda *_ : False
+        self.exceptions = exceptions if exceptions else lambda *_: False
 
         ev1_names = events1.dtype.names
         ev2_names = events2.dtype.names
@@ -249,7 +248,7 @@ class EventComparator():
         """
         mismatch = []
         for field in self.names:
-            if (event1[field] != event2[field]):
+            if event1[field] != event2[field]:
                 if self.exceptions(event1, event2, field):
                     continue
                 mismatch.append(field)
@@ -265,7 +264,8 @@ class EventComparator():
 
         bad_events1 = self.events1[0]
         for event1 in self.events1:
-            this_mask2 = np.logical_and(np.abs(event1['mstime'] - self.events2.mstime) <= 1, event1['type'] == self.events2.type)
+            this_mask2 = np.logical_and(
+                    np.abs(event1['mstime'] - self.events2.mstime) <= 1, event1['type'] == self.events2.type)
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
             else:
@@ -275,14 +275,16 @@ class EventComparator():
                     bad_events1 = np.append(bad_events1, event1)
                     if not self.SHOW_FULL_EVENTS:
                         for compare in mismatch:
-                            err_msg += '\n' + compare + '\n' + event1[compare] + '\n' + self.events2[this_mask2][compare]
+                            err_msg += '\n' + '\n'.join([str(compare),
+                                                         str(event1[compare]),
+                                                         str(self.events2[this_mask2][compare])])
                     else:
-                        err_msg += "\n\n"+ str(mismatch)+ ":"
+                        err_msg += "\n\n\n" + str(mismatch) + ":"
                         err_msg += '\n' + pformat_rec(event1)
-                        err_msg += '\n' + pformat_rec(self.events2[this_mask2][0])
-
+                        err_msg += '\n\n' + pformat_rec(self.events2[this_mask2][0])
 
             mask2[this_mask2] = False
+
         if bad_events1.size > 1:
             found_bad = True
             err_msg += '\n' + pformat_rec(bad_events1[1:])

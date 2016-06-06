@@ -1,7 +1,7 @@
-from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException,EventComparator
+from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
 import numpy as np
-from viewers.view_recarray import pprint_rec
 import os
+
 
 class FRSessionLogParser(BaseSessionLogParser):
 
@@ -115,6 +115,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     def modify_session(self, events):
         """
         applies session and expVersion to all previous events
+        :param events: all events up until this point in the log file
         """
         events.session = self._session
         events.expVersion = self._version
@@ -184,7 +185,6 @@ class FRSessionLogParser(BaseSessionLogParser):
             new_event.word = word
             new_event.wordno = recall[1]
 
-
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
                 new_event.type = 'REC_WORD_VV'
@@ -194,7 +194,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             # If XLI
             if recall[1] == -1:
                 new_event.intrusion = -1
-            else: # Correct recall or PLI or XLI from latter list
+            else:  # Correct recall or PLI or XLI from latter list
                 pres_mask = self.find_presentation(word, events)
                 pres_list = np.unique(events[pres_mask].list)
 
@@ -206,20 +206,22 @@ class FRSessionLogParser(BaseSessionLogParser):
                         new_event.recalled = True
                         events.recalled[pres_mask] = True
                         events.rectime[pres_mask] = new_event.rectime
-                else: #XLI
+                else:  # XLI
                     new_event.intrusion = -1
 
             events = np.append(events, new_event).view(np.recarray)
 
         return events
 
-    def find_presentation(self, word, events):
+    @staticmethod
+    def find_presentation(word, events):
         events = events.view(np.recarray)
         return np.logical_and(events.word == word, events.type == 'WORD')
 
-def parse_FR3_session_log(subject, session, experiment, base_dir = '/data/eeg/', session_log_name='session.log',
+
+def parse_fr3_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
                           wordpool_name='RAM_wordpool_noAcc.txt'):
-    if experiment not in ('FR1','FR2','FR3'):
+    if experiment not in ('FR1', 'FR2', 'FR3'):
         raise UnknownExperimentTypeException('Experiment must be one of FR1, FR2, or FR3')
 
     exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)

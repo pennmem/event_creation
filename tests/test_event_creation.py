@@ -1,6 +1,6 @@
 
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from parsers.fr3_log_parser import parse_FR3_session_log
+from parsers.fr3_log_parser import parse_fr3_session_log
 from parsers.base_log_parser import EventComparator
 import numpy as np
 import os
@@ -44,7 +44,7 @@ def test_FR3_event_creation():
         return False
 
     for subject, session in FR3_SESSIONS.items():
-        py_events = parse_FR3_session_log(subject, session, 'FR3', base_dir=TEST_DIR)
+        py_events = parse_fr3_session_log(subject, session, 'FR3', base_dir=TEST_DIR)
 
         mat_fr3_events_reader = \
             BaseEventReader(filename=os.path.join(TEST_DIR, subject, 'behavioral','FR3','session_%d' % session, 'events.mat'),
@@ -62,4 +62,4 @@ def test_FR3_event_creation():
                                      )
         found_bad, err_msg = comparator.compare()
 
-        assert found_bad == False, err_msg
+        assert found_bad is False, err_msg
