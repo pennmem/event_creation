@@ -1,6 +1,6 @@
 
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from parsers.fr3_log_parser import parse_fr3_session_log
+from parsers.fr_log_parser import parse_fr3_session_log
 from parsers.base_log_parser import EventComparator
 import numpy as np
 import os
