@@ -3,4 +3,5 @@
 Contains classes pertaining to the creation of experimental events
 directly from session.log files into python
 
-Requires ptsa (https://github.com/maciekswat/ptsa_new)
+Requires ptsa (https://github.com/maciekswat/ptsa_new) for verification
+against .mat files.
