@@ -219,8 +219,8 @@ class FRSessionLogParser(BaseSessionLogParser):
         return np.logical_and(events.word == word, events.type == 'WORD')
 
 
-def parse_fr3_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                          wordpool_name='RAM_wordpool_noAcc.txt'):
+def parse_fr_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
+                         wordpool_name='RAM_wordpool_noAcc.txt'):
     if experiment not in ('FR1', 'FR2', 'FR3'):
         raise UnknownExperimentTypeException('Experiment must be one of FR1, FR2, or FR3')
 
