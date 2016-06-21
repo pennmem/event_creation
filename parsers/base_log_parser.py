@@ -47,7 +47,7 @@ class BaseSessionLogParser:
         TYPE = fn
         where fn is of format:
         def fn(events):
-            return events_mofidied
+            return events_modified
     """
 
     # Index in split line corresponding to these fields
@@ -92,6 +92,10 @@ class BaseSessionLogParser:
         self._type_to_modify_events = {}
         pass
 
+    @property
+    def event_template(self):
+        return self._fields
+
     def _add_fields(self, *args):
         """
         Adds fields to events structure
@@ -118,18 +122,18 @@ class BaseSessionLogParser:
             self._type_to_modify_events[key] = value
 
     @classmethod
-    def _event_from_template(cls, template):
+    def event_from_template(cls, template):
         """
         Creates events out of template of type ( (name1, default1, dtype1), (name2, ...), ...)
         :param template:
         :return: recarray of these names, defaults, and types
         """
         defaults = tuple(field[1] for field in template)
-        dtypes = cls._dtype_from_template(template)
+        dtypes = cls.dtype_from_template(template)
         return np.rec.array(defaults, dtype=dtypes)
 
     @classmethod
-    def _dtype_from_template(cls, template):
+    def dtype_from_template(cls, template):
         dtypes = {'names': [field[0] for field in template],
                   'formats': [field[2] for field in template]}
         return dtypes
@@ -140,7 +144,7 @@ class BaseSessionLogParser:
         Returns an event with fieldnames and defaults from self._fields
         :return:
         """
-        event = self._event_from_template(self._fields)
+        event = self.event_from_template(self._fields)
         event.subject = self._subject
         return event
 
@@ -148,7 +152,7 @@ class BaseSessionLogParser:
     def _event_skip(*_):
         return False
 
-    def _event_default(self, split_line):
+    def event_default(self, split_line):
         """
         Returns a default event with mstime, msoffset, and type filled in
         :param split_line:
@@ -200,7 +204,7 @@ class EventComparator:
     Compares two sets of np.recarray events
     """
 
-    SHOW_FULL_EVENTS = True
+    SHOW_FULL_EVENTS = False
 
     def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None):
         """
@@ -232,7 +236,7 @@ class EventComparator:
 
         # Get rid of fields to ignore
         for name in ev1_names:
-            if name not in field_ignore and name not in field_switch:
+            if name not in self.field_ignore and name not in self.field_switch:
                 self.field_switch[name] = name
         self.events1 = self.events1[self.field_switch.keys()]
         self.events2 = self.events2[self.field_switch.values()]
@@ -268,14 +272,14 @@ class EventComparator:
                     np.abs(event1['mstime'] - self.events2.mstime) <= 1, event1['type'] == self.events2.type)
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
-            else:
+            elif event1['type'] not in self.type_ignore:
                 mismatch = self._get_field_mismatch(event1, self.events2[this_mask2])
                 if len(mismatch) > 0:
                     found_bad = True
                     bad_events1 = np.append(bad_events1, event1)
                     if not self.SHOW_FULL_EVENTS:
                         for compare in mismatch:
-                            err_msg += '\n' + '\n'.join([str(compare),
+                            err_msg += '\n\n' + '\n'.join([str(compare),
                                                          str(event1[compare]),
                                                          str(self.events2[this_mask2][compare])])
                     else:
@@ -286,8 +290,10 @@ class EventComparator:
             mask2[this_mask2] = False
 
         if bad_events1.size > 1:
-            found_bad = True
-            err_msg += '\n' + pformat_rec(bad_events1[1:])
+            for bad_event1 in bad_events1[1:]:
+                if not self.exceptions(bad_event1, None, None):
+                    found_bad = True
+                    err_msg += '\n' + pformat_rec(bad_event1)
 
         if mask2.any():
             found_bad = True

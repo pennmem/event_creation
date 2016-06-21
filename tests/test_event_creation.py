@@ -1,9 +1,12 @@
 
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from parsers.fr_log_parser import parse_fr_session_log
+from parsers.fr_log_parser import fr_log_parser_wrapper
 from parsers.base_log_parser import EventComparator
+from parsers.system2_log_parser import System2LogParser
+from alignment.system2 import System2Aligner
 import numpy as np
 import os
+from viewers.view_recarray import pprint_rec
 
 # {'subject': session_#'}
 FR3_SESSIONS = {'R1170J_1': 0}
@@ -42,10 +45,25 @@ def test_fr3_event_creation():
             return True
         if field == 'wordno' and event1['type'] == 'REC_WORD' and event1['intrusion'] == -1:
             return True
+        if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 5:
+            return True
+        if field == 'stimList' and event1['stimList'] == False and event2['stimList'] == -999:
+            return True
+        if field == 'msoffset' and event1['type'] == 'STIM':
+            return True
+        if field == 'stimList' and event1['type'] in ('REC_START', 'REC_WORD', 'REC_WORD_VV') and event1['stimList'] == True:
+            return True
+        if field is None and event2 is None and event1['type'] == 'STIM' and event1['eegoffset'] == -1:
+            return True
         return False
 
     for subject, session in FR3_SESSIONS.items():
-        py_events = parse_fr_session_log(subject, session, 'FR3', base_dir=TEST_DIR)
+        FR_parser = fr_log_parser_wrapper(subject, session, 'FR3', base_dir=TEST_DIR)
+        aligner = System2Aligner(subject, 'FR3', session, FR_parser.parse(),  False)
+        aligner.add_stim_events(FR_parser.event_template, ('list', 'serialpos', 'word', 'wordno', 'recalled',
+                                                             'intrusion', 'stimList', 'subject', 'session', 'eegfile',
+                                                             'rectime'))
+        py_events = aligner.align('SESS_START')
 
         mat_fr3_events_reader = \
             BaseEventReader(
@@ -55,12 +73,12 @@ def test_fr3_event_creation():
         mat_events = mat_fr3_events_reader.read()
 
         comparator = EventComparator(py_events, mat_events,
-                                     {'word': 'item', 'wordno': 'itemno'},
-                                     ['eegfile', 'eegoffset', 'stimList', 'stimParams'],
-                                     exceptions,
-                                     ('INSTRUCT_START', 'INSTRUCT_END',
+                                     field_switch={'word': 'item', 'wordno': 'itemno'},
+                                     field_ignore=('eegfile', 'stimParams', 'expVersion'),
+                                     exceptions=exceptions,
+                                     type_ignore=('INSTRUCT_START', 'INSTRUCT_END',
                                       'PRACTICE_REC_START', 'PRACTICE_REC_END',
-                                      'SESSION_SKIPPED', 'INSTRUCT_VIDEO')
+                                      'SESSION_SKIPPED', 'INSTRUCT_VIDEO','STIM_OFF')
                                      )
         found_bad, err_msg = comparator.compare()
 
