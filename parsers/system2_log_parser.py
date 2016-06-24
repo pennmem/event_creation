@@ -54,20 +54,24 @@ class System2LogParser:
     def stim_events(self):
         return self._stim_events
 
-    def merge_events(self, events, event_template, event_to_sort_value, persistent_fields):
+    def merge_events(self, events, event_template, event_to_sort_value, persistent_field_fn):
 
         merged_events = events[:]
         for i, stim_event in enumerate(self.stim_events):
             # Get the mstime for this host event
             sort_value = event_to_sort_value(stim_event)
             # Determine where to insert it in the full events structure
-            insert_index = np.where(merged_events[self._TASK_SORT_FIELD] > sort_value)[0][0]
+            after_events = (merged_events[self._TASK_SORT_FIELD] > sort_value)
+            if after_events.any():
+                insert_index = after_events.nonzero()[0][0]
+            else:
+                insert_index = 0
             # Copy the persistent fields from the previous event, modify the remaining fields
             if insert_index > 0:
                 event_to_copy = merged_events[insert_index-1]
             else:
                 event_to_copy = BaseSessionLogParser.event_from_template(event_template)
-            new_event = self.partial_copy(event_to_copy, event_template, persistent_fields)
+            new_event = self.partial_copy(event_to_copy, event_template, persistent_field_fn)
             new_event.type = 'STIM'
             new_event[self._STIM_ON_FIELD] = True
             new_event[self._TASK_SORT_FIELD] = sort_value
@@ -91,7 +95,7 @@ class System2LogParser:
 
             # Insert the STIM_OFF event after the modified events if any, otherwise directly after the STIM event
             insert_index = modify_indices[-1] + 1 if len(modify_indices) > 0 else insert_index + 1
-            stim_off_event = self.partial_copy(merged_events[insert_index-1], event_template, persistent_fields)
+            stim_off_event = self.partial_copy(merged_events[insert_index-1], event_template, persistent_field_fn)
             stim_off_event.type = 'STIM_OFF'
             stim_off_event[self._STIM_ON_FIELD] = False
             stim_off_event[self._STIM_PARAMS_FIELD] = stim_off_sub_event
@@ -103,9 +107,9 @@ class System2LogParser:
         return merged_events
 
     @staticmethod
-    def partial_copy(event_to_copy, event_template, persistent_fields):
+    def partial_copy(event_to_copy, event_template, persistent_field_fn):
         new_event = BaseSessionLogParser.event_from_template(event_template)
-        for field in persistent_fields:
+        for field in persistent_field_fn(event_to_copy):
             new_event[field] = deepcopy(event_to_copy[field])
         return new_event
 
@@ -149,7 +153,10 @@ class System2LogParser:
 
     @classmethod
     def get_columns_by_type(cls, host_log_file, line_type, columns=None, cast=None):
-        return zip(*cls.get_rows_by_type(host_log_file, line_type, columns, cast))
+        output = zip(*cls.get_rows_by_type(host_log_file, line_type, columns, cast))
+        if (columns and not output):
+            output = [[]] * len(columns)
+        return output
 
 '''
 def test_merge_events():

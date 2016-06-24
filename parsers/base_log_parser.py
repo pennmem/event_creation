@@ -245,17 +245,25 @@ class EventComparator:
         self.events2.dtype.names = self.field_switch.keys()
         self.names = self.field_switch.keys()
 
-    def _get_field_mismatch(self, event1, event2):
+    def _get_field_mismatch(self, event1, event2, subfield=None):
         """
         Returns the names of fields that do not match between event1 and event2
         :return:
         """
         mismatch = []
-        for field in self.names:
-            if event1[field] != event2[field]:
-                if self.exceptions(event1, event2, field):
-                    continue
-                mismatch.append(field)
+        if subfield:
+            ev1 = event1[subfield]
+            ev2 = event2[subfield]
+        else:
+            ev1 = event1
+            ev2 = event2
+
+        names = set(ev1.dtype.names).intersection(set(ev2.dtype.names))
+        for field in names:
+            if isinstance(ev1[field], np.void) and ev2[field].dtype.names: # Why is this typing as void?
+                mismatch.extend(self._get_field_mismatch(event1, event2, field))
+            elif ev1[field] != ev2[field] and not self.exceptions(event1, event2, field, subfield):
+                mismatch.append('%s: %s v. %s' % (field, ev1[field], ev2[field]))
         return mismatch
 
     def compare(self):
@@ -266,26 +274,19 @@ class EventComparator:
         for this_ignore in self.type_ignore:
             mask2[self.events2['type'] == this_ignore] = False
 
-        bad_events1 = self.events1[0]
-        for event1 in self.events1:
+        bad_events1 = self.events1[0] # Have to initialize with something to fill it
+        for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1['mstime'] - self.events2.mstime) <= 1, event1['type'] == self.events2.type)
+                    np.abs(event1['mstime'] - self.events2.mstime) <= 1.5, event1['type'] == self.events2.type)
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
             elif event1['type'] not in self.type_ignore:
-                mismatch = self._get_field_mismatch(event1, self.events2[this_mask2])
-                if len(mismatch) > 0:
+                mismatches = self._get_field_mismatch(event1, self.events2[this_mask2])
+                if len(mismatches) > 0:
                     found_bad = True
                     bad_events1 = np.append(bad_events1, event1)
-                    if not self.SHOW_FULL_EVENTS:
-                        for compare in mismatch:
-                            err_msg += '\n\n' + '\n'.join([str(compare),
-                                                         str(event1[compare]),
-                                                         str(self.events2[this_mask2][compare])])
-                    else:
-                        err_msg += "\n\n\n" + str(mismatch) + ":"
-                        err_msg += '\n' + pformat_rec(event1)
-                        err_msg += '\n\n' + pformat_rec(self.events2[this_mask2][0])
+                    for mismatch in mismatches:
+                        err_msg += 'mismatch: %d %s\n' % (i, mismatch);
 
             mask2[this_mask2] = False
 
