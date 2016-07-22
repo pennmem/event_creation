@@ -60,9 +60,9 @@ class BaseSessionLogParser:
 
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
-        ('subject', '', 'S20'),
+        ('subject', '', 'S64'),
         ('session', -1, 'int16'),
-        ('type', '', 'S20'),
+        ('type', '', 'S64'),
         ('mstime', -1, 'int64'),
         ('msoffset', -1, 'int16'),
         ('eegoffset', -1, 'int64'),
@@ -277,7 +277,7 @@ class EventComparator:
         bad_events1 = self.events1[0] # Have to initialize with something to fill it
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1['mstime'] - self.events2.mstime) <= 1.5, event1['type'] == self.events2.type)
+                    np.abs(event1['mstime'] - self.events2['mstime']) <= 1.5, event1['type'] == self.events2['type'])
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
             elif event1['type'] not in self.type_ignore:

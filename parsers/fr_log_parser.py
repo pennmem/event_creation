@@ -26,12 +26,12 @@ class FRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('word', 'X', 'S16'),
+            ('word', 'X', 'S64'),
             ('wordno', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('rectime', -999, 'int16'),
             ('intrusion', -999, 'int16'),
-            ('expVersion', '', 'S16'),
+            ('expVersion', '', 'S64'),
             ('stimList', False, 'b1'),
             ('isStim', False, 'b1'),
             ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS)),
@@ -53,11 +53,13 @@ class FRSessionLogParser(BaseSessionLogParser):
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
             COUNTDOWN_START=self.event_default,
-            COUNTDOWN_END=self.event_default,
+            COUNTDOWN_END=self.event_reset_serialpos,
             PRACTICE_ORIENT=self.event_default,
             PRACTICE_ORIENT_OFF=self.event_default,
             PRACTICE_WORD=self.event_practice_word,
             PRACTICE_WORD_OFF=self.event_practice_word_off,
+            PRACTICE_DISTRACT_START=self.event_default,
+            PRACTICE_DISTRACT_END=self.event_default,
             DISTRACT_START=self.event_default,
             DISTRACT_END=self.event_default,
             RETRIEVAL_ORIENT=self.event_default,
@@ -89,6 +91,11 @@ class FRSessionLogParser(BaseSessionLogParser):
         event.session = self._session
         event.stimList = self._stimList
         event.expVersion = self._version
+        return event
+
+    def event_reset_serialpos(self, split_line):
+        event = self.event_default(split_line)
+        self._serialpos = -1
         return event
 
     def event_instruct_video(self, split_line):
@@ -221,6 +228,8 @@ def fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', s
     exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)
     session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
     wordpool_path = os.path.join(exp_path, wordpool_name)
+    if not os.path.exists(wordpool_path):
+        wordpool_path = os.path.join(exp_path, 'RAM_wordpool.txt')
     parser = FRSessionLogParser(session_log_path, wordpool_path, subject)
     return parser
 
