@@ -1,6 +1,7 @@
 import sys
 from PyQt4.QtGui import *
 from PyQt4 import QtCore
+from threading import Timer
 
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
@@ -59,7 +60,7 @@ class SyncPulseExtractor(QWidget):
         super(SyncPulseExtractor, self).__init__(parent)
 
         self.model = model or SyncPulseExtractionModel()
-        self.setMinimumWidth(2000)
+        self.setMinimumWidth(1000)
 
         layout = QVBoxLayout(self)
 
@@ -115,22 +116,31 @@ class SyncPulseExtractor(QWidget):
                                                     interactive=False,
                                                     rectprops={'fill':False}
                                                     )
+        #self.figure.canvas.mpl_connect('button_release_event', self.use_blit)
 
-        self.model.load_eeg_file(os.path.join(DATA_ROOT, 'R1008J', 'eeg.noreref', 'R1008J_21Nov14_1037.121'))
+        self.model.load_eeg_file(os.path.join(DATA_ROOT, 'R1008J', 'eeg.noreref', 'R1008J_21Nov14_1037.121'),
+                                 os.path.join(DATA_ROOT, 'R1008J', 'eeg.noreref', 'R1008J_21Nov14_1037.122'))
 
         self.figure.set_tight_layout(True)
         self.plot()
 
+    def enable_blit(self):
+        self.rectangle_selector.useblit = True
+
     def selection_callback(self, eclick, erelease):
+        print self.rectangle_selector.useblit
         x1, y1 = eclick.xdata, eclick.ydata
         x2, y2 = erelease.xdata, erelease.ydata
 
         try:
             peaks_x, peaks_y = self.model.find_and_add_peaks(x1, y1, x2, y2)
-
+            # TODO: THIS IS TERRIBLE
+            self.rectangle_selector.useblit = False
             self.zoom_ax.plot(peaks_x, peaks_y, 'r*')
             self.full_ax.plot(peaks_x, peaks_y, 'r*')
+
             self.figure.canvas.draw()
+            Timer(.1, self.enable_blit).start()
 
         except UnFindablePeaksException:
             print 'BOO!'
@@ -161,8 +171,8 @@ class SyncPulseExtractor(QWidget):
         mid = len(self.model.data)/2
         data_range = [mid-20000, mid+20000]
         mid_data = self.model.data[data_range[0]:data_range[1]]
-        min_data = min(mid_data)
-        max_data = max(mid_data)
+        min_data = min(mid_data) - 100
+        max_data = max(mid_data) + 100
         self.zoom_ax.set_xlim(*data_range)
         self.zoom_ax.set_ylim(min_data, max_data)
         self.zoom_ax.get_xaxis().set_ticks(data_range)
