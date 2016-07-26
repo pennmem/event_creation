@@ -55,6 +55,8 @@ class LabeledEditLayout(QHBoxLayout):
 
 class SyncPulseExtractor(QWidget):
 
+
+
     def __init__(self, model=None, parent=None):
 
         super(SyncPulseExtractor, self).__init__(parent)
@@ -69,22 +71,46 @@ class SyncPulseExtractor(QWidget):
 
         self.load_button.setMaximumWidth(150)
         self.save_button.setMaximumWidth(150)
+        self.save_button.setEnabled(False)
 
         button_layout = QVBoxLayout()
         button_layout.addWidget(self.load_button)
         button_layout.addWidget(self.save_button)
 
+        self.eeg_text = QLabel("No EEG Loaded")
+        self.status_text = QLabel("")
+        self.eeg_text.setAlignment(QtCore.Qt.AlignCenter)
+        self.eeg_text.setFont(QFont('', 12))
+
+        status_layout = QVBoxLayout()
+        status_layout.addWidget(self.eeg_text, alignment=QtCore.Qt.AlignHCenter)
+        status_layout.addWidget(self.status_text, alignment=QtCore.Qt.AlignHCenter)
+
         self.subject_edit = LabeledEditLayout("Subject")
-        self.task_edit = LabeledEditLayout("Task")
-        self.session_edit = LabeledEditLayout("Session")
+        self.elec1_edit = LabeledEditLayout("Elec 1")
+        self.elec2_edit = LabeledEditLayout("Elec 2")
+
+        self.elec1_edit.label.setMaximumWidth(45)
+        self.elec1_edit.edit.setMaximumWidth(45)
+        self.elec2_edit.label.setMaximumWidth(45)
+        self.elec2_edit.edit.setMaximumWidth(45)
+
+
+        elec_layout = QHBoxLayout()
+        elec_layout.setAlignment(QtCore.Qt.AlignRight)
+        elec_layout.addLayout(self.elec1_edit)
+        elec_layout.addLayout(self.elec2_edit)
+        elec_layout.setSpacing(10)
 
         info_layout = QVBoxLayout()
         info_layout.addLayout(self.subject_edit)
-        info_layout.addLayout(self.task_edit)
-        info_layout.addLayout(self.session_edit)
+        info_layout.addLayout(elec_layout)
 
         top_layout = QHBoxLayout()
         top_layout.addLayout(button_layout)
+        top_layout.addStretch(1)
+        top_layout.addLayout(status_layout)
+        top_layout.addStretch(1)
         top_layout.addLayout(info_layout)
 
         layout.addLayout(top_layout)
@@ -97,7 +123,6 @@ class SyncPulseExtractor(QWidget):
         self.toolbar = NavigationToolbar(self.canvas, self)
 
         self.clear_selection_button = QPushButton("Clear selection")
-        self.clear_selection_button.clicked.connect(self.clear_peaks)
 
         layout.addWidget(self.toolbar)
         layout.addWidget(self.canvas)
@@ -116,25 +141,91 @@ class SyncPulseExtractor(QWidget):
                                                     interactive=False,
                                                     rectprops={'fill':False}
                                                     )
-        #self.figure.canvas.mpl_connect('button_release_event', self.use_blit)
-
-        self.model.load_eeg_file(os.path.join(DATA_ROOT, 'R1008J', 'eeg.noreref', 'R1008J_21Nov14_1037.121'),
-                                 os.path.join(DATA_ROOT, 'R1008J', 'eeg.noreref', 'R1008J_21Nov14_1037.122'))
-
         self.figure.set_tight_layout(True)
-        self.plot()
+        self.assign_callbacks()
+        self.apply_edits()
+
+    def assign_callbacks(self):
+        self.clear_selection_button.clicked.connect(self.clear_peaks)
+        self.subject_edit.editingFinished.connect(self.subject_edit_callback)
+        self.elec1_edit.editingFinished.connect(self.elec1_edit_callback)
+        self.elec2_edit.editingFinished.connect(self.elec2_edit_callback)
+
+        self.load_button.clicked.connect(self.load_eeg_pressed)
+        self.save_button.clicked.connect(self.save_pulses_pressed)
+
+    def load_eeg_pressed(self):
+        self.subject_edit_callback()
+        self.elec1_edit_callback()
+        self.elec2_edit_callback()
+
+        eeg_directory = self.model.get_eeg_dir()
+
+        filenames = QFileDialog.getOpenFileNames(self, "Select EEG Files", eeg_directory)
+
+        if filenames:
+            if len(filenames) > 2:
+                msg = QMessageBox(self)
+                msg.setText("Cannot select more than two files. Select again.")
+                msg.exec_()
+                return
+            filenames = [str(filename) for filename in filenames]
+            filenames.sort()
+            self.model.load_eeg_file(*filenames)
+            self.plot()
+            self.figure.canvas.draw()
+            shortened_filenames = \
+                [fname if len(fname) < 50 else '...' + fname[-50:] for fname in filenames]
+            self.eeg_text.setText('\n'.join(['EEG Loaded: %s' % filename for filename in shortened_filenames]))
+            self.apply_edits()
+            self.save_button.setEnabled(True)
+
+    def save_pulses_pressed(self):
+        save_name = self.model.get_save_name()
+
+        filename = QFileDialog.getSaveFileName(self, 'Save pulses',
+                                               save_name,
+                                               '.txt')
+
+        if filename:
+            self.model.save_peaks(filename)
+            self.status_text.setText("%s saved successfully!" % os.path.basename(str(filename)))
+        else:
+            self.status_text.setText("Save cancelled...")
+
+    def subject_edit_callback(self):
+        self.model.subject = self.subject_edit.text
+
+    def task_edit_callback(self):
+        self.model.task = self.task_edit.text
+
+    def session_edit_callback(self):
+        self.model.session = self.session_edit.text
+
+    def elec1_edit_callback(self):
+        self.model.elec1 = self.elec1_edit.text
+
+    def elec2_edit_callback(self):
+        self.model.elec2 = self.elec2_edit.text
+
+    def apply_edits(self):
+        self.subject_edit.set_text(self.model.subject)
+        self.elec1_edit.set_text(self.model.elec1)
+        self.elec2_edit.set_text(self.model.elec2)
 
     def enable_blit(self):
         self.rectangle_selector.useblit = True
 
     def selection_callback(self, eclick, erelease):
-        print self.rectangle_selector.useblit
         x1, y1 = eclick.xdata, eclick.ydata
         x2, y2 = erelease.xdata, erelease.ydata
 
         try:
             peaks_x, peaks_y = self.model.find_and_add_peaks(x1, y1, x2, y2)
-            # TODO: THIS IS TERRIBLE
+
+            self.status_text.setText("%d pulses selected..." % len(peaks_x))
+
+            # TODO: THIS IS TERRIBLE, but it's the only way I could figure out to update the Zoom plot
             self.rectangle_selector.useblit = False
             self.zoom_ax.plot(peaks_x, peaks_y, 'r*')
             self.full_ax.plot(peaks_x, peaks_y, 'r*')
@@ -143,8 +234,7 @@ class SyncPulseExtractor(QWidget):
             Timer(.1, self.enable_blit).start()
 
         except UnFindablePeaksException:
-            print 'BOO!'
-            pass
+            self.status_text.setText("Cannot properly locate peaks! Select again!")
 
     def clear_peaks(self):
         self.model.clear_peaks()
@@ -171,8 +261,8 @@ class SyncPulseExtractor(QWidget):
         mid = len(self.model.data)/2
         data_range = [mid-20000, mid+20000]
         mid_data = self.model.data[data_range[0]:data_range[1]]
-        min_data = min(mid_data) - 100
-        max_data = max(mid_data) + 100
+        min_data = min(mid_data) - 200
+        max_data = max(mid_data) + 200
         self.zoom_ax.set_xlim(*data_range)
         self.zoom_ax.set_ylim(min_data, max_data)
         self.zoom_ax.get_xaxis().set_ticks(data_range)
@@ -188,7 +278,21 @@ class SyncPulseExtractionModel(object):
         self.eeg_files = None
         self.selected_x_peaks = None
         self._data = None
+        self.subject = 'R1008J'
+        self.elec1 = ""
+        self.elec2 = ""
 
+    def get_save_name(self):
+        base_name, _ = os.path.splitext(self.eeg_files[0])
+        return '%s.%s.%s.sync.txt' % (base_name, self.elec1, self.elec2)
+
+    def save_peaks(self, filename):
+        with open(filename, 'w') as f:
+            f.write('\n'.join([str(x) for x in self.selected_x_peaks]))
+
+
+    def get_eeg_dir(self):
+        return os.path.join(DATA_ROOT, self.subject, 'eeg.noreref')
 
     def load_eeg_file(self, eeg_file_1, eeg_file_2=None):
         params_file = os.path.splitext(eeg_file_1)[0] + '.params.txt'
@@ -196,12 +300,16 @@ class SyncPulseExtractionModel(object):
         data_format = params['dataformat'].strip('\'')
 
         data = np.fromfile(open(eeg_file_1), data_format)
-
+        self.elec1 = os.path.splitext(eeg_file_1)[-1][1:]
+        basename = os.path.basename(eeg_file_1)
+        self.subject = basename.split('_')[0]
         if eeg_file_2:
             data = np.fromfile(open(eeg_file_2), data_format) - data
             self.eeg_files = (eeg_file_1, eeg_file_2)
+            self.elec2 = os.path.splitext(eeg_file_2)[-1][1:]
         else:
             self.eeg_files = (eeg_file_1,)
+            self.elec2 = ''
 
         self._data = data * float(params['gain'])
 
@@ -274,5 +382,5 @@ if __name__ == '__main__':
 
     main = SyncPulseExtractor()
     main.show()
-
+    main.raise_()
     sys.exit(app.exec_())

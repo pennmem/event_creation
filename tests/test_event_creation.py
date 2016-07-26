@@ -31,15 +31,16 @@ FR3_SESSIONS = (('R1163T', 0),
                 ('R1170J_1', 1)
                 )
 
-DATA_ROOT = '/Volumes/RHINO2/data/eeg/'
+DATA_ROOT = '/Volumes/rhino_mount/data/eeg/'
 
-FR1_SYS1_SESSIONS = (('R1001P', 1, 'R1001P_13Oct14_1457.062.063.FR1_1.sync.txt'),
+FR1_SYS1_SESSIONS = (#('R1001P', 1, 'R1001P_13Oct14_1457.062.063.FR1_1.sync.txt'),
                      #('R1006P', 0, 'R1006P_11Feb15_1503.072.129.FR1_0.sync.txt'),
-                     ('R1026D', 0, 'R1026D_22Feb15_0908.074.075.FR1_0.sync.txt'),
+                     #('R1026D', 0, 'R1026D_22Feb15_0908.074.075.FR1_0.sync.txt'),
                      ('R1083J', 0, 'R1083J_13Sep15_1129.087.088.FR1_0.sync.txt'),
+                     ('R1083J', 1, 'R1083J_14Sep15_1429.087.088.sync.txt'),
                      ('R1083J', 1, 'R1083J_14Sep15_1429.087.088.FR1_1.sync.txt'),
-                     ('R1083J', 2, 'R1083J_15Sep15_1130.087.088.FR1_2.sync.txt'))
-
+                     #('R1083J', 2, 'R1083J_15Sep15_1130.087.088.FR1_2.sync.txt')
+                    )
 EEG_FILE_REGEX = r'R1[0-9]{3}[A-Z]_\d{2}[A-z]{3}\d{2}_\d{4}'
 
 def xtest_to_json():
@@ -245,9 +246,9 @@ def test_align_sys1_events():
     for subject, session, file in FR1_SYS1_SESSIONS:
         print 'Creating py_events for %s:%d' % (subject, session)
 
-        task_file = os.path.join('/Volumes','RHINO2','data','eeg',subject,'behavioral',exp,'session_%d'%session, 'eeg.eeglog')
-        eeg_file = os.path.join('/Volumes', 'RHINO2','data','eeg',subject,'eeg.noreref',file)
-        FR_parser = fr_log_parser_wrapper(subject, session, exp, base_dir='/Volumes/RHINO2/data/eeg')
+        task_file = os.path.join('/Volumes','rhino_mount','data','eeg',subject,'behavioral',exp,'session_%d'%session, 'eeg.eeglog')
+        eeg_file = os.path.join('/Volumes', 'rhino_mount','data','eeg',subject,'eeg.noreref',file)
+        FR_parser = fr_log_parser_wrapper(subject, session, exp, base_dir='/Volumes/rhino_mount/data/eeg')
         aligner = System1Aligner(FR_parser.parse(), task_file, eeg_file, re.findall(EEG_FILE_REGEX, eeg_file)[0])
         py_events = aligner.align()
 

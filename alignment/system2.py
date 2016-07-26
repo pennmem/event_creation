@@ -8,7 +8,7 @@ from copy import deepcopy
 from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
 from glob import glob
-from nsx_utility.brpylib import NsxFile
+#from nsx_utility.brpylib import NsxFile
 import itertools
 
 class System2Aligner:
