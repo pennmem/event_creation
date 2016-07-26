@@ -69,6 +69,8 @@ class BaseSessionLogParser:
         ('eegfile', '', 'S64')
     )
 
+    START_EVENT = 'SESS_START'
+
     def __init__(self, session_log, subject, ann_dir=None, allow_unparsed_events=False):
         """
 
@@ -91,6 +93,13 @@ class BaseSessionLogParser:
         }
         self._type_to_modify_events = {}
         pass
+
+    @staticmethod
+    def persist_fields_during_stim(event):
+        """
+        Defines the field for a given event which should persist into the stim event
+        """
+        raise NotImplementedError()
 
     @property
     def event_template(self):

@@ -415,7 +415,7 @@ class NSx_reader(EEG_reader):
         return {'filename': nsx_file, 'start_time': start_time, 'length_ms': length_ms, 'reader': reader}
 
     def get_start_time_string(self):
-        self.nsx_info['start_time'].strftime(self.STRFTIME)
+        return self.nsx_info['start_time'].strftime(self.STRFTIME)
 
     def get_sample_rate(self, channels=None):
         _, extension = os.path.splitext(self.nsx_info['filename'])
@@ -541,3 +541,5 @@ def convert_nk_to_edf(filename):
         print 'Success!'
         return edf_file[0]
 
+def create_eeg_basename(info, subject, experiment, session):
+    return '%s_%s_%d_%s' % (subject, experiment, session, info['start_time'].strftime(EEG_reader.STRFTIME))

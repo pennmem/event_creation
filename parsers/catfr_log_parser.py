@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 
-class FRSessionLogParser(BaseSessionLogParser):
+class CatFRSessionLogParser(BaseSessionLogParser):
 
     _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
 
@@ -17,7 +17,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         return cls.event_from_template(cls._STIM_PARAM_FIELDS)
 
     @classmethod
-    def _fr_fields(cls):
+    def _catfr_fields(cls):
         """
         Returns the template for a new FR field
         Has to be a method because of call to empty_stim_params, unfortunately
@@ -26,15 +26,17 @@ class FRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('word', 'X', 'S64'),
+            ('word', 'X', 'S16'),
             ('wordno', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('rectime', -999, 'int16'),
+            ('recalled', False, 'int16'),
+            ('rectime', -999, 'int32'),
+            ('expVersion', '', 'S16'),
             ('intrusion', -999, 'int16'),
-            ('expVersion', '', 'S64'),
-            ('stimList', False, 'b1'),
             ('isStim', False, 'b1'),
-            ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS)),
+            ('category', 'X', 'S16'),
+            ('categoryNum', -999, 'int16'),
+            ('stimList', False, 'b1'),
+            ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS))
         )
 
     def __init__(self, session_log, wordpool_file, subject, ann_dir=None):
@@ -46,25 +48,25 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._stimList = False
         self._word = ''
         self._version = ''
-        self._add_fields(*self._fr_fields())
+        self._add_fields(*self._catfr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
             SESS_START=self.event_sess_start,
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
             COUNTDOWN_START=self.event_default,
-            COUNTDOWN_END=self.event_reset_serialpos,
+            COUNTDOWN_END=self.event_default,
             PRACTICE_ORIENT=self.event_default,
             PRACTICE_ORIENT_OFF=self.event_default,
             PRACTICE_WORD=self.event_practice_word,
             PRACTICE_WORD_OFF=self.event_practice_word_off,
-            PRACTICE_DISTRACT_START=self.event_default,
-            PRACTICE_DISTRACT_END=self.event_default,
             DISTRACT_START=self.event_default,
             DISTRACT_END=self.event_default,
             RETRIEVAL_ORIENT=self.event_default,
             PRACTICE_REC_START=self.event_default,
             PRACTICE_REC_END=self.event_default,
+            PRACTICE_DISTRACT_START=self.event_default,
+            PRACTICE_DISTRACT_END=self.event_default,
             TRIAL=self.event_trial,
             ORIENT=self.event_default,
             ORIENT_OFF=self.event_default,
@@ -73,22 +75,14 @@ class FRSessionLogParser(BaseSessionLogParser):
             REC_START=self.event_default,
             REC_END=self.event_default,
             SESS_END=self.event_default,
-            SESSION_SKIPPED=self.event_default
+            SESSION_SKIPPED=self.event_default,
+            STIM_PARAMS=self._event_skip,
+            STIM_ON = self.event_stim_on
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls
         )
-
-    @staticmethod
-    def persist_fields_during_stim(event):
-        if event['type'] == 'WORD':
-            return ('list', 'serialpos', 'word', 'wordno', 'recalled',
-                    'intrusion', 'stimList', 'subject', 'session', 'eegfile',
-                    'rectime')
-        else:
-            return ('list', 'serialpos', 'stimList', 'subject', 'session', 'eegfile', 'rectime')
-
 
     def event_default(self, split_line):
         """
@@ -103,9 +97,9 @@ class FRSessionLogParser(BaseSessionLogParser):
         event.expVersion = self._version
         return event
 
-    def event_reset_serialpos(self, split_line):
+    def event_stim_on(self, split_line):
+        self._stimList = True
         event = self.event_default(split_line)
-        self._serialpos = -1
         return event
 
     def event_instruct_video(self, split_line):
@@ -138,6 +132,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def apply_word(self, event):
         event.word = self._word
+        self._word = self._word.upper()
         if (self._wordpool == self._word).any():
             wordno = np.where(self._wordpool == self._word)
             event.wordno = wordno[0] + 1
@@ -146,21 +141,17 @@ class FRSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_practice_word(self, split_line):
-        self._serialpos += 1
         event = self.event_default(split_line)
-        self._word = split_line[3]
         event.serialpos = self._serialpos
-        event = self.apply_word(event)
         return event
 
     def event_practice_word_off(self, split_line):
         event = self.event_default(split_line)
-        event = self.apply_word(event)
         return event
 
     def event_trial(self, split_line):
         self._list = int(split_line[3])
-        self._stimList = split_line[4] == 'STIM'
+        self._stimList = split_line[5]
         return self.event_default(split_line)
 
     def event_word(self, split_line):
@@ -169,6 +160,10 @@ class FRSessionLogParser(BaseSessionLogParser):
         event = self.event_default(split_line)
         event = self.apply_word(event)
         event.serialpos = self._serialpos
+        event.isStim = split_line[6] == 'STIM'
+        event.categoryNum = split_line[7]
+        event.category = split_line[8]
+
         return event
 
     def event_word_off(self, split_line):
@@ -190,7 +185,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             new_event.stimList = self._stimList
             new_event.expVersion = self._version
             new_event.rectime = float(recall[0])
-            new_event.mstime = rec_start_time + new_event.rectime
+            new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
             new_event.word = word
             new_event.wordno = recall[1]
@@ -202,23 +197,23 @@ class FRSessionLogParser(BaseSessionLogParser):
                 new_event.type = 'REC_WORD'
 
             # If XLI
-            if recall[1] == -1:
-                new_event.intrusion = -1
-            else:  # Correct recall or PLI or XLI from latter list
-                pres_mask = self.find_presentation(word, events)
-                pres_list = np.unique(events[pres_mask].list)
 
-                # Correct recall or PLI
-                if len(pres_list) == 1:
-                    new_event.intrusion = self._list - pres_list[0]
-                    if new_event.intrusion == 0:
-                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
-                        new_event.recalled = True
-                        if not any(events.recalled[pres_mask]):
-                            events.recalled[pres_mask] = True
-                            events.rectime[pres_mask] = new_event.rectime
-                else:  # XLI
-                    new_event.intrusion = -1
+            pres_mask = self.find_presentation(word, events)
+            pres_list = np.unique(events[pres_mask].list)
+
+            # Correct recall or PLI
+            if len(pres_list) == 1:
+                new_event.intrusion = self._list - pres_list[0]
+                if new_event.intrusion == 0:
+                    new_event.categoryNum = np.unique(events[pres_mask].categoryNum)
+                    new_event.category = np.unique(events[pres_mask].category)
+                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                    new_event.recalled = True
+                    if not any(events.recalled[pres_mask]):
+                        events.recalled[pres_mask] = True
+                        events.rectime[pres_mask] = new_event.rectime
+            else:  # XLI
+                new_event.intrusion = -1
 
             events = np.append(events, new_event).view(np.recarray)
 
@@ -227,24 +222,22 @@ class FRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.word == word, events.type == 'WORD')
+        return np.logical_and(np.logical_or(events.word == word,
+                                            events.word == word.lower()),
+                              events.type == 'WORD')
 
 
-def fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt'):
-    if experiment not in ('FR1', 'FR2', 'FR3'):
-        raise UnknownExperimentTypeException('Experiment must be one of FR1, FR2, or FR3')
+def catfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
+                          wordpool_name='CatFR_WORDS.txt'):
 
     exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)
     session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
     wordpool_path = os.path.join(exp_path, wordpool_name)
-    if not os.path.exists(wordpool_path):
-        wordpool_path = os.path.join(exp_path, 'RAM_wordpool.txt')
-    parser = FRSessionLogParser(session_log_path, wordpool_path, subject)
+    parser = CatFRSessionLogParser(session_log_path, wordpool_path, subject)
     return parser
 
 
 def parse_fr_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
                          wordpool_name='RAM_wordpool_noAcc.txt'):
-    return fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt').parse()
+    return catfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
+                                 wordpool_name='CatFR_WORDS.txt').parse()

@@ -3,11 +3,10 @@ import scipy.stats
 import os
 import glob
 import matplotlib.pyplot as plt
-from readers.eeg_reader import NSx_reader
+from readers.eeg_reader import NSx_reader, create_eeg_basename
 from copy import deepcopy
 from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
-from glob import glob
 #from nsx_utility.brpylib import NsxFile
 import itertools
 
@@ -84,16 +83,24 @@ class System2Aligner:
         return aligned_events
 
     def apply_eeg_file(self, events, host_times):
-        nsx_files = self.get_used_nsx_files()
+        nsx_infos = self.get_used_nsx_files()
+        split_filenames = self.generate_split_basenames(nsx_infos)
         full_mask = np.zeros(events[self.EEG_FILE_FIELD].shape)
-        for nsx_file, host_start, host_end in zip(nsx_files, self.host_time_np_starts, self.host_time_np_ends):
-            mask = np.logical_and(host_times > host_start, host_times < host_end)
+        for split_file, info, host_start in \
+                zip(split_filenames, nsx_infos, self.host_time_np_starts):
+            mask = np.logical_and(host_times > host_start, host_times < (host_start + info['length_ms']))
             full_mask = np.logical_or(full_mask, mask)
-            events[mask][self.EEG_FILE_FIELD] = nsx_file
+            events[self.EEG_FILE_FIELD][mask] = split_file
+
+    def generate_split_basenames(self, nsx_files):
+        output = []
+        for file_info in nsx_files:
+            output.append(create_eeg_basename(file_info, self.subject, self.experiment, self.session))
+        return output
 
     def get_used_nsx_files(self):
         diff_np_starts = np.diff(self.host_time_np_starts)
-        nsx_file_combinations = itertools.combinations(self.all_nsx_info, len(self.host_time_np_starts))
+        nsx_file_combinations = list(itertools.combinations(self.all_nsx_info, len(self.host_time_np_starts)))
         errors = []
         for nsx_files in nsx_file_combinations:
             nsx_lengths = np.array([nsx_file['length_ms'] for nsx_file in nsx_files])
@@ -187,7 +194,7 @@ class System2Aligner:
         [host_times, np_tics] = System2LogParser.get_columns_by_type(host_log_file, 'NEUROPORT-TIME', [0, 2], int)
         if (not host_times and not np_tics):
             print 'No NEUROPORT-TIMEs in %s' % host_log_file
-            return [], []
+            return [], [], []
         np_times = cls.samples_to_times(np_tics, nsx_file)
         [split_host, split_np] = cls.split_np_times(host_times, np_times)
         host_starts = []
@@ -222,7 +229,7 @@ class System2Aligner:
     def get_task_host_coefficient(cls, host_log_file, plot_fit=True, plot_residuals=True):
         host_times, offsets = System2LogParser.get_columns_by_type(host_log_file, 'OFFSET', [0, 2], int)
         if len(host_times) <= 1:
-            return [], []
+            return [], [], []
         task_times = np.array(host_times) - np.array(offsets)
         coefficients = cls.get_fit(task_times, host_times)
         host_starts = host_times[0]
