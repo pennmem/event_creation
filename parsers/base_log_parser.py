@@ -2,7 +2,7 @@ import numpy as np
 from viewers.view_recarray import pformat_rec
 import os
 import re
-
+from loggers import log
 
 class UnparsableLineException(Exception):
     pass
@@ -61,17 +61,18 @@ class BaseSessionLogParser:
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
         ('subject', '', 'S64'),
+        ('montage', '', 'S64'),
         ('session', -1, 'int16'),
         ('type', '', 'S64'),
         ('mstime', -1, 'int64'),
         ('msoffset', -1, 'int16'),
         ('eegoffset', -1, 'int64'),
-        ('eegfile', '', 'S64')
+        ('eegfile', '', 'S256')
     )
 
     START_EVENT = 'SESS_START'
 
-    def __init__(self, session_log, subject, ann_dir=None, allow_unparsed_events=False):
+    def __init__(self, subject, montage, files, primary_log='session_log', allow_unparsed_events=False):
         """
 
         :param session_log: path to session.log
@@ -80,12 +81,14 @@ class BaseSessionLogParser:
         :param allow_unparsed_events: True if it is acceptable to leave lines unparsed
         :return:
         """
-        self._session_log = session_log
+        self._session_log = files[primary_log]
         self._allow_unparsed_events = allow_unparsed_events
-        if not ann_dir:
-            self._ann_dir = os.path.dirname(session_log)
+        self._ann_files = {os.path.basename(os.path.splitext(ann_file)[1]): ann_file for ann_file in files['annotations']}
+
         self._subject = subject
-        self._contents = [line.strip().split(self._SPLIT_TOKEN) for line in file(session_log, 'r').readlines()]
+        self._montage = montage
+        self._contents = [line.strip().split(self._SPLIT_TOKEN)
+                          for line in file(self._session_log, 'r').readlines()]
         self._fields = self._BASE_FIELDS
         self._type_to_new_event = {
             'B': self._event_skip,
@@ -155,6 +158,7 @@ class BaseSessionLogParser:
         """
         event = self.event_from_template(self._fields)
         event.subject = self._subject
+        event.montage = self._montage
         return event
 
     @staticmethod
@@ -184,11 +188,11 @@ class BaseSessionLogParser:
             if this_type in self._type_to_new_event:
                 new_event = self._type_to_new_event[this_type](split_line)
                 if not isinstance(new_event, np.recarray) and not (new_event is False):
-                    raise Exception()
+                    raise Exception('Event not properly provided from log parser')
                 elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
             elif self._allow_unparsed_events:
-                print('Warning: type %s not found' % this_type)
+                log('Warning: type %s not found' % this_type)
             else:
                 raise UnparsableLineException("Event type %s not parseable" % this_type)
             if this_type in self._type_to_modify_events:
@@ -198,12 +202,14 @@ class BaseSessionLogParser:
         return events[1:]
 
     # Used to find relevant lines in .ann files
-    MATCHING_ANN_REGEX = r'\d+\.\d+\s+-?\d+\s(([A-Z]+)|(<>))'
+    MATCHING_ANN_REGEX = r'\d+\.\d+\s+-?\d+\s+(([A-Z]+)|(<>))'
 
     def _parse_ann_file(self, ann_id):
-        ann_file = os.path.join(self._ann_dir, '%s.ann' % ann_id)
+        if ann_id not in self._ann_files:
+            return []
+        ann_file = self._ann_files[ann_id]
         lines = open(ann_file, 'r').readlines()
-        matching_lines = [line for line in lines if re.match(self.MATCHING_ANN_REGEX, line.strip())]
+        matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
         split_lines = [line.split() for line in matching_lines]
         return [(float(line[0]), int(line[1]), line[2]) for line in split_lines]
 
@@ -303,10 +309,19 @@ class EventComparator:
             for bad_event1 in bad_events1[1:]:
                 if not self.exceptions(bad_event1, None, None):
                     found_bad = True
-                    err_msg += '\n' + pformat_rec(bad_event1)
+                    err_msg += '\n---\n' + pformat_rec(bad_event1)
 
         if mask2.any():
             found_bad = True
-            err_msg += '\n' + pformat_rec(self.events2[mask2])
+            err_msg += '\n---\n' + pformat_rec(self.events2[mask2])
 
         return found_bad, err_msg
+
+
+def get_version_num(session_log_file):
+    with open(session_log_file, 'r') as f:
+        for line in f:
+            split_line = line.split()
+            if split_line[2] == 'SESS_START':
+                version = float(split_line[-1].replace('v_', ''))
+                return version

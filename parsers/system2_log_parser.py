@@ -57,6 +57,10 @@ class System2LogParser:
     def merge_events(self, events, event_template, event_to_sort_value, persistent_field_fn):
 
         merged_events = events[:]
+
+        # If no stim events available
+        if len(self.stim_events.shape) == 0:
+            return merged_events
         for i, stim_event in enumerate(self.stim_events):
             # Get the mstime for this host event
             sort_value = event_to_sort_value(stim_event)

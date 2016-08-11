@@ -30,7 +30,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             ('wordno', -999, 'int16'),
             ('recalled', False, 'int16'),
             ('rectime', -999, 'int32'),
-            ('expVersion', '', 'S16'),
+            ('expVersion', -1, 'float'),
             ('intrusion', -999, 'int16'),
             ('isStim', False, 'b1'),
             ('category', 'X', 'S16'),
@@ -39,15 +39,15 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS))
         )
 
-    def __init__(self, session_log, wordpool_file, subject, ann_dir=None):
-        BaseSessionLogParser.__init__(self, session_log, subject, ann_dir)
-        self._wordpool = np.array([x.strip() for x in open(wordpool_file).readlines()])
+    def __init__(self, subject, montage, files):
+        BaseSessionLogParser.__init__(self, subject, montage, files)
+        self._wordpool = np.array([x.strip() for x in open(files['wordpool']).readlines()])
         self._session = -999
         self._list = -999
         self._serialpos = -999
         self._stimList = False
         self._word = ''
-        self._version = ''
+        self._version = -1
         self._add_fields(*self._catfr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
@@ -77,7 +77,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             SESS_END=self.event_default,
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self._event_skip,
-            STIM_ON = self.event_stim_on
+            STIM_ON = self.event_stim_on,
+            ENCODING_END=self.event_default
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
@@ -112,7 +113,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         self._session = int(split_line[3]) - 1
-        self._version = split_line[5]
+        self._version = float(split_line[5].split('_')[1])
         return self.event_default(split_line)
 
     def modify_session(self, events):
@@ -141,17 +142,25 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_practice_word(self, split_line):
+        self._word = split_line[3]
         event = self.event_default(split_line)
         event.serialpos = self._serialpos
+        event.word = self._word
+
         return event
 
     def event_practice_word_off(self, split_line):
         event = self.event_default(split_line)
+        event.word = self._word
         return event
 
     def event_trial(self, split_line):
-        self._list = int(split_line[3])
-        self._stimList = split_line[5]
+        if self._version < 2:
+            self._list = int(split_line[3])
+            self._stimList = int(split_line[5]) > 0
+        else:
+            self._list = int(split_line[3])
+            self._stimList = not split_line[4] == 'NONSTIM'
         return self.event_default(split_line)
 
     def event_word(self, split_line):

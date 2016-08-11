@@ -1,0 +1,112 @@
+{
+  "default": {
+    "type": "group",
+
+    "session_log": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+      "origin_file": "session.log",
+      "destination": "logs/session.log"
+    },
+    "math_log": {
+      "type": "file",
+      "multiple": false,
+      "required": false,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}/",
+      "origin_file": "math.log",
+      "destination": "logs/math.log"
+    },
+
+    "eeg_sources": {
+      "type": "link",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{experiment}/sessions/{session}/ephys/current_processed",
+      "origin_file": "sources.json",
+      "destination": "eeg_sources.json"
+    },
+
+    "system_1": {
+      "type": "group",
+      "eeg_log": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+        "origin_file": "eeg.eeglog",
+        "destination": "logs/eeg.eeglog"
+      },
+      "sync_pulses": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{data_root}/{subject}/{sync_folder}/",
+        "origin_file": "{sync_filename}",
+        "destination": "logs/extracted_syncs.txt"
+      }
+    },
+    "system_2": {
+      "type": "group",
+      "host_logs": {
+        "type": "file",
+        "multiple": true,
+        "required": true,
+        "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}",
+        "origin_file": "{experiment}_{subject}_*.log",
+        "destination": "logs/host_logs/"
+      }
+    }
+  },
+
+  "verbal": {
+    "type": "group",
+    "annotations": {
+      "type": "file",
+      "multiple": true,
+      "required": false,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+      "origin_file": "*.ann",
+      "destination": "annotations/"
+    },
+    "config": {
+      "type": "file",
+      "multiple": false,
+      "required": false,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}",
+      "origin_file": "config.py",
+      "destination": "experiment_files/config.py"
+    },
+    "sconfig": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}",
+      "origin_file": "sconfig.py",
+      "destination": "experiment_files/sconfig.py"
+    }
+  },
+
+  "FR": {
+    "type": "group",
+    "wordpool": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/",
+      "origin_file": "RAM_wordpool.txt",
+      "destination": "experiment_files/wordpool.txt"
+    },
+
+    "no_accent_wordpool": {
+      "type": "file",
+      "multiple": false,
+      "required": false,
+      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/",
+      "origin_file": "RAM_wordpool_noAcc.txt",
+      "destination": "experiment_files/wordpool_no_accent.txt"
+    }
+  }
+
+}

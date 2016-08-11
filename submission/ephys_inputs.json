@@ -1,0 +1,43 @@
+{
+  "default": {
+    "type": "group",
+    "raw_eeg": {
+      "type": "file",
+      "multiple": true,
+      "required": true,
+      "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}/",
+      "origin_file": ["*.edf", "*.EDF", "*.eeg", "*.EEG"," */*.ns*"],
+      "destination": "raw_eeg/"
+    },
+
+    "elec_file": {
+      "type": "file",
+      "multiple": true,
+      "required": false,
+      "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}/",
+      "origin_file": ["*.21[eE]"],
+      "destination": "raw_eeg/"
+    },
+
+    "jacksheet":{
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{subject}/docs/",
+      "origin_file": "jacksheet.txt",
+      "destination": "jacksheet.txt"
+    }
+  },
+
+  "new": {
+    "type": "group",
+    "jacksheet":{
+      "type": "link",
+      "multiple": false,
+      "required": true,
+      "source_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage}/neuroradiology/current_processed",
+      "source_file": "jacksheet.json",
+      "destination": "jacksheet.json"
+    }
+  }
+}

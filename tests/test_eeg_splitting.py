@@ -32,7 +32,7 @@ def xtest_edf_reader():
             except:
                 continue
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], num)
-            print 'comparing %d' % num
+            print('comparing %d' % num)
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -67,7 +67,7 @@ def xtest_nk_converter():
         for lead in leads:
             old_file = old_files % lead
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], lead)
-            print 'comparing %d' % lead
+            print('comparing %d' % lead)
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -77,7 +77,8 @@ def xtest_nk_converter():
                 raise UnSplittableEEGFileException('old data does not match new data : max diff %.1f' %
                                                    max(abs(old_data-new_data)))
 
-ns2_subjects = (('R1170J_1', 'FR3_0/20160516-144520/20160516-144520-001.ns2', 'R1170J_1_FR1_0_03May16_1629'),)
+ns2_subjects = (('R1170J_1', 'FR3_0/20160516-144520/20160516-144520-001.ns2', 'R1170J_1_FR3_0_16May16_1845'),
+                ('R1196N', 'PAL1_2/20160712-102704/20160712-102704-001.ns2', 'R1196N_PAL1_2_12Jul16_1427'),)
 
 def xtest_nsx_split():
     for subject in ns2_subjects:
@@ -101,7 +102,7 @@ def xtest_nsx_split():
         for lead in leads:
             old_file = old_files % lead
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], lead)
-            print 'comparing %d' % lead
+            print('comparing %d' % lead)
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -111,7 +112,8 @@ def xtest_nsx_split():
                 raise UnSplittableEEGFileException('old data does not match new data : max diff %.1f' %
                                                    max(abs(old_data - new_data)))
 
-nk_subjects = (('R1008J', 'YC1_0/CA2417MP.EEG', 'R1008J_21Nov14_1037'),
+nk_subjects = (('R1083J', 'FR1_0/RA2350UO.EEG', ''),
+               ('R1008J', 'YC1_0/CA2417MP.EEG', 'R1008J_21Nov14_1037'),
                ('R1010J', 'FR1_0/CA2417SF.EEG', 'R1010J_08Dec14_1407'),
                ('R1010J', 'FR1_1/CA2417SY.EEG', 'R1010J_09Dec14_1345'),
                ('R1113T', 'FR1_0/EA4170GY.EEG', 'R1113T_FR1_0_19Nov15_0835'),)
@@ -142,7 +144,7 @@ def test_nk_split():
             except:
                 continue
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], num)
-            print 'comparing %d' % num
+            print('comparing %d' % num)
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -153,3 +155,6 @@ def test_nk_split():
                     raise Exception('old data does not match new data')
             except:
                 raise Exception('Could not compare new and old data')
+
+if __name__ == '__main__':
+    test_nsx_split()

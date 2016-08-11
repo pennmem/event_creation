@@ -37,15 +37,28 @@ class FRSessionLogParser(BaseSessionLogParser):
             ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS)),
         )
 
-    def __init__(self, session_log, wordpool_file, subject, ann_dir=None):
-        BaseSessionLogParser.__init__(self, session_log, subject, ann_dir)
-        self._wordpool = np.array([x.strip() for x in open(wordpool_file).readlines()])
+    FR2_STIM_DURATION= 4600
+    FR2_STIM_PULSE_FREQUENCY = 50
+    FR2_STIM_N_PULSES = 250
+    FR2_STIM_BURST_FREQUENCY = 1
+    FR2_STIM_N_BURSTS = 1
+    FR2_STIM_PULSE_WIDTH = 300
+
+
+    def __init__(self, subject, montage, files):
+        BaseSessionLogParser.__init__(self, subject, montage, files)
+        self._wordpool = np.array([x.strip() for x in open(files['wordpool']).readlines()])
         self._session = -999
         self._list = -999
         self._serialpos = -999
         self._stimList = False
         self._word = ''
         self._version = ''
+        self._is_fr2 = False
+        self._fr2_stim_anode = None
+        self._fr2_stim_cathode = None
+        self._fr2_stim_amplitude = None
+        self._fr2_stim_on_time = False
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
@@ -73,11 +86,13 @@ class FRSessionLogParser(BaseSessionLogParser):
             REC_START=self.event_default,
             REC_END=self.event_default,
             SESS_END=self.event_default,
-            SESSION_SKIPPED=self.event_default
+            SESSION_SKIPPED=self.event_default,
+            STIM_PARAMS=self.stim_params_event,
+            STIM_ON=self.stim_on_event,
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
-            REC_START=self.modify_recalls
+            REC_START=self.modify_recalls,
         )
 
     @staticmethod
@@ -97,6 +112,17 @@ class FRSessionLogParser(BaseSessionLogParser):
         :return:
         """
         event = BaseSessionLogParser.event_default(self, split_line)
+        if self._is_fr2 and self._fr2_stim_on_time and self._fr2_stim_on_time + self.FR2_STIM_DURATION >= int(split_line[0]):
+            event.isStim = True
+            event.stimParams['elec1'] = self._fr2_stim_anode
+            event.stimParams['elec2'] = self._fr2_stim_cathode
+            event.stimParams['pulseFreq'] = self.FR2_STIM_PULSE_FREQUENCY
+            event.stimParams['nPulses'] = self.FR2_STIM_N_PULSES
+            event.stimParams['burstFreq'] = self.FR2_STIM_BURST_FREQUENCY
+            event.stimParams['nBursts'] = self.FR2_STIM_N_BURSTS
+            event.stimParams['pulseWidth'] = self.FR2_STIM_PULSE_WIDTH
+            event.stimParams['amplitude'] = self._fr2_stim_amplitude
+
         event.list = self._list
         event.session = self._session
         event.stimList = self._stimList
@@ -120,6 +146,18 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._session = int(split_line[3]) - 1
         self._version = split_line[5]
         return self.event_default(split_line)
+
+    def stim_on_event(self, split_line):
+        self._fr2_stim_on_time = int(split_line[0])
+        event = self.event_default(split_line)
+        return event
+
+    def stim_params_event(self, split_line):
+        self._is_fr2 = True
+        self._fr2_stim_anode = int(split_line[5])
+        self._fr2_stim_cathode = int(split_line[7])
+        self._fr2_stim_amplitude = float(split_line[9])
+        return False
 
     def modify_session(self, events):
         """
@@ -146,6 +184,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_practice_word(self, split_line):
+        self._list = -1 # Have to set here as well, because sys1 events have no PRACTICE_WORD
         self._serialpos += 1
         event = self.event_default(split_line)
         self._word = split_line[3]

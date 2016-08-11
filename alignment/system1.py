@@ -2,8 +2,10 @@ import numpy as np
 import scipy.stats
 import os
 from nose.tools import raises
+import json
 import matplotlib.pyplot as plt
 from parsers.fr_log_parser import fr_log_parser_wrapper
+from loggers import log
 
 class UnAlignableEEGException(Exception):
     pass
@@ -22,13 +24,16 @@ class System1Aligner:
     ALIGNMENT_WINDOW = 100
     ALIGNMENT_THRESHOLD = 10
 
-    def __init__(self, events, task_pulse_file, eeg_pulse_file, eeg_file_stem, data_root=None):
-        self.data_root = data_root if data_root else self._DEFAULT_DATA_ROOT
-        self.task_pulse_file = task_pulse_file
-        self.eeg_pulse_file = eeg_pulse_file
-        self.eeg_file_stem = eeg_file_stem
+    def __init__(self, events, files):
+        self.task_pulse_file = files['eeg_log']
+        self.eeg_pulse_file = files['sync_pulses']
+        eeg_sources = json.load(open(files['eeg_sources']))
+        if len(eeg_sources) != 1:
+            raise UnAlignableEEGException('Cannot align EEG with %d sources' % len(eeg_sources))
+        self.eeg_file_stem = eeg_sources.keys()[0]
+        eeg_source = eeg_sources.values()[0]
         eeg_dir = os.path.dirname(self.eeg_pulse_file)
-        self.samplerate = float(open(os.path.join(eeg_dir, 'params.txt')).readlines()[0].split()[1])
+        self.samplerate = eeg_source['sample_rate']
         self.events = events
 
     def align(self):
@@ -60,8 +65,8 @@ class System1Aligner:
         residual = matching_eeg_times - prediction
         if max(abs(residual)) > max_residual + 1: #TODO: This is totally arbitrary
             raise UnAlignableEEGException('Start and end window do not match -- max residual: {}'.format(np.max(abs(residual))))
-        print 'Slope: {0}\nIntercept: {1}\nStd. Err: {2}\nMax residual: {3}\nMin residual: {4}'\
-            .format(slope, intercept, err, max(residual), min(residual))
+        log('Slope: {0}\nIntercept: {1}\nStd. Err: {2}\nMax residual: {3}\nMin residual: {4}'\
+            .format(slope, intercept, err, max(residual), min(residual)))
         return slope, intercept
 
 
@@ -70,10 +75,10 @@ class System1Aligner:
         task_diff = np.diff(task_pulse_ms)
         eeg_diff = np.diff(eeg_pulse_ms)
 
-        print 'Scanning for start window'
+        log('Scanning for start window')
         task_start_ind, eeg_start_ind = cls.find_matching_window(eeg_diff, task_diff, True)
 
-        print 'Scanning for end window'
+        log('Scanning for end window')
         task_end_ind, eeg_end_ind = cls.find_matching_window(eeg_diff, task_diff, False)
 
         [slope_start, intercept_start, _, _, _] = cls.get_fit(task_pulse_ms[task_start_ind:task_start_ind+cls.ALIGNMENT_WINDOW],
@@ -84,12 +89,12 @@ class System1Aligner:
         prediction_start = slope_start * task_pulse_ms[task_start_ind:task_start_ind+cls.ALIGNMENT_WINDOW] + intercept_start
         residuals_start = eeg_pulse_ms[eeg_start_ind:eeg_start_ind+cls.ALIGNMENT_WINDOW] - prediction_start
         max_residual_start = max(abs(residuals_start))
-        print 'Max residual start %.1f' % max_residual_start
+        log('Max residual start %.1f' % max_residual_start)
 
         prediction_end = slope_end * task_pulse_ms[task_end_ind:task_end_ind+cls.ALIGNMENT_WINDOW] + intercept_end
         residuals_end = eeg_pulse_ms[eeg_end_ind:eeg_end_ind+cls.ALIGNMENT_WINDOW] - prediction_end
         max_residual_end = max(abs(residuals_end))
-        print 'Max residual end %.1f;' % max_residual_end
+        log('Max residual end %.1f;' % max_residual_end)
 
         max_residual = max(max_residual_start, max_residual_end)
 

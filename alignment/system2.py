@@ -3,12 +3,15 @@ import scipy.stats
 import os
 import glob
 import matplotlib.pyplot as plt
-from readers.eeg_reader import NSx_reader, create_eeg_basename
+from readers.eeg_reader import NSx_reader
 from copy import deepcopy
 from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
 #from nsx_utility.brpylib import NsxFile
 import itertools
+import collections
+import json
+from loggers import log
 
 class System2Aligner:
     '''
@@ -24,16 +27,16 @@ class System2Aligner:
 
 
 
-    def __init__(self, subject, experiment, session, events, diagnostic_plots=True, data_root=None):
-        self.subject = subject
-        self.experiment = experiment
-        self.session = session
-        self.data_root = data_root if data_root else self._DEFAULT_DATA_ROOT
-        self.host_log_files = self.get_host_log_files()
+    def __init__(self, events, files, diagnostic_plots=True):
+        self.files = files
+        self.host_log_files = files['host_logs']
+
         self.diagnostic_plots = diagnostic_plots
         self.events = events
         self.merged_events = events
-        self.all_nsx_info = self.get_all_nsx_files()
+        self.used_nsx = {}
+        nsx_info = json.load(open(files['eeg_sources']))
+        self.all_nsx_info = collections.OrderedDict(sorted(nsx_info, key=lambda item:item[0]))
 
         self.task_to_host_coefs, self.host_time_task_starts, _ = \
             self.get_coefficients_from_host_log(self.get_task_host_coefficient,
@@ -55,7 +58,6 @@ class System2Aligner:
         return [NSx_reader.get_nsx_info(nsx_file) for nsx_file in nsx_files]
 
 
-
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         s2lp = System2LogParser(self.host_log_files)
 
@@ -63,8 +65,8 @@ class System2Aligner:
                                                persistent_fields)
 
         # Have to manually correct subject and session due to events appearing before start of session
-        self.merged_events['subject'] = self.subject
-        self.merged_events['session'] = self.session
+        self.merged_events['subject'] = self.events[-1].subject
+        self.merged_events['session'] = self.events[-1].session
 
     def align(self, start_type=None):
         aligned_events = deepcopy(self.merged_events)
@@ -84,19 +86,14 @@ class System2Aligner:
 
     def apply_eeg_file(self, events, host_times):
         nsx_infos = self.get_used_nsx_files()
-        split_filenames = self.generate_split_basenames(nsx_infos)
+        split_filenames = [info.keys()[0] for info in nsx_infos]
         full_mask = np.zeros(events[self.EEG_FILE_FIELD].shape)
         for split_file, info, host_start in \
                 zip(split_filenames, nsx_infos, self.host_time_np_starts):
             mask = np.logical_and(host_times > host_start, host_times < (host_start + info['length_ms']))
             full_mask = np.logical_or(full_mask, mask)
             events[self.EEG_FILE_FIELD][mask] = split_file
-
-    def generate_split_basenames(self, nsx_files):
-        output = []
-        for file_info in nsx_files:
-            output.append(create_eeg_basename(file_info, self.subject, self.experiment, self.session))
-        return output
+            self.used_nsx[info.datafile.name] = split_file
 
     def get_used_nsx_files(self):
         diff_np_starts = np.diff(self.host_time_np_starts)
@@ -130,11 +127,16 @@ class System2Aligner:
 
     @property
     def raw_directory(self):
-        return os.path.join(self.data_root, self.subject, 'raw', '%s_%d' % (self.experiment, self.session))
+        return self.files['raw_eeg']
+
+    @property
+    def host_logs_directory(self):
+        return self.files['host_logs']
 
     def get_host_log_files(self):
-        log_files = glob.glob(os.path.join(self.raw_directory, '*.log'))
-        assert len(log_files) > 0, 'No .log files found in %s. Check if EEG was transferred' % self.raw_directory
+        raise NotImplementedError
+        log_files = glob.glob(os.path.join(self.host_logs_directory, '*.log'))
+        assert len(log_files) > 0, 'No .log files found in %s. Check if EEG was transferred' % self.host_logs_directory
         log_files.sort()
         return log_files
 
@@ -175,7 +177,7 @@ class System2Aligner:
         still_nans = np.where(np.isnan(time_dest))[0]
         if len(still_nans) > 0:
             if (np.array(still_nans) < okay_no_align_up_to).all():
-                print 'Warning: Could not align events %s' % still_nans
+                log('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
                 raise Exception('Could not convert some times past start of session')
@@ -193,7 +195,7 @@ class System2Aligner:
     def get_host_np_coefficient(cls, host_log_file, nsx_file, plot_fit=True, plot_residuals=True):
         [host_times, np_tics] = System2LogParser.get_columns_by_type(host_log_file, 'NEUROPORT-TIME', [0, 2], int)
         if (not host_times and not np_tics):
-            print 'No NEUROPORT-TIMEs in %s' % host_log_file
+            log('No NEUROPORT-TIMEs in %s' % host_log_file)
             return [], [], []
         np_times = cls.samples_to_times(np_tics, nsx_file)
         [split_host, split_np] = cls.split_np_times(host_times, np_times)

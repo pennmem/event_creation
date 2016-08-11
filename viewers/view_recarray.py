@@ -2,12 +2,13 @@ import pprint
 import numpy as np
 import json
 import numpy
+from loggers import log
 
 PPRINT_PADDING = 2
 
 
 def pprint_rec(arr, recurse=True):
-    print(pformat_rec(arr, recurse))
+    log(pformat_rec(arr, recurse))
 
 
 def pformat_rec(arr, recurse=True, init_indent=0):
@@ -34,7 +35,7 @@ def describe_recarray(arr):
     paddings = [padding_max - this_len for this_len in lens]
     for name, padding in zip(names, paddings):
         shape = arr[name].shape
-        print('%s:%s%s' % (name, ' '*padding,shape))
+        log('%s:%s%s' % (name, ' '*padding,shape))
 
 
 def _format_and_indent(this_input, indent):
@@ -77,9 +78,9 @@ class MyEncoder(json.JSONEncoder):
 
 def to_json(arr, fp=None):
     if fp:
-        json.dump(to_dict(arr), fp, cls=MyEncoder, indent=4)
+        json.dump(to_dict(arr), fp, cls=MyEncoder, indent=2)
     else:
-        return json.dumps(to_dict(arr), cls=MyEncoder, indent=4)
+        return json.dumps(to_dict(arr), cls=MyEncoder, indent=2)
 
 def mkdtype(d):
     dtype = {'names' : [], 'formats' : []}

@@ -733,7 +733,6 @@ class EEG_splitter_model():
             path = os.path.join(path, self.subject)
             if self.task and self.session:
                 path = os.path.join(path, 'raw', '%s_%s' % (self.task, self.session))
-        print path
         return path
 
     @property

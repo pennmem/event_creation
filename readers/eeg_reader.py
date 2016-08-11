@@ -1,14 +1,20 @@
-import pyedflib
+from __future__ import print_function
+import warnings
+try:
+    import pyedflib
+except ImportError:
+    warnings.warn("pyEDFlib not available")
 import os
 from sys import platform as _platform
 import subprocess
 import glob
 import numpy as np
 import json
-import re
-from nsx_utility.brpylib import NsxFile
+from readers.nsx_utility.brpylib import NsxFile
 import struct
 import datetime
+import sys
+from loggers import log
 
 
 class UnSplittableEEGFileException(Exception):
@@ -21,22 +27,72 @@ class EEG_reader:
     STRFTIME = '%d%b%y_%H%M'
     MAX_CHANNELS = 256
 
+    EPOCH = datetime.datetime.utcfromtimestamp(0)
+
+    def get_start_time(self):
+        raise NotImplementedError
+
+    def get_start_time_string(self):
+        return self.get_start_time().strftime(self.STRFTIME)
+
+    def get_start_time_ms(self):
+        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
+
+    def get_sample_rate(self):
+        raise NotImplementedError
+
+    def get_source_file(self):
+        raise NotImplementedError
+
+    def get_n_samples(self):
+        raise NotImplementedError
+
+    def write_sources(self, location, basename):
+        try:
+            with open(os.path.join(location, 'sources.json')) as source_file:
+                sources = json.load(source_file)
+        except:
+            sources = {}
+
+        sources[basename] = {
+            'source_file': os.path.basename(self.get_source_file()),
+            'start_time_str': self.get_start_time_string(),
+            'start_time_ms': self.get_start_time_ms(),
+            'n_samples': self.get_n_samples(),
+            'sample_rate': self.get_sample_rate(),
+            'data_format': self.DATA_FORMAT
+        }
+
+        with open(os.path.join(location, 'sources.json'), 'w') as source_file:
+            json.dump(sources, source_file, indent=2)
+
 class NK_reader(EEG_reader):
 
     def __init__(self, nk_filename, jacksheet_filename=None):
-        self.nk_filename = nk_filename
+        self.raw_filename = nk_filename
         if jacksheet_filename:
             self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
         self.sample_rate = None
         self.start_datetime = None
+        self.num_samples = None
+        self._data = None
+
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_n_samples(self):
+        return self.num_samples
+
+    def get_sample_rate(self):
+        return self.sample_rate
 
     def set_jacksheet(self, jacksheet_filename):
         self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
 
-    def get_start_time_string(self):
-        with open(self.nk_filename, 'rb') as f:
+    def get_start_time(self):
+        with open(self.raw_filename, 'rb') as f:
             # Skipping device block
             deviceBlockLen = 128
             f.seek(deviceBlockLen)
@@ -77,7 +133,7 @@ class NK_reader(EEG_reader):
             T_second = self.bcd_converter(self.uint8(f))
 
             dt = datetime.datetime(T_year, T_month, T_day, T_hour, T_minute, T_second)
-            return dt.strftime(self.STRFTIME)
+            return dt
 
     @staticmethod
     def bcd_converter(bits_in):
@@ -131,7 +187,7 @@ class NK_reader(EEG_reader):
 
     @property
     def labels(self):
-        return self.get_labels(elec_file = os.path.splitext(self.nk_filename)[0] + '.21E')
+        return self.get_labels(elec_file =os.path.splitext(self.raw_filename)[0] + '.21E')
 
     @classmethod
     def get_labels(cls, elec_file):
@@ -155,7 +211,7 @@ class NK_reader(EEG_reader):
         return {i+1:c[0] for i,c in enumerate(channels)}
 
     def get_data(self, jacksheet_dict):
-        eeg_file = self.nk_filename
+        eeg_file = self.raw_filename
         elec_file = os.path.splitext(eeg_file)[0] + '.21E'
 
         with open(eeg_file, 'rb') as f:
@@ -198,11 +254,10 @@ class NK_reader(EEG_reader):
             T_minute = self.uint8(f)
             T_second = self.uint8(f)
 
-            print 'Date of session: %d/%d/%d\n' % (T_month, T_day, T_year)
-            print 'Time of start: %02d:%02d:%02d\n' % (T_hour, T_minute, T_second)
+            log('Date of session: %d/%d/%d\n' % (T_month, T_day, T_year))
+            log('Time of start: %02d:%02d:%02d\n' % (T_hour, T_minute, T_second))
 
             sample_rate = self.uint16(f)
-            print sample_rate
             sample_rate_conversion = {
                 int('C064', 16): 100,
                 int('C068', 16): 200,
@@ -220,8 +275,9 @@ class NK_reader(EEG_reader):
                 raise UnSplittableEEGFileException('Unknown sample rate')
 
             num_100_ms_blocks = self.uint32(f)
-            print 'Length of session: %2.2f hours\n' % (num_100_ms_blocks/10./3600.)
+            log('Length of session: %2.2f hours\n' % (num_100_ms_blocks/10./3600.))
             num_samples = actual_sample_rate * num_100_ms_blocks / 10.
+            self.num_samples = num_samples
             ad_off = self.int16(f)
             ad_val = self.uint16(f)
             bit_len = self.uint8(f)
@@ -234,7 +290,7 @@ class NK_reader(EEG_reader):
                 raise UnSplittableEEGFileException('Expecting new format, but > 1 channel')
 
             if new_format:
-                print 'NEW FORMAT...'
+                log('NEW FORMAT...')
 
                 waveform_block_old_format = 39 + 10 + 2 * actual_sample_rate + float(M) * actual_sample_rate
                 control_block_eeg1_new = 1072
@@ -342,9 +398,10 @@ class NK_reader(EEG_reader):
                     raise UnSplittableEEGFileException('Could not find recording for channels:\n%s' % unique_bad_names)
 
             # Get the data!
-            print 'Reading...'
-            data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
-            print 'Done.'
+            log('Reading...')
+            data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples)).reshape((int(num_samples), int(num_channels + 1))).T
+            #data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
+            log( 'Done.')
 
             # Filter only for relevant channels
             data_num_mask = np.array(data_num_to_21e_index != -1)
@@ -356,6 +413,13 @@ class NK_reader(EEG_reader):
             data_dict = {jacksheet_filtered[int(data_num_to_21e_index[i])]: data[i,:] for i in range(data.shape[0])}
             return data_dict
 
+    def channel_data(self, channel):
+        if not self._data:
+            if not self.jacksheet:
+                raise UnSplittableEEGFileException("Cannot split EEG without jacksheet")
+            self._data = self.get_data(self.jacksheet)
+        return self._data[channel]
+
     def split_data(self, location, basename):
         if not self.jacksheet:
             raise UnSplittableEEGFileException('Jacksheet not specified')
@@ -363,16 +427,17 @@ class NK_reader(EEG_reader):
         if not self.sample_rate:
             raise UnSplittableEEGFileException('Sample rate not determined')
 
-        print 'saving:',
+        log('Spltting into %s/%s: ' % (location, basename))
+        sys.stdout.flush()
         for channel, channel_data in data.items():
             filename = os.path.join(location, basename + ('.%03d' % channel))
 
-            print channel,
+            log(channel)
+            sys.stdout.flush()
             channel_data.astype(self.DATA_FORMAT).tofile(filename)
-        print 'Saved.'
+        log('Saved.')
 
-        with open(os.path.join(location, basename + '.params.txt'),'w') as outfile:
-            outfile.write('samplerate %.2f\ndataformat \'%s\'\ngain %e' % (self.sample_rate, self.DATA_FORMAT, self.gain))
+        self.write_sources(location, basename)
 
 class NSx_reader(EEG_reader):
     TIC_RATE = 30000
@@ -384,6 +449,7 @@ class NSx_reader(EEG_reader):
 
 
     def __init__(self, nsx_filename, jacksheet_filename=None):
+        self.raw_filename = nsx_filename
         if jacksheet_filename:
             if os.path.splitext(jacksheet_filename)[1] == '.txt':
                 self.jacksheet = read_jacksheet(jacksheet_filename)
@@ -398,11 +464,31 @@ class NSx_reader(EEG_reader):
 
         self._data = None
 
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_start_time(self):
+        return self.nsx_info['start_time']
+
+    def get_n_samples(self):
+        return self.nsx_info['n_samples']
+
+    def get_sample_rate(self):
+        return self.nsx_info['sample_rate']
+
+    @property
+    def labels(self):
+        return {channel['label']:num for num, channel in self.jacksheet.items()}
+
     @property
     def data(self):
         if not self._data:
             self._data = self.nsx_info['reader'].getdata()
         return self._data
+
+    def channel_data(self, channel):
+        channels = np.array(self.data['elec_ids'])
+        return self.data['data'][channels==channel, :]
 
     @classmethod
     def get_nsx_info(cls, nsx_file):
@@ -411,30 +497,32 @@ class NSx_reader(EEG_reader):
         data = reader.getdata()
         start_time = reader.basic_header['TimeOrigin']
         total_data_points = sum([header['NumDataPoints'] for header in data['data_headers']])
-        length_ms = total_data_points / float(NSx_reader.SAMPLE_RATES[extension]) * 1000.
-        return {'filename': nsx_file, 'start_time': start_time, 'length_ms': length_ms, 'reader': reader}
-
-    def get_start_time_string(self):
-        return self.nsx_info['start_time'].strftime(self.STRFTIME)
-
-    def get_sample_rate(self, channels=None):
-        _, extension = os.path.splitext(self.nsx_info['filename'])
-        return NSx_reader.SAMPLE_RATES[extension]
+        sample_rate = NSx_reader.SAMPLE_RATES[extension]
+        length_ms = total_data_points / float(sample_rate) * 1000.
+        return {'filename': nsx_file,
+                'start_time': start_time,
+                'length_ms': length_ms,
+                'n_samples': total_data_points,
+                'sample_rate': sample_rate,
+                'reader': reader}
 
     def split_data(self, location, basename):
         sample_rate = self.get_sample_rate()
         channels = np.array(self.data['elec_ids'])
-        for label, channel in self.jacksheet.items():
+        log('Spltting into %s/%s: ' % (location,basename), end='')
+        for label, channel in self.labels.items():
             filename = os.path.join(location, basename + '.%03d' % channel)
+            log('%d: %s' % (label, channel))
             data = self.data['data'][channels==channel, :].astype(self.DATA_FORMAT)
             data.tofile(filename)
+            sys.stdout.flush()
 
-        with open(os.path.join(location, basename + '.params.txt'), 'w') as outfile:
-            outfile.write('samplerate %.2f\ndataformat \'%s\'\ngain %d' % (sample_rate, self.DATA_FORMAT, 1))
+        self.write_sources(location, basename)
 
 class EDF_reader(EEG_reader):
 
     def __init__(self, edf_filename, jacksheet_filename=None):
+        self.raw_filename = edf_filename
         if jacksheet_filename:
             self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
@@ -442,8 +530,22 @@ class EDF_reader(EEG_reader):
         try:
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
+            raise
             raise IOError("Could not read %s" % edf_filename)
         self.headers = self.get_channel_info()
+
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_start_time(self):
+        return self.reader.getStartdatetime()
+
+    def get_n_samples(self):
+        n_samples = np.unique(self.reader.getNSamples())
+        n_samples = n_samples[n_samples != 0]
+        if len(n_samples) != 1:
+            raise UnSplittableEEGFileException('Could not determine number of samples in file %s' % self.raw_filename)
+        return n_samples[0]
 
     def set_jacksheet(self, jacksheet_filename):
         self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
@@ -472,14 +574,15 @@ class EDF_reader(EEG_reader):
     def labels(self):
         return {i+1:header['label'] for i, header in self.headers.items()}
 
-    def get_start_time_string(self):
-        return self.reader.getStartdatetime().strftime(self.STRFTIME)
+    def channel_data(self, channel):
+        return self.reader.readSignal(channel)
 
     def split_data(self, location, basename):
 
         sample_rate = self.get_sample_rate()
 
-        print 'Saving:',
+        log('Spltting into %s/%s: ' % (location, basename), end='')
+        sys.stdout.flush()
         for channel, header in self.headers.items():
             if self.jacksheet:
                 if header['label'] not in self.jacksheet:
@@ -487,16 +590,16 @@ class EDF_reader(EEG_reader):
                 out_channel = self.jacksheet[header['label']]
             else:
                 out_channel = channel
-            print channel ,'->', out_channel
+            log(out_channel , end=': ')
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
 
-            print header['label'],
+            log(header['label'])
+            sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
 
-        print 'Saved.'
-        with open(os.path.join(location, basename + '.params.txt'), 'w') as outfile:
-            outfile.write('samplerate %.2f\ndataformat \'%s\'\ngain %e' % (sample_rate, self.DATA_FORMAT, 1))
+        log('Saved.')
+        self.write_sources(location, basename)
 
 def read_jacksheet(filename):
     [_, ext] = os.path.splitext(filename)
@@ -522,11 +625,11 @@ def convert_nk_to_edf(filename):
         program = os.path.join(current_dir, 'nk2edf_mac')
     else:
         program = os.path.join(current_dir, 'nk2edf_linux')
-    print 'Converting to edf'
+    log('Converting to edf')
     try:
         subprocess.check_call([program, filename])
     except subprocess.CalledProcessError:
-        print 'Could not process annotat'
+        log('Could not process annotat')
         subprocess.call([program, '-no-annotations', filename])
     edf_dir = os.path.dirname(filename)
     edf_file = glob.glob(os.path.join(edf_dir, '*.edf'))
@@ -534,12 +637,19 @@ def convert_nk_to_edf(filename):
     try:
         os.chmod(edf_file, stat.S_IWGRP)
     except:
-        print 'Could not chmod %s' % edf_file
+        log('Could not chmod %s' % edf_file)
     if not edf_file:
         raise UnSplittableEEGFileException("Could not convert %s to edf" % filename)
     else:
-        print 'Success!'
+        log('Success!')
         return edf_file[0]
 
-def create_eeg_basename(info, subject, experiment, session):
-    return '%s_%s_%d_%s' % (subject, experiment, session, info['start_time'].strftime(EEG_reader.STRFTIME))
+
+READERS = {
+    '.edf': EDF_reader,
+    '.eeg': NK_reader,
+    '.ns2': NSx_reader,
+}
+
+def get_eeg_reader(raw_filename, jacksheet_filename=None):
+    return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename)
