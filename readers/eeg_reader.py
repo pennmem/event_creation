@@ -509,10 +509,10 @@ class NSx_reader(EEG_reader):
     def split_data(self, location, basename):
         sample_rate = self.get_sample_rate()
         channels = np.array(self.data['elec_ids'])
-        log('Spltting into %s/%s: ' % (location,basename), end='')
+        log('Splitting into %s/%s: ' % (location,basename))
         for label, channel in self.labels.items():
             filename = os.path.join(location, basename + '.%03d' % channel)
-            log('%d: %s' % (label, channel))
+            log('%s: %s' % (label, channel))
             data = self.data['data'][channels==channel, :].astype(self.DATA_FORMAT)
             data.tofile(filename)
             sys.stdout.flush()
@@ -586,14 +586,17 @@ class EDF_reader(EEG_reader):
         for channel, header in self.headers.items():
             if self.jacksheet:
                 if header['label'] not in self.jacksheet:
-                    continue
-                out_channel = self.jacksheet[header['label']]
+                    label = header['label'].replace('-REF', '')
+                    if label not in self.jacksheet:
+                        continue
+                else:
+                    label = header['label']
+                out_channel = self.jacksheet[label]
             else:
                 out_channel = channel
-            log(out_channel , end=': ')
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
 
-            log(header['label'])
+            log('{}: {}'.format(out_channel, header['label']))
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)

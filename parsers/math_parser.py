@@ -35,8 +35,6 @@ class MathSessionLogParser(BaseSessionLogParser):
         self._rectime = -999
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
-            B=self.event_B,
-            E=self.event_E,
             START=self.event_start,
             STOP=self.event_default,
             PROB=self.event_prob

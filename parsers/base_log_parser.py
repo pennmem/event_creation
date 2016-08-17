@@ -3,6 +3,7 @@ from viewers.view_recarray import pformat_rec
 import os
 import re
 from loggers import log
+import codecs
 
 class UnparsableLineException(Exception):
     pass
@@ -83,12 +84,12 @@ class BaseSessionLogParser:
         """
         self._session_log = files[primary_log]
         self._allow_unparsed_events = allow_unparsed_events
-        self._ann_files = {os.path.basename(os.path.splitext(ann_file)[1]): ann_file for ann_file in files['annotations']}
+        self._ann_files = {os.path.basename(os.path.splitext(ann_file)[0]): ann_file for ann_file in files['annotations']}
 
         self._subject = subject
         self._montage = montage
         self._contents = [line.strip().split(self._SPLIT_TOKEN)
-                          for line in file(self._session_log, 'r').readlines()]
+                          for line in codecs.open(self._session_log, encoding='utf-8').readlines()]
         self._fields = self._BASE_FIELDS
         self._type_to_new_event = {
             'B': self._event_skip,
@@ -102,7 +103,7 @@ class BaseSessionLogParser:
         """
         Defines the field for a given event which should persist into the stim event
         """
-        raise NotImplementedError()
+        return []
 
     @property
     def event_template(self):
@@ -252,7 +253,7 @@ class EventComparator:
         # Get rid of fields to ignore
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:
-                self.field_switch[name] = name
+                self.field_switch[str(name)] = str(name)
         self.events1 = self.events1[self.field_switch.keys()]
         self.events2 = self.events2[self.field_switch.values()]
 
@@ -312,8 +313,10 @@ class EventComparator:
                     err_msg += '\n---\n' + pformat_rec(bad_event1)
 
         if mask2.any():
-            found_bad = True
-            err_msg += '\n---\n' + pformat_rec(self.events2[mask2])
+            for bad_event2 in self.events2[mask2]:
+                if not self.exceptions(None, bad_event2, None):
+                    found_bad = True
+                    err_msg += '\n---\n' + pformat_rec(bad_event2)
 
         return found_bad, err_msg
 

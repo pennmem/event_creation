@@ -90,19 +90,33 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         if event1['type'] == 'SESS_END': #
             return True
 
+        if event1['eegfile'] == '' and event2['eegfile'] == './.':
+            return True
+
         # Comparing only eegfile basename because it may be stored in a different location
         try:
-            basename1 = os.path.basename(event1['eegfile'])
+            basename1 = ''.join(event1['eegfile'].split('_')[-2:])
         except AttributeError:
-            basename1 = os.path.basename(event1['eegfile'][0])
+            basename1 = ''.join(event1['eegfile'][0].split('_')[-2:])
 
         try:
-            basename2 = os.path.basename(event2['eegfile'])
+            basename2 = ''.join(event2['eegfile'].split('_')[-2:])
         except AttributeError:
-            basename2 = os.path.basename(event2['eegfile'][0])
+            basename2 = ''.join(event2['eegfile'][0].split('_')[-2:])
 
         # Ugly, but for first subject, name was originally different
         return basename1 == basename2.replace('REO001P', 'R1001P')
+
+    if field == 'subject':
+        try:
+            ev2_subj = event2['subject'].split('_')[0]
+        except AttributeError:
+            ev2_subj = event2['subject'][0].split('_')[0]
+
+        return event1['subject'] == ev2_subj
+
+    if field == 'stimList' and event1['stimList'] == 1 and event2['stimList'] == -999:
+        return True
 
     # there is an allowable difference of up to 5 ms for eeg offset between new and old events
     if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 5:
@@ -134,7 +148,7 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # Word Number is still not filled in for practice events, but is now -1 (like intrusions) rather than -999
-    if field == 'wordno' and event1['list'] == -1 and event1['wordno'] == -1:
+    if field == 'wordno' and event1['list'] == -1 and event2['wordno'] == -999:
         return True
 
     # Serial position was not properly recorded for practice list in old events
@@ -201,6 +215,23 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'word' and event1['type'] == 'PRACTICE_WORD' and event2['word'] == 'X':
         return True
 
+    if field in ('wordno', 'intrusion') and event1['subject'] == 'R1039M' and event1['word'] == 'RELOJ':
+        return True
+
+
+    if field in ('rectime', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1052E' \
+            and event1['session'] == 0:
+        return True
+
+    if field is None and event2 and event2['subject'] == 'R1042M' and event2['type'] == 'REC_WORD' and \
+                    event2['word'] in ("'I'M", "'I", "'NOT"):
+        return True
+
+    if not field is None and event1['word'] in ('TOE', 'SINK', 'ROSE'):
+        return True
+
+    if field == 'subject' and event1['subject'] == 'R1055J' and event2['subject'] == 'TJ086':
+        return True
     return False
 
 def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
@@ -332,7 +363,9 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
                     event2['stimList'] == -999:
         return True
 
+
     return False
+
 
 def check_event_creation(subject, experiment, session, is_sys2, comparator_inputs,
                          task_pulse_file=None, eeg_pulse_file=None,
@@ -376,9 +409,17 @@ def check_event_creation(subject, experiment, session, is_sys2, comparator_input
 
     return py_events
 
-FR_SYS2_COMPARATOR_INPUTS = dict(
+FR1_SYS2_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
-    field_ignore=('expVersion', 'eegfile'),
+    field_ignore=('expVersion', 'montage', 'stimParams', 'session'),
+    exceptions = event_comparison_exceptions,
+    type_ignore=('INSTRUCT_START','INSTRUCT_END',
+                 'PRACTICE_REC_START', 'PRACTICE_REC_END',
+                 'SESSION_SKIPPED', 'INSTRUCT_VIDEO', 'STIM_OFF')
+)
+FR3_SYS2_COMPARATOR_INPUTS = dict(
+    field_switch={'word': 'item', 'wordno': 'itemno'},
+    field_ignore=('expVersion', 'montage', 'session'),
     exceptions = event_comparison_exceptions,
     type_ignore=('INSTRUCT_START','INSTRUCT_END',
                  'PRACTICE_REC_START', 'PRACTICE_REC_END',
@@ -391,7 +432,7 @@ FR1_SYS1_COMPARATOR_INPUTS = dict(
     field_ignore=('expVersion',
                   'stimAnode', 'stimAnodeTag',
                   'stimCathode', 'stimCathodeTag',
-                  'stimAmp', 'stimParams', 'stimLoc'),
+                  'stimAmp', 'stimParams', 'stimLoc', 'montage', 'session'),
     exceptions=fr1_comparison_exceptions,
     type_ignore=('INSTRUCT_START', 'INSTRUCT_END',
                  'PRACTICE_REC_START', 'PRACTICE_REC_END',
@@ -404,7 +445,7 @@ FR2_SYS1_COMPARATOR_INPUTS = dict(
     field_ignore=('expVersion',
                   'stimAnode', 'stimAnodeTag',
                   'stimCathode', 'stimCathodeTag',
-                  'stimAmp', 'stimParams', 'stimLoc'),
+                  'stimAmp', 'stimLoc', 'montage', 'stimParams', 'session'),
     exceptions=fr2_comparison_exceptions,
     type_ignore=('INSTRUCT_START', 'INSTRUCT_END',
                  'PRACTICE_REC_START', 'PRACTICE_REC_END',
@@ -415,8 +456,8 @@ FR2_SYS1_COMPARATOR_INPUTS = dict(
 PAL_COMPARATOR_INPUTS = dict(
     field_switch={'resp_pass': 'pass'},
     field_ignore=('expVersion', 'stimLoc', 'stimAmp',
-                  'stimParams', 'stimAnode', 'stimAnodeTag', 'stimCathode',
-                  'stimCathodeTag', 'isStimList', 'eegoffset', 'eegfile'),
+                  'stimAnode', 'stimAnodeTag', 'stimCathode',
+                  'stimCathodeTag', 'eegoffset', 'eegfile', 'montage', 'session'),
     exceptions=pal_comparison_exceptions,
     type_ignore=('COUNTDOWN_START', 'COUNTDOWN_END', 'B', 'E', 'STIM_PARAMS', 'REC_END', 'SESS_START',
                  'MIC_TEST', 'PRACTICE_PAIR_OFF',
@@ -425,8 +466,8 @@ PAL_COMPARATOR_INPUTS = dict(
 
 CATFR_SYS1_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
-    field_ignore=('eegfile', 'eegoffset', 'expVersion', 'stimAnode', 'stimAnodeTag',
-                  'stimCathode', 'stimCathodeTag', 'stimAmp', 'stimParams'),
+    field_ignore=('expVersion', 'stimAnode', 'stimAnodeTag',
+                  'stimCathode', 'stimCathodeTag', 'stimAmp', 'montage', 'session'),
     exceptions=catfr_comparison_exceptions,
     type_ignore=('INSTRUCT_START', 'INSTRUCT_END',
                  'SESSION_SKIPPED', 'INSTRUCT_VIDEO', 'STIM_OFF', 'STIM_PARAMS',
@@ -434,8 +475,8 @@ CATFR_SYS1_COMPARATOR_INPUTS = dict(
 )
 
 SYS2_COMPARATOR_INPUTS = dict(
-    FR3=FR_SYS2_COMPARATOR_INPUTS,
-    FR1=FR_SYS2_COMPARATOR_INPUTS,
+    FR3=FR1_SYS2_COMPARATOR_INPUTS,
+    FR1=FR3_SYS2_COMPARATOR_INPUTS,
     PAL1=PAL_COMPARATOR_INPUTS,
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS
 

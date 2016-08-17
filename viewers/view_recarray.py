@@ -2,13 +2,15 @@ import pprint
 import numpy as np
 import json
 import numpy
-from loggers import log
+import unicodedata
+#from loggers import log
 
 PPRINT_PADDING = 2
 
 
 def pprint_rec(arr, recurse=True):
-    log(pformat_rec(arr, recurse))
+    print(pformat_rec(arr, recurse))
+    #log(pformat_rec(arr, recurse))
 
 
 def pformat_rec(arr, recurse=True, init_indent=0):
@@ -35,7 +37,8 @@ def describe_recarray(arr):
     paddings = [padding_max - this_len for this_len in lens]
     for name, padding in zip(names, paddings):
         shape = arr[name].shape
-        log('%s:%s%s' % (name, ' '*padding,shape))
+        print('%s:%s%s' % (name, ' '*padding,shape))
+        #log('%s:%s%s' % (name, ' '*padding,shape))
 
 
 def _format_and_indent(this_input, indent):
@@ -110,7 +113,7 @@ def from_json(json_filename):
     dt = mkdtype(d[0])
     arr = np.zeros(len(d), dt)
     copy_values(d, arr)
-    return arr
+    return arr.view(np.recarray)
 
 def copy_values(dict_list, rec_arr):
     dict_fields = {}
@@ -124,8 +127,14 @@ def copy_values(dict_list, rec_arr):
 
             if isinstance(v, dict):
                 copy_values([v], rec_arr[i][k])
+            elif isinstance(v, basestring):
+                rec_arr[i][k] = strip_accents(v)
             else:
                 rec_arr[i][k] = v
 
     for k, v in dict_fields.items():
         copy_values( v, rec_arr[k])
+
+def strip_accents(s):
+    return str(''.join(c for c in unicodedata.normalize('NFD', unicode(s))
+                  if unicodedata.category(c) != 'Mn'))

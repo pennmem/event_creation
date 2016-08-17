@@ -6,7 +6,7 @@
       "type": "file",
       "multiple": false,
       "required": true,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
       "origin_file": "session.log",
       "destination": "logs/session.log"
     },
@@ -14,7 +14,7 @@
       "type": "file",
       "multiple": false,
       "required": false,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}/",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}/",
       "origin_file": "math.log",
       "destination": "logs/math.log"
     },
@@ -34,7 +34,7 @@
         "type": "file",
         "multiple": false,
         "required": true,
-        "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
         "origin_file": "eeg.eeglog",
         "destination": "logs/eeg.eeglog"
       },
@@ -42,7 +42,7 @@
         "type": "file",
         "multiple": false,
         "required": true,
-        "origin_directory": "{data_root}/{subject}/{sync_folder}/",
+        "origin_directory": "{data_root}/{code}/{sync_folder}/",
         "origin_file": "{sync_filename}",
         "destination": "logs/extracted_syncs.txt"
       }
@@ -53,7 +53,7 @@
         "type": "file",
         "multiple": true,
         "required": true,
-        "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}",
+        "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
         "origin_file": "{experiment}_{subject}_*.log",
         "destination": "logs/host_logs/"
       }
@@ -66,7 +66,7 @@
       "type": "file",
       "multiple": true,
       "required": false,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/session_{session}",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
       "origin_file": "*.ann",
       "destination": "annotations/"
     },
@@ -74,15 +74,15 @@
       "type": "file",
       "multiple": false,
       "required": false,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
       "origin_file": "config.py",
       "destination": "experiment_files/config.py"
     },
     "sconfig": {
       "type": "file",
       "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}",
+      "required": false,
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
       "origin_file": "sconfig.py",
       "destination": "experiment_files/sconfig.py"
     }
@@ -94,7 +94,7 @@
       "type": "file",
       "multiple": false,
       "required": true,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
       "origin_file": "RAM_wordpool.txt",
       "destination": "experiment_files/wordpool.txt"
     },
@@ -103,7 +103,7 @@
       "type": "file",
       "multiple": false,
       "required": false,
-      "origin_directory": "{data_root}/{subject}/behavioral/{experiment}/",
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
       "origin_file": "RAM_wordpool_noAcc.txt",
       "destination": "experiment_files/wordpool_no_accent.txt"
     }

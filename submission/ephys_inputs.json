@@ -5,8 +5,9 @@
       "type": "file",
       "multiple": true,
       "required": true,
-      "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}/",
-      "origin_file": ["*.edf", "*.EDF", "*.eeg", "*.EEG"," */*.ns*"],
+      "checksum_filename_only": true,
+      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
+      "origin_file": ["*.edf", "*.EDF", "*.eeg", "*.EEG", "*/*.ns*"],
       "destination": "raw_eeg/"
     },
 
@@ -14,7 +15,7 @@
       "type": "file",
       "multiple": true,
       "required": false,
-      "origin_directory": "{data_root}/{subject}/raw/{experiment}_{session}/",
+      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
       "origin_file": ["*.21[eE]"],
       "destination": "raw_eeg/"
     },
@@ -23,7 +24,7 @@
       "type": "file",
       "multiple": false,
       "required": true,
-      "origin_directory": "{data_root}/{subject}/docs/",
+      "origin_directory": "{data_root}/{code}/docs/",
       "origin_file": "jacksheet.txt",
       "destination": "jacksheet.txt"
     }

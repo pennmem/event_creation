@@ -1,5 +1,6 @@
 from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
 from system2_log_parser import System2LogParser
+from viewers.view_recarray import strip_accents
 import numpy as np
 import os
 
@@ -47,7 +48,11 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def __init__(self, subject, montage, files):
         BaseSessionLogParser.__init__(self, subject, montage, files)
-        self._wordpool = np.array([x.strip() for x in open(files['wordpool']).readlines()])
+        if 'no_accent_wordpool' in files:
+            wordpool_type = 'no_accent_wordpool'
+        else:
+            wordpool_type = 'wordpool'
+        self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
         self._session = -999
         self._list = -999
         self._serialpos = -999
@@ -187,7 +192,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._list = -1 # Have to set here as well, because sys1 events have no PRACTICE_WORD
         self._serialpos += 1
         event = self.event_default(split_line)
-        self._word = split_line[3]
+        self._word = strip_accents(split_line[3])
         event.serialpos = self._serialpos
         event = self.apply_word(event)
         return event
@@ -199,11 +204,14 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def event_trial(self, split_line):
         self._list = int(split_line[3])
-        self._stimList = split_line[4] == 'STIM'
+        if split_line[4] == 'STIM_PARAMS':
+            self._stimList = split_line[5] == '1'
+        else:
+            self._stimList = split_line[4] == 'STIM'
         return self.event_default(split_line)
 
     def event_word(self, split_line):
-        self._word = split_line[4]
+        self._word = strip_accents(split_line[4])
         self._serialpos = int(split_line[5]) + 1
         event = self.event_default(split_line)
         event = self.apply_word(event)
@@ -266,7 +274,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.word == word, events.type == 'WORD')
+        return np.logical_and(events.word == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
 
 
 def fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',

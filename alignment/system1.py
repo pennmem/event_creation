@@ -34,6 +34,7 @@ class System1Aligner:
         eeg_source = eeg_sources.values()[0]
         eeg_dir = os.path.dirname(self.eeg_pulse_file)
         self.samplerate = eeg_source['sample_rate']
+        self.n_samples = eeg_source['n_samples']
         self.events = events
 
     def align(self):
@@ -41,6 +42,11 @@ class System1Aligner:
         slope, intercept = self.get_coefficient(task_times, eeg_times)
         self.events[self.EEG_TIME_FIELD] = (self.events[self.TASK_TIME_FIELD] * slope + intercept) * self.samplerate/1000.
         self.events[self.EEG_FILE_FIELD] = self.eeg_file_stem
+
+        out_of_range = np.logical_or(self.events[self.EEG_TIME_FIELD] < 0,
+                                     self.events[self.EEG_TIME_FIELD] > self.n_samples)
+        self.events[self.EEG_FILE_FIELD][out_of_range] = ''
+        self.events[self.EEG_TIME_FIELD][out_of_range] = 0
         return self.events
 
     def get_task_pulses(self):
