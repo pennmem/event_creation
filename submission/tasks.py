@@ -48,14 +48,24 @@ class SplitEEGTask(object):
         if not isinstance(raw_eegs, list):
             raw_eegs = [raw_eegs]
         for raw_eeg in raw_eegs:
-            reader = get_eeg_reader(raw_eeg,
-                                    files['jacksheet'])
+            if 'substitute_raw_file_for_header' in files:
+                reader = get_eeg_reader(raw_eeg,
+                                       files['jacksheet'],
+                                       substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
+            else:
+                try:
+                    reader = get_eeg_reader(raw_eeg,
+                                            files['jacksheet'])
+                except KeyError as k:
+                    log('Cannot split file with extension {}'.format(k), 'WARNING')
+                    continue
+
             split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
                                                             experiment=self.experiment,
                                                             session=self.session,
                                                             time=reader.get_start_time_string())
             reader.split_data(self.pipeline.destination, split_eeg_filename)
-        num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*.[0-9]*')))
+        num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
         if num_split_files == 0:
             raise UnProcessableException(
                 'Seems like splitting did not properly occur. No split files found in {}'.format(self.pipeline.destination))
@@ -194,7 +204,7 @@ class CompareEventsTask(object):
         logger.set_label(self.name)
         mat_events_reader = \
             BaseEventReader(
-                filename=os.path.join(DATA_ROOT, '..', 'events', 'RAM_{}'.format(self.experiment),
+                filename=os.path.join(DATA_ROOT, '..', 'events', 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:]),
                                       '{}_events.mat'.format(self.code)),
                 common_root=DATA_ROOT,
                 eliminate_events_with_no_eeg=False,
@@ -207,8 +217,7 @@ class CompareEventsTask(object):
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
 
 
-
-        if float(new_events[-1].expVersion.split('_')[1]) >= 2:
+        if float(new_events[-1].expVersion.split('_')[-1]) >= 2:
             comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
         else:
             comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]

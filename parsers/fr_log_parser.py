@@ -47,12 +47,18 @@ class FRSessionLogParser(BaseSessionLogParser):
 
 
     def __init__(self, subject, montage, files):
-        BaseSessionLogParser.__init__(self, subject, montage, files)
+        super(FRSessionLogParser, self).__init__(subject, montage, files)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:
             wordpool_type = 'wordpool'
         self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
+        if 'jacksheet' in files:
+            self._jacksheet = [x.strip().split() for x in open(files['jacksheet']).readlines()]
+            self._jacksheet_dict = {int(x[0]): x[1] for x in self._jacksheet}
+        else:
+            self._jacksheet = None
+            self._jacksheet_dict = None
         self._session = -999
         self._list = -999
         self._serialpos = -999
@@ -62,6 +68,8 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._is_fr2 = False
         self._fr2_stim_anode = None
         self._fr2_stim_cathode = None
+        self._fr2_stim_anode_label = None
+        self._fr2_stim_cathode_label = None
         self._fr2_stim_amplitude = None
         self._fr2_stim_on_time = False
         self._add_fields(*self._fr_fields())
@@ -119,8 +127,10 @@ class FRSessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         if self._is_fr2 and self._fr2_stim_on_time and self._fr2_stim_on_time + self.FR2_STIM_DURATION >= int(split_line[0]):
             event.isStim = True
-            event.stimParams['elec1'] = self._fr2_stim_anode
-            event.stimParams['elec2'] = self._fr2_stim_cathode
+            event.stimParams['anode_number'] = self._fr2_stim_anode
+            event.stimParams['cathode_number'] = self._fr2_stim_cathode
+            event.stimParams['anode_label'] = self._fr2_stim_anode_label
+            event.stimParams['cathode_label'] = self._fr2_stim_cathode_label
             event.stimParams['pulseFreq'] = self.FR2_STIM_PULSE_FREQUENCY
             event.stimParams['nPulses'] = self.FR2_STIM_N_PULSES
             event.stimParams['burstFreq'] = self.FR2_STIM_BURST_FREQUENCY
@@ -159,8 +169,19 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def stim_params_event(self, split_line):
         self._is_fr2 = True
-        self._fr2_stim_anode = int(split_line[5])
-        self._fr2_stim_cathode = int(split_line[7])
+        if split_line[9] != '0':
+            if split_line[5].isdigit():
+                self._fr2_stim_anode = int(split_line[5])
+                self._fr2_stim_cathode = int(split_line[7])
+                self._fr2_stim_anode_label = self._jacksheet_dict[self._fr2_stim_anode]
+                self._fr2_stim_cathode_label = self._jacksheet_dict[self._fr2_stim_cathode]
+            else:
+                self._fr2_stim_anode_label = split_line[5]
+                self._fr2_stim_cathode_label = split_line[7]
+                reverse_jacksheet = {v:k for k,v in self._jacksheet_dict.items()}
+                self._fr2_stim_anode = reverse_jacksheet[self._fr2_stim_anode_label]
+                self._fr2_stim_cathode = reverse_jacksheet[self._fr2_stim_cathode_label]
+
         self._fr2_stim_amplitude = float(split_line[9])
         return False
 
@@ -254,10 +275,11 @@ class FRSessionLogParser(BaseSessionLogParser):
             else:  # Correct recall or PLI or XLI from latter list
                 pres_mask = self.find_presentation(word, events)
                 pres_list = np.unique(events[pres_mask].list)
+                pres_mask = np.logical_and(pres_mask, events.list == self._list)
 
                 # Correct recall or PLI
-                if len(pres_list) == 1:
-                    new_event.intrusion = self._list - pres_list[0]
+                if len(pres_list) >= 1:
+                    new_event.intrusion = self._list - max(pres_list)
                     if new_event.intrusion == 0:
                         new_event.serialpos = np.unique(events[pres_mask].serialpos)
                         new_event.recalled = True

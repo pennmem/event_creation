@@ -66,6 +66,15 @@ class EEG_reader:
         with open(os.path.join(location, 'sources.json'), 'w') as source_file:
             json.dump(sources, source_file, indent=2)
 
+    def split_data(self, location, basename):
+        noreref_location = os.path.join(location, 'noreref')
+        if not os.path.exists(noreref_location):
+            os.makedirs(noreref_location)
+        self._split_data(noreref_location, basename)
+        self.write_sources(location, basename)
+
+    def _split_data(self, location, basename):
+        return NotImplementedError
 class NK_reader(EEG_reader):
 
     def __init__(self, nk_filename, jacksheet_filename=None):
@@ -183,7 +192,11 @@ class NK_reader(EEG_reader):
 
     @classmethod
     def char_(cls, f, n=1):
-        return cls.fread(f, 'c', n, 1)
+        out = cls.fread(f, 'c', n, 1)
+        if len(out) > 1:
+            return ''.join(out)
+        else:
+            return out
 
     @property
     def labels(self):
@@ -316,9 +329,11 @@ class NK_reader(EEG_reader):
                 #  Now things get a little different with the new header
                 _ = self.char_(f, 20)  #  Start time string
                 actual_sample_rate = self.uint32(f)  #  Data interval (sample rate)
+                self.sample_rate = actual_sample_rate
                 num_100_ms_blocks = self.uint64(f)  #  Length of session
 
                 num_samples = actual_sample_rate * num_100_ms_blocks / 10
+                self.num_samples = num_samples
                 ad_off = self.int16(f)  #  AD offset at 0V
                 ad_val = self.uint16(f)  #  ACD val for 1 division
                 bit_len = self.uint16(f)  #  Bit length of one sample
@@ -399,7 +414,14 @@ class NK_reader(EEG_reader):
 
             # Get the data!
             log('Reading...')
-            data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples)).reshape((int(num_samples), int(num_channels + 1))).T
+            data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples))
+            if len(data) / (num_channels + 1) != num_samples:
+                num_samples = len(data) / (num_channels + 1)
+                log('Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
+                                                                                                     num_samples),
+                    'WARNING')
+                self.num_samples = num_samples
+            data = data.reshape((int(num_samples), int(num_channels + 1))).T
             #data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
             log( 'Done.')
 
@@ -420,7 +442,9 @@ class NK_reader(EEG_reader):
             self._data = self.get_data(self.jacksheet)
         return self._data[channel]
 
-    def split_data(self, location, basename):
+    def _split_data(self, location, basename):
+        if not os.path.exists(location):
+            os.makedirs(location)
         if not self.jacksheet:
             raise UnSplittableEEGFileException('Jacksheet not specified')
         data = self.get_data(self.jacksheet)
@@ -437,7 +461,6 @@ class NK_reader(EEG_reader):
             channel_data.astype(self.DATA_FORMAT).tofile(filename)
         log('Saved.')
 
-        self.write_sources(location, basename)
 
 class NSx_reader(EEG_reader):
     TIC_RATE = 30000
@@ -506,8 +529,7 @@ class NSx_reader(EEG_reader):
                 'sample_rate': sample_rate,
                 'reader': reader}
 
-    def split_data(self, location, basename):
-        sample_rate = self.get_sample_rate()
+    def _split_data(self, location, basename):
         channels = np.array(self.data['elec_ids'])
         log('Splitting into %s/%s: ' % (location,basename))
         for label, channel in self.labels.items():
@@ -517,11 +539,10 @@ class NSx_reader(EEG_reader):
             data.tofile(filename)
             sys.stdout.flush()
 
-        self.write_sources(location, basename)
 
 class EDF_reader(EEG_reader):
 
-    def __init__(self, edf_filename, jacksheet_filename=None):
+    def __init__(self, edf_filename, jacksheet_filename=None, substitute_raw_file_for_header=None):
         self.raw_filename = edf_filename
         if jacksheet_filename:
             self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
@@ -531,8 +552,7 @@ class EDF_reader(EEG_reader):
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
             raise
-            raise IOError("Could not read %s" % edf_filename)
-        self.headers = self.get_channel_info()
+        self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
     def get_source_file(self):
         return self.raw_filename
@@ -550,10 +570,15 @@ class EDF_reader(EEG_reader):
     def set_jacksheet(self, jacksheet_filename):
         self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
 
-    def get_channel_info(self):
+    def get_channel_info(self, substitute_file=None):
+        if substitute_file is None:
+            reader = self.reader
+        else:
+            reader = pyedflib.EdfReader(substitute_file)
+
         headers = {}
         for i in range(self.MAX_CHANNELS):
-            header = self.reader.getSignalHeader(i)
+            header = reader.getSignalHeader(i)
             if header['label']!= '':
                 headers[i] = header
         return headers
@@ -577,10 +602,7 @@ class EDF_reader(EEG_reader):
     def channel_data(self, channel):
         return self.reader.readSignal(channel)
 
-    def split_data(self, location, basename):
-
-        sample_rate = self.get_sample_rate()
-
+    def _split_data(self, location, basename):
         log('Spltting into %s/%s: ' % (location, basename), end='')
         sys.stdout.flush()
         for channel, header in self.headers.items():
@@ -602,8 +624,6 @@ class EDF_reader(EEG_reader):
             data.tofile(filename)
 
         log('Saved.')
-        self.write_sources(location, basename)
-
 def read_jacksheet(filename):
     [_, ext] = os.path.splitext(filename)
     if ext.lower() == '.txt':
@@ -654,5 +674,5 @@ READERS = {
     '.ns2': NSx_reader,
 }
 
-def get_eeg_reader(raw_filename, jacksheet_filename=None):
-    return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename)
+def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):
+    return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename, **kwargs)

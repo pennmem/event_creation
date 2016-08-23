@@ -1,0 +1,79 @@
+{
+  "R1015J": {
+    "FR1": {
+      "0": "no wav files"
+    }
+  },
+  "R1027J": {
+    "FR1": {
+      "0": "no session folder"
+    }
+  },
+  "R1061T": {
+    "FR1": {
+      "0": "malloc error",
+      "1": "malloc error",
+      "2": "malloc error",
+      "3": "malloc error"
+    },
+    "catFR1": {
+      "0": "malloc error"
+    }
+  },
+  "R1070T": {
+    "FR1": {
+      "0": "Session log has 8 lists, but events have 25 lists. Sessions appear to be out of order",
+      "1": "mstime doesn't match for any list. Sessions appear to be out of order",
+      "2": "eegfile doesn't match. Sessions appear to be out of order"
+    }
+  },
+  "R1083J": {
+    "FR1": {
+      "3": "No raw folder matching FR1_3"
+    }
+  },
+  "R1121M": {
+    "FR1": {
+      "0": "Haven't figured out multi-file alignment yet",
+      "1": "Haven't figured out multi-file alignment yet",
+      "2": "Haven't figured out multi-file alignment yet",
+      "3": "No raw folder matching FR1_3",
+      "4": "No raw folder matching FR1_3",
+      "5": "No raw folder matching FR1_3",
+      "6": "No raw folder matching FR1_3",
+      "7": "No raw folder matching FR1_3"
+    },
+    "PAL1": {
+      "0": "Haven't figured out multi-file alignment yet",
+      "1": "Could not align window",
+      "2": "No raw folder matching PAL1_2",
+      "3": "No raw folder matching PAL1_3"
+    }
+  },
+  "R1074M": {
+    "FR2": {
+      "0": "Cannot align window"
+    }
+  },
+  "R1189M": {
+    "FR1": {
+      "0": "brpylib error: Unpack requires string argument of length 4",
+      "1": "brpylib error: Unpack requires string argument of length 4"
+    }
+  },
+  "R1091N": {
+    "PAL2": {
+      "0": "Haven't figured out multi-file alignment yet"
+    }
+  },
+  "R1029W": {
+    "catFR1": {
+      "0": "No behavioral files for catFR1 session 0"
+    }
+  },
+  "R1044J": {
+    "catFR1": {
+      "0": "File may be corrupt? Cannot read proper number of samples from file."
+    }
+  }
+}

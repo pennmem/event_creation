@@ -27,6 +27,15 @@
       "origin_directory": "{data_root}/{code}/docs/",
       "origin_file": "jacksheet.txt",
       "destination": "jacksheet.txt"
+    },
+
+    "substitute_raw_file_for_header":{
+      "type": "file",
+      "multiple": true,
+      "required": false,
+      "origin_directory": "{data_root}/{code}/raw/{substitute_raw_folder}/",
+      "origin_file": ["*.edf", "*.EDF"],
+      "destination": "substitute_eeg/"
     }
   },
 

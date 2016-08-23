@@ -30,7 +30,7 @@ class System2Aligner:
     def __init__(self, events, files, plot_save_dir=None):
         self.files = files
         if isinstance(files['host_logs'], list):
-            self.host_log_files = files['host_logs']
+            self.host_log_files = sorted(files['host_logs'])
         else:
             self.host_log_files = [files['host_logs']]
 
@@ -50,6 +50,7 @@ class System2Aligner:
             self.get_coefficients_from_host_log(self.get_host_np_coefficient,
                                                 self.all_nsx_info[0]['source_file'],
                                                 self.plot_save_dir)
+
 
         self.np_log_lengths = np.array(self.host_time_np_ends) - np.array(self.host_time_np_starts)
 
@@ -72,7 +73,8 @@ class System2Aligner:
                                                self.host_time_task_starts)
         if start_type:
             starting_entries= np.where(aligned_events['type'] == start_type)[0]
-            starts_at = starting_entries[0] if len(starting_entries) > 0 else 0
+            # Don't have to align until one after the starting type (which is normally SESS_START)
+            starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 0
         else:
             starts_at = 0
 
@@ -80,6 +82,7 @@ class System2Aligner:
                                              self.host_to_np_coefs,
                                              self.host_time_np_starts, starts_at)
 
+        np_times[np_times < 0] = -1
         aligned_events[self.NP_TIME_FIELD] = np_times
         self.apply_eeg_file(aligned_events, host_times)
         return aligned_events
@@ -97,6 +100,9 @@ class System2Aligner:
     def get_used_nsx_files(self):
         diff_np_starts = np.diff(self.host_time_np_starts)
         nsx_file_combinations = list(itertools.combinations(self.all_nsx_info, len(self.host_time_np_starts)))
+        if len(nsx_file_combinations) == 0:
+            raise UnAlignableEEGException('Could not assign eegfile with {} recordings and {} np resets'.format(
+                len(self.all_nsx_info), len(self.host_time_np_starts)))
         errors = []
         for nsx_files in nsx_file_combinations:
             nsx_lengths = np.array([nsx_file['n_samples'] * float(nsx_file['sample_rate']) / 1000
@@ -117,11 +123,15 @@ class System2Aligner:
 
         if len(self.host_time_np_starts) > 1:
             min_errors = errors[best_index]
-            fig, ax = plt.subplot()
-            error_indices = np.arange(len(min_errors))
+            if min_errors > 1000:
+                raise UnAlignableEEGException('Guess at beginning of recording inaccurate by over a second')
+            plt.clf()
+            fig, ax = plt.subplots()
+            error_indices = np.arange(len(min_errors)) if isinstance(min_errors, list) else 1
             ax.bar(error_indices, min_errors)
             ax.set_ylabel('Error in estimated time difference between start of recordings')
             ax.set_title('Accuracy of multiple-nsx file match-up')
+            plt.savefig(os.path.join(self.plot_save_dir, 'multi-ns2{ext}'.format(ext=self.PLOT_SAVE_FILE_EXT)))
 
         return nsx_file_combinations[best_index]
 
@@ -147,9 +157,16 @@ class System2Aligner:
         for host_log_file in self.host_log_files:
             (coefficient, host_start, host_end) = coefficient_fn(host_log_file, *args)
             if (coefficient or host_start):
-                coefficients.extend(coefficient)
-                beginnings.extend(host_start)
-                endings.extend(host_end)
+                # This is arbitrary, but prevents from caring about back-to-back recordings
+                if len(beginnings) < 1 or len(host_start) == 1 and host_start[0] - beginnings[-1] > 100:
+                    coefficients.extend(coefficient)
+                    beginnings.extend(host_start)
+                    endings.extend(host_end)
+                elif len(beginnings) >= 1 and len(host_start) == 1 and host_start[0] - beginnings[-1] < 100:
+                    coefficients[-1] = coefficient[0]
+                    beginnings[-1] = host_start[0]
+                    endings[-1] = host_end[0]
+
         return coefficients, beginnings, endings
 
     def stim_event_to_mstime(self, stim_event):
@@ -171,7 +188,7 @@ class System2Aligner:
         time_dest[time_mask] = cls.apply_coefficients(time_source[time_mask], coefficients[-1])
         still_nans = np.where(np.isnan(time_dest))[0]
         if len(still_nans) > 0:
-            if (np.array(still_nans) < okay_no_align_up_to).all():
+            if (np.array(still_nans) <= okay_no_align_up_to).all():
                 log('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
@@ -245,11 +262,13 @@ class System2Aligner:
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
         fit = coefficients[0] * np.array(x) + coefficients[1]
         if plot_save_dir:
+            plt.clf()
             plt.plot(x, y, 'g.', x, fit, 'b-')
             plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
                                                                               ext=cls.PLOT_SAVE_FILE_EXT)))
 
         if plot_save_dir:
+            plt.clf()
             plt.plot(x, y-fit, 'g-', [min(x), max(x)], [0, 0], 'k-')
             plt.savefig(os.path.join(plot_save_dir, '{label}_residuals{ext}'.format(label=plot_save_label,
                                                                               ext=cls.PLOT_SAVE_FILE_EXT)))

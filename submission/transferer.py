@@ -116,7 +116,13 @@ class Transferer(object):
 
     @classmethod
     def get_origin_files(cls, info, **kwargs):
-        origin_directory = info['origin_directory'].format(**kwargs)
+        try:
+            origin_directory = info['origin_directory'].format(**kwargs)
+        except:
+            if info['required']:
+                raise
+            else:
+                return []
 
         if info['type'] == 'link':
             origin_directory = os.path.relpath(os.path.realpath(origin_directory))
@@ -461,6 +467,7 @@ class TransferPipeline(object):
         logger.remove_log_files(*self.log_filenames)
 
     def run(self, force=False):
+        logger.set_label('Transfer initialization')
         self.start_logging()
 
         log('Transfer pipeline to {} started'.format(self.destination_root))
@@ -487,6 +494,7 @@ class TransferPipeline(object):
                 else:
                     log('Forcing transfer to happen anyway')
 
+        logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
         pipeline_task = None
         try:

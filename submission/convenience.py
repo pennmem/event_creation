@@ -3,6 +3,7 @@ import os
 import json
 import glob
 import numpy as np
+import sys
 
 from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
 from tasks import SplitEEGTask, EventCreationTask, AggregatorTask, CompareEventsTask
@@ -29,7 +30,7 @@ class UnknownMontageException(Exception):
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='R1', groups=tuple(), code=None, original_session=None, **kwargs):
     transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups,
-                                           code=code, original_session=original_session,**kwargs)
+                                           code=code, original_session=original_session, **kwargs)
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
@@ -88,10 +89,16 @@ def determine_montage_from_code(code, protocol='R1', allow_new=False, allow_skip
 
 
 def get_subject_sessions_by_experiment(experiment, protocol='R1'):
-    events_dir = os.path.join(DATA_ROOT, '..', 'events', 'RAM_{}'.format(experiment))
+    if re.match('catFR[0-4]', experiment):
+        ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+    else:
+        ram_exp = 'RAM_{}'.format(experiment)
+    events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
     events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol))))
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
+        if '_' in subject:
+            continue
         mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
         log('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
         try:
@@ -154,6 +161,7 @@ def xtest_get_subject_sessions():
     pprint(get_subject_sessions_by_experiment('FR2'))
 
 def check_subject_sessions(code, experiment, sessions, protocol='R1'):
+    bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
     subject = re.sub(r'_.*', '', code)
     montage = determine_montage_from_code(code, allow_new=True, allow_skip=True)
     test_inputs = dict(
@@ -166,6 +174,13 @@ def check_subject_sessions(code, experiment, sessions, protocol='R1'):
     )
     sessions = sorted(sessions)
     for session in sessions:
+        if subject in bad_sessions and \
+                        experiment in bad_sessions[subject] and \
+                        str(session) in bad_sessions[subject][experiment]:
+            log('SKIPPING {} {}_{}: {}'.format(subject, experiment, session,
+                                               bad_sessions[subject][experiment][str(session)]))
+            continue
+
         test_inputs['original_session'] = session
         if '_' in code:
             test_inputs['session'] = get_first_unused_session(subject, experiment, protocol)
@@ -188,6 +203,8 @@ def check_experiment(experiment):
         for test in check_subject_sessions(subject, experiment, sessions):
             yield test
 
+BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'unrecoverable_sessions.json')
+
 EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
 
 def test_all_experiments():
@@ -197,23 +214,67 @@ def test_all_experiments():
         for test in check_experiment(experiment):
             yield test
 
+def xtest_fr2():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('FR2'):
+        yield test
+
+
+def xtest_fr1():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('FR1'):
+        yield test
+
+
+def xtest_fr3():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('FR3'):
+        yield test
+
+def xtest_pal1():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('PAL1'):
+        yield test
+
+def xtest_pal2():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('PAL2'):
+        yield test
+
+def xtest_pal3():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('PAL3'):
+        yield test
+
+def xtest_catfr1():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('catFR1'):
+        yield test
+
+def xtest_catfr2():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('catFR2'):
+        yield test
+
+def xtest_catfr3():
+    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
+    for test in check_experiment('catFR3'):
+        yield test
+
+
+
 if __name__ == '__main__':
-    subject = raw_input('Enter subject code: ')
-    experiment = raw_input('Enter experiment: ')
-    session = int(raw_input('Enter new session number: '))
     code = raw_input('Enter code or blank: ')
-    montage = raw_input('Enter montage or blank: ')
-    original_session = raw_input('Enter old session number or blank: ')
-    if not montage:
-        montage = '0.0'
+    subject = re.sub('_.*', '', code)
+    experiment = raw_input('Enter experiment: ')
+    original_session = int(raw_input('Enter old session number: '))
 
-    if not code:
-        code = subject
-
-    if not original_session:
-        original_session = session
+    if subject != code:
+        montage = raw_input('Enter montage #: ')
+        session = int(raw_input('Enter new session number: '))
     else:
-        original_session = int(original_session)
+        montage = '0.0'
+        session = original_session
 
     inputs = dict(
         subject=subject,
@@ -225,5 +286,10 @@ if __name__ == '__main__':
         session=session,
         original_session=original_session
     )
+
+    if '--substitute-raw-for-header' in sys.argv:
+        header_substitute = raw_input('Enter raw folder containing substitute for header: ')
+        inputs['substitute_raw_folder'] = header_substitute
+
     run_individual_pipline(build_split_pipeline, inputs)
     run_individual_pipline(build_events_pipeline, inputs)

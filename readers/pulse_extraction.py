@@ -208,12 +208,11 @@ class SyncPulseExtractor(QWidget):
         return filename if len(filename) < 35 else '...' + filename[-35:]
 
     def set_data_root_pressed(self):
-        filename = QFileDialog.getOpenFileName(self, 'Set Data Root',
-                                               '/',
-                                               '.txt')
+        filename = QFileDialog.getExistingDirectory(self, 'Set Data Root')
 
         if filename:
-            self.model.data_root = filename
+            self.model.data_root = str(filename)
+            self.apply_edits()
 
     def save_pulses_pressed(self):
         save_name = self.model.get_save_name()

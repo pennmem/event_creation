@@ -35,7 +35,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             ('resp_word', '', 'S16'),
             ('correct', -999, 'int16'),
             ('intrusion', -999, 'int16'),
-            ('resp_pass', -999, 'int16'),
+            ('resp_pass', 0 , 'int16'),
             ('vocalization', -999, 'int16'),
             ('RT', -999, 'int16'),
             ('expVersion', '', 'S16'),
@@ -46,7 +46,7 @@ class PALSessionLogParser(BaseSessionLogParser):
         )
         #return MatParser(MATFile)
     def __init__(self, subject, montage, files):
-        BaseSessionLogParser.__init__(self, subject, montage, files)
+        super(PALSessionLogParser, self).__init__(subject, montage, files)
         #self.fields = {field[0]: field[1] for field in fields)
         self._session = -999
         self._list = -999
@@ -100,7 +100,10 @@ class PALSessionLogParser(BaseSessionLogParser):
             PRACTICE_TRIAL=self.event_practice_trial,
             INSTRUCT_VIDEO=self.event_instruct_video,
             MIC_TEST=self.event_default,
-            STIM_PARAMS= self._event_skip
+            STIM_PARAMS= self._event_skip,
+            FEEDBACK_SHOW_ALL_PAIRS=self.event_default,
+            FORCED_BREAK=self.event_default,
+            SESSION_SKIPPED=self.event_default,
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
@@ -134,6 +137,8 @@ class PALSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_distract_start(self, split_line):
+        self._serialpos = -999
+        self._probepos = -999
         event = self.event_default(split_line)
         event.type = 'MATH_START'
         return event
@@ -291,10 +296,11 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.study_2 = self._study_2
 
         stimstr = split_line[7]
-        if stimstr == "NO_STIM":
-            self._isStim = 0
-        elif stimstr =="STIM":
-            self._isStim = 1
+        if self._version < 2:
+            if stimstr == "NO_STIM":
+                self._isStim = 0
+            elif stimstr =="STIM":
+                self._isStim = 1
         event.isStim = self._isStim
         event.stimType = self._stimType
         event.stimTrial = self._stimTrial
@@ -397,18 +403,24 @@ class PALSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_math_start(self, split_line):
-        event = self.event_default(split_line)
         self._serialpos=-999
+        self._probepos = -999
+        event = self.event_default(split_line)
+
         return event
 
     def modify_test(self, events):
         orient_on = np.where(np.logical_or.reduce((events.type == 'STUDY_ORIENT',
                                                    events.type == 'TEST_ORIENT',
                                                    events.type == 'PRACTICE_RETRIEVAL_ORIENT')))[0][-1]
-        orient_off = np.where(np.logical_or(events.type == 'TEST_ORIENT_OFF',
-                                           events.type == 'PRACTICE_RETRIEVAL_ORIENT_OFF'))[0][-1]
         events[orient_on].serialpos = self._serialpos
-        events[orient_off].serialpos = self._serialpos
+
+        try:
+            orient_off = np.where(np.logical_or(events.type == 'TEST_ORIENT_OFF',
+                                               events.type == 'PRACTICE_RETRIEVAL_ORIENT_OFF'))[0][-1]
+            events[orient_off].serialpos = self._serialpos
+        except:
+            pass
 
         modify_mask = np.logical_and(events.list == events[-1].list, events.serialpos == self._serialpos)
         events.probepos[modify_mask] = events[-1].probepos
@@ -448,6 +460,15 @@ class PALSessionLogParser(BaseSessionLogParser):
         except IOError: # Will happen if no ann file
             warnings.warn("Ann file %s not parseable" % ann_file)
             return events
+        response_spoken = False
+
+        modify_events_mask = np.logical_and.reduce((events.serialpos == self._serialpos,
+                                                    events.list == self._list,
+                                                    events.type != 'REC_EVENT'))
+
+        events.resp_pass[modify_events_mask] = 0
+        events.correct[modify_events_mask] = 0
+
         for recall in ann_outputs:
             word = recall[-1]
             new_event = self._empty_event
@@ -482,29 +503,37 @@ class PALSessionLogParser(BaseSessionLogParser):
             modify_events_mask = np.logical_and.reduce((events.serialpos == self._serialpos,
                                                         events.list == self._list,
                                                         events.type != 'REC_EVENT'))
+
             pres_mask = self.find_presentation(word, events)
             pres_list = np.unique(events[pres_mask].list)
 
-            events.correct[modify_events_mask] = self._correct
-
-            events.resp_pass[modify_events_mask] = 0
-
-            if word != '<>':
-               events.resp_word[modify_events_mask] = word
-               events.resp_word[modify_events_mask] = word
-               events.RT[modify_events_mask] = new_event.RT
+            if word != '<>' and word != 'v' and word != '!':
+                is_vocalization = False
+                events.resp_word[modify_events_mask] = word
+                events.RT[modify_events_mask] = new_event.RT
+                events.correct[modify_events_mask] = self._correct
+                events.resp_pass[modify_events_mask] = 0
+                response_spoken = True
+            else:
+                if not response_spoken:
+                    events.correct[modify_events_mask] = 0
+                is_vocalization = True
 
             new_event.type = 'REC_EVENT'
 
             if word == 'PASS':
                 new_event.resp_pass = 1
                 events.resp_pass[modify_events_mask] = 1
+            elif not is_vocalization:
+                events.resp_pass[modify_events_mask] = 0
             # if xli
 
             if self._correct == 0:
                 if word == '<>' or word == 'v' or word == '!':
                     new_event.vocalization = 1
                     new_event.intrusion = 0
+                    new_event.resp_pass = 0
+                    events.resp_pass[modify_events_mask] = 0
                 elif word == 'PASS':
                     new_event.resp_pass = 1
                     new_event.intrusion = 0
@@ -516,8 +545,8 @@ class PALSessionLogParser(BaseSessionLogParser):
                 else:  # correct recall or pli or xli from latter list
                     # correct recall or pli
                     if len(pres_list) == 1:
-                        new_event.intrusion = recall[1]
-                        events.intrusion[modify_events_mask] = recall[1]
+                        new_event.intrusion = self._list - pres_list
+                        events.intrusion[modify_events_mask] = self._list - pres_list
                     else:  # xli
                         new_event.intrusion = -1
                         events.intrusion[modify_events_mask] = -1
@@ -530,7 +559,8 @@ class PALSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
         #not quite sure why I need the last clause, but it doesn't work without it. Maybe the type changes somewhere
         # within the loop somehow?
-        return np.logical_and(np.logical_and(events.study_1 == word,
+        return np.logical_and(np.logical_and(np.logical_or(events.study_1 == word,
+                                                           events.study_2 == word,),
                                              np.any([events.type == 'STUDY_ORIENT',
                                                      events.type == 'STUDY_PAIR'])),
                               events.type != 'REC_EVENT')
@@ -542,6 +572,15 @@ class PALSessionLogParser(BaseSessionLogParser):
                                              np.any([events.type == 'TEST_ORIENT',
                                                                events.type == 'TEST_PROBE'])),
                               events.type != 'REC_EVENT')
+
+    @staticmethod
+    def persist_fields_during_stim(event):
+        if event['type'] == 'STUDY_PAIR':
+            return ('resp_word', 'probe_word', 'probepos', 'cue_direction', 'subject', 'RT',
+                    'stimTrial', 'serialpos', 'resp_pass', 'correct', 'study_1', 'study_2',
+                    'vocalization', 'stimType', 'intrusion', 'list', 'expecting_word')
+        else:
+            return tuple()
 
 
 def pal_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log'):

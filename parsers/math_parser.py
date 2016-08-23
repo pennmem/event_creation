@@ -25,7 +25,7 @@ class MathSessionLogParser(BaseSessionLogParser):
         )
         #return MatParser(MATFile)
     def __init__(self, subject, montage, files):
-        BaseSessionLogParser.__init__(self, subject, montage, files, primary_log='math_log')
+        super(MathSessionLogParser, self).__init__(subject, montage, files, primary_log='math_log')
         #self.fields = {field[0]: field[1] for field in fields)
         self._session = -999
         self._list = -999

@@ -12,8 +12,10 @@ class System2LogParser:
 
     _SYS2_FIELDS = (
         ('hostTime', -1, 'int32'),
-        ('elec1', -1, 'int16'),
-        ('elec2', -1, 'int16'),
+        ('anode_number', -1, 'int16'),
+        ('cathode_number', -1, 'int16'),
+        ('anode_label', '', 'S64'),
+        ('cathode_label', '', 'S64'),
         ('amplitude', -1, 'int16'),
         ('pulseFreq', -1, 'int16'),
         ('nPulses', -1, 'int16'),
@@ -26,8 +28,8 @@ class System2LogParser:
     )
 
     _LOG_TO_FIELD = {
-        'E1': 'elec1',
-        'E2': 'elec2',
+        'E1': 'anode_number',
+        'E2': 'cathode_number',
         'AMP': 'amplitude',
         'BFREQ': 'burstFreq',
         'NBURST': 'nBursts',

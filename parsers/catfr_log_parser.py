@@ -1,5 +1,6 @@
 from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
 from system2_log_parser import System2LogParser
+from viewers.view_recarray import strip_accents
 import numpy as np
 import os
 
@@ -30,7 +31,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             ('wordno', -999, 'int16'),
             ('recalled', False, 'int16'),
             ('rectime', -999, 'int32'),
-            ('expVersion', -1, 'float'),
+            ('expVersion', -1, 'S16'),
             ('intrusion', -999, 'int16'),
             ('isStim', False, 'b1'),
             ('category', 'X', 'S16'),
@@ -40,8 +41,12 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         )
 
     def __init__(self, subject, montage, files):
-        BaseSessionLogParser.__init__(self, subject, montage, files)
-        self._wordpool = np.array([x.strip() for x in open(files['wordpool']).readlines()])
+        super(CatFRSessionLogParser, self).__init__(subject, montage, files)
+        if 'no_accent_wordpool' in files:
+            wordpool_type = 'no_accent_wordpool'
+        else:
+            wordpool_type = 'wordpool'
+        self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
         self._session = -999
         self._list = -999
         self._serialpos = -999
@@ -113,7 +118,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         self._session = int(split_line[3]) - 1
-        self._version = float(split_line[5].split('_')[1])
+        self._version = split_line[5].split('_')[1]
         return self.event_default(split_line)
 
     def modify_session(self, events):
@@ -142,7 +147,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_practice_word(self, split_line):
-        self._word = split_line[3]
+        self._word = strip_accents(split_line[3])
         event = self.event_default(split_line)
         event.serialpos = self._serialpos
         event.word = self._word
@@ -155,7 +160,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_trial(self, split_line):
-        if self._version < 2:
+        if float(self._version) < 2:
             self._list = int(split_line[3])
             self._stimList = int(split_line[5]) > 0
         else:
@@ -164,7 +169,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return self.event_default(split_line)
 
     def event_word(self, split_line):
-        self._word = split_line[4]
+        self._word = strip_accents(split_line[4])
         self._serialpos = int(split_line[5]) + 1
         event = self.event_default(split_line)
         event = self.apply_word(event)

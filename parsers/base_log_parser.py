@@ -17,7 +17,7 @@ class IncomparableFieldException(Exception):
     pass
 
 
-class BaseSessionLogParser:
+class BaseSessionLogParser(object):
     """
     BaseSessionLogParser contains the basic structure for creating events from session.log files
 
@@ -72,6 +72,8 @@ class BaseSessionLogParser:
     )
 
     START_EVENT = 'SESS_START'
+
+    MAX_ANN_LENGTH = 600000
 
     def __init__(self, subject, montage, files, primary_log='session_log', allow_unparsed_events=False):
         """
@@ -211,7 +213,8 @@ class BaseSessionLogParser:
         ann_file = self._ann_files[ann_id]
         lines = open(ann_file, 'r').readlines()
         matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
-        split_lines = [line.split() for line in matching_lines]
+        # Remove events with rectimes greater than 10 minutes, because they're probably a mistake
+        split_lines = [line.split() for line in matching_lines if float(line.split()[0]) < self.MAX_ANN_LENGTH]
         return [(float(line[0]), int(line[1]), line[2]) for line in split_lines]
 
 
@@ -293,7 +296,7 @@ class EventComparator:
         bad_events1 = self.events1[0] # Have to initialize with something to fill it
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1['mstime'] - self.events2['mstime']) <= 1.5, event1['type'] == self.events2['type'])
+                    np.abs(event1['mstime'] - self.events2['mstime']) <= 4, event1['type'] == self.events2['type'])
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
             elif event1['type'] not in self.type_ignore:

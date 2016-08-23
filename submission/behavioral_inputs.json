@@ -45,6 +45,14 @@
         "origin_directory": "{data_root}/{code}/{sync_folder}/",
         "origin_file": "{sync_filename}",
         "destination": "logs/extracted_syncs.txt"
+      },
+      "jacksheet": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{data_root}/{code}/docs",
+        "origin_file": "jacksheet.txt",
+        "destination": "jacksheet.txt"
       }
     },
     "system_2": {
@@ -85,6 +93,26 @@
       "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
       "origin_file": "sconfig.py",
       "destination": "experiment_files/sconfig.py"
+    }
+  },
+
+  "catFR": {
+    "type": "group",
+    "wordpool": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+      "origin_file": "CatFR_WORDS.txt",
+      "destination": "experiment_files/wordpool.txt"
+    },
+    "no_accent_wordpool": {
+      "type": "file",
+      "multiple": false,
+      "required": false,
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+      "origin_file": "CatFR_WORDS_noAcc.txt",
+      "destination": "experiment_files/wordpool_no_accent.txt"
     }
   },
 

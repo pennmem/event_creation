@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.stats
 import os
+
 from nose.tools import raises
 import json
 import matplotlib.pyplot as plt
@@ -21,7 +22,9 @@ class System1Aligner:
 
     TIC_RATE = 30000
 
-    ALIGNMENT_WINDOW = 100
+    STARTING_ALIGNMENT_WINDOW = 100
+    ALIGNMENT_WINDOW_STEP = 10
+    MIN_ALIGNMENT_WINDOW = 5
     ALIGNMENT_THRESHOLD = 10
 
     def __init__(self, events, files):
@@ -45,6 +48,13 @@ class System1Aligner:
 
         out_of_range = np.logical_or(self.events[self.EEG_TIME_FIELD] < 0,
                                      self.events[self.EEG_TIME_FIELD] > self.n_samples)
+
+        n_out_of_range = np.count_nonzero(out_of_range)
+        if n_out_of_range == self.events.size:
+            raise UnAlignableEEGException('Could not align ANY events.')
+        elif n_out_of_range:
+            log('{} events out of range of eeg'.format(n_out_of_range), 'WARNING')
+
         self.events[self.EEG_FILE_FIELD][out_of_range] = ''
         self.events[self.EEG_TIME_FIELD][out_of_range] = 0
         return self.events
@@ -69,8 +79,8 @@ class System1Aligner:
         slope, intercept, r, p, err = scipy.stats.linregress(matching_task_times, matching_eeg_times)
         prediction = matching_task_times * slope + intercept
         residual = matching_eeg_times - prediction
-        if max(abs(residual)) > max_residual + 1: #TODO: This is totally arbitrary
-            raise UnAlignableEEGException('Start and end window do not match -- max residual: {}'.format(np.max(abs(residual))))
+        #if max(abs(residual)) > max_residual + 1: #TODO: This is totally arbitrary
+        #    raise UnAlignableEEGException('Start and end window do not match -- max residual: {}'.format(np.max(abs(residual))))
         log('Slope: {0}\nIntercept: {1}\nStd. Err: {2}\nMax residual: {3}\nMin residual: {4}'\
             .format(slope, intercept, err, max(residual), min(residual)))
         return slope, intercept
@@ -82,32 +92,32 @@ class System1Aligner:
         eeg_diff = np.diff(eeg_pulse_ms)
 
         log('Scanning for start window')
-        task_start_ind, eeg_start_ind = cls.find_matching_window(eeg_diff, task_diff, True)
+        task_start_range, eeg_start_range = cls.find_matching_window(eeg_diff, task_diff, True)
 
         log('Scanning for end window')
-        task_end_ind, eeg_end_ind = cls.find_matching_window(eeg_diff, task_diff, False)
+        task_end_range, eeg_end_range = cls.find_matching_window(eeg_diff, task_diff, False)
 
-        [slope_start, intercept_start, _, _, _] = cls.get_fit(task_pulse_ms[task_start_ind:task_start_ind+cls.ALIGNMENT_WINDOW],
-                                                              eeg_pulse_ms[eeg_start_ind:eeg_start_ind+cls.ALIGNMENT_WINDOW])
-        [slope_end, intercept_end, _, _, _] = cls.get_fit(task_pulse_ms[task_end_ind:task_end_ind+cls.ALIGNMENT_WINDOW],
-                                                          eeg_pulse_ms[eeg_end_ind:eeg_end_ind+cls.ALIGNMENT_WINDOW])
+        [slope_start, intercept_start, _, _, _] = cls.get_fit(task_pulse_ms[task_start_range[0]: task_start_range[1]],
+                                                              eeg_pulse_ms[eeg_start_range[0]: eeg_start_range[1]])
+        [slope_end, intercept_end, _, _, _] = cls.get_fit(task_pulse_ms[task_end_range[0]: task_end_range[1]],
+                                                          eeg_pulse_ms[eeg_end_range[0]: eeg_end_range[1]])
 
-        prediction_start = slope_start * task_pulse_ms[task_start_ind:task_start_ind+cls.ALIGNMENT_WINDOW] + intercept_start
-        residuals_start = eeg_pulse_ms[eeg_start_ind:eeg_start_ind+cls.ALIGNMENT_WINDOW] - prediction_start
+        prediction_start = slope_start * task_pulse_ms[task_start_range[0]: task_start_range[1]] + intercept_start
+        residuals_start = eeg_pulse_ms[eeg_start_range[0]: eeg_start_range[1]] - prediction_start
         max_residual_start = max(abs(residuals_start))
         log('Max residual start %.1f' % max_residual_start)
 
-        prediction_end = slope_end * task_pulse_ms[task_end_ind:task_end_ind+cls.ALIGNMENT_WINDOW] + intercept_end
-        residuals_end = eeg_pulse_ms[eeg_end_ind:eeg_end_ind+cls.ALIGNMENT_WINDOW] - prediction_end
+        prediction_end = slope_end * task_pulse_ms[task_end_range[0]: task_end_range[1]] + intercept_end
+        residuals_end = eeg_pulse_ms[eeg_end_range[0]: eeg_end_range[1]] - prediction_end
         max_residual_end = max(abs(residuals_end))
         log('Max residual end %.1f;' % max_residual_end)
 
         max_residual = max(max_residual_start, max_residual_end)
 
-        task_range = np.union1d(range(task_start_ind, task_start_ind+cls.ALIGNMENT_WINDOW),
-                               range(task_end_ind, task_end_ind+cls.ALIGNMENT_WINDOW))
-        eeg_range = np.union1d(range(eeg_start_ind, eeg_start_ind+cls.ALIGNMENT_WINDOW),
-                                 range(eeg_end_ind, eeg_end_ind+cls.ALIGNMENT_WINDOW))
+        task_range = np.union1d(range(task_start_range[0], task_start_range[1]),
+                               range(task_end_range[0], task_end_range[1]))
+        eeg_range = np.union1d(range(eeg_start_range[0], eeg_start_range[1]),
+                                 range(eeg_end_range[0], eeg_end_range[1]))
 
         task_pulse_out = task_pulse_ms[task_range]
         eeg_pulse_out = eeg_pulse_ms[eeg_range]
@@ -119,16 +129,19 @@ class System1Aligner:
         return scipy.stats.linregress(x, y)
 
     @classmethod
-    def find_matching_window(cls, eeg_diff, task_diff, from_front=True):
+    def find_matching_window(cls, eeg_diff, task_diff, from_front=True, alignment_window=None):
+        if alignment_window is None:
+            alignment_window = cls.STARTING_ALIGNMENT_WINDOW
+
         task_start_ind = None
         eeg_start_ind = None
 
-        start_i = 0 if from_front else len(eeg_diff) - cls.ALIGNMENT_WINDOW
-        end_i = len(eeg_diff) - cls.ALIGNMENT_WINDOW if from_front else 0
+        start_i = 0 if from_front else len(eeg_diff) - alignment_window
+        end_i = len(eeg_diff) - alignment_window if from_front else 0
         step_i = 1 if from_front else -1
 
         for i in range(start_i, end_i, step_i):
-            task_start_ind = cls.get_best_offset(eeg_diff[i:i + cls.ALIGNMENT_WINDOW],
+            task_start_ind = cls.get_best_offset(eeg_diff[i:i + alignment_window],
                                             task_diff,
                                             cls.ALIGNMENT_THRESHOLD)
             if task_start_ind:
@@ -136,9 +149,15 @@ class System1Aligner:
                 break
 
         if not task_start_ind:
-            raise UnAlignableEEGException("Could not align window")
+            if alignment_window - cls.ALIGNMENT_WINDOW_STEP < cls.MIN_ALIGNMENT_WINDOW:
+                raise UnAlignableEEGException("Could not align window")
+            else:
+                log('Reducing align window to {}'.format(alignment_window - cls.ALIGNMENT_WINDOW_STEP), 'WARNING')
+                return cls.find_matching_window(eeg_diff, task_diff, from_front,
+                                                alignment_window - cls.ALIGNMENT_WINDOW_STEP)
 
-        return task_start_ind, eeg_start_ind
+        return (task_start_ind, task_start_ind + alignment_window), \
+               (eeg_start_ind, eeg_start_ind + alignment_window)
 
     @staticmethod
     def get_best_offset(eeg_diff, task_diff, delta):
