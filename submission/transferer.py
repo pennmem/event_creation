@@ -214,11 +214,12 @@ class Transferer(object):
             if not origin_files:
                 continue
 
-            transferrable_files.append({'name': name, 'info': info, 'files': origin_files})
+            transferrable_files.append({'name': name,
+                                        'info': info,
+                                        'files': origin_files,
+                                        'directory': info['origin_directory'].format(**self.kwargs)})
 
         return transferrable_files
-
-
 
     def _transfer_files(self):
         if not os.path.exists(self.destination_root):
@@ -247,11 +248,16 @@ class Transferer(object):
 
             for origin_file in origin_files:
                 if info['multiple']:
-                    destination_file = os.path.join(destination_path, os.path.basename(origin_file))
+                    destination_file_path = origin_file.replace(file_dict['directory'], '')
+                    while destination_file_path[0] == '/':
+                        destination_file_path = destination_file_path[1:]
+                    destination_file = os.path.join(destination_path, destination_file_path)
                 else:
                     destination_file = os.path.join(self.destination_root, self.label, info['destination'])
 
                 if info['type'] == 'file':
+                    if not os.path.exists(os.path.dirname(destination_file)):
+                        os.makedirs(os.path.dirname(destination_file))
                     shutil.copyfile(origin_file, destination_file)
                     log('Copied file {} to {}'.format(origin_file, destination_file))
                 elif info['type'] == 'directory':
@@ -370,7 +376,7 @@ def find_sync_file(subject, experiment, session):
         raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
 
 
-def generate_ephys_transferer(subject, experiment, session, protocol='R1', groups=tuple(),
+def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
                               code=None, original_session=None, **kwargs):
     json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ephys_inputs.json')
     destination = os.path.join(DB_ROOT,
@@ -388,7 +394,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='R1', group
 
 
 
-def generate_session_transferer(subject, experiment, session, protocol='R1', groups=tuple(), code=None, original_session=None, **kwargs):
+def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None, original_session=None, **kwargs):
     groups = groups+(re.sub('\d', '', experiment),)
     json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'behavioral_inputs.json')
     source_files = Transferer.load_groups(json.load(open(json_file)), groups)

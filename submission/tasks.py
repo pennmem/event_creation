@@ -42,12 +42,29 @@ class SplitEEGTask(object):
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
 
+    @staticmethod
+    def group_ns2_files(raw_eegs):
+        raw_eeg_groups = []
+        for raw_eeg in raw_eegs:
+            for group in raw_eeg_groups:
+                if raw_eeg.replace('np1', 'np2') == group[0].replace('np1', 'np2'):
+                    group.append(raw_eeg)
+                    break
+            else:
+                raw_eeg_groups.append([raw_eeg])
+        raw_eeg_groups = [group[0] if len(group) == 1 else group for group in raw_eeg_groups]
+        return raw_eeg_groups
+
+
     def run(self, files, db_folder):
         logger.set_label(self.name)
         raw_eegs = files['raw_eeg']
         if not isinstance(raw_eegs, list):
             raw_eegs = [raw_eegs]
-        for raw_eeg in raw_eegs:
+
+        raw_eeg_groups = self.group_ns2_files(raw_eegs)
+
+        for raw_eeg in raw_eeg_groups:
             if 'substitute_raw_file_for_header' in files:
                 reader = get_eeg_reader(raw_eeg,
                                        files['jacksheet'],
@@ -112,7 +129,7 @@ class EventCreationTask(object):
 
 class AggregatorTask(object):
 
-    def __init__(self, subject, montage, experiment, session, protocol='R1', code=None):
+    def __init__(self, subject, montage, experiment, session, protocol='r1', code=None):
         self.name = 'Aggregation of {subj}: {exp}_{sess}'.format(subj=subject, exp=experiment, sess=session)
         self.subject, self.montage, self.experiment, self.session, self.protocol =\
             subject, montage, experiment, session, protocol
@@ -187,7 +204,7 @@ class AggregatorTask(object):
 
 class CompareEventsTask(object):
 
-    def __init__(self, subject, montage, experiment, session, protocol='R1', code=None, original_session=None):
+    def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None):
         self.name = 'Comparator {}: {}_{}'.format(subject, experiment, session)
         self.subject = subject
         self.code = code if code else subject
@@ -282,7 +299,7 @@ def change_current(source_folder, *args):
 def test_change_current():
     from convenience import build_split_pipeline
     import time
-    subject, montage, experiment, session, protocol = 'R1001P', '0.0', 'FR1', 0, 'R1',
+    subject, montage, experiment, session, protocol = 'R1001P', '0.0', 'FR1', 0, 'r1',
     pipeline_1 = build_split_pipeline(subject, montage, experiment, session)
     pipeline_1.run()
     previous_label = pipeline_1.source_label

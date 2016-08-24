@@ -55,6 +55,7 @@ class EEG_reader:
             sources = {}
 
         sources[basename] = {
+            'name': basename,
             'source_file': os.path.basename(self.get_source_file()),
             'start_time_str': self.get_start_time_string(),
             'start_time_ms': self.get_start_time_ms(),
@@ -64,7 +65,7 @@ class EEG_reader:
         }
 
         with open(os.path.join(location, 'sources.json'), 'w') as source_file:
-            json.dump(sources, source_file, indent=2)
+            json.dump(sources, source_file, indent=2, sort_keys=True)
 
     def split_data(self, location, basename):
         noreref_location = os.path.join(location, 'noreref')
@@ -462,17 +463,74 @@ class NK_reader(EEG_reader):
         log('Saved.')
 
 
+class Multi_NSx_reader(EEG_reader):
+
+    def __init__(self, nsx_filenames, jacksheet_filename=None):
+        self.readers = [NSx_reader(filename, jacksheet_filename, i) for i, filename in enumerate(nsx_filenames)]
+
+    def get_source_file(self):
+        return self.readers[0].get_source_file()
+
+    def get_start_time(self):
+        return self.readers[0].get_start_time()
+
+    def get_sample_rate(self):
+        sample_rates = np.array([reader.get_sample_rate() for reader in self.readers])
+        if len(np.unique(sample_rates)) != 1:
+            raise UnSplittableEEGFileException('Cannot split files with multiple sample rates together: {}'.format(sample_rates))
+        return sample_rates[0]
+
+    def get_n_samples(self):
+        return min([reader.get_n_samples() for reader in self.readers])
+
+    def write_sources(self, location, basename):
+        try:
+            with open(os.path.join(location, 'sources.json')) as source_file:
+                sources = json.load(source_file)
+        except:
+            sources = {}
+
+        sources[basename] = {
+                'start_time_str': self.get_start_time_string(),
+                'start_time_ms': self.get_start_time_ms(),
+                'n_samples': self.get_n_samples(),
+                'sample_rate': self.get_sample_rate(),
+                'source_file': os.path.basename(self.get_source_file()),
+                'data_format': self.DATA_FORMAT
+                 }
+        for i, reader in enumerate(self.readers):
+             sources[basename].update({i:
+                 {
+                'source_file': os.path.join(os.path.basename(os.path.dirname(reader.get_source_file())),
+                                            os.path.basename(reader.get_source_file())),
+                'start_time_str': reader.get_start_time_string(),
+                'start_time_ms': reader.get_start_time_ms(),
+                'n_samples': reader.get_n_samples(),
+                'sample_rate': reader.get_sample_rate(),
+                'data_format': reader.DATA_FORMAT
+                 }
+            })
+
+        with open(os.path.join(location, 'sources.json'), 'w') as source_file:
+            json.dump(sources, source_file, indent=2, sort_keys=True)
+
+    def _split_data(self, location, basename):
+        for reader in self.readers:
+            reader._split_data(location, basename)
+
 class NSx_reader(EEG_reader):
     TIC_RATE = 30000
 
+    N_CHANNELS = 128
 
     SAMPLE_RATES = {
         '.ns2': 1000
     }
 
 
-    def __init__(self, nsx_filename, jacksheet_filename=None):
+    def __init__(self, nsx_filename, jacksheet_filename=None,  file_number = 0):
         self.raw_filename = nsx_filename
+        self.lowest_channel = file_number * self.N_CHANNELS
         if jacksheet_filename:
             if os.path.splitext(jacksheet_filename)[1] == '.txt':
                 self.jacksheet = read_jacksheet(jacksheet_filename)
@@ -533,6 +591,10 @@ class NSx_reader(EEG_reader):
         channels = np.array(self.data['elec_ids'])
         log('Splitting into %s/%s: ' % (location,basename))
         for label, channel in self.labels.items():
+            recording_channel = channel - self.lowest_channel
+            if recording_channel < 0 or recording_channel > self.data['data'].shape[0]:
+                log('Not getting channel {} from file {}'.format(channel, self.raw_filename), 'WARNING')
+                continue
             filename = os.path.join(location, basename + '.%03d' % channel)
             log('%s: %s' % (label, channel))
             data = self.data['data'][channels==channel, :].astype(self.DATA_FORMAT)
@@ -675,4 +737,7 @@ READERS = {
 }
 
 def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):
-    return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename, **kwargs)
+    if isinstance(raw_filename, list):
+        return Multi_NSx_reader(raw_filename, jacksheet_filename)
+    else:
+        return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename, **kwargs)

@@ -469,7 +469,7 @@ class PALSessionLogParser(BaseSessionLogParser):
         events.resp_pass[modify_events_mask] = 0
         events.correct[modify_events_mask] = 0
 
-        for recall in ann_outputs:
+        for i, recall in enumerate(ann_outputs):
             word = recall[-1]
             new_event = self._empty_event
             new_event.list = self._list
@@ -507,12 +507,17 @@ class PALSessionLogParser(BaseSessionLogParser):
             pres_mask = self.find_presentation(word, events)
             pres_list = np.unique(events[pres_mask].list)
 
+            same_word = i > 0 and ann_outputs[i-1][-1] == word
+
             if word != '<>' and word != 'v' and word != '!':
                 is_vocalization = False
+                events.vocalization[modify_events_mask] = 0
                 events.resp_word[modify_events_mask] = word
-                events.RT[modify_events_mask] = new_event.RT
                 events.correct[modify_events_mask] = self._correct
                 events.resp_pass[modify_events_mask] = 0
+                if not same_word:
+                    events.RT[modify_events_mask] = new_event.RT
+
                 response_spoken = True
             else:
                 if not response_spoken:
@@ -533,7 +538,8 @@ class PALSessionLogParser(BaseSessionLogParser):
                     new_event.vocalization = 1
                     new_event.intrusion = 0
                     new_event.resp_pass = 0
-                    events.resp_pass[modify_events_mask] = 0
+                    if not response_spoken or new_event.resp_pass:
+                        events.resp_pass[modify_events_mask] = 0
                 elif word == 'PASS':
                     new_event.resp_pass = 1
                     new_event.intrusion = 0

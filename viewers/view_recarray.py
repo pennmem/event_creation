@@ -14,7 +14,7 @@ def pprint_rec(arr, recurse=True):
 
 
 def pformat_rec(arr, recurse=True, init_indent=0):
-    names = arr.dtype.names
+    names = sorted(arr.dtype.names)
     lens = [len(name) for name in names]
     padding_max = max(lens) + PPRINT_PADDING
     paddings = [padding_max - this_len for this_len in lens]

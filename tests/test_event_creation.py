@@ -279,6 +279,12 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['type'] == 'REC_WORD' and event2['subject'] == 'R1177M':
         return True
 
+    if field == 'word' and event1['subject'] in ('R1060M', 'R1111M', 'R1130M') and ' ' in event1['word']:
+            return True
+
+    if field == 'word' and event1['subject'] == 'R1111M' and ' ' in event1['word']:
+        return True
+
     return False
 
 def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
@@ -337,11 +343,17 @@ def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['subject'] == 'R1184M' and event2['type'] == 'REC_WORD':
         return True
 
+    if field == 'word' and event1['subject'] in ('R1028M') and ' ' in event1['word']:
+        return True
+
     return False
 
 
 def pal_comparison_exceptions(event1, event2, field, parent_field=None):
     if event_comparison_exceptions(event1, event2, field, parent_field):
+        return True
+
+    if field == 'vocalization' and event1['vocalization'] == 0 and event2['vocalization'] == -999:
         return True
 
     if field == 'resp_pass' and event1['resp_pass'] == 0 and event2['resp_pass'] == -999:
@@ -534,6 +546,15 @@ def pal_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'cue_direction' and event1['mstime'] == 1464650407753 and event1['subject'] == 'R1175N':
         return True
 
+
+
+    if field == 'resp_word' and event1['subject'] in ('R1016M', 'R1060M') and ' ' in event1['resp_word']:
+        return True
+
+    if field == 'RT' and event1['subject'] in ('R1060M', 'R1087N', 'R1090C', 'R1091N', 'R1106M', 'R1149N', 'R1031M',
+                                               'R1082N', 'R1196N') :
+        return True
+
     return False
 
 
@@ -565,7 +586,52 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and (event1 and event1['word'] == 'BLOCKS') or (event2 and event2['word'] == 'LOCKS'):
         return True
 
+    if field in ('rectime', 'recalled', 'category', 'wordno', 'intrusion', 'categoryNum') and\
+                event1['subject'] == 'R1066P' and event1['word'] in ('CLOUD','OCEAN'):
+        return True
+
+    if field == 'rectime' and event1['subject'] == 'R1105E':
+        return True
+
+    if field is None and event1 and event1['subject'] == 'R1105E' and event1['type'] in ('REC_WORD', 'REC_WORD_VV'):
+        return True
+    if field is None and event2 and event2['subject'] == 'R1105E' and event2['type'] in ('REC_WORD', 'REC_WORD_VV'):
+        return True
+
+    if field is None and event2 and event2['word'] == "'THERE" and event2['subject'] == 'R1176M':
+        return True
+
+    if field == 'word' and ' ' in event1['word'] and event1['subject'] == 'R1181E':
+        return True
+
+    if field == 'rectime' and event1['subject'] == 'R1189M':
+        return True
+    if field is None and event1 and event1['subject'] == 'R1189M' and event1['type'] in ('REC_WORD', 'REC_WORD_VV'):
+        return True
+    if field is None and event2 and event2['subject'] == 'R1189M' and event2['type'] in ('REC_WORD', 'REC_WORD_VV'):
+        return True
+
+    if field in ('rectime', 'recalled', 'category', 'categoryNum', 'intrusion') and event1['word'] in ('APPLE','STOVE'):
+        return True
+
+    if field is None and event2 and event2['word'] in ("'I", "'NOTHING,"):
+        return True
+
+    if field == 'word' and event1['subject'] == 'R1039M' and event1['type'] == 'REC_WORD' and '"' in event2['word'][0]:
+        return True
+
+    if field == 'word' and event1['type'] == 'REC_WORD' and ' ' in event1['word']:
+        return True
+
+    if field == 'RT' and event1['subject'] in ('R1060M', 'R1087M', 'R1090C', 'R1091N', 'R1106M', 'R1149N',
+                                               'R1031M', 'R1082N', 'R1196M'):
+        return True
+
+    if field == 'resp_word' and event1['subject'] == 'R1112M' and event2['resp_word'] == 0:
+        return True
+
     return False
+
 
 def fr3_comparison_exceptions(event1, event2, field, parent_field=None):
     if event_comparison_exceptions(event1, event2, field, parent_field):

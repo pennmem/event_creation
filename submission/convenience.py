@@ -28,13 +28,13 @@ GROUPS = {
 class UnknownMontageException(Exception):
     pass
 
-def build_split_pipeline(subject, montage, experiment, session, protocol='R1', groups=tuple(), code=None, original_session=None, **kwargs):
+def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None, original_session=None, **kwargs):
     transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups,
                                            code=code, original_session=original_session, **kwargs)
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
-def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='R1', code=None,
+def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
     exp_type = re.sub('\d','', experiment)
     if exp_type in GROUPS:
@@ -51,7 +51,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     tasks.append(AggregatorTask(subject, montage, experiment, session, protocol, code))
     return TransferPipeline(transferer, *tasks)
 
-def determine_montage_from_code(code, protocol='R1', allow_new=False, allow_skip=False):
+def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(DB_ROOT, 'protocols', protocol, 'montages', code, 'info.json')
     if os.path.exists(montage_file):
         info = json.load(open(montage_file))
@@ -88,13 +88,13 @@ def determine_montage_from_code(code, protocol='R1', allow_new=False, allow_skip
         return '%1.1f' % (new_montage_num)
 
 
-def get_subject_sessions_by_experiment(experiment, protocol='R1'):
+def get_subject_sessions_by_experiment(experiment, protocol='r1'):
     if re.match('catFR[0-4]', experiment):
         ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
     else:
         ram_exp = 'RAM_{}'.format(experiment)
     events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
-    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol))))
+    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))))
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
         if '_' in subject:
@@ -107,7 +107,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='R1'):
         except AttributeError:
             log('Failed.')
 
-def get_first_unused_session(subject, experiment, protocol='R1'):
+def get_first_unused_session(subject, experiment, protocol='r1'):
     sessions_dir = os.path.join(DB_ROOT,
                                'protocols', protocol,
                                'subjects', subject,
@@ -160,7 +160,7 @@ def xtest_get_subject_sessions():
     pprint(get_subject_sessions_by_experiment('FR1'))
     pprint(get_subject_sessions_by_experiment('FR2'))
 
-def check_subject_sessions(code, experiment, sessions, protocol='R1'):
+def check_subject_sessions(code, experiment, sessions, protocol='r1'):
     bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
     subject = re.sub(r'_.*', '', code)
     montage = determine_montage_from_code(code, allow_new=True, allow_skip=True)
@@ -264,10 +264,10 @@ def xtest_catfr3():
 
 
 if __name__ == '__main__':
-    code = raw_input('Enter code or blank: ')
+    code = raw_input('Enter subject code: ')
     subject = re.sub('_.*', '', code)
     experiment = raw_input('Enter experiment: ')
-    original_session = int(raw_input('Enter old session number: '))
+    original_session = int(raw_input('Enter original session number: '))
 
     if subject != code:
         montage = raw_input('Enter montage #: ')
@@ -290,6 +290,11 @@ if __name__ == '__main__':
     if '--substitute-raw-for-header' in sys.argv:
         header_substitute = raw_input('Enter raw folder containing substitute for header: ')
         inputs['substitute_raw_folder'] = header_substitute
+    if '--change-session' in sys.argv:
+        inputs['session'] = int(raw_input('Enter new session number: '))
+    if '--sys2' in sys.argv:
+        inputs['groups'] = ('system_2',)
+
 
     run_individual_pipline(build_split_pipeline, inputs)
     run_individual_pipline(build_events_pipeline, inputs)

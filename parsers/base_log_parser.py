@@ -215,7 +215,7 @@ class BaseSessionLogParser(object):
         matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
         # Remove events with rectimes greater than 10 minutes, because they're probably a mistake
         split_lines = [line.split() for line in matching_lines if float(line.split()[0]) < self.MAX_ANN_LENGTH]
-        return [(float(line[0]), int(line[1]), line[2]) for line in split_lines]
+        return [(float(line[0]), int(line[1]), ' '.join(line[2:])) for line in split_lines]
 
 
 class EventComparator:

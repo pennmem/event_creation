@@ -1,7 +1,69 @@
 {
+
+  "system_1": {
+    "type": "group",
+    "eeg_log": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+      "origin_file": "eeg.eeglog",
+      "destination": "logs/eeg.eeglog"
+    },
+    "sync_pulses": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/{sync_folder}/",
+      "origin_file": "{sync_filename}",
+      "destination": "logs/extracted_syncs.txt"
+    },
+    "jacksheet": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/docs",
+      "origin_file": "jacksheet.txt",
+      "destination": "jacksheet.txt"
+    },
+    "PS": {
+      "type": "group",
+        "session_log": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "session.log",
+          "destination": "logs/session.log"
+        }
+    }
+  },
+  "system_2": {
+    "type": "group",
+    "host_logs": {
+      "type": "file",
+      "multiple": true,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
+      "origin_file": "{experiment}_{subject}_*.log",
+      "destination": "logs/host_logs/"
+    }
+  },
+
   "default": {
     "type": "group",
+    "eeg_sources": {
+      "type": "link",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{experiment}/sessions/{session}/ephys/current_processed",
+      "origin_file": "sources.json",
+      "destination": "eeg_sources.json"
+    }
+  },
 
+  "verbal": {
+    "type": "group",
     "session_log": {
       "type": "file",
       "multiple": false,
@@ -19,57 +81,6 @@
       "destination": "logs/math.log"
     },
 
-    "eeg_sources": {
-      "type": "link",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{experiment}/sessions/{session}/ephys/current_processed",
-      "origin_file": "sources.json",
-      "destination": "eeg_sources.json"
-    },
-
-    "system_1": {
-      "type": "group",
-      "eeg_log": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
-        "origin_file": "eeg.eeglog",
-        "destination": "logs/eeg.eeglog"
-      },
-      "sync_pulses": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/{sync_folder}/",
-        "origin_file": "{sync_filename}",
-        "destination": "logs/extracted_syncs.txt"
-      },
-      "jacksheet": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/docs",
-        "origin_file": "jacksheet.txt",
-        "destination": "jacksheet.txt"
-      }
-    },
-    "system_2": {
-      "type": "group",
-      "host_logs": {
-        "type": "file",
-        "multiple": true,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
-        "origin_file": "{experiment}_{subject}_*.log",
-        "destination": "logs/host_logs/"
-      }
-    }
-  },
-
-  "verbal": {
-    "type": "group",
     "annotations": {
       "type": "file",
       "multiple": true,

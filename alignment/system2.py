@@ -209,6 +209,9 @@ class System2Aligner:
         if (not host_times and not np_tics):
             log('No NEUROPORT-TIMEs in %s' % host_log_file)
             return [], [], []
+        if len(host_times) == 1:
+            log('Only one NEUROPORT-TIME in {}. Skipping.'.format(host_log_file), 'WARNING')
+
         np_times = cls.samples_to_times(np_tics, nsx_file)
         [split_host, split_np] = cls.split_np_times(host_times, np_times)
         host_starts = []
