@@ -12,8 +12,8 @@ from parsers.math_parser import MathSessionLogParser
 
 from loggers import log, logger
 
-DATA_ROOT='/Volumes/rhino_mount_2/data/eeg'
-DB_ROOT='/Volumes/LaCie/test_data/'
+DATA_ROOT='/Volumes/rhino_mount/data/eeg'
+DB_ROOT='/Volumes/db_root/'
 
 class UnTransferrableException(Exception):
     pass
@@ -147,7 +147,7 @@ class Transferer(object):
             origin_files = self.get_origin_files(info, **self.kwargs)
 
             if info['required'] and not origin_files:
-                log("Could not locate file {}".format(name))
+                log("Could not locate file {} in {}".format(name, info['origin_directory'].format(**self.kwargs)))
                 return name
 
             if (not info['multiple']) and len(origin_files) > 1:
@@ -377,24 +377,29 @@ def find_sync_file(subject, experiment, session):
 
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
-                              code=None, original_session=None, **kwargs):
+                              code=None, original_session=None, new_experiment=None, **kwargs):
     json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ephys_inputs.json')
+    if new_experiment is None:
+        new_experiment = experiment
     destination = os.path.join(DB_ROOT,
                                'protocols', protocol,
                                'subjects', subject,
-                               'experiments', experiment,
+                               'experiments', new_experiment,
                                'sessions', str(session),
                                'ephys')
     code = code or subject
     original_session = original_session if not original_session is None else session
+
+
     return Transferer(json_file, (experiment,) + groups, destination,
                       protocol=protocol,
-                      subject=code, experiment=experiment, session=original_session,
+                      subject=code, experiment=experiment, new_experiment=new_experiment, session=original_session,
                       data_root=DATA_ROOT, db_root=DB_ROOT, code=code, original_session=original_session, **kwargs)
 
 
 
-def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None, original_session=None, **kwargs):
+def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
+                                original_session=None, new_experiment=None, **kwargs):
     groups = groups+(re.sub('\d', '', experiment),)
     json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'behavioral_inputs.json')
     source_files = Transferer.load_groups(json.load(open(json_file)), groups)
@@ -412,7 +417,10 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     except IndexError:
         raise UnTransferrableException('Could not find session log at {}'.format(source_files['session_log']['origin_directory'].format(**kwarg_inputs)))
 
-    is_sys2 = get_version_num(session_log) >= 2
+    if experiment != 'PS':
+        is_sys2 = get_version_num(session_log) >= 2
+    else:
+        is_sys2 = False
 
     kwarg_inputs['subject'] = subject
     if is_sys2:
@@ -424,11 +432,11 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     destination = os.path.join(DB_ROOT,
                                'protocols', protocol,
                                'subjects', subject,
-                               'experiments', experiment,
+                               'experiments', new_experiment,
                                'sessions', str(session),
                                'behavioral')
 
-    transferer= Transferer(json_file, (experiment,) + groups, destination, **kwarg_inputs)
+    transferer= Transferer(json_file, (experiment,) + groups, destination, new_experiment=new_experiment,**kwarg_inputs)
     return transferer, groups
 
 

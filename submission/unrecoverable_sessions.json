@@ -9,6 +9,15 @@
       "0": "no session folder"
     }
   },
+  "R1054J": {
+    "PS3": {
+      "1": "eegoffset differs by 500",
+      "0": "Could not align window"
+    },
+    "PS1": {
+      "1": "Could not align window"
+    }
+  },
   "R1061T": {
     "FR1": {
       "0": "malloc error",
@@ -74,6 +83,10 @@
   "R1044J": {
     "catFR1": {
       "0": "File may be corrupt? Cannot read proper number of samples from file."
+    },
+    "PS1": {
+      "0": "No definition of stim pairs in file",
+      "1": "No definition of stim pairs in file"
     }
   },
   "R1163T": {
@@ -89,6 +102,11 @@
   "R1202M": {
     "catFR1": {
       "0": "brpylib error: Unpack requires string argument of length 4"
+    }
+  },
+  "R1025P": {
+    "PS1": {
+      "0": "New stim 107/108, old stim 59/60"
     }
   }
 }

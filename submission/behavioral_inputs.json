@@ -18,14 +18,6 @@
       "origin_file": "{sync_filename}",
       "destination": "logs/extracted_syncs.txt"
     },
-    "jacksheet": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/{code}/docs",
-      "origin_file": "jacksheet.txt",
-      "destination": "jacksheet.txt"
-    },
     "PS": {
       "type": "group",
         "session_log": {
@@ -50,13 +42,25 @@
     }
   },
 
+  "stim": {
+    "type": "group",
+    "jacksheet": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/docs",
+      "origin_file": "jacksheet.txt",
+      "destination": "jacksheet.txt"
+    }
+  },
+
   "default": {
     "type": "group",
     "eeg_sources": {
       "type": "link",
       "multiple": false,
       "required": true,
-      "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{experiment}/sessions/{session}/ephys/current_processed",
+      "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{new_experiment}/sessions/{session}/ephys/current_processed",
       "origin_file": "sources.json",
       "destination": "eeg_sources.json"
     }

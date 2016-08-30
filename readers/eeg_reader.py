@@ -667,6 +667,7 @@ class EDF_reader(EEG_reader):
     def _split_data(self, location, basename):
         log('Spltting into %s/%s: ' % (location, basename), end='')
         sys.stdout.flush()
+        already_split_channels = []
         for channel, header in self.headers.items():
             if self.jacksheet:
                 if header['label'] not in self.jacksheet:
@@ -676,6 +677,8 @@ class EDF_reader(EEG_reader):
                 else:
                     label = header['label']
                 out_channel = self.jacksheet[label]
+                if label in already_split_channels:
+                    continue
             else:
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
@@ -684,7 +687,7 @@ class EDF_reader(EEG_reader):
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
-
+            already_split_channels.append(label)
         log('Saved.')
 def read_jacksheet(filename):
     [_, ext] = os.path.splitext(filename)

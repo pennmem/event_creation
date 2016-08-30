@@ -51,6 +51,9 @@ class BaseSessionLogParser(object):
             return events_modified
     """
 
+    # Maximum length of stim params
+    MAX_STIM_PARAMS = 10
+
     # Index in split line corresponding to these fields
     _MSTIME_INDEX = 0
     _MSOFFSET_INDEX = 1
@@ -61,8 +64,10 @@ class BaseSessionLogParser(object):
 
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
+        ('protocol', '', 'S64'),
         ('subject', '', 'S64'),
         ('montage', '', 'S64'),
+        ('experiment', '', 'S64'),
         ('session', -1, 'int16'),
         ('type', '', 'S64'),
         ('mstime', -1, 'int64'),
@@ -71,11 +76,40 @@ class BaseSessionLogParser(object):
         ('eegfile', '', 'S256')
     )
 
+    _STIM_FIELDS = (
+        ('anode_number', -1, 'int16'),
+        ('cathode_number', -1, 'int16'),
+        ('anode_label', '', 'S64'),
+        ('cathode_label', '', 'S64'),
+        ('amplitude', -1, 'float16'),
+        ('pulse_freq', -1, 'int16'),
+        ('n_pulses', -1, 'int16'),
+        ('burst_freq', -1, 'int16'),
+        ('n_bursts', -1, 'int16'),
+        ('pulse_width', -1, 'int16'),
+        ('stim_on', False, bool),
+        ('stim_duration', -1, 'int16'),
+        ('_remove', True, 'b') # This field is removed before saving, and it used to mark whether it should be output
+                                # to JSON
+    )
+
+    @classmethod
+    def empty_stim_params(cls):
+        return cls.event_from_template(cls._STIM_FIELDS)
+
+    @classmethod
+    def stim_params_template(cls):
+        """
+        Maximum of 10 stimulated electrodes at once, completely arbitrarily
+        """
+        return ('stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS)
+
     START_EVENT = 'SESS_START'
 
     MAX_ANN_LENGTH = 600000
 
-    def __init__(self, subject, montage, files, primary_log='session_log', allow_unparsed_events=False):
+    def __init__(self, protocol, subject, montage, experiment, files,
+                 primary_log='session_log', allow_unparsed_events=False, include_stim_params=False):
         """
 
         :param session_log: path to session.log
@@ -86,18 +120,35 @@ class BaseSessionLogParser(object):
         """
         self._session_log = files[primary_log]
         self._allow_unparsed_events = allow_unparsed_events
-        self._ann_files = {os.path.basename(os.path.splitext(ann_file)[0]): ann_file for ann_file in files['annotations']}
+        try:
+            self._ann_files = {os.path.basename(os.path.splitext(ann_file)[0]): ann_file \
+                               for ann_file in files['annotations']}
+        except KeyError:
+            self._ann_files = []
 
+        self._protocol = protocol
+        self._experiment = experiment
         self._subject = subject
         self._montage = montage
         self._contents = [line.strip().split(self._SPLIT_TOKEN)
                           for line in codecs.open(self._session_log, encoding='utf-8').readlines()]
         self._fields = self._BASE_FIELDS
+        if include_stim_params:
+            self._fields += (self.stim_params_template(),)
+
         self._type_to_new_event = {
             'B': self._event_skip,
             'E': self._event_skip
         }
         self._type_to_modify_events = {}
+
+        if 'jacksheet' in files:
+            jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
+            self.jacksheet_contents = {int(x[0]): x[1] for x in jacksheet_contents}
+        else:
+            jacksheet_contents = None
+            self.jacksheet_contents = None
+
         pass
 
     @staticmethod
@@ -149,8 +200,10 @@ class BaseSessionLogParser(object):
 
     @classmethod
     def dtype_from_template(cls, template):
-        dtypes = {'names': [field[0] for field in template],
-                  'formats': [field[2] for field in template]}
+        dtypes = [(entry[0], entry[2], entry[3] if len(entry)>3 else 1) for entry in template]
+
+#        dtypes = {'names': [field[0] for field in template],
+#                  'formats': [field[2] for field in template]}
         return dtypes
 
     @property
@@ -160,8 +213,10 @@ class BaseSessionLogParser(object):
         :return:
         """
         event = self.event_from_template(self._fields)
+        event.protocol = self._protocol
         event.subject = self._subject
         event.montage = self._montage
+        event.experiment = self._experiment
         return event
 
     @staticmethod
@@ -179,6 +234,24 @@ class BaseSessionLogParser(object):
         event.msoffset = int(split_line[self._MSOFFSET_INDEX])
         event.type = split_line[self._TYPE_INDEX]
         return event
+
+    @staticmethod
+    def set_event_stim_params(event, jacksheet, index=0, **params):
+        for param, value in params.items():
+            event.stim_params[index][param] = value
+
+        reverse_jacksheet = {v: k for k, v in jacksheet.items()}
+        if 'anode_label' in params:
+            event.stim_params[index]['anode_number'] = reverse_jacksheet[params['anode_label']]
+        if 'cathode_label' in params:
+            event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label']]
+        if 'anode_number' in params:
+            event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']]
+        if 'cathode_number' in params:
+            event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']]
+
+        event.stim_params[index]._remove = False
+
 
     def parse(self):
         """
@@ -225,7 +298,8 @@ class EventComparator:
 
     SHOW_FULL_EVENTS = False
 
-    def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None):
+    def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None,
+                 type_switch=None):
         """
         :param events1:
         :param events2:
@@ -238,6 +312,7 @@ class EventComparator:
         self.events1 = events1
         self.events2 = events2
         self.field_switch = field_switch if field_switch else {}
+        self.type_switch = type_switch if type_switch else {}
         self.field_ignore = field_ignore if field_ignore else []
         self.type_ignore = type_ignore if type_ignore else []
         self.exceptions = exceptions if exceptions else lambda *_: False
@@ -297,6 +372,13 @@ class EventComparator:
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
                     np.abs(event1['mstime'] - self.events2['mstime']) <= 4, event1['type'] == self.events2['type'])
+
+            if event1['type'] in self.type_switch:
+                for type in self.type_switch[event1['type']]:
+                    this_mask2 = np.logical_or(this_mask2, np.logical_and(
+                        np.abs(event1['mstime'] - self.events2['mstime']) <= 4, type == self.events2['type']
+                    ))
+
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
                 bad_events1 = np.append(bad_events1, event1)
             elif event1['type'] not in self.type_ignore:
@@ -313,15 +395,77 @@ class EventComparator:
             for bad_event1 in bad_events1[1:]:
                 if not self.exceptions(bad_event1, None, None):
                     found_bad = True
-                    err_msg += '\n---\n' + pformat_rec(bad_event1)
+                    err_msg += '\n--1--\n' + pformat_rec(bad_event1)
 
         if mask2.any():
             for bad_event2 in self.events2[mask2]:
                 if not self.exceptions(None, bad_event2, None):
                     found_bad = True
-                    err_msg += '\n---\n' + pformat_rec(bad_event2)
+                    err_msg += '\n--2--\n' + pformat_rec(bad_event2)
 
         return found_bad, err_msg
+
+class StimComparator(object):
+
+    def __init__(self, events1, events2, fields_to_compare, exceptions):
+        self.events1 = events1
+        self.events2 = events2
+        self.fields_to_compare = {}
+        for field_name1, field_name2 in fields_to_compare.items():
+            try:
+                field1 = self.get_subfield(self.events1[0], field_name1)
+                field2 = self.get_subfield(self.events2[0], field_name2)
+                self.fields_to_compare[field_name1] = field_name2
+            except ValueError:
+                log('Could not access fields {}/{} for comparison'.format(field_name1, field_name2), 'WARNING')
+
+        self.exceptions = exceptions
+
+    @classmethod
+    def get_subfield(cls, event, field_whole):
+        field_split = field_whole.split('.')
+        event_field = event
+        for field in field_split:
+            if len(event_field) > 0:
+                event_field = event_field[field]
+            else:
+                return None
+        return event_field
+
+    def _get_field_mismatch(self, event1, event2):
+        mismatches = ''
+        bad_events_1 = []
+        bad_events_2 = []
+        for field_name1, field_name2 in self.fields_to_compare.items():
+            field1 = self.get_subfield(event1, field_name1)
+            field2 = self.get_subfield(event2, field_name2)
+            try:
+                field2_is_nan = np.isnan(field2)
+            except:
+                field2_is_nan = False
+            if not (field1 is None and field2_is_nan) and field1 != field2:
+                if not self.exceptions(event1, event2, field_name1, field_name2):
+                    mismatches += '{}/{}: {} vs {}\n'.format(field_name1, field_name2, field1, field2)
+                    bad_events_1.append(event1)
+                    bad_events_2.append(event2)
+
+        for (ev1, ev2) in zip(bad_events_1, bad_events_2):
+            mismatches += '--1--\n{}\n--2--\n{}'.format(pformat_rec(ev1), pformat_rec(ev2))
+
+        return mismatches
+
+    def compare(self):
+        mismatches = ''
+
+        for i, event1 in enumerate(self.events1):
+            this_mask2 = np.logical_and(
+                    np.abs(event1['mstime'] - self.events2['mstime']) <= 4, event1['type'] == self.events2['type'])
+            if not this_mask2.any():
+                continue
+            this_mismatch = self._get_field_mismatch(event1, self.events2[this_mask2])
+            if this_mismatch:
+                mismatches += this_mismatch + '\n'
+        return mismatches
 
 
 def get_version_num(session_log_file):

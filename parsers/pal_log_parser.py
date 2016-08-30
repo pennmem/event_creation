@@ -3,18 +3,9 @@ from system2_log_parser import System2LogParser
 import numpy as np
 import os
 import warnings
+import re
 
 class PALSessionLogParser(BaseSessionLogParser):
-
-    _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
-
-    @classmethod
-    def empty_stim_params(cls):
-        """
-        Makes a recarray for empty stim params (no stimulation)
-        :return:
-        """
-        return cls.event_from_template(cls._STIM_PARAM_FIELDS)
 
     @classmethod
     def _pal_fields(cls):
@@ -38,15 +29,23 @@ class PALSessionLogParser(BaseSessionLogParser):
             ('resp_pass', 0 , 'int16'),
             ('vocalization', -999, 'int16'),
             ('RT', -999, 'int16'),
-            ('expVersion', '', 'S16'),
-            ('stimType', '', 'S16'),
-            ('stimTrial', 0, 'b1'),
-            ('isStim', False, 'b1'),
-            ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS))
+            ('exp_version', '', 'S16'),
+            ('stim_type', '', 'S16'),
+            ('stim_list', 0, 'b1'),
+            ('is_stim', False, 'b1'),
         )
-        #return MatParser(MATFile)
-    def __init__(self, subject, montage, files):
-        super(PALSessionLogParser, self).__init__(subject, montage, files)
+
+
+    PAL2_STIM_DURATION= 4600
+    PAL2_STIM_PULSE_FREQUENCY = 50
+    PAL2_STIM_N_PULSES = 250
+    PAL2_STIM_BURST_FREQUENCY = 1
+    PAL2_STIM_N_BURSTS = 1
+    PAL2_STIM_PULSE_WIDTH = 300
+
+    def __init__(self, protocol, subject, montage, experiment, files):
+        super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+                                                  include_stim_params=True)
         #self.fields = {field[0]: field[1] for field in fields)
         self._session = -999
         self._list = -999
@@ -59,9 +58,20 @@ class PALSessionLogParser(BaseSessionLogParser):
         self._expecting_word = ''
         self._cue_direction = -999
         self._correct = -999
-        self._stimTrial = 0
+        self._stim_list = 0
 
-        self._stimType = ''
+        self._pal2_stim_params = {
+            'pulse_freq': self.PAL2_STIM_PULSE_FREQUENCY,
+            'n_pulses': self.PAL2_STIM_N_PULSES,
+            'burst_freq': self.PAL2_STIM_BURST_FREQUENCY,
+            'n_bursts': self.PAL2_STIM_N_BURSTS,
+            'pulse_width': self.PAL2_STIM_PULSE_WIDTH,
+            'stim_duration': self.PAL2_STIM_DURATION
+        }
+
+        self._pal2_stim_on_time = 0
+
+        self._stim_type = ''
         self._add_fields(*self._pal_fields())
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
@@ -100,7 +110,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             PRACTICE_TRIAL=self.event_practice_trial,
             INSTRUCT_VIDEO=self.event_instruct_video,
             MIC_TEST=self.event_default,
-            STIM_PARAMS= self._event_skip,
+            STIM_PARAMS= self.event_stim_params,
             FEEDBACK_SHOW_ALL_PAIRS=self.event_default,
             FORCED_BREAK=self.event_default,
             SESSION_SKIPPED=self.event_default,
@@ -112,7 +122,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             STUDY_PAIR=self.modify_study,
             PRACTICE_RETRIEVAL_ORIENT=self.modify_orient,
             RETRIEVAL_ORIENT=self.modify_orient,
-            PRACTICE_PAIR=self.modify_practice_pair
+            PRACTICE_PAIR=self.modify_practice_pair,
         )
 
     def event_default(self, split_line):
@@ -122,14 +132,37 @@ class PALSessionLogParser(BaseSessionLogParser):
         :return:
         """
         event = BaseSessionLogParser.event_default(self, split_line)
+        self.check_apply_stim(event)
+
         event.session = self._session
         event.stimList = self._stimList
-        event.expVersion = self._version
-        event.stimType = self._stimType
-        event.stimTrial = self._stimTrial
+        event.exp_version = self._version
+        event.stim_type = self._stim_type
+        event.stim_list = self._stim_list
         event.list = self._list
         event.serialpos = self._serialpos
         return event
+
+    def check_apply_stim(self, event):
+        if self._pal2_stim_on_time and \
+                        self._pal2_stim_on_time + self.PAL2_STIM_DURATION >= event.mstime and \
+                        event.mstime >= self._pal2_stim_on_time:
+            event.is_stim = True
+            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, stim_on=True, **self._pal2_stim_params)
+
+
+    def event_stim_params(self, split_line):
+        self._is_fr2 = True
+        if split_line[9] != '0':
+            if split_line[5].isdigit():
+                self._pal2_stim_params['anode_number'] = int(split_line[5])
+                self._pal2_stim_params['cathode_number']= int(split_line[7])
+            else:
+                self._pal2_stim_params['anode_label']= split_line[5]
+                self._pal2_stim_params['cathode_label'] = split_line[7]
+
+        self._pal2_stim_params['amplitude'] = float(split_line[9])
+        return False
 
     def event_instruct_video(self, split_line):
         event = self.event_default(split_line)
@@ -163,25 +196,28 @@ class PALSessionLogParser(BaseSessionLogParser):
 
 
     def event_stim_on(self, split_line):
+        self._pal2_stim_on_time = int(split_line[0])
         event = self.event_default(split_line)
-        self._stimTrial = 1
-        event.stimTrial = self._stimTrial
+        self._stim_list = 1
+        event.stim_list = self._stim_list
         event.serialpos = self._serialpos
         event.probepos = -999
         event.study_1 = ''
         event.study_2 = ''
+        event.is_stim = True
+        self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._pal2_stim_params)
         return event
 
     def event_trial(self, split_line):
         self._list = int(split_line[3])
         event = self.event_default(split_line)
-        self._stimTrial = split_line[4] != 'NONSTIM'
-        event.stimTrial = self._stimTrial
+        self._stim_list = split_line[4] != 'NONSTIM'
+        event.stim_list = self._stim_list
         return event
 
     def event_sess_start(self, split_line):
         self._session = int(split_line[3]) - 1
-        self._version = float(split_line[5].split('_')[1])
+        self._version = float(re.sub(r'[^\d.]', '',split_line[5]))
         return self.event_default(split_line)
 
 
@@ -195,16 +231,16 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.list = self._list
         stimstr = split_line[5]
         if stimstr == 'none':
-            self._stimType = 'NONE'
-            self._stimTrial = 0
+            self._stim_type = 'NONE'
+            self._stim_list = 0
         elif stimstr == 'encoding':
-           self._stimType = 'ENCODING'
-           self._stimTrial =1
+           self._stim_type = 'ENCODING'
+           self._stim_list =1
         elif stimstr == 'retrieval':
-            self._stimType = 'RETRIEVAL'
-            self._stimTrial = 1
-        event.stimType = self._stimType
-        event.stimTrial = self._stimTrial
+            self._stim_type = 'RETRIEVAL'
+            self._stim_list = 1
+        event.stim_type = self._stim_type
+        event.stim_list = self._stim_list
         return event
 
 
@@ -239,12 +275,12 @@ class PALSessionLogParser(BaseSessionLogParser):
 
             stimstr = split_line[5]
             if stimstr == "NO_STIM":
-                self._isStim = 0
+                event.is_stim = 0
             elif stimstr =="STIM":
-                self._isStim = 1
-            event.isStim = self._isStim
-            event.stimType = self._stimType
-            event.stimTrial = self._stimTrial
+                event.is_stim = 1
+                self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+            event.stim_type = self._stim_type
+            event.stim_list = self._stim_list
             event.correct = 0
         return event
 
@@ -257,7 +293,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         self._study_2 = split_line[5].split('_')[1]
         event.study_1 = self._study_1
         event.study_2 = self._study_2
-        self._isStim = False
         return event
 
     def modify_practice_pair(self, events):
@@ -298,12 +333,12 @@ class PALSessionLogParser(BaseSessionLogParser):
         stimstr = split_line[7]
         if self._version < 2:
             if stimstr == "NO_STIM":
-                self._isStim = 0
+                event.is_stim = 0
             elif stimstr =="STIM":
-                self._isStim = 1
-        event.isStim = self._isStim
-        event.stimType = self._stimType
-        event.stimTrial = self._stimTrial
+                event.is_stim = 1
+                self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+        event.stim_type = self._stim_type
+        event.stim_list = self._stim_list
         event.correct = 0
         return event
 
@@ -353,12 +388,12 @@ class PALSessionLogParser(BaseSessionLogParser):
         stimstr = split_line[6]
         event.list = self._list
         if stimstr == "NO_STIM":
-            self._isStim = 0
+            event.is_stim = 0
         elif stimstr =="STIM":
-            self._isStim = 1
-        event.isStim = self._isStim
-        event.stimType = self._stimType
-        event.stimTrial = self._stimTrial
+            event.is_stim = 1
+            self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+        event.stim_type = self._stim_type
+        event.stim_list = self._stim_list
 
         self._probepos +=1
         event.probepos = self._probepos
@@ -394,9 +429,8 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.study_1 = event.expecting_word if event.cue_direction == 1 else event.probe_word
         event.study_2 = event.expecting_word if event.cue_direction == 0 else event.probe_word
 
-        event.isStim = self._isStim
-        event.stimType = self._stimType
-        event.stimTrial = self._stimTrial
+        event.stim_type = self._stim_type
+        event.stim_list = self._stim_list
 
         event.correct = 0
 
@@ -443,11 +477,11 @@ class PALSessionLogParser(BaseSessionLogParser):
 
     def modify_session(self, events):
         """
-        applies session and expVersion to all previous events
+        applies session and exp_version to all previous events
         :param events: all events up until this point in the log file
         """
         events.session = self._session
-        events.expVersion = self._version
+        events.exp_version = self._version
         return events
 
     def modify_recalls(self, events):
@@ -488,9 +522,9 @@ class PALSessionLogParser(BaseSessionLogParser):
             new_event.study_2 = self._study_2
             new_event.resp_word = word
             new_event.session = self._session
-            new_event.stimType = self._stimType
-            new_event.stimTrial = self._stimTrial
-            new_event.expVersion = self._version
+            new_event.stim_type = self._stim_type
+            new_event.stim_list = self._stim_list
+            new_event.exp_version = self._version
             new_event.RT = recall[0]
             new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
@@ -583,8 +617,8 @@ class PALSessionLogParser(BaseSessionLogParser):
     def persist_fields_during_stim(event):
         if event['type'] == 'STUDY_PAIR':
             return ('resp_word', 'probe_word', 'probepos', 'cue_direction', 'subject', 'RT',
-                    'stimTrial', 'serialpos', 'resp_pass', 'correct', 'study_1', 'study_2',
-                    'vocalization', 'stimType', 'intrusion', 'list', 'expecting_word')
+                    'stim_list', 'serialpos', 'resp_pass', 'correct', 'study_1', 'study_2',
+                    'vocalization', 'stim_type', 'intrusion', 'list', 'expecting_word')
         else:
             return tuple()
 

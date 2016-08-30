@@ -34,6 +34,12 @@ class System2Aligner:
         else:
             self.host_log_files = [files['host_logs']]
 
+        if 'jacksheet' in files:
+            jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
+            self.jacksheet = {int(x[0]): x[1] for x in jacksheet_contents}
+        else:
+            self.jacksheet = None
+
         self.plot_save_dir = plot_save_dir
         self.events = events
         self.merged_events = events
@@ -55,7 +61,7 @@ class System2Aligner:
         self.np_log_lengths = np.array(self.host_time_np_ends) - np.array(self.host_time_np_starts)
 
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
-        s2lp = System2LogParser(self.host_log_files)
+        s2lp = System2LogParser(self.host_log_files, self.jacksheet)
 
         self.merged_events = s2lp.merge_events(self.events, event_template, self.stim_event_to_mstime,
                                                persistent_fields)
@@ -143,13 +149,6 @@ class System2Aligner:
     def host_logs_directory(self):
         return self.files['host_logs']
 
-    def get_host_log_files(self):
-        raise NotImplementedError
-        log_files = glob.glob(os.path.join(self.host_logs_directory, '*.log'))
-        assert len(log_files) > 0, 'No .log files found in %s. Check if EEG was transferred' % self.host_logs_directory
-        log_files.sort()
-        return log_files
-
     def get_coefficients_from_host_log(self, coefficient_fn, *args):
         coefficients = []
         beginnings = []
@@ -170,12 +169,13 @@ class System2Aligner:
         return coefficients, beginnings, endings
 
     def stim_event_to_mstime(self, stim_event):
-        earlier_resets = np.array(self.host_time_task_starts) < stim_event.hostTime
+        earlier_resets = np.array(self.host_time_task_starts) < stim_event['hosttime'][0]
         if earlier_resets.any():
             good_coef_index = earlier_resets.nonzero()[0][-1]
         else:
             return -1
-        return self.apply_coefficients_backwards(stim_event.hostTime, self.task_to_host_coefs[good_coef_index])
+        return self.apply_coefficients_backwards(stim_event['hosttime'][0],
+                                                 self.task_to_host_coefs[good_coef_index])
 
     @classmethod
     def align_source_to_dest(cls, time_source, coefficients, starts, okay_no_align_up_to=0):

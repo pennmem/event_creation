@@ -3,19 +3,10 @@ from system2_log_parser import System2LogParser
 from viewers.view_recarray import strip_accents
 import numpy as np
 import os
+import re
 
 
 class FRSessionLogParser(BaseSessionLogParser):
-
-    _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
-
-    @classmethod
-    def empty_stim_params(cls):
-        """
-        Makes a recarray for empty stim params (no stimulation)
-        :return:
-        """
-        return cls.event_from_template(cls._STIM_PARAM_FIELDS)
 
     @classmethod
     def _fr_fields(cls):
@@ -32,10 +23,9 @@ class FRSessionLogParser(BaseSessionLogParser):
             ('recalled', False, 'b1'),
             ('rectime', -999, 'int16'),
             ('intrusion', -999, 'int16'),
-            ('expVersion', '', 'S64'),
-            ('stimList', False, 'b1'),
-            ('isStim', False, 'b1'),
-            ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS)),
+            ('exp_version', '', 'S64'),
+            ('stim_list', False, 'b1'),
+            ('is_stim', False, 'b1'),
         )
 
     FR2_STIM_DURATION= 4600
@@ -46,31 +36,30 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_PULSE_WIDTH = 300
 
 
-    def __init__(self, subject, montage, files):
-        super(FRSessionLogParser, self).__init__(subject, montage, files)
+    def __init__(self, protocol, subject, montage, experiment,  files):
+        super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+                                                 include_stim_params=True)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:
             wordpool_type = 'wordpool'
         self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
-        if 'jacksheet' in files:
-            self._jacksheet = [x.strip().split() for x in open(files['jacksheet']).readlines()]
-            self._jacksheet_dict = {int(x[0]): x[1] for x in self._jacksheet}
-        else:
-            self._jacksheet = None
-            self._jacksheet_dict = None
+
         self._session = -999
         self._list = -999
         self._serialpos = -999
-        self._stimList = False
+        self._stim_list = False
         self._word = ''
         self._version = ''
         self._is_fr2 = False
-        self._fr2_stim_anode = None
-        self._fr2_stim_cathode = None
-        self._fr2_stim_anode_label = None
-        self._fr2_stim_cathode_label = None
-        self._fr2_stim_amplitude = None
+        self._fr2_stim_params = {
+            'pulse_freq': self.FR2_STIM_PULSE_FREQUENCY,
+            'n_pulses': self.FR2_STIM_N_PULSES,
+            'burst_freq': self.FR2_STIM_BURST_FREQUENCY,
+            'n_bursts': self.FR2_STIM_N_BURSTS,
+            'pulse_width': self.FR2_STIM_PULSE_WIDTH,
+            'stim_duration': self.FR2_STIM_DURATION
+        }
         self._fr2_stim_on_time = False
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
@@ -112,10 +101,10 @@ class FRSessionLogParser(BaseSessionLogParser):
     def persist_fields_during_stim(event):
         if event['type'] == 'WORD':
             return ('list', 'serialpos', 'word', 'wordno', 'recalled',
-                    'intrusion', 'stimList', 'subject', 'session', 'eegfile',
+                    'intrusion', 'stim_list', 'subject', 'session', 'eegfile',
                     'rectime')
         else:
-            return ('list', 'serialpos', 'stimList', 'subject', 'session', 'eegfile', 'rectime')
+            return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
 
 
     def event_default(self, split_line):
@@ -126,22 +115,13 @@ class FRSessionLogParser(BaseSessionLogParser):
         """
         event = BaseSessionLogParser.event_default(self, split_line)
         if self._is_fr2 and self._fr2_stim_on_time and self._fr2_stim_on_time + self.FR2_STIM_DURATION >= int(split_line[0]):
-            event.isStim = True
-            event.stimParams['anode_number'] = self._fr2_stim_anode
-            event.stimParams['cathode_number'] = self._fr2_stim_cathode
-            event.stimParams['anode_label'] = self._fr2_stim_anode_label
-            event.stimParams['cathode_label'] = self._fr2_stim_cathode_label
-            event.stimParams['pulseFreq'] = self.FR2_STIM_PULSE_FREQUENCY
-            event.stimParams['nPulses'] = self.FR2_STIM_N_PULSES
-            event.stimParams['burstFreq'] = self.FR2_STIM_BURST_FREQUENCY
-            event.stimParams['nBursts'] = self.FR2_STIM_N_BURSTS
-            event.stimParams['pulseWidth'] = self.FR2_STIM_PULSE_WIDTH
-            event.stimParams['amplitude'] = self._fr2_stim_amplitude
+            event.is_stim = True
+            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._fr2_stim_params)
 
         event.list = self._list
         event.session = self._session
-        event.stimList = self._stimList
-        event.expVersion = self._version
+        event.stim_list = self._stim_list
+        event.exp_version = self._version
         return event
 
     def event_reset_serialpos(self, split_line):
@@ -159,7 +139,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         self._session = int(split_line[3]) - 1
-        self._version = split_line[5]
+        self._version = re.sub(r'[^\d.]', '', split_line[5])
         return self.event_default(split_line)
 
     def stim_on_event(self, split_line):
@@ -171,18 +151,14 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._is_fr2 = True
         if split_line[9] != '0':
             if split_line[5].isdigit():
-                self._fr2_stim_anode = int(split_line[5])
-                self._fr2_stim_cathode = int(split_line[7])
-                self._fr2_stim_anode_label = self._jacksheet_dict[self._fr2_stim_anode]
-                self._fr2_stim_cathode_label = self._jacksheet_dict[self._fr2_stim_cathode]
+                self._fr2_stim_params['anode_number'] = int(split_line[5])
+                self._fr2_stim_params['cathode_number']= int(split_line[7])
             else:
-                self._fr2_stim_anode_label = split_line[5]
-                self._fr2_stim_cathode_label = split_line[7]
-                reverse_jacksheet = {v:k for k,v in self._jacksheet_dict.items()}
-                self._fr2_stim_anode = reverse_jacksheet[self._fr2_stim_anode_label]
-                self._fr2_stim_cathode = reverse_jacksheet[self._fr2_stim_cathode_label]
+                self._fr2_stim_params['anode_label']= split_line[5]
+                self._fr2_stim_params['cathode_label'] = split_line[7]
 
-        self._fr2_stim_amplitude = float(split_line[9])
+        self._fr2_stim_params['amplitude'] = float(split_line[9])
+        self._fr2_stim_params['stim_on'] = True
         return False
 
     def modify_session(self, events):
@@ -226,9 +202,9 @@ class FRSessionLogParser(BaseSessionLogParser):
     def event_trial(self, split_line):
         self._list = int(split_line[3])
         if split_line[4] == 'STIM_PARAMS':
-            self._stimList = split_line[5] == '1'
+            self._stim_list = split_line[5] == '1'
         else:
-            self._stimList = split_line[4] == 'STIM'
+            self._stim_list = split_line[4] == 'STIM'
         return self.event_default(split_line)
 
     def event_word(self, split_line):
@@ -255,8 +231,8 @@ class FRSessionLogParser(BaseSessionLogParser):
             new_event = self._empty_event
             new_event.list = self._list
             new_event.session = self._session
-            new_event.stimList = self._stimList
-            new_event.expVersion = self._version
+            new_event.stim_list = self._stim_list
+            new_event.exp_version = self._version
             new_event.rectime = float(recall[0])
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.msoffset = 20
@@ -281,7 +257,7 @@ class FRSessionLogParser(BaseSessionLogParser):
                 if len(pres_list) >= 1:
                     new_event.intrusion = self._list - max(pres_list)
                     if new_event.intrusion == 0:
-                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                        new_event.serial_pos = np.unique(events[pres_mask].serialpos)
                         new_event.recalled = True
                         if not any(events.recalled[pres_mask]):
                             events.recalled[pres_mask] = True

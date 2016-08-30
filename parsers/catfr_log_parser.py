@@ -3,7 +3,7 @@ from system2_log_parser import System2LogParser
 from viewers.view_recarray import strip_accents
 import numpy as np
 import os
-
+import re
 
 class CatFRSessionLogParser(BaseSessionLogParser):
 
@@ -31,17 +31,24 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             ('wordno', -999, 'int16'),
             ('recalled', False, 'int16'),
             ('rectime', -999, 'int32'),
-            ('expVersion', -1, 'S16'),
+            ('exp_version', -1, 'S16'),
             ('intrusion', -999, 'int16'),
-            ('isStim', False, 'b1'),
+            ('is_stim', False, 'b1'),
             ('category', 'X', 'S16'),
-            ('categoryNum', -999, 'int16'),
-            ('stimList', False, 'b1'),
-            ('stimParams', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_PARAM_FIELDS))
+            ('category_num', -999, 'int16'),
+            ('stim_list', False, 'b1'),
         )
 
-    def __init__(self, subject, montage, files):
-        super(CatFRSessionLogParser, self).__init__(subject, montage, files)
+    CATFR2_STIM_DURATION= 4600
+    CATFR2_STIM_PULSE_FREQUENCY = 50
+    CATFR2_STIM_N_PULSES = 250
+    CATFR2_STIM_BURST_FREQUENCY = 1
+    CATFR2_STIM_N_BURSTS = 1
+    CATFR2_STIM_PULSE_WIDTH = 300
+
+    def __init__(self, protocol, subject, montage, experiment, files):
+        super(CatFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+                                                    include_stim_params=True)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:
@@ -50,9 +57,17 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         self._session = -999
         self._list = -999
         self._serialpos = -999
-        self._stimList = False
+        self._stim_list = False
         self._word = ''
         self._version = -1
+        self._catfr2_stim_params = {
+            'pulse_freq': self.CATFR2_STIM_PULSE_FREQUENCY,
+            'n_pulses': self.CATFR2_STIM_N_PULSES,
+            'burst_freq': self.CATFR2_STIM_BURST_FREQUENCY,
+            'n_bursts': self.CATFR2_STIM_N_BURSTS,
+            'pulse_width': self.CATFR2_STIM_PULSE_WIDTH,
+            'stim_duration': self.CATFR2_STIM_DURATION
+        }
         self._add_fields(*self._catfr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
@@ -81,7 +96,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             REC_END=self.event_default,
             SESS_END=self.event_default,
             SESSION_SKIPPED=self.event_default,
-            STIM_PARAMS=self._event_skip,
+            STIM_PARAMS=self._set_stim_params,
             STIM_ON = self.event_stim_on,
             ENCODING_END=self.event_default
         )
@@ -89,6 +104,21 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls
         )
+
+    def _set_stim_params(self, split_line):
+        self._is_fr2 = True
+        if split_line[9] != '0':
+            if split_line[5].isdigit():
+                self._catfr2_stim_params['anode_number'] = int(split_line[5])
+                self._catfr2_stim_params['cathode_number']= int(split_line[7])
+            else:
+                self._catfr2_stim_params['anode_label']= split_line[5]
+                self._catfr2_stim_params['cathode_label'] = split_line[7]
+
+        self._catfr2_stim_params['amplitude'] = float(split_line[9])
+        self._catfr2_stim_params['stim_on'] = True
+        return False
+
 
     def event_default(self, split_line):
         """
@@ -99,13 +129,15 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         event.list = self._list
         event.session = self._session
-        event.stimList = self._stimList
-        event.expVersion = self._version
+        event.stim_list = self._stim_list
+        event.exp_version = self._version
         return event
 
     def event_stim_on(self, split_line):
-        self._stimList = True
+        self._stim_list = True
         event = self.event_default(split_line)
+        event.is_stim = True
+        self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._catfr2_stim_params)
         return event
 
     def event_instruct_video(self, split_line):
@@ -118,7 +150,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         self._session = int(split_line[3]) - 1
-        self._version = split_line[5].split('_')[1]
+        self._version = re.sub(r'[^\d.]', '',split_line[5])
         return self.event_default(split_line)
 
     def modify_session(self, events):
@@ -127,7 +159,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         :param events: all events up until this point in the log file
         """
         events.session = self._session
-        events.expVersion = self._version
+        events.exp_version = self._version
         return events
 
     def event_practice_trial(self, split_line):
@@ -162,10 +194,10 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     def event_trial(self, split_line):
         if float(self._version) < 2:
             self._list = int(split_line[3])
-            self._stimList = int(split_line[5]) > 0
+            self._stim_list = int(split_line[5]) > 0
         else:
             self._list = int(split_line[3])
-            self._stimList = not split_line[4] == 'NONSTIM'
+            self._stim_list = not split_line[4] == 'NONSTIM'
         return self.event_default(split_line)
 
     def event_word(self, split_line):
@@ -174,8 +206,10 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         event = self.event_default(split_line)
         event = self.apply_word(event)
         event.serialpos = self._serialpos
-        event.isStim = split_line[6] == 'STIM'
-        event.categoryNum = split_line[7]
+        event.is_stim = split_line[6] == 'STIM'
+        if event.is_stim:
+            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._catfr2_stim_params)
+        event.category_num = split_line[7]
         event.category = split_line[8]
 
         return event
@@ -196,8 +230,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             new_event = self._empty_event
             new_event.list = self._list
             new_event.session = self._session
-            new_event.stimList = self._stimList
-            new_event.expVersion = self._version
+            new_event.stim_list = self._stim_list
+            new_event.exp_version = self._version
             new_event.rectime = float(recall[0])
             new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
@@ -219,7 +253,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             if len(pres_list) == 1:
                 new_event.intrusion = self._list - pres_list[0]
                 if new_event.intrusion == 0:
-                    new_event.categoryNum = np.unique(events[pres_mask].categoryNum)
+                    new_event.category_num = np.unique(events[pres_mask].category_num)
                     new_event.category = np.unique(events[pres_mask].category)
                     new_event.serialpos = np.unique(events[pres_mask].serialpos)
                     new_event.recalled = True

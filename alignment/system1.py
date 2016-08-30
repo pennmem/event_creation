@@ -51,7 +51,7 @@ class System1Aligner:
 
         n_out_of_range = np.count_nonzero(out_of_range)
         if n_out_of_range == self.events.size:
-            raise UnAlignableEEGException('Could not align ANY events.')
+            raise UnAlignableEEGException('Could not align any events.')
         elif n_out_of_range:
             log('{} events out of range of eeg'.format(n_out_of_range), 'WARNING')
 

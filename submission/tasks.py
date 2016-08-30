@@ -2,9 +2,7 @@ import os
 import glob
 import re
 import json
-import shutil
 import datetime
-
 
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
@@ -15,10 +13,12 @@ from parsers.fr_log_parser import FRSessionLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
 from parsers.math_parser import MathSessionLogParser
 from parsers.base_log_parser import EventComparator
+from parsers.ps_log_parser import PSSessionLogParser
+from parsers.base_log_parser import StimComparator
 from loggers import log, logger
-from transferer import DATA_ROOT, DB_ROOT, TransferPipeline
+from transferer import DATA_ROOT, DB_ROOT
 
-from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS
+from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, STIM_COMPARISON_INPUTS
 
 
 try:
@@ -85,7 +85,7 @@ class SplitEEGTask(object):
         num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
         if num_split_files == 0:
             raise UnProcessableException(
-                'Seems like splitting did not properly occur. No split files found in {}'.format(self.pipeline.destination))
+                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(self.pipeline.destination))
 
 class EventCreationTask(object):
 
@@ -93,12 +93,14 @@ class EventCreationTask(object):
         'FR': FRSessionLogParser,
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
-        'math': MathSessionLogParser
+        'math': MathSessionLogParser,
+        'PS': PSSessionLogParser
     }
 
-    def __init__(self, subject, montage, experiment, session, is_sys2, event_label='task', parser_type=None, **kwargs):
+    def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task', parser_type=None, **kwargs):
         self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
+        self.protocol = protocol
         self.subject = subject
         self.montage = montage
         self.experiment = experiment
@@ -114,7 +116,7 @@ class EventCreationTask(object):
 
     def run(self, files, db_folder):
         logger.set_label(self.name)
-        parser = self.parser_type(self.subject, self.montage, files)
+        parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, files)
         unaligned_events = parser.parse()
         if self.is_sys2:
             aligner = System2Aligner(unaligned_events, files, db_folder)
@@ -181,7 +183,7 @@ class AggregatorTask(object):
         info_aggregate = os.path.join(self.montages_folder, 'info.json')
         if os.path.exists(info_aggregate):
             info = json.load(open(info_aggregate))
-            if info['montage'] != self.montage:
+            if float(info['montage']) != float(self.montage):
                 raise UnProcessableException('Montage number conflicts for subject {}. Existing: {}, new: {}'.format(
                     self.subject, info['montage'], self.montage
                 ))
@@ -233,16 +235,12 @@ class CompareEventsTask(object):
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
 
-
-        if float(new_events[-1].expVersion.split('_')[-1]) >= 2:
+        if float(new_events[-1].exp_version.split('_')[-1]) >= 2:
             comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
         else:
             comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
-
-
         comparator = EventComparator(new_events, self.sess_mat_events, **comparator_inputs)
-
-        log('Comparing...')
+        log('Comparing events...')
 
         found_bad, error_message = comparator.compare()
 
@@ -250,6 +248,20 @@ class CompareEventsTask(object):
             assert False, error_message
         else:
             log('Comparison Success!')
+
+        log('Comparing stim events...')
+        stim_comparator = StimComparator(new_events, self.sess_mat_events, **STIM_COMPARISON_INPUTS[self.experiment])
+        errors = stim_comparator.compare()
+
+        if errors:
+            assert False, errors
+        else:
+            log('Stim comparison success!')
+
+
+
+
+
 
 
 class UnProcessableException(Exception):

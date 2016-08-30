@@ -4,6 +4,7 @@ import json
 import glob
 import numpy as np
 import sys
+import argparse
 
 from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
 from tasks import SplitEEGTask, EventCreationTask, AggregatorTask, CompareEventsTask
@@ -20,17 +21,23 @@ except:
     PTSA_LOADED=False
 
 GROUPS = {
-    'FR': ('verbal',),
-    'PAL': ('verbal',),
-    'catFR': ('verbal',)
+    'FR': ('verbal', 'stim'),
+    'PAL': ('verbal', 'stim'),
+    'catFR': ('verbal', 'stim'),
+    'PS': ('stim',)
 }
 
 class UnknownMontageException(Exception):
     pass
 
-def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None, original_session=None, **kwargs):
+def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
+                         original_session=None, new_experiment=None, **kwargs):
+    new_experiment = new_experiment if not new_experiment is None else experiment
     transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups,
-                                           code=code, original_session=original_session, **kwargs)
+                                           code=code,
+                                           original_session=original_session,
+                                           new_experiment=new_experiment,
+                                           **kwargs)
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
@@ -39,11 +46,12 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     exp_type = re.sub('\d','', experiment)
     if exp_type in GROUPS:
         groups += GROUPS[exp_type]
+    groups += (exp_type,)
 
     transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups, code=code, **kwargs)
-    tasks = [EventCreationTask(subject, montage, experiment, session, 'system_2' in groups)]
+    tasks = [EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups)]
     if do_math:
-        tasks.append(EventCreationTask(subject, montage, experiment, session, 'system_2' in groups, 'math', MathSessionLogParser))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups, 'math', MathSessionLogParser))
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
                                        kwargs['original_session'] if 'original_session' in kwargs else None))
@@ -127,38 +135,9 @@ def get_first_unused_session(subject, experiment, protocol='r1'):
     else:
         return 0
 
-
-TEST_SESSIONS = (
-        dict(subject='R1002P', montage='0.0', experiment='FR1', session=0, force=True, do_compare=True),
-        dict(subject='R1002P', montage='0.0', experiment='FR1', session=1, force=True, do_compare=True),
-        dict(subject='R1001P', montage='0.0', experiment='FR1', session=1, force=True, do_compare=True),
-        dict(subject='R1003P', montage='0.0', experiment='FR2', session=0, force=True, do_compare=True),
-        dict(subject='R1006P', montage='0.1', experiment='FR2', session=1, code='R1006P_1', original_session=0, force=True, do_compare=True),
-    )
-
-
 def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline = pipeline_fn(**kwargs)
     pipeline.run(force_run)
-
-def xtest_split_pipeline():
-    for test_session in TEST_SESSIONS:
-        yield run_individual_pipline, build_split_pipeline, test_session
-
-def xtest_events_pipeline():
-    for test_session in TEST_SESSIONS:
-        yield run_individual_pipline, build_events_pipeline, test_session, 'force' in test_session and test_session['force']
-
-def xtest_determine_montage():
-    subjects = ('R1059J', 'R1059J_1', 'R1059J_2')
-    for subject in subjects:
-        print 'Montage number for {} is : '.format(subject), \
-            determine_montage_from_code(subject, allow_new=True, allow_skip=True)
-
-def xtest_get_subject_sessions():
-    from pprint import pprint
-    pprint(get_subject_sessions_by_experiment('FR1'))
-    pprint(get_subject_sessions_by_experiment('FR2'))
 
 def check_subject_sessions(code, experiment, sessions, protocol='r1'):
     bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
@@ -196,7 +175,6 @@ def check_subject_sessions(code, experiment, sessions, protocol='r1'):
         yield run_individual_pipline, build_split_pipeline, test_inputs
         yield run_individual_pipline, build_events_pipeline, test_inputs, False
 
-
 def check_experiment(experiment):
     experiment_sessions = get_subject_sessions_by_experiment(experiment)
     for subject, sessions in experiment_sessions:
@@ -207,12 +185,22 @@ BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)),
 
 EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
 
+def clean_db_dir(db_dir):
+    for root, dirs, files in os.walk(db_dir, False):
+        if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
+            os.remove(os.path.join(root, 'log.txt'))
+
+
 def test_all_experiments():
     print 'STARTING'
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
     for experiment in EXPERIMENTS:
         for test in check_experiment(experiment):
             yield test
+
+def test_from_json_file():
+    for test in run_from_json_file('ps_sessions.json'):
+        yield test
 
 def xtest_fr2():
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
@@ -262,8 +250,81 @@ def xtest_catfr3():
         yield test
 
 
+def run_from_json_file(filename):
+    bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
+
+    subjects = json.load(open(filename))
+    sorted_subjects = sorted(subjects.keys())
+    for subject in sorted_subjects:
+        experiments = subjects[subject]
+        for new_experiment in experiments:
+            sessions = experiments[new_experiment]
+            for session in sessions:
+                if subject in bad_sessions and \
+                                new_experiment in bad_sessions[subject] and \
+                                str(session) in bad_sessions[subject][new_experiment]:
+                    log('SKIPPING {} {}_{}: {}'.format(subject, new_experiment, session,
+                                                       bad_sessions[subject][new_experiment][str(session)]))
+                    continue
+                info = sessions[session]
+                experiment = info.get('original_experiment', new_experiment)
+                original_session = info.get('original_session', session)
+                is_sys1 = info.get('system_1', False)
+                is_sys2 = info.get('system_2', False)
+                montage = info.get('montage', 0.0)
+                force = info.get('force', False)
+                code = info.get('code', subject)
+
+                inputs = dict(
+                    subject = subject,
+                    montage = montage,
+                    experiment = experiment,
+                    new_experiment = new_experiment,
+                    force = force,
+                    do_compare = True,
+                    code=code,
+                    session=session,
+                    original_session=original_session,
+                    groups = tuple()
+                )
+
+                raw_substitute = sessions.get('raw_substitute', False)
+                if raw_substitute:
+                    inputs['substitute_raw_folder'] = raw_substitute
+                if is_sys1:
+                    inputs['groups'] += ('system_1',)
+                if is_sys2:
+                    inputs['groups'] += ('system_2',)
+
+                if 'PS' in experiment or 'TH' in experiment:
+                    inputs['do_math'] = False
+
+                yield run_individual_pipline, build_split_pipeline, inputs
+                yield run_individual_pipline, build_events_pipeline, inputs, force
+
+
+
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--from-file', dest='from_file', default=False,
+                        help='process from file')
+    parser.add_argument('--substitute-raw-for-header', dest='raw_header', action='store_true', default=False,
+                        help='Signals input for raw folder with substitute header')
+    parser.add_argument('--change-session', dest='new_session', action='store_true', default=False,
+                        help='Signals new session number different than old')
+    parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
+                        help='Signals system 2 session')
+    parser.add_argument('--sys1', dest='sys1', action='store_true', default=False,
+                        help='Signals system 1 session')
+    parser.add_argument('--force', dest='force', action='store_true', default=False,
+                        help='Force creation even if no changes')
+    args = parser.parse_args()
+    if args.from_file:
+        for test in run_from_json_file(args.from_file):
+            test[0](*test[1:])
+        sys.exit(0)
+
     code = raw_input('Enter subject code: ')
     subject = re.sub('_.*', '', code)
     experiment = raw_input('Enter experiment: ')
@@ -287,14 +348,22 @@ if __name__ == '__main__':
         original_session=original_session
     )
 
-    if '--substitute-raw-for-header' in sys.argv:
+
+    if args.raw_header:
         header_substitute = raw_input('Enter raw folder containing substitute for header: ')
         inputs['substitute_raw_folder'] = header_substitute
-    if '--change-session' in sys.argv:
+    if args.new_session:
         inputs['session'] = int(raw_input('Enter new session number: '))
-    if '--sys2' in sys.argv:
+    if args.sys2:
         inputs['groups'] = ('system_2',)
+    if args.sys1:
+        inputs['groups'] = ('system_1',)
+    if args.force:
+        inputs['force'] = True
 
+    if 'PS' in experiment or 'TH' in experiment:
+        inputs['do_math'] = False
 
     run_individual_pipline(build_split_pipeline, inputs)
     run_individual_pipline(build_events_pipeline, inputs)
+
