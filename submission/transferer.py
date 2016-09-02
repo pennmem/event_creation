@@ -414,13 +414,15 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 
     try:
         session_log = Transferer.get_origin_files(source_files['session_log'], **kwarg_inputs)[0]
-    except IndexError:
-        raise UnTransferrableException('Could not find session log at {}'.format(source_files['session_log']['origin_directory'].format(**kwarg_inputs)))
+        if experiment != 'PS':
+            is_sys2 = get_version_num(session_log) >= 2
+        else:
+            is_sys2 = False
+    except KeyError:
+        log('Could not find session log!','WARNING')
+        is_sys2 = True
 
-    if experiment != 'PS':
-        is_sys2 = get_version_num(session_log) >= 2
-    else:
-        is_sys2 = False
+
 
     kwarg_inputs['subject'] = subject
     if is_sys2:
@@ -428,6 +430,9 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     else:
         groups += ('system_1', )
         kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = find_sync_file(code, experiment, original_session)
+
+    if not new_experiment:
+        new_experiment = experiment
 
     destination = os.path.join(DB_ROOT,
                                'protocols', protocol,

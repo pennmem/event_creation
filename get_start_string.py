@@ -5,7 +5,8 @@ import os
 
 subject = raw_input('subject: ')
 
-filenames = glob.glob(os.path.join(DATA_ROOT, subject, 'raw', '*', '*.edf'))
+filenames = glob.glob(os.path.join(DATA_ROOT, subject, 'raw', '*', '*.edf')) + \
+            glob.glob(os.path.join(DATA_ROOT, subject, 'raw', '*', '*.EEG'))
 
 for filename in filenames:
     reader = get_eeg_reader(filename)

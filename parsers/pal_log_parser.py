@@ -148,15 +148,19 @@ class PALSessionLogParser(BaseSessionLogParser):
                         self._pal2_stim_on_time + self.PAL2_STIM_DURATION >= event.mstime and \
                         event.mstime >= self._pal2_stim_on_time:
             event.is_stim = True
-            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, stim_on=True, **self._pal2_stim_params)
+            self.set_event_stim_params(event, jacksheet=self._jacksheet, stim_on=True, **self._pal2_stim_params)
 
 
     def event_stim_params(self, split_line):
         self._is_fr2 = True
         if split_line[9] != '0':
             if split_line[5].isdigit():
-                self._pal2_stim_params['anode_number'] = int(split_line[5])
-                self._pal2_stim_params['cathode_number']= int(split_line[7])
+                if self._subject[-1] in ('M', 'W'):
+                    offset = 1
+                else:
+                    offset = 0
+                self._pal2_stim_params['anode_number'] = int(split_line[5]) + offset
+                self._pal2_stim_params['cathode_number']= int(split_line[7]) + offset
             else:
                 self._pal2_stim_params['anode_label']= split_line[5]
                 self._pal2_stim_params['cathode_label'] = split_line[7]
@@ -205,7 +209,7 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.study_1 = ''
         event.study_2 = ''
         event.is_stim = True
-        self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._pal2_stim_params)
+        self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._pal2_stim_params)
         return event
 
     def event_trial(self, split_line):
@@ -278,7 +282,7 @@ class PALSessionLogParser(BaseSessionLogParser):
                 event.is_stim = 0
             elif stimstr =="STIM":
                 event.is_stim = 1
-                self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+                self.set_event_stim_params(event, self._jacksheet, **self._pal2_stim_params)
             event.stim_type = self._stim_type
             event.stim_list = self._stim_list
             event.correct = 0
@@ -336,7 +340,7 @@ class PALSessionLogParser(BaseSessionLogParser):
                 event.is_stim = 0
             elif stimstr =="STIM":
                 event.is_stim = 1
-                self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+                self.set_event_stim_params(event, self._jacksheet, **self._pal2_stim_params)
         event.stim_type = self._stim_type
         event.stim_list = self._stim_list
         event.correct = 0
@@ -391,7 +395,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             event.is_stim = 0
         elif stimstr =="STIM":
             event.is_stim = 1
-            self.set_event_stim_params(event, self.jacksheet_contents, **self._pal2_stim_params)
+            self.set_event_stim_params(event, self._jacksheet, **self._pal2_stim_params)
         event.stim_type = self._stim_type
         event.stim_list = self._stim_list
 

@@ -8,12 +8,17 @@
     "FR1": {
       "0": "no wav files"
     }
-  },
+  }, 
+  "R1025P": {
+    "PS1": {
+      "0": "New stim 107/108, old stim 59/60"
+    }
+  }, 
   "R1027J": {
     "FR1": {
       "0": "no session folder"
     }
-  },
+  }, 
   "R1029W": {
     "catFR1": {
       "0": "No behavioral files for catFR1 session 0"
@@ -27,7 +32,12 @@
     "catFR1": {
       "0": "File may be corrupt? Cannot read proper number of samples from file."
     }
-  },
+  }, 
+  "R1053M": {
+    "FR2": {
+      "0": "Stim contact off by one"
+    }
+  }, 
   "R1054J": {
     "PS1": {
       "1": "Could not align window"
@@ -36,12 +46,12 @@
       "0": "Could not align window", 
       "1": "eegoffset differs by 500"
     }
-  },
+  }, 
   "R1060M": {
     "PS2": {
       "0": "Could not align window"
     }
-  },
+  }, 
   "R1061T": {
     "FR1": {
       "0": "malloc error", 
@@ -49,19 +59,19 @@
       "2": "malloc error", 
       "3": "malloc error"
     }, 
+    "PS1": {
+      "0": "malloc error", 
+      "1": "malloc error"
+    }, 
     "catFR1": {
       "0": "malloc error"
-    },
-    "PS1": {
-      "0": "malloc error",
-      "1": "malloc error"
     }
-  },
+  }, 
   "R1069M": {
-    "FR2":{
+    "FR2": {
       "0": "Could not align window"
     }
-  },
+  }, 
   "R1070T": {
     "FR1": {
       "0": "Session log has 8 lists, but events have 25 lists. Sessions appear to be out of order", 
@@ -81,45 +91,50 @@
     "FR1": {
       "3": "No raw folder matching FR1_3"
     }
-  },
+  }, 
+  "R1086M": {
+    "PS2": {
+      "0": "Log lists anode label as LPF5(86)/LPF6(87), events have it marked as 85/86"
+    }
+  }, 
   "R1091N": {
     "PAL2": {
       "0": "Haven't figured out multi-file alignment yet"
     }
-  },
+  }, 
   "R1100D": {
     "PS2": {
-      "0": "PS session_0 is actually PS0. Numbering is off",
-      "1": "There are two sessions both marked as session_2 in events file",
+      "0": "PS session_0 is actually PS0. Numbering is off", 
+      "1": "There are two sessions both marked as session_2 in events file", 
       "2": "PS session_3 is actually PS0. Numbering is off"
     }
-  },
+  }, 
   "R1109N": {
     "PAL2": {
       "0": "Stim contact ALF4 does not exist"
     }
-  },
+  }, 
   "R1112M": {
     "PS2": {
-      "0": "Cannot align window",
-      "1": "Cannot align window",
-      "2": "Cannot align window",
+      "0": "Cannot align window", 
+      "1": "Cannot align window", 
+      "2": "Cannot align window", 
       "5": "Cannot align window"
-    },
+    }, 
     "PS3": {
-      "0": "Cannot align window",
-      "1": "Cannot align window",
-      "2": "Cannot align window",
-      "3": "Cannot align window",
-      "4": "Cannot align window",
+      "0": "Cannot align window", 
+      "1": "Cannot align window", 
+      "2": "Cannot align window", 
+      "3": "Cannot align window", 
+      "4": "Cannot align window", 
       "5": "Cannot align window"
     }
-  },
+  }, 
   "R1120E": {
     "PS2": {
       "0": "PS session_0 is actually PS0 not PS2"
     }
-  },
+  }, 
   "R1121M": {
     "FR1": {
       "0": "Haven't figured out multi-file alignment yet", 
@@ -137,72 +152,70 @@
       "2": "No raw folder matching PAL1_2", 
       "3": "No raw folder matching PAL1_3"
     }
-  },
+  }, 
   "R1122E": {
-    "PS2":{
-      "0": "Could not align window",
+    "PS2": {
+      "0": "Could not align window", 
       "1": "Stim contact RAMYG2 does not exist"
     }
-  },
-  "R1129D":{
+  }, 
+  "R1129D": {
     "PS2": {
-      "0": "PS session_0 is actually PS0 not PS2",
-      "1": "PS session_1 is actually PS0 not PS2",
-      "2": "PS session_2 is actually PS0 not PS2",
-      "3": "PS session_3 is actually PS0 not PS2",
-      "4": "Could not align window",
-      "5": "Could not align window",
+      "0": "PS session_0 is actually PS0 not PS2", 
+      "1": "PS session_1 is actually PS0 not PS2", 
+      "2": "PS session_2 is actually PS0 not PS2", 
+      "3": "PS session_3 is actually PS0 not PS2", 
       "6": "PS session_6 is actually PS0 not PS2"
     }
-  },
+  }, 
   "R1135E": {
     "PS2": {
-      "0": "Stim contact LHCD2 is not in the montage",
-      "1": "Stim contact LHCD2 is not in the montage",
-      "2": "Stim contact LHCD4 is not in the montage",
+      "0": "Stim contact LHCD2 is not in the montage", 
+      "1": "Stim contact LHCD2 is not in the montage", 
+      "2": "Stim contact LHCD4 is not in the montage", 
       "3": "Session log lists RAHcd3, events list RAHcd2"
     }
-  },
+  }, 
   "R1136N": {
     "PS1": {
       "0": "PS session_0 is actually PS0 not PS1"
-    },
+    }, 
     "PS2": {
       "0": "PS session_1 is actually PS1 not PS2"
-    },
+    }, 
     "PS3": {
       "0": "PS session_2 is actually PS2 not PS3"
     }
-  },
+  }, 
   "R1149N": {
     "PS2": {
       "0": "Haven't figured out two source alignment yet"
-    },
+    }, 
     "PS3": {
       "0": "Haven't figured out two source alignment yet"
     }
-  },
+  }, 
   "R1150J": {
     "PS2": {
-      "0": "No behavioral folder for PS exists?",
-      "1": "No behavioral folder for PS exists?",
+      "0": "No behavioral folder for PS exists?", 
+      "1": "No behavioral folder for PS exists?", 
       "2": "No behavioral folder for PS exists?"
     }
-  },
+  }, 
   "R1162N": {
     "PAL2": {
       "0": "Log says AST was stimulated, events say ATT was stimulated"
-    },
-    "PS2": {
-      "0": "PS session_1 is PS0 not PS2"
-    },
-    "PS3": {
-      "0": "PS session_0 is PS0 not PS3"
-    },
+    }, 
     "PS1": {
       "0": "PS session_2 is PS0 not PS2"
+    }, 
+    "PS2": {
+      "0": "PS session_1 is PS0 not PS2"
+    }, 
+    "PS3": {
+      "0": "PS session_0 is PS0 not PS3"
     }
-  },
+  }, 
   "R1163T": {
     "catFR1": {
       "0": "brpylib error: Unpack requires string argument of length 4"
@@ -212,34 +225,23 @@
     "catFR1": {
       "0": "brpylib error: Unpack requires string argument of length 4"
     }
-  },
+  }, 
   "R1175N": {
     "PS2": {
       "0": "No raw file with timestamp matching eegfile in events"
     }
-  },
+  }, 
   "R1176M": {
     "PS2": {
       "0": "Wrong EEG file (23May16_0659 in raw, 22May16_1150 in events)"
     }
-  },
-  "R1177M": {
-    "PS2": {
-      "1": "Could not align window"
-    }
-  },
+  }, 
   "R1189M": {
     "FR1": {
       "0": "brpylib error: Unpack requires string argument of length 4", 
       "1": "brpylib error: Unpack requires string argument of length 4"
     }
-  },
-  "R1196M": {
-    "PS2": {
-      "0": "Old eegoffset looks wrong.",
-      "1": "Old eegoffset looks wrong."
-    }
-  },
+  }, 
   "R1202M": {
     "catFR1": {
       "0": "brpylib error: Unpack requires string argument of length 4"

@@ -190,17 +190,19 @@ def clean_db_dir(db_dir):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
 
+def test_custom_imports():
+    for test in run_from_json_file('custom_sessions.json'):
+        yield test
+
+def test_ps_sessions():
+    for test in run_from_json_file('ps_sessions.json'):
+        yield test
 
 def test_all_experiments():
-    print 'STARTING'
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
     for experiment in EXPERIMENTS:
         for test in check_experiment(experiment):
             yield test
-
-def test_from_json_file():
-    for test in run_from_json_file('ps_sessions.json'):
-        yield test
 
 def xtest_fr2():
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
@@ -288,7 +290,7 @@ def run_from_json_file(filename):
                     groups = tuple()
                 )
 
-                raw_substitute = sessions.get('raw_substitute', False)
+                raw_substitute = info.get('raw_substitute', False)
                 if raw_substitute:
                     inputs['substitute_raw_folder'] = raw_substitute
                 if is_sys1:
@@ -311,6 +313,8 @@ if __name__ == '__main__':
                         help='process from file')
     parser.add_argument('--substitute-raw-for-header', dest='raw_header', action='store_true', default=False,
                         help='Signals input for raw folder with substitute header')
+    parser.add_argument('--change-experiment', dest='new_exp', action='store_true', default=False,
+                        help='Singals new experiment differs from old')
     parser.add_argument('--change-session', dest='new_session', action='store_true', default=False,
                         help='Signals new session number different than old')
     parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
@@ -327,20 +331,30 @@ if __name__ == '__main__':
 
     code = raw_input('Enter subject code: ')
     subject = re.sub('_.*', '', code)
-    experiment = raw_input('Enter experiment: ')
+    original_experiment = raw_input('Enter original experiment: ')
     original_session = int(raw_input('Enter original session number: '))
 
     if subject != code:
         montage = raw_input('Enter montage #: ')
-        session = int(raw_input('Enter new session number: '))
     else:
         montage = '0.0'
         session = original_session
 
+    if args.new_session:
+        session = int(raw_input('Enter new session number: '))
+    else:
+        session = original_session
+
+    if args.new_exp:
+        experiment = raw_input('Enter new experiment name: ')
+    else:
+        experiment = original_experiment
+
     inputs = dict(
         subject=subject,
         montage=montage,
-        experiment=experiment,
+        experiment=original_experiment,
+        new_experiment=experiment,
         force=False,
         do_compare=True,
         code=code,
@@ -352,8 +366,6 @@ if __name__ == '__main__':
     if args.raw_header:
         header_substitute = raw_input('Enter raw folder containing substitute for header: ')
         inputs['substitute_raw_folder'] = header_substitute
-    if args.new_session:
-        inputs['session'] = int(raw_input('Enter new session number: '))
     if args.sys2:
         inputs['groups'] = ('system_2',)
     if args.sys1:

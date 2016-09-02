@@ -118,7 +118,9 @@ class BaseSessionLogParser(object):
         :param allow_unparsed_events: True if it is acceptable to leave lines unparsed
         :return:
         """
-        self._session_log = files[primary_log]
+        self._primary_log = files[primary_log]
+        self._contents = self.parse_primary_log()
+
         self._allow_unparsed_events = allow_unparsed_events
         try:
             self._ann_files = {os.path.basename(os.path.splitext(ann_file)[0]): ann_file \
@@ -130,8 +132,6 @@ class BaseSessionLogParser(object):
         self._experiment = experiment
         self._subject = subject
         self._montage = montage
-        self._contents = [line.strip().split(self._SPLIT_TOKEN)
-                          for line in codecs.open(self._session_log, encoding='utf-8').readlines()]
         self._fields = self._BASE_FIELDS
         if include_stim_params:
             self._fields += (self.stim_params_template(),)
@@ -144,12 +144,18 @@ class BaseSessionLogParser(object):
 
         if 'jacksheet' in files:
             jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
-            self.jacksheet_contents = {int(x[0]): x[1] for x in jacksheet_contents}
+            self._jacksheet = {int(x[0]): x[1].upper() for x in jacksheet_contents}
         else:
-            jacksheet_contents = None
-            self.jacksheet_contents = None
+            self._jacksheet = None
 
         pass
+
+    def clean_events(self, events):
+        return events
+
+    def parse_primary_log(self):
+        return [line.strip().split(self._SPLIT_TOKEN)
+                for line in codecs.open(self._primary_log, encoding='utf-8').readlines()]
 
     @staticmethod
     def persist_fields_during_stim(event):
@@ -242,9 +248,9 @@ class BaseSessionLogParser(object):
 
         reverse_jacksheet = {v: k for k, v in jacksheet.items()}
         if 'anode_label' in params:
-            event.stim_params[index]['anode_number'] = reverse_jacksheet[params['anode_label']]
+            event.stim_params[index]['anode_number'] = reverse_jacksheet[params['anode_label'].upper()]
         if 'cathode_label' in params:
-            event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label']]
+            event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label'].upper()]
         if 'anode_number' in params:
             event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']]
         if 'cathode_number' in params:
@@ -268,7 +274,7 @@ class BaseSessionLogParser(object):
                 elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
             elif self._allow_unparsed_events:
-                log('Warning: type %s not found' % this_type)
+                pass #log('Warning: type %s not found' % this_type)
             else:
                 raise UnparsableLineException("Event type %s not parseable" % this_type)
             if this_type in self._type_to_modify_events:
@@ -299,7 +305,7 @@ class EventComparator:
     SHOW_FULL_EVENTS = False
 
     def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None,
-                 type_switch=None):
+                 type_switch=None, match_field='mstime'):
         """
         :param events1:
         :param events2:
@@ -316,6 +322,7 @@ class EventComparator:
         self.field_ignore = field_ignore if field_ignore else []
         self.type_ignore = type_ignore if type_ignore else []
         self.exceptions = exceptions if exceptions else lambda *_: False
+        self.match_field = match_field
 
         ev1_names = events1.dtype.names
         ev2_names = events2.dtype.names
@@ -371,12 +378,12 @@ class EventComparator:
         bad_events1 = self.events1[0] # Have to initialize with something to fill it
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1['mstime'] - self.events2['mstime']) <= 4, event1['type'] == self.events2['type'])
+                    np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4, event1['type'] == self.events2['type'])
 
             if event1['type'] in self.type_switch:
                 for type in self.type_switch[event1['type']]:
                     this_mask2 = np.logical_or(this_mask2, np.logical_and(
-                        np.abs(event1['mstime'] - self.events2['mstime']) <= 4, type == self.events2['type']
+                        np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4, type == self.events2['type']
                     ))
 
             if not this_mask2.any() and not event1['type'] in self.type_ignore:
@@ -407,10 +414,11 @@ class EventComparator:
 
 class StimComparator(object):
 
-    def __init__(self, events1, events2, fields_to_compare, exceptions):
+    def __init__(self, events1, events2, fields_to_compare, exceptions, match_field='mstime'):
         self.events1 = events1
         self.events2 = events2
         self.fields_to_compare = {}
+        self.match_field = match_field
         for field_name1, field_name2 in fields_to_compare.items():
             try:
                 field1 = self.get_subfield(self.events1[0], field_name1)
@@ -459,7 +467,7 @@ class StimComparator(object):
 
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1['mstime'] - self.events2['mstime']) <= 4, event1['type'] == self.events2['type'])
+                    np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4, event1['type'] == self.events2['type'])
             if not this_mask2.any():
                 continue
             this_mismatch = self._get_field_mismatch(event1, self.events2[this_mask2])

@@ -11,7 +11,7 @@ class System2LogParser:
     _HOST_SORT_FIELD = 'hosttime'
 
     _SYS2_FIELDS = BaseSessionLogParser._STIM_FIELDS + (
-        ('hosttime', -1, 'int32'),
+        ('hosttime', -1, 'int64'),
         ('file_index', -1, 'int16')
     )
 
@@ -75,7 +75,7 @@ class System2LogParser:
             if after_events.any():
                 insert_index = after_events.nonzero()[0][0]
             else:
-                insert_index = 0
+                insert_index = merged_events.shape[0]
             # Copy the persistent fields from the previous event, modify the remaining fields
             if insert_index > 0:
                 event_to_copy = merged_events[insert_index-1]
@@ -134,11 +134,14 @@ class System2LogParser:
     def make_stim_event(cls, row, jacksheet=None):
         stim_event = cls._empty_event()
         stim_params = {}
-        stim_params['hosttime'] = row[0]
+        stim_params['hosttime'] = int(row[0])
         for item in row:
             split_item = item.split(':')
             if split_item[0] in cls._LOG_TO_FIELD:
                 stim_params[cls._LOG_TO_FIELD[split_item[0]]]= float(split_item[1])
+
+        stim_params['n_bursts'] = stim_params['n_bursts'] or 1
+        stim_params['burst_freq'] = stim_params['burst_freq'] or 1
         stim_params['stim_duration'] = cls._get_duration(stim_params)
         stim_params['stim_on'] = True
         BaseSessionLogParser.set_event_stim_params(stim_event, jacksheet=jacksheet, **stim_params)

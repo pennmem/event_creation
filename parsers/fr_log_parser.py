@@ -116,7 +116,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         if self._is_fr2 and self._fr2_stim_on_time and self._fr2_stim_on_time + self.FR2_STIM_DURATION >= int(split_line[0]):
             event.is_stim = True
-            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._fr2_stim_params)
+            self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._fr2_stim_params)
 
         event.list = self._list
         event.session = self._session
@@ -151,8 +151,12 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._is_fr2 = True
         if split_line[9] != '0':
             if split_line[5].isdigit():
-                self._fr2_stim_params['anode_number'] = int(split_line[5])
-                self._fr2_stim_params['cathode_number']= int(split_line[7])
+                if self._subject[-1] in ('M', 'W'):
+                    offset = 1
+                else:
+                    offset = 0
+                self._fr2_stim_params['anode_number'] = int(split_line[5]) + offset
+                self._fr2_stim_params['cathode_number']= int(split_line[7]) + offset
             else:
                 self._fr2_stim_params['anode_label']= split_line[5]
                 self._fr2_stim_params['cathode_label'] = split_line[7]

@@ -1357,27 +1357,27 @@
   "R1154D": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }, 
       "4": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 4, 
         "system_2": true
       }
@@ -1395,17 +1395,17 @@
   "R1158T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }
@@ -1414,12 +1414,12 @@
   "R1161E": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }
@@ -1451,22 +1451,22 @@
   "R1163T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }
@@ -1475,7 +1475,7 @@
   "R1164E": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }
@@ -1484,12 +1484,12 @@
   "R1166D": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }
@@ -1498,22 +1498,22 @@
   "R1168T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }
@@ -1522,7 +1522,7 @@
   "R1173J": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }
@@ -1531,12 +1531,12 @@
   "R1174T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }
@@ -1545,7 +1545,7 @@
   "R1175N": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }
@@ -1601,7 +1601,7 @@
   "R1183T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }
@@ -1610,22 +1610,22 @@
   "R1184M": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }
@@ -1650,67 +1650,67 @@
   "R1195E": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }, 
       "4": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 4, 
         "system_2": true
       }, 
       "5": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 5, 
         "system_2": true
       }, 
       "6": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 6, 
         "system_2": true
       }, 
       "7": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 7, 
         "system_2": true
       }, 
       "8": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 8, 
         "system_2": true
       }, 
       "9": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 9, 
         "system_2": true
       }, 
       "10": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 10, 
         "system_2": true
       }, 
       "11": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 11, 
         "system_2": true
       }, 
       "12": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 12, 
         "system_2": true
       }
@@ -1719,12 +1719,12 @@
   "R1196N": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }
@@ -1733,12 +1733,12 @@
   "R1200T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }
@@ -1747,52 +1747,52 @@
   "R1202M": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }, 
       "4": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 4, 
         "system_2": true
       }, 
       "5": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 5, 
         "system_2": true
       }, 
       "6": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 6, 
         "system_2": true
       }, 
       "7": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 7, 
         "system_2": true
       }, 
       "8": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 8, 
         "system_2": true
       }, 
       "9": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 9, 
         "system_2": true
       }
@@ -1801,27 +1801,27 @@
   "R1203T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }, 
       "4": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 4, 
         "system_2": true
       }
@@ -1830,37 +1830,37 @@
   "R1204T": {
     "PS2": {
       "0": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 0, 
         "system_2": true
       }, 
       "1": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 1, 
         "system_2": true
       }, 
       "2": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 2, 
         "system_2": true
       }, 
       "3": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 3, 
         "system_2": true
       }, 
       "4": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 4, 
         "system_2": true
       }, 
       "5": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 5, 
         "system_2": true
       }, 
       "6": {
-        "original_experiment": "PS21", 
+        "original_experiment": "PS", 
         "original_session": 6, 
         "system_2": true
       }

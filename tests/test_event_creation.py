@@ -283,10 +283,10 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['type'] == 'REC_WORD' and event2['subject'] == 'R1177M':
         return True
 
-    if field == 'word' and event1['subject'] in ('R1060M', 'R1111M', 'R1130M') and ' ' in event1['word']:
-            return True
+    if field == 'word' and event1['subject'] in ('R1060M', 'R1111M', 'R1130M', 'R1198M') and ' ' in event1['word']:
+        return True
 
-    if field == 'word' and event1['subject'] == 'R1111M' and ' ' in event1['word']:
+    if field is None and event2 and "'" in event2['word']:
         return True
 
     return False
@@ -566,9 +566,15 @@ def pal_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     if field == 'stim_type' and event1['stim_type'] == '' and \
-            ( event2['stim_type'] == 'NONE' or event2['stim_type'] == -999):
+            ( event2['stim_type'] == 'NONE' or event2['stim_type'] == -999 or event2['stim_type'] == '[]'):
         return True
 
+    if field == 'stim_list' and event1['stim_list'] == 0 and np.isnan(event2['stim_list']):
+        return True
+
+    # R1207J's session 0 had an improper cue direction
+    if field == 'cue_direction' and event1['subject'] == 'R1207J' and event1['study_1'] == 'BEAM':
+        return True
 
     return False
 
@@ -580,8 +586,11 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'is_stim' and event1['is_stim'] == False and event2['is_stim'] == -999:
         return True
 
-    if  field in ('recalled', 'rectime', 'intrusion', 'category', 'categoryNum') and event1['subject'] == 'R1016M' \
+    if  field in ('recalled', 'rectime', 'intrusion', 'category', 'category_num') and event1['subject'] == 'R1016M' \
             and event1['word'] in ('PLIERS',):
+        return True
+
+    if field == 'category_num' and event1['subject'] == 'R1066P' and event1['word'] in ('OCEAN', 'CLOUD'):
         return True
 
     if field == 'word' and event1['type'] == 'PRACTICE_WORD' and event2['word'] == 'X':
@@ -679,6 +688,16 @@ def verbal_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     if not event1['is_stim'] and ((not event2['isStim']) or event2['isStim'] == -999) and not field1:
         return True
 
+    if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label') and field1.upper() == field2.upper():
+        return True
+
+    if field_name1 == 'stim_params.anode_label' and field1 in ('LHC1', 'LHC5') and field2 in ('HC1', 'HC5') and \
+                    event1['subject'] == 'R1192C':
+        return True
+    if field_name1 == 'stim_params.cathode_label' and field1 in ('LHC2', 'LHC6') and field2 in ('HC2', 'HC6') and \
+                    event1['subject'] == 'R1192C':
+        return True
+
     return False
 
 
@@ -689,6 +708,9 @@ def catfr2_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     field1 = StimComparator.get_subfield(event1, field_name1)
     field2 = StimComparator.get_subfield(event2, field_name2)[0]
 
+    if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label' ) and \
+                    field1 in ('LHC5', 'LHC6') and field2 in ('HCH5', 'HCH6'):
+        return True
 
     return False
 
@@ -737,6 +759,40 @@ def ps_event_exceptions(event1, event2, field, parent_field=None):
     if field == 'ad_observed' and event1['experiment'] == 'PS3' and event1['exp_version'] == '1.0':
         return True
 
+    if field == 'eegoffset' and abs(event1['eegoffset'] - event1['eegoffset']) <= 40 and \
+                    event1['subject'] in ('R1060M', 'R1096E'):
+        return True
+
+    if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 300 and \
+                    event1['subject'] == 'R1105E':
+        return True
+
+    return False
+
+def ps_sys2_event_exceptions(event1, event2, field, parent_field=None):
+    if ps_event_exceptions(event1, event2, field, parent_field):
+        return True
+
+    if field == 'mstime' and abs(event1['mstime'] - event2['mstime']) < 10000:
+        return True
+
+    if field is None and event1 and event1['type'] == 'SESS_START':
+        return True
+
+    # R1166D had events past end of session
+    if field is None and event2 and event2['subject'] == "R1166D" and event2['mstime'] >= 1461425757902:
+        return True
+    # R1195E had events past end of session
+    if field is None and event2 and event2['subject'] == "R1195E" and event2['mstime'] >= 1468610881173:
+        return True
+
+    # Recording was stopped before last AD check in R1195E
+    if field in ('eegfile', 'eegoffset') and event1['type'] == 'AD_CHECK' and event1['subject'] == 'R1195E':
+        return True
+
+    # R1184M's mstime is off by about 2 hours -- not a big deal, since it's only used to get timestamp
+    if field == 'mstime' and abs(event1['mstime'] - event2['mstime']) < 8000000 and event1['subject'] == 'R1184M':
+        return True
     return False
 
 def ps_sys1_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
@@ -763,7 +819,10 @@ def ps_sys1_stim_comparison_exceptions(event1, event2, field_name1, field_name2)
     if field_name1 == 'stim_params.pulse_freq' and field1 == -1 and event1['type'] == 'STIM_SINGLE_PULSE':
         return True
 
-    if event1['type'] in ('PAUSED', 'UNPAUSED') and field1 == '':
+    if event1['type'] in ('PAUSED', 'UNPAUSED', 'SHAM') and field1 == '':
+        return True
+
+    if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label') and field1.upper() == field2.upper():
         return True
 
     return False
@@ -811,7 +870,7 @@ def check_event_creation(subject, experiment, session, is_sys2, comparator_input
 
     return py_events
 
-FR1_SYS1_STIM_COMPARASON = dict(
+FR1_STIM_COMPARISON = dict(
     fields_to_compare={
         'stim_params.anode_number': 'stimAnode',
         'stim_params.cathode_number': 'stimCathode',
@@ -819,9 +878,9 @@ FR1_SYS1_STIM_COMPARASON = dict(
     },
     exceptions=verbal_stim_comparison_exceptions,
 )
-FR2_SYS1_STIM_COMPARISON = FR1_SYS1_STIM_COMPARASON
+FR2_STIM_COMPARISON = FR1_STIM_COMPARISON
 
-FR3_SYS2_STIM_COMPARISON = dict(
+FR3_STIM_COMPARISON = dict(
     fields_to_compare={
         'stim_params.anode_number': 'stimParams.elec1',
         'stim_params.cathode_number': 'stimParams.elec2',
@@ -835,7 +894,7 @@ FR3_SYS2_STIM_COMPARISON = dict(
     exceptions=verbal_stim_comparison_exceptions,
 )
 
-CATFR_SYS1_STIM_COMPARISON = dict(
+CATFR_STIM_COMPARISON = dict(
     fields_to_compare={
         'stim_params.anode_number': 'stimAnode',
         'stim_params.cathode_number': 'stimCathode',
@@ -846,7 +905,7 @@ CATFR_SYS1_STIM_COMPARISON = dict(
     exceptions=catfr2_stim_comparison_exceptions
 )
 
-PAL_SYS1_STIM_COMPARISON = dict(
+PAL_STIM_COMPARISON = dict(
     fields_to_compare={
         'stim_params.anode_number': 'stimAnode',
         'stim_params.cathode_number': 'stimCathode',
@@ -857,7 +916,7 @@ PAL_SYS1_STIM_COMPARISON = dict(
     exceptions=verbal_stim_comparison_exceptions
 )
 
-PAL_SYS2_STIM_COMPARISON = dict(
+PAL3_STIM_COMPARISON = dict(
     fields_to_compare = {
         'stim_params.anode_number': 'stimParams.elec1',
         'stim_params.cathode_number': 'stimParams.elec2',
@@ -885,6 +944,22 @@ PS_SYS1_STIM_COMPARISON = dict(
     },
     exceptions=ps_sys1_stim_comparison_exceptions,
 )
+PS_SYS2_STIM_COMPARISON = dict(
+    fields_to_compare= {
+     'stim_params.anode_number': 'stimAnode',
+     'stim_params.cathode_number': 'stimCathode',
+     'stim_params.anode_label': 'stimAnodeTag',
+     'stim_params.cathode_label': 'stimCathodeTag',
+     'stim_params.amplitude': 'amplitude',
+     'stim_params.pulse_freq': 'pulse_frequency',
+     'stim_params.burst_freq': 'burst_frequency',
+     'stim_params.n_bursts': 'nBursts',
+     'stim_params.stim_duration': 'pulse_duration',
+    },
+    exceptions=ps_sys1_stim_comparison_exceptions,
+    match_field='eegoffset'
+)
+
 
 all_ignore = ('exp_version', 'expVersion', 'montage', 'stim_params', 'stimParams', 'session', 'experiment', 'protocol')
 
@@ -915,6 +990,19 @@ PS_COMPARATOR_INPUTS = dict(
     type_ignore=('STIM_OFF', 'END_EXP', 'BEGIN_PS3', 'AMPLITUDE_CONFIRMED'),
     type_switch={'STIM': ('STIMULATING', 'BEGIN_BURST')}
 )
+
+PS_SYS2_COMPARATOR_INPUTS = dict(
+    field_switch={'ad_observed': 'has_ADs', 'is_stim': 'stimOn',},
+    field_ignore = ('amplitude', 'burst_i', 'pulse_frequency', 'burst_frequency',
+                     'nBursts', 'pulse_duration', 'stimAnode', 'stimAnodeTag','stimCathode',
+                     'stimCathodeTag', 'stimAmp', 'hostTime', 'stimDuration', 'exp_version', 'experiment',
+                    'montage', 'stim_params', 'stimParams', 'session','protocol', 'msoffset', 'nPulses', 'pulseWidth'),
+    exceptions=ps_sys2_event_exceptions,
+    type_ignore=('STIM_OFF', 'END_EXP', 'BEGIN_PS3', 'AMPLITUDE_CONFIRMED'),
+    type_switch={'STIM': ('STIMULATING', 'BEGIN_BURST')},
+    match_field='eegoffset'
+)
+
 
 FR1_SYS1_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno',  'stim_list': 'stimList', 'is_stim': 'isStim'},
@@ -967,10 +1055,10 @@ PAL1_SYS1_COMPARATOR_INPUTS = dict(
 )
 
 PAL1_SYS2_COMPARATOR_INPUTS = dict(
-    field_switch={'resp_pass': 'pass', 'stim_list': 'isStimList', 'is_stim': 'isStim'},
+    field_switch={'resp_pass': 'pass', 'stim_list': 'stimTrial', 'is_stim': 'isStim', 'stim_type': 'stimType'},
     field_ignore=all_ignore + ('stimLoc', 'stimAmp',
                   'stimAnode', 'stimAnodeTag', 'stimCathode',
-                  'stimCathodeTag',),
+                  'stimCathodeTag', 'isStimList', 'stimList'),
     exceptions=pal_comparison_exceptions,
     type_ignore=('COUNTDOWN_START', 'COUNTDOWN_END', 'B', 'E', 'STIM_PARAMS', 'REC_END', 'SESS_START',
                  'MIC_TEST', 'PRACTICE_PAIR_OFF',
@@ -979,7 +1067,7 @@ PAL1_SYS2_COMPARATOR_INPUTS = dict(
 )
 
 PAL2_COMPARATOR_INPUTS = dict(
-    field_switch={'resp_pass': 'pass', 'stim_trial': 'stimTrial', 'stim_type': 'stimType', 'is_stim': 'isStim'},
+    field_switch={'resp_pass': 'pass', 'stim_list': 'stimTrial', 'stim_type': 'stimType', 'is_stim': 'isStim'},
     field_ignore=all_ignore + ('stimLoc', 'stimAmp',
                   'stimAnode', 'stimAnodeTag', 'stimCathode',
                   'stimCathodeTag'),
@@ -1006,7 +1094,7 @@ SYS2_COMPARATOR_INPUTS = dict(
     PAL1=PAL1_SYS2_COMPARATOR_INPUTS,
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS,
     PAL3=PAL3_COMPARATOR_INPUTS,
-    PS=PS_COMPARATOR_INPUTS
+    PS=PS_SYS2_COMPARATOR_INPUTS
 
 )
 
@@ -1020,16 +1108,28 @@ SYS1_COMPARATOR_INPUTS = dict(
     PS=PS_COMPARATOR_INPUTS
 )
 
-STIM_COMPARISON_INPUTS = dict(
-    FR1=FR1_SYS1_STIM_COMPARASON,
-    FR2=FR2_SYS1_STIM_COMPARISON,
-    FR3=FR3_SYS2_STIM_COMPARISON,
-    catFR1=CATFR_SYS1_STIM_COMPARISON,
-    catFR2=CATFR_SYS1_STIM_COMPARISON,
-    PAL1=PAL_SYS1_STIM_COMPARISON,
-    PAL2=PAL_SYS1_STIM_COMPARISON,
-    PAL3=PAL_SYS2_STIM_COMPARISON,
+SYS1_STIM_COMPARISON_INPUTS = dict(
+    FR1=FR1_STIM_COMPARISON,
+    FR2=FR2_STIM_COMPARISON,
+    FR3=FR3_STIM_COMPARISON,
+    catFR1=CATFR_STIM_COMPARISON,
+    catFR2=CATFR_STIM_COMPARISON,
+    PAL1=PAL_STIM_COMPARISON,
+    PAL2=PAL_STIM_COMPARISON,
+    PAL3=PAL3_STIM_COMPARISON,
     PS=PS_SYS1_STIM_COMPARISON
+)
+
+SYS2_STIM_COMPARISON_INPUTS = dict(
+    FR1=FR1_STIM_COMPARISON,
+    FR2=FR2_STIM_COMPARISON,
+    FR3=FR3_STIM_COMPARISON,
+    catFR1=CATFR_STIM_COMPARISON,
+    catFR2=CATFR_STIM_COMPARISON,
+    PAL1=PAL_STIM_COMPARISON,
+    PAL2=PAL_STIM_COMPARISON,
+    PAL3=PAL3_STIM_COMPARISON,
+    PS=PS_SYS2_STIM_COMPARISON
 )
 
 def check_sys2_sessions(session_list, experiment):

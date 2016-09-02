@@ -13,12 +13,13 @@ from parsers.fr_log_parser import FRSessionLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
 from parsers.math_parser import MathSessionLogParser
 from parsers.base_log_parser import EventComparator
-from parsers.ps_log_parser import PSSessionLogParser
+from parsers.ps_log_parser import PSLogParser
 from parsers.base_log_parser import StimComparator
 from loggers import log, logger
 from transferer import DATA_ROOT, DB_ROOT
 
-from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, STIM_COMPARISON_INPUTS
+from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
+    SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS
 
 
 try:
@@ -94,7 +95,7 @@ class EventCreationTask(object):
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
         'math': MathSessionLogParser,
-        'PS': PSSessionLogParser
+        'PS': PSLogParser
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task', parser_type=None, **kwargs):
@@ -126,6 +127,7 @@ class EventCreationTask(object):
         else:
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
+        events = parser.clean_events(events)
         with open(os.path.join(self.pipeline.destination, self.filename), 'w') as f:
             to_json(events, f)
 
@@ -234,8 +236,9 @@ class CompareEventsTask(object):
         if not PTSA_LOADED:
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
+        major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
 
-        if float(new_events[-1].exp_version.split('_')[-1]) >= 2:
+        if float(major_version.split('_')[-1]) >= 2:
             comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
         else:
             comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
@@ -250,7 +253,14 @@ class CompareEventsTask(object):
             log('Comparison Success!')
 
         log('Comparing stim events...')
-        stim_comparator = StimComparator(new_events, self.sess_mat_events, **STIM_COMPARISON_INPUTS[self.experiment])
+
+
+        if float(major_version.split('_')[-1]) >= 2:
+            comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
+        else:
+            comparator_inputs = SYS1_STIM_COMPARISON_INPUTS[self.experiment]
+
+        stim_comparator = StimComparator(new_events, self.sess_mat_events, **comparator_inputs)
         errors = stim_comparator.compare()
 
         if errors:

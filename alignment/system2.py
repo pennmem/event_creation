@@ -13,7 +13,13 @@ import collections
 import json
 from loggers import log
 
-class System2Aligner:
+def System2Aligner(events, files, plot_save_dir=None):
+    if 'session_log' in files:
+        return System2TaskAligner(events, files, plot_save_dir)
+    else:
+        return System2HostAligner(events, files, plot_save_dir)
+
+class System2TaskAligner(object):
     '''
     Aligns pre-existing events with the host PC and neuroport based on host log files
     Optionally merges stimulation events from the host log into the pre-existing events as well
@@ -242,17 +248,16 @@ class System2Aligner:
         ext = os.path.splitext(nsx_file)[1]
         return np.array(np_samples) / (float(NSx_reader.TIC_RATE) / float(NSx_reader.SAMPLE_RATES[ext]))
 
-    @classmethod
-    def get_task_host_coefficient(cls, host_log_file, plot_save_dir=None):
+    def get_task_host_coefficient(self, host_log_file, plot_save_dir=None):
         host_times, offsets = System2LogParser.get_columns_by_type(host_log_file, 'OFFSET', [0, 2], int)
         if len(host_times) <= 1:
             return [], [], []
         task_times = np.array(host_times) - np.array(offsets)
-        coefficients = cls.get_fit(task_times, host_times)
+        coefficients = self.get_fit(task_times, host_times)
         host_starts = host_times[0]
         host_ends = host_times[-1]
 
-        cls.plot_fit(task_times, host_times, coefficients, plot_save_dir, 'task_host')
+        self.plot_fit(task_times, host_times, coefficients, plot_save_dir, 'task_host')
 
         return [coefficients], [host_starts], [host_ends]
 
@@ -275,3 +280,44 @@ class System2Aligner:
             plt.plot(x, y-fit, 'g-', [min(x), max(x)], [0, 0], 'k-')
             plt.savefig(os.path.join(plot_save_dir, '{label}_residuals{ext}'.format(label=plot_save_label,
                                                                               ext=cls.PLOT_SAVE_FILE_EXT)))
+
+class System2HostAligner(System2TaskAligner):
+
+    def __init__(self, events, files, plot_save_dir=None):
+        self.host_offset = self.get_host_offset(files)
+        super(System2HostAligner, self).__init__(events, files, plot_save_dir)
+
+    def get_host_offset(self, files):
+        host_log_files = files['host_logs']
+        if isinstance(host_log_files, list):
+            self.host_log_files = sorted(host_log_files)
+        else:
+            self.host_log_files = [host_log_files]
+        contents = []
+        for host_log_file in self.host_log_files:
+            contents += [line.strip().split('~')
+                         for line in open(host_log_file).readlines()]
+
+        eeg_sources = json.load(open(files['eeg_sources']))
+
+        first_eeg_source = sorted(eeg_sources.values(), key=lambda source: source['start_time_ms'])[0]
+        np_earliest_start = first_eeg_source['start_time_ms']
+        host_offset = None
+
+        for split_line in contents:
+            if split_line[1] == 'NEUROPORT-TIME':
+                np_start_host = int(split_line[0]) - int(split_line[2])/30
+                host_offset = np_start_host - np_earliest_start
+                break
+
+        if not host_offset:
+            raise UnAlignableEEGException('Could not align host times')
+
+        return host_offset
+
+    def get_task_host_coefficient(self, host_log_file, plot_save_dir=None):
+        split_lines = [line.split('~') for line in open(host_log_file)]
+        return [[1, self.host_offset]], [int(split_lines[0][0])], [int(split_lines[-1][0])]
+
+    def stim_event_to_mstime(self, stim_event):
+        return stim_event[0]['hosttime'] - self.host_offset

@@ -109,8 +109,12 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         self._is_fr2 = True
         if split_line[9] != '0':
             if split_line[5].isdigit():
-                self._catfr2_stim_params['anode_number'] = int(split_line[5])
-                self._catfr2_stim_params['cathode_number']= int(split_line[7])
+                if self._subject[-1] in ('M', 'W'):
+                    offset = 1
+                else:
+                    offset = 0
+                self._catfr2_stim_params['anode_number'] = int(split_line[5]) + offset
+                self._catfr2_stim_params['cathode_number']= int(split_line[7]) + offset
             else:
                 self._catfr2_stim_params['anode_label']= split_line[5]
                 self._catfr2_stim_params['cathode_label'] = split_line[7]
@@ -137,7 +141,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         self._stim_list = True
         event = self.event_default(split_line)
         event.is_stim = True
-        self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._catfr2_stim_params)
+        self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._catfr2_stim_params)
         return event
 
     def event_instruct_video(self, split_line):
@@ -208,7 +212,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         event.serialpos = self._serialpos
         event.is_stim = split_line[6] == 'STIM'
         if event.is_stim:
-            self.set_event_stim_params(event, jacksheet=self.jacksheet_contents, **self._catfr2_stim_params)
+            self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._catfr2_stim_params)
         event.category_num = split_line[7]
         event.category = split_line[8]
 
