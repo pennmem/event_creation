@@ -1,17 +1,15 @@
 import numpy as np
 import scipy.stats
 import os
-import glob
 import matplotlib.pyplot as plt
 from readers.eeg_reader import NSx_reader
 from copy import deepcopy
 from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
-#from nsx_utility.brpylib import NsxFile
 import itertools
-import collections
 import json
 from loggers import log
+
 
 def System2Aligner(events, files, plot_save_dir=None):
     if 'session_log' in files:
@@ -19,11 +17,12 @@ def System2Aligner(events, files, plot_save_dir=None):
     else:
         return System2HostAligner(events, files, plot_save_dir)
 
+
 class System2TaskAligner(object):
-    '''
+    """
     Aligns pre-existing events with the host PC and neuroport based on host log files
     Optionally merges stimulation events from the host log into the pre-existing events as well
-    '''
+    """
 
     TASK_TIME_FIELD = 'mstime'
     NP_TIME_FIELD = 'eegoffset'

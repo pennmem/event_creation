@@ -7,12 +7,10 @@ import datetime
 import hashlib
 
 from parsers.base_log_parser import get_version_num
-from parsers.math_parser import MathSessionLogParser
-
 
 from loggers import log, logger
 
-DATA_ROOT='/Volumes/rhino_mount/data/eeg'
+DATA_ROOT=os.path.join(os.environ['HOME'], 'rhino_mount/data/eeg')
 DB_ROOT='/Volumes/db_root/'
 
 class UnTransferrableException(Exception):

@@ -12,7 +12,6 @@ class FRSessionLogParser(BaseSessionLogParser):
     def _fr_fields(cls):
         """
         Returns the template for a new FR field
-        Has to be a method because of call to empty_stim_params, unfortunately
         :return:
         """
         return (
@@ -35,8 +34,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_N_BURSTS = 1
     FR2_STIM_PULSE_WIDTH = 300
 
-
-    def __init__(self, protocol, subject, montage, experiment,  files):
+    def __init__(self, protocol, subject, montage, experiment, files):
         super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
                                                  include_stim_params=True)
         if 'no_accent_wordpool' in files:
@@ -105,7 +103,6 @@ class FRSessionLogParser(BaseSessionLogParser):
                     'rectime')
         else:
             return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
-
 
     def event_default(self, split_line):
         """
@@ -278,22 +275,3 @@ class FRSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
         return np.logical_and(events.word == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
 
-
-def fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt'):
-    if experiment not in ('FR1', 'FR2', 'FR3'):
-        raise UnknownExperimentTypeException('Experiment must be one of FR1, FR2, or FR3')
-
-    exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)
-    session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
-    wordpool_path = os.path.join(exp_path, wordpool_name)
-    if not os.path.exists(wordpool_path):
-        wordpool_path = os.path.join(exp_path, 'RAM_wordpool.txt')
-    parser = FRSessionLogParser(session_log_path, wordpool_path, subject)
-    return parser
-
-
-def parse_fr_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt'):
-    return fr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt').parse()

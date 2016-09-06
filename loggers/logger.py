@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+# TODO: REPLACE WITH PYTHON LOGGING MODULE
 
 def error_swallower(fn):
     def wrapper(*args, **kwargs):

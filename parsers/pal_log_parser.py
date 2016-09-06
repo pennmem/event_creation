@@ -46,7 +46,6 @@ class PALSessionLogParser(BaseSessionLogParser):
     def __init__(self, protocol, subject, montage, experiment, files):
         super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
                                                   include_stim_params=True)
-        #self.fields = {field[0]: field[1] for field in fields)
         self._session = -999
         self._list = -999
         self._serialpos = -999
@@ -145,11 +144,10 @@ class PALSessionLogParser(BaseSessionLogParser):
 
     def check_apply_stim(self, event):
         if self._pal2_stim_on_time and \
-                        self._pal2_stim_on_time + self.PAL2_STIM_DURATION >= event.mstime and \
-                        event.mstime >= self._pal2_stim_on_time:
+                self._pal2_stim_on_time + self.PAL2_STIM_DURATION >= event.mstime and \
+                event.mstime >= self._pal2_stim_on_time:
             event.is_stim = True
             self.set_event_stim_params(event, jacksheet=self._jacksheet, stim_on=True, **self._pal2_stim_params)
-
 
     def event_stim_params(self, split_line):
         self._is_fr2 = True
@@ -191,13 +189,11 @@ class PALSessionLogParser(BaseSessionLogParser):
         events[mask].probepos = retrieval_event.probepos
         return events
 
-
     def event_practice_trial(self, split_line):
         self._list = -1
         event = self.event_default(split_line)
         self._serialpos = 0
         return event
-
 
     def event_stim_on(self, split_line):
         self._pal2_stim_on_time = int(split_line[0])
@@ -224,8 +220,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         self._version = float(re.sub(r'[^\d.]', '',split_line[5]))
         return self.event_default(split_line)
 
-
-
     def event_study_start(self, split_line):
         self._serialpos = 0
         event = self.event_default(split_line)
@@ -247,7 +241,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.stim_list = self._stim_list
         return event
 
-
     def event_encoding_start(self, split_line):
         self._serialpos = -999
         event = self.event_default(split_line)
@@ -260,12 +253,10 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.list = self._list
         return event
 
-
     def event_practice_orient(self, split_line):
         self._serialpos += 1
         event = self.event_default(split_line)
         return event
-
 
     def event_study_orient(self, split_line):
         event = self.event_default(split_line)
@@ -315,7 +306,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.list = self._list
         event.serialpos = self._serialpos
         return event
-
 
     def event_study_pair(self, split_line):
         event = self.event_default(split_line)
@@ -601,7 +591,7 @@ class PALSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        #not quite sure why I need the last clause, but it doesn't work without it. Maybe the type changes somewhere
+        # not quite sure why I need the last clause, but it doesn't work without it. Maybe the type changes somewhere
         # within the loop somehow?
         return np.logical_and(np.logical_and(np.logical_or(events.study_1 == word,
                                                            events.study_2 == word,),
@@ -625,19 +615,3 @@ class PALSessionLogParser(BaseSessionLogParser):
                     'vocalization', 'stim_type', 'intrusion', 'list', 'expecting_word')
         else:
             return tuple()
-
-
-def pal_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log'):
-
-    if experiment not in ('PAL1', 'PAL2', 'PAL3'):
-        raise UnknownExperimentTypeException('experiment must be one of pal1, pal2, or pal3')
-
-    exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)
-    session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
-    parser = PALSessionLogParser(session_log_path, subject)
-    return parser
-
-
-def parse_pal_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='ram_wordpool_noacc.txt'):
-    return pal_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log')

@@ -194,20 +194,3 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
     def find_presentation(word, events):
         events = events.view(np.recarray)
         return np.logical_and(events.word == word, events.type == 'WORD')
-
-
-def ltpfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='wasnorm_wordpool.txt'):
-
-    exp_path = os.path.join(base_dir, subject, '', experiment)
-    session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
-    wordpool_path = os.path.join(exp_path, wordpool_name)
-    parser = LTPFRSessionLogParser(session_log_path, wordpool_path, subject)
-    return parser
-
-
-def parse_fr_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt'):
-    return ltpfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='wasnorm_wordpool.txt').parse()
-
