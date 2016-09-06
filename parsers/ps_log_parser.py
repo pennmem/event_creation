@@ -1,16 +1,25 @@
 from base_log_parser import BaseSessionLogParser, UnparsableLineException
 from system2_log_parser import System2LogParser
-from viewers.view_recarray import strip_accents
 import numpy as np
-import os
 import re
 import json
 
+
 def PSLogParser(protocol, subject, montage, experiment, files):
+    """
+    Decides which of the PS parsers to use
+    :param protocol:
+    :param subject:
+    :param montage:
+    :param experiment:
+    :param files:
+    :return:
+    """
     if 'session_log' in files:
         return PSSessionLogParser(protocol, subject, montage, experiment, files)
     else:
         return PSHostLogParser(protocol, subject, montage, experiment, files)
+
 
 class PSSessionLogParser(BaseSessionLogParser):
 
@@ -213,7 +222,7 @@ class PSSessionLogParser(BaseSessionLogParser):
 class PSHostLogParser(BaseSessionLogParser):
 
     _TYPE_INDEX = 1
-    _SPLIT_TOKEN = '~'
+    _SPLIT_DELIMITER = '~'
 
     NP_TIC_RATE = 1000
 
@@ -292,7 +301,7 @@ class PSHostLogParser(BaseSessionLogParser):
         event['type'] = 'NP_POLL'
         return event
 
-    def parse_primary_log(self):
+    def read_primary_log(self):
         if isinstance(self._primary_log, list):
             self.host_log_files = sorted(self._primary_log)
         else:

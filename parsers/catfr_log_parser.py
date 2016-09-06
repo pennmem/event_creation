@@ -7,21 +7,10 @@ import re
 
 class CatFRSessionLogParser(BaseSessionLogParser):
 
-    _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
-
-    @classmethod
-    def empty_stim_params(cls):
-        """
-        Makes a recarray for empty stim params (no stimulation)
-        :return:
-        """
-        return cls.event_from_template(cls._STIM_PARAM_FIELDS)
-
     @classmethod
     def _catfr_fields(cls):
         """
         Returns the template for a new FR field
-        Has to be a method because of call to empty_stim_params, unfortunately
         :return:
         """
         return (
@@ -277,19 +266,3 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return np.logical_and(np.logical_or(events.word == word,
                                             events.word == word.lower()),
                               events.type == 'WORD')
-
-
-def catfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                          wordpool_name='CatFR_WORDS.txt'):
-
-    exp_path = os.path.join(base_dir, subject, 'behavioral', experiment)
-    session_log_path = os.path.join(exp_path, 'session_%d' % session, session_log_name)
-    wordpool_path = os.path.join(exp_path, wordpool_name)
-    parser = CatFRSessionLogParser(session_log_path, wordpool_path, subject)
-    return parser
-
-
-def parse_fr_session_log(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                         wordpool_name='RAM_wordpool_noAcc.txt'):
-    return catfr_log_parser_wrapper(subject, session, experiment, base_dir='/data/eeg/', session_log_name='session.log',
-                                 wordpool_name='CatFR_WORDS.txt').parse()
