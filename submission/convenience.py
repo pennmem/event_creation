@@ -5,6 +5,8 @@ import glob
 import numpy as np
 import sys
 import argparse
+import collections
+from pprint import pprint
 
 from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
 from tasks import SplitEEGTask, EventCreationTask, AggregatorTask, CompareEventsTask
@@ -27,8 +29,10 @@ GROUPS = {
     'PS': ('stim',)
 }
 
+
 class UnknownMontageException(Exception):
     pass
+
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
@@ -40,6 +44,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
                                            **kwargs)
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
+
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
@@ -58,6 +63,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     tasks.append(AggregatorTask(subject, montage, experiment, session, protocol, code))
     return TransferPipeline(transferer, *tasks)
+
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(DB_ROOT, 'protocols', protocol, 'montages', code, 'info.json')
@@ -95,8 +101,45 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
         return '%1.1f' % (new_montage_num)
 
+def get_previous_subjects(subject):
+    prev_subjects = []
+    while '_' in subject:
+        split_subj = subject.split('_')
+        num = int(split_subj[1])
+        if num == 1:
+            subject = split_subj[0]
+        else:
+            subject = '{}_{}'.format(split_subj[0], num+1)
+        prev_subjects.append(subject)
+    return prev_subjects
 
-def get_subject_sessions_by_experiment(experiment, protocol='r1'):
+def build_json_import_database():
+    nested_dict = lambda: collections.defaultdict(nested_dict)
+    subjects = nested_dict()
+    for experiment in EXPERIMENTS:
+        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
+        for subject, sessions in subject_sessions:
+            previous_subjects = get_previous_subjects(subject)
+            max_previous_sessions = 0
+            for previous_subject in previous_subjects:
+                if previous_subject in subjects and experiment in subjects[previous_subject]:
+                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
+                    max_session = max(previous_sessions)
+                    max_previous_sessions = max(max_session, max_previous_sessions)
+            for session in sessions:
+                session_dict = {
+                    'original_session': session,
+                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True)
+                }
+                subject_without_montage = subject.split('_')[0]
+                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
+            print(json.dumps(subjects, indent=2, sort_keys=True))
+    json.dump(subjects, open('verbal_sessions.json', 'w'), indent=2, sort_keys=True)
+
+def test_import_db():
+    build_json_import_database()
+
+def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
     if re.match('catFR[0-4]', experiment):
         ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
     else:
@@ -105,7 +148,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1'):
     events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))))
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
-        if '_' in subject:
+        if '_' in subject and not include_montage_changes:
             continue
         mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
         log('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
@@ -114,6 +157,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1'):
             yield (subject, np.unique(mat_events['session']))
         except AttributeError:
             log('Failed.')
+
 
 def get_first_unused_session(subject, experiment, protocol='r1'):
     sessions_dir = os.path.join(DB_ROOT,
@@ -135,9 +179,11 @@ def get_first_unused_session(subject, experiment, protocol='r1'):
     else:
         return 0
 
+
 def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline = pipeline_fn(**kwargs)
     pipeline.run(force_run)
+
 
 def check_subject_sessions(code, experiment, sessions, protocol='r1'):
     bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
@@ -174,6 +220,7 @@ def check_subject_sessions(code, experiment, sessions, protocol='r1'):
                                                                                   orig_sess=test_inputs['session']))
         yield run_individual_pipline, build_split_pipeline, test_inputs
         yield run_individual_pipline, build_events_pipeline, test_inputs, False
+
 
 def check_experiment(experiment):
     experiment_sessions = get_subject_sessions_by_experiment(experiment)

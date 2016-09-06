@@ -4,9 +4,8 @@ import os
 
 from nose.tools import raises
 import json
-import matplotlib.pyplot as plt
-from parsers.fr_log_parser import fr_log_parser_wrapper
 from loggers import log
+
 
 class UnAlignableEEGException(Exception):
     pass

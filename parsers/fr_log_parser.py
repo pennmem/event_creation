@@ -274,3 +274,4 @@ class FRSessionLogParser(BaseSessionLogParser):
     def find_presentation(word, events):
         events = events.view(np.recarray)
         return np.logical_and(events.word == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
+
