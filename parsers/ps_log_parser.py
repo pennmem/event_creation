@@ -5,7 +5,7 @@ import re
 import json
 
 
-def PSLogParser(protocol, subject, montage, experiment, files):
+def PSLogParser(protocol, subject, montage, experiment, session,  files):
     """
     Decides which of the PS parsers to use
     :param protocol:
@@ -16,9 +16,9 @@ def PSLogParser(protocol, subject, montage, experiment, files):
     :return:
     """
     if 'session_log' in files:
-        return PSSessionLogParser(protocol, subject, montage, experiment, files)
+        return PSSessionLogParser(protocol, subject, montage, experiment, session, files)
     else:
-        return PSHostLogParser(protocol, subject, montage, experiment, files)
+        return PSHostLogParser(protocol, subject, montage, experiment, session, files)
 
 
 class PSSessionLogParser(BaseSessionLogParser):
@@ -49,11 +49,10 @@ class PSSessionLogParser(BaseSessionLogParser):
         )
 
 
-    def __init__(self, protocol, subject, montage, experiment, files):
-        super(PSSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(PSSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                  include_stim_params=True)
         self._exp_version = '1.0'
-        self._session = -999
         self._stim_anode = None
         self._stim_cathode = None
         self._stim_anode_label = None
@@ -232,12 +231,11 @@ class PSHostLogParser(BaseSessionLogParser):
         ('is_stim', 0, 'b1')
     )
 
-    def __init__(self, protocol, subject, montage, experiment, files,
+    def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='host_logs', allow_unparsed_events=True, include_stim_params=True):
-        super(PSHostLogParser, self).__init__(protocol, subject, montage, experiment, files,
+        super(PSHostLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                    primary_log, allow_unparsed_events, include_stim_params)
         self._exp_version = '2.0'
-        self._session = -999
         self._saw_ad = False
         self.beginning_marked = False
 

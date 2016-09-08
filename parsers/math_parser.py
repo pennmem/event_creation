@@ -24,9 +24,9 @@ class MathSessionLogParser(BaseSessionLogParser):
             ('rectime', -999, 'int32'),
         )
 
-    def __init__(self, protocol, subject, montage, experiment, files):
-        super(MathSessionLogParser, self).__init__(protocol, subject, montage, experiment, files, primary_log='math_log')
-        self._session = -999
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(MathSessionLogParser, self).__init__(protocol, subject, montage, experiment, files, session,
+                                                   primary_log='math_log')
         self._list = -999
         self._test = ''
         self._answer = ''
@@ -47,7 +47,6 @@ class MathSessionLogParser(BaseSessionLogParser):
         """
         event = BaseSessionLogParser.event_default(self, split_line)
         event.list = self._list
-        event.session = self._session
         return event
 
     def event_start(self, split_line):

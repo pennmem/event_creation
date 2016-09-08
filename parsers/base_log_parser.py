@@ -113,7 +113,7 @@ class BaseSessionLogParser(object):
     # Maximum amount of time after which a valid annotation can appear in a .ann file
     MAX_ANN_LENGTH = 600000
 
-    def __init__(self, protocol, subject, montage, experiment, files,
+    def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='session_log', allow_unparsed_events=False, include_stim_params=False):
         """
 
@@ -133,6 +133,7 @@ class BaseSessionLogParser(object):
         self._protocol = protocol
         self._experiment = experiment
         self._subject = subject
+        self._session = session
         self._montage = montage
 
         # Read the contents of the primary log file
@@ -261,6 +262,8 @@ class BaseSessionLogParser(object):
         event.subject = self._subject
         event.montage = self._montage
         event.experiment = self._experiment
+        event.session = self._session
+
         return event
 
     @staticmethod

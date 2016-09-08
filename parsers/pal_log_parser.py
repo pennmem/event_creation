@@ -43,10 +43,9 @@ class PALSessionLogParser(BaseSessionLogParser):
     PAL2_STIM_N_BURSTS = 1
     PAL2_STIM_PULSE_WIDTH = 300
 
-    def __init__(self, protocol, subject, montage, experiment, files):
-        super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                   include_stim_params=True)
-        self._session = -999
         self._list = -999
         self._serialpos = -999
         self._stimList = False
@@ -133,7 +132,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         self.check_apply_stim(event)
 
-        event.session = self._session
         event.stimList = self._stimList
         event.exp_version = self._version
         event.stim_type = self._stim_type
@@ -216,7 +214,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         return event
 
     def event_sess_start(self, split_line):
-        self._session = int(split_line[3]) - 1
         self._version = float(re.sub(r'[^\d.]', '',split_line[5]))
         return self.event_default(split_line)
 
@@ -474,7 +471,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         applies session and exp_version to all previous events
         :param events: all events up until this point in the log file
         """
-        events.session = self._session
         events.exp_version = self._version
         return events
 
@@ -515,7 +511,6 @@ class PALSessionLogParser(BaseSessionLogParser):
             new_event.study_1 = self._study_1
             new_event.study_2 = self._study_2
             new_event.resp_word = word
-            new_event.session = self._session
             new_event.stim_type = self._stim_type
             new_event.stim_list = self._stim_list
             new_event.exp_version = self._version

@@ -35,15 +35,14 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     CATFR2_STIM_N_BURSTS = 1
     CATFR2_STIM_PULSE_WIDTH = 300
 
-    def __init__(self, protocol, subject, montage, experiment, files):
-        super(CatFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, files,
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(CatFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                     include_stim_params=True)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:
             wordpool_type = 'wordpool'
         self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
-        self._session = -999
         self._list = -999
         self._serialpos = -999
         self._stim_list = False
@@ -121,7 +120,6 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         """
         event = BaseSessionLogParser.event_default(self, split_line)
         event.list = self._list
-        event.session = self._session
         event.stim_list = self._stim_list
         event.exp_version = self._version
         return event
@@ -151,7 +149,6 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         applies session and expVersion to all previous events
         :param events: all events up until this point in the log file
         """
-        events.session = self._session
         events.exp_version = self._version
         return events
 
@@ -222,7 +219,6 @@ class CatFRSessionLogParser(BaseSessionLogParser):
 
             new_event = self._empty_event
             new_event.list = self._list
-            new_event.session = self._session
             new_event.stim_list = self._stim_list
             new_event.exp_version = self._version
             new_event.rectime = float(recall[0])
