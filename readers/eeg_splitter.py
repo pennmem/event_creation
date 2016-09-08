@@ -1,7 +1,7 @@
 import sys
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
-from eeg_reader import EDF_reader, NK_reader, read_jacksheet, create_eeg_basename
+from eeg_reader import EDF_reader, NK_reader, read_jacksheet
 import re
 import json
 import os

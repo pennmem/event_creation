@@ -197,7 +197,7 @@ class System2TaskAligner(object):
                 log('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
-                raise Exception('Could not convert some times past start of session')
+                raise Exception('Could not convert {} times past start of session'.format(len(still_nans)))
         return time_dest
 
     @staticmethod

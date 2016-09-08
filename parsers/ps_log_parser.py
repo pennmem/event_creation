@@ -308,7 +308,7 @@ class PSHostLogParser(BaseSessionLogParser):
             self.host_log_files = [self._primary_log]
         contents = []
         for host_log_file in self.host_log_files:
-            contents += [line.strip().split(self._SPLIT_TOKEN)
+            contents += [line.strip().split(self._SPLIT_DELIMITER)
                          for line in open(host_log_file).readlines()]
         return contents
 

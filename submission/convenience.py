@@ -6,7 +6,6 @@ import numpy as np
 import sys
 import argparse
 import collections
-from pprint import pprint
 
 from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
 from tasks import SplitEEGTask, EventCreationTask, AggregatorTask, CompareEventsTask
@@ -109,11 +108,11 @@ def get_previous_subjects(subject):
         if num == 1:
             subject = split_subj[0]
         else:
-            subject = '{}_{}'.format(split_subj[0], num+1)
+            subject = '{}_{}'.format(split_subj[0], num-1)
         prev_subjects.append(subject)
     return prev_subjects
 
-def build_json_import_database():
+def build_verbal_import_database():
     nested_dict = lambda: collections.defaultdict(nested_dict)
     subjects = nested_dict()
     for experiment in EXPERIMENTS:
@@ -129,15 +128,13 @@ def build_json_import_database():
             for session in sessions:
                 session_dict = {
                     'original_session': session,
-                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True)
+                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
+                    'code': subject
                 }
                 subject_without_montage = subject.split('_')[0]
                 subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
-            print(json.dumps(subjects, indent=2, sort_keys=True))
+            #print(json.dumps(subjects, indent=2, sort_keys=True))
     json.dump(subjects, open('verbal_sessions.json', 'w'), indent=2, sort_keys=True)
-
-def test_import_db():
-    build_json_import_database()
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
     if re.match('catFR[0-4]', experiment):
@@ -145,7 +142,8 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
     else:
         ram_exp = 'RAM_{}'.format(experiment)
     events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
-    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))))
+    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
+                          key=lambda f: f.split('_')[:-1])
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
         if '_' in subject and not include_montage_changes:
@@ -237,66 +235,21 @@ def clean_db_dir(db_dir):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
 
-def test_custom_imports():
-    for test in run_from_json_file('custom_sessions.json'):
-        yield test
-
 def test_ps_sessions():
     for test in run_from_json_file('ps_sessions.json'):
         yield test
+
+def test_verbal_imports():
+    for test in run_from_json_file('verbal_sessions.json'):
+        yield test
+
+
 
 def test_all_experiments():
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
     for experiment in EXPERIMENTS:
         for test in check_experiment(experiment):
             yield test
-
-def xtest_fr2():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('FR2'):
-        yield test
-
-
-def xtest_fr1():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('FR1'):
-        yield test
-
-
-def xtest_fr3():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('FR3'):
-        yield test
-
-def xtest_pal1():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('PAL1'):
-        yield test
-
-def xtest_pal2():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('PAL2'):
-        yield test
-
-def xtest_pal3():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('PAL3'):
-        yield test
-
-def xtest_catfr1():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('catFR1'):
-        yield test
-
-def xtest_catfr2():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('catFR2'):
-        yield test
-
-def xtest_catfr3():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for test in check_experiment('catFR3'):
-        yield test
 
 
 def run_from_json_file(filename):

@@ -402,7 +402,6 @@ class EventComparator:
             if name not in ev1_names and name not in field_switch.values() and name not in field_ignore:
                 raise IncomparableFieldException(name)
 
-        # Get rid of fields to ignore
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:
                 self.field_switch[str(name)] = str(name)

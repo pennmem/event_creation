@@ -220,8 +220,7 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
 
-    if field in ('rectime', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1052E' \
-            and event1['session'] == 0:
+    if field in ('rectime', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1052E':
         return True
 
     if field is None and event2 and event2['subject'] == 'R1042M' and event2['type'] == 'REC_WORD' and \
@@ -280,6 +279,26 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     if field is None and event2 and "'" in event2['word']:
+        return True
+
+    if field is None and event1 and event1['type'] in ('PRACTICE_DISTRACT_START', 'PRACTICE_DISTRACT_END', 'PRACTICE_ORIENT'):
+        return True
+
+    if field is 'word' and ' ' in event1['word'] and event1['subject'] == 'R1214M':
+        return True
+
+    if field is None and event2 and event2['type'] in ('REC_WORD', 'REC_WORD_VV') and event2['subject'] == 'R1052E_1':
+        return True
+    if field is None and event1 and event1['type'] in ('REC_WORD', 'REC_WORD_VV') and event1['subject'] == 'R1052E':
+        return True
+
+    if field in ('rectime', 'word', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1083J':
+        return True
+
+    if field is None and event1 and event1['type'] in ('REC_WORD', 'REC_WORD_VV') and event1['subject'] == 'R1083J':
+        return True
+
+    if field is None and event2 and event2['type'] in ('REC_WORD', 'REC_WORD_VV') and event2['subject'] == 'R1083J_1':
         return True
 
     return False
@@ -569,6 +588,16 @@ def pal_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'cue_direction' and event1['subject'] == 'R1207J' and event1['study_1'] == 'BEAM':
         return True
 
+    if field == 'RT'  and event1['subject'] == 'R1018P':
+        return True
+
+    if field == 'eegoffset' and event1['subject'] == 'R1074M' and \
+                abs(event1['eegoffset'] - event2['eegoffset']) <= 300:
+        return True
+
+    if field == 'resp_word' and event2['resp_word'] == [0] and event1['subject'] == 'R1074M':
+        return True
+
     return False
 
 
@@ -691,6 +720,17 @@ def verbal_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
                     event1['subject'] == 'R1192C':
         return True
 
+    if field_name1 == 'stim_params.anode_number' and field2 == -999:
+        return True
+
+    if field_name1 == 'stim_params.cathode_number' and field2 == -999:
+        return True
+
+    if field_name1 == 'stim_params.anode_number' and field1 == 2 and event1['subject'] == 'R1053M':
+        return True
+    if field_name1 == 'stim_params.cathode_number' and field1 == 3 and event1['subject'] == 'R1053M':
+        return True
+
     return False
 
 
@@ -760,6 +800,14 @@ def ps_event_exceptions(event1, event2, field, parent_field=None):
                     event1['subject'] == 'R1105E':
         return True
 
+    if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 600 and \
+                    event1['subject'] == 'R1054J':
+        return True
+
+    # Multiple sessions were marked as R1100D's PS2 session_2
+    if field is None and event2 and event2['eegfile'].split('_')[-1] == '1155' and event2['subject'] == 'R1100D':
+        return True
+
     return False
 
 def ps_sys2_event_exceptions(event1, event2, field, parent_field=None):
@@ -786,6 +834,13 @@ def ps_sys2_event_exceptions(event1, event2, field, parent_field=None):
     # R1184M's mstime is off by about 2 hours -- not a big deal, since it's only used to get timestamp
     if field == 'mstime' and abs(event1['mstime'] - event2['mstime']) < 8000000 and event1['subject'] == 'R1184M':
         return True
+
+    # eegoffset for R1196N is all messed up, so we can't do real comparisons
+    if field is None and event1 and event1['subject'] == 'R1196N':
+        return True
+    if field is None and event2 and event2['subject'] == 'R1196N':
+        return True
+
     return False
 
 def ps_sys1_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
@@ -816,6 +871,12 @@ def ps_sys1_stim_comparison_exceptions(event1, event2, field_name1, field_name2)
         return True
 
     if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label') and field1.upper() == field2.upper():
+        return True
+
+    # R1100D had completely wrong anode and cathode number
+    if field_name1 in ('stim_params.anode_number', 'stim_params.cathode_number') and \
+                    'LOTD' in event1['stim_params']['anode_label'] and 'LOTD' in event1['stim_params']['cathode_label'] \
+                    and event1['subject'] == 'R1100D':
         return True
 
     return False
@@ -948,8 +1009,8 @@ PS_SYS2_COMPARATOR_INPUTS = dict(
                      'stimCathodeTag', 'stimAmp', 'hostTime', 'stimDuration', 'exp_version', 'experiment',
                     'montage', 'stim_params', 'stimParams', 'session','protocol', 'msoffset', 'nPulses', 'pulseWidth'),
     exceptions=ps_sys2_event_exceptions,
-    type_ignore=('STIM_OFF', 'END_EXP', 'BEGIN_PS3', 'AMPLITUDE_CONFIRMED'),
-    type_switch={'STIM': ('STIMULATING', 'BEGIN_BURST')},
+    type_ignore=('STIM_OFF', 'END_EXP', 'BEGIN_PS3', 'AMPLITUDE_CONFIRMED', 'AD_CHECK'),
+    type_switch={'STIM': ('STIMULATING', 'BEGIN_BURST', 'STIM_SINGLE_PULSE')},
     match_field='eegoffset'
 )
 

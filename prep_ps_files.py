@@ -96,31 +96,34 @@ def make_sync_symlink(subject, orig_sync, session):
 def test_prep_ps():
     ps_subjects = json.load(open('submission/ps_sessions.json'))
     subjects = sorted(ps_subjects.keys())
+
     for subject in subjects:
-        suffixes = get_suffixes(subject)
         raw_dirnames = False
         experiments = ps_subjects[subject]
         for experiment in experiments:
             sessions = experiments[experiment]
             for new_session in sessions:
-                if not sessions[new_session].get('system_2', False):
-                    print 'skipping {} {} {}'.format(subject, experiment, new_session)
-                    continue
+                code = sessions[new_session].get('code', subject)
+                #if not sessions[new_session].get('system_2', True):
+                #    print 'skipping {} {} {}'.format(subject, experiment, new_session)
+                #    continue
                 if not raw_dirnames:
-                    raw_dirnames = get_raw_start_strings(subject)
+                    raw_dirnames = get_raw_start_strings(code)
+                suffixes = get_suffixes(code)
+
                 original_session = sessions[new_session]['original_session']
                 suffix = suffixes[original_session]
                 try:
                     raw_dir = raw_dirnames.get(suffix, None)
                     if not raw_dir:
                         continue
-                    yield make_raw_symlink, subject, raw_dir, original_session
+                    yield make_raw_symlink, code, raw_dir, original_session
                 except Exception as e:
-                    print 'subject {} raw skipped: {}'.format(subject, e)
+                    print 'subject {} raw skipped: {}'.format(code, e)
                 if sessions[new_session].get('system_1', False):
                     try:
-                        yield get_sync_file, subject, suffix
-                        sync_file = get_sync_file(subject, suffix)
-                        yield make_sync_symlink, subject, sync_file, original_session
+                        yield get_sync_file, code, suffix
+                        sync_file = get_sync_file(code, suffix)
+                        yield make_sync_symlink, code, sync_file, original_session
                     except Exception as e:
                         print 'subject {} sync skipped: {}'.format(subject, e)

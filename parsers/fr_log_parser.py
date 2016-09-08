@@ -148,7 +148,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._is_fr2 = True
         if split_line[9] != '0':
             if split_line[5].isdigit():
-                if self._subject[-1] in ('M', 'W'):
+                if self._subject[-1] in ('M', 'W', 'E'):
                     offset = 1
                 else:
                     offset = 0

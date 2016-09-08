@@ -14,6 +14,8 @@ import numpy as np
 
 import os
 
+from submission.transferer import DATA_ROOT
+
 class LabeledEditLayout(QHBoxLayout):
 
     def __init__(self, label):
@@ -334,7 +336,7 @@ class UnFindablePeaksException(Exception):
 
 class SyncPulseExtractionModel(object):
 
-    DEFAULT_DATA_ROOT = '/Volumes/rhino_mount/data/eeg'
+    DEFAULT_DATA_ROOT = DATA_ROOT
 
     def __init__(self):
         self.loaded_eeg_files = []
@@ -410,7 +412,7 @@ class SyncPulseExtractionModel(object):
                                                                               if os.path.splitext(f)[1][1:].isdigit())]
 
     def get_save_name(self):
-        base_name, _ = os.path.splitext(self.loaded_eeg_files[0])
+        base_name, _ = os.path.splitext(os.path.basename(self.loaded_eeg_files[0]))
         return '%s.%s.%s.sync.txt' % (base_name, self.elec1, self.elec2)
 
     def save_peaks(self, filename):
