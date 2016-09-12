@@ -1,5 +1,18 @@
 {
-  "default": {
+
+  "conversion": {
+    "type": "group",
+    "matlab_events": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{events_root}/RAM_{experiment}",
+      "origin_file": "{code}_events.mat",
+      "destination": "original_events.mat"
+    }
+  },
+
+  "transfer": {
     "type": "group",
     "raw_eeg": {
       "type": "file",

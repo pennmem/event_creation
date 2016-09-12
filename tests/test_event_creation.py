@@ -1,7 +1,7 @@
 
 from parsers.fr_log_parser import FRSessionLogParser
 from parsers.pal_log_parser import PALSessionLogParser
-from parsers.math_parser import MathSessionLogParser
+from parsers.math_parser import MathLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
 import numpy as np
 import os
@@ -75,7 +75,7 @@ parsers = {
     'FR': FRSessionLogParser,
     'PAL': PALSessionLogParser,
     'catFR': CatFRSessionLogParser,
-    'math': MathSessionLogParser
+    'math': MathLogParser
 }
 
 def compare_stimulation_parameters(event1, event2):
@@ -603,6 +603,9 @@ def pal_comparison_exceptions(event1, event2, field, parent_field=None):
 
 def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if event_comparison_exceptions(event1, event2, field, parent_field):
+        return True
+
+    if field == 'word' and event1['word'].upper() == event2['word'][0].upper():
         return True
 
     if field == 'is_stim' and event1['is_stim'] == False and event2['is_stim'] == -999:

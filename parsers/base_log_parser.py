@@ -305,9 +305,9 @@ class BaseSessionLogParser(object):
         if 'cathode_label' in params:
             event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label'].upper()]
         if 'anode_number' in params:
-            event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']]
+            event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']].upper()
         if 'cathode_number' in params:
-            event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']]
+            event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']].upper()
 
         event.stim_params[index]._remove = False
 

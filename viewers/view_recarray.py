@@ -65,7 +65,7 @@ def to_dict(arr):
 
     recarray_keys = []
     for key, value in arr_as_dict[0].items():
-        if isinstance(value, (np.ndarray, np.record)):
+        if isinstance(value, (np.ndarray, np.record)) and value.dtype.names:
             recarray_keys.append(key)
 
     for key in recarray_keys:

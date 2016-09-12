@@ -10,8 +10,10 @@ from parsers.base_log_parser import get_version_num
 
 from loggers import log, logger
 
-DATA_ROOT=os.path.join(os.environ['HOME'], 'rhino_mount/data/eeg')
+RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
+DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 DB_ROOT='/Volumes/db_root/'
+EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 class UnTransferrableException(Exception):
     pass
@@ -392,7 +394,8 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
     return Transferer(json_file, (experiment,) + groups, destination,
                       protocol=protocol,
                       subject=code, experiment=experiment, new_experiment=new_experiment, session=original_session,
-                      data_root=DATA_ROOT, db_root=DB_ROOT, code=code, original_session=original_session, **kwargs)
+                      data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
+                      code=code, original_session=original_session, **kwargs)
 
 
 
@@ -408,7 +411,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     kwarg_inputs = dict(protocol=protocol,
                         experiment=experiment, session=session,
                         code=code, original_session=original_session,
-                        data_root=DATA_ROOT, db_root=DB_ROOT, **kwargs)
+                        data_root=DATA_ROOT, events_root=EVENTS_ROOT, db_root=DB_ROOT, **kwargs)
 
     try:
         session_log = Transferer.get_origin_files(source_files['session_log'], **kwarg_inputs)[0]

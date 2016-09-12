@@ -1,5 +1,33 @@
 {
 
+  "conversion": {
+    "type": "group",
+    "matlab_events": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{events_root}/RAM_{experiment}",
+      "origin_file": "{code}_events.mat",
+      "destination": "original_events.mat"
+    },
+    "math_events": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{events_root}/RAM_{experiment}",
+      "origin_file": "{code}_math.mat",
+      "destination": "math_events.mat"
+    },
+     "jacksheet": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{data_root}/{code}/docs",
+      "origin_file": "jacksheet.txt",
+      "destination": "jacksheet.txt"
+    }
+  },
+
   "system_1": {
     "type": "group",
     "eeg_log": {

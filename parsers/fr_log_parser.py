@@ -139,6 +139,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     def stim_on_event(self, split_line):
         self._fr2_stim_on_time = int(split_line[0])
         event = self.event_default(split_line)
+        event.type = 'STIM'
         return event
 
     def stim_params_event(self, split_line):

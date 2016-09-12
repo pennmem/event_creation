@@ -124,7 +124,7 @@ class System2LogParser:
         return new_event
 
     @staticmethod
-    def _get_duration(params):
+    def get_duration(params):
         duration_sec = (float(params['n_bursts'] - 1) / params['burst_freq']) + \
                         (float(params['n_pulses'] - 1) / params['pulse_freq']) + \
                         (float(params['pulse_width'])/1000000 * 2)
@@ -142,7 +142,7 @@ class System2LogParser:
 
         stim_params['n_bursts'] = stim_params['n_bursts'] or 1
         stim_params['burst_freq'] = stim_params['burst_freq'] or 1
-        stim_params['stim_duration'] = cls._get_duration(stim_params)
+        stim_params['stim_duration'] = cls.get_duration(stim_params)
         stim_params['stim_on'] = True
         BaseSessionLogParser.set_event_stim_params(stim_event, jacksheet=jacksheet, **stim_params)
         return stim_event

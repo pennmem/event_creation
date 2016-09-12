@@ -8,11 +8,13 @@ import argparse
 import collections
 
 from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
-from tasks import SplitEEGTask, EventCreationTask, AggregatorTask, CompareEventsTask
+from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+                  EventCreationTask, AggregatorTask, CompareEventsTask
 from transferer import DB_ROOT, DATA_ROOT
 from loggers import log, logger
+from parsers.mat_converter import MathMatConverter
 
-from parsers.math_parser import MathSessionLogParser
+from parsers.math_parser import MathLogParser
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -44,6 +46,22 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
+def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
+                               original_session=None, new_experiment=None, **kwargs):
+    new_experiment = new_experiment if not new_experiment is None else experiment
+    transferer = generate_ephys_transferer(subject, experiment, session, protocol, ('conversion',),
+                                           code, original_session, new_experiment, **kwargs)
+    task = MatlabEEGConversionTask(subject, experiment, original_session)
+    return TransferPipeline(transferer, task)
+
+def test_convert_eeg_pipeline():
+    subject = 'R1001P'
+    montage = 0.0
+    experiment = 'FR1'
+    session = 0
+
+    pipeline = build_convert_eeg_pipeline(subject, montage, experiment, session,)
+    pipeline.run()
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
@@ -55,7 +73,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups, code=code, **kwargs)
     tasks = [EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups)]
     if do_math:
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups, 'math', MathSessionLogParser))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups, 'math', MathLogParser))
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
                                        kwargs['original_session'] if 'original_session' in kwargs else None))
@@ -63,6 +81,29 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     tasks.append(AggregatorTask(subject, montage, experiment, session, protocol, code))
     return TransferPipeline(transferer, *tasks)
 
+def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
+                                  original_session=None, new_experiment=None, **kwargs):
+    new_experiment = new_experiment if not new_experiment is None else experiment
+    transferer, groups = generate_session_transferer(subject, experiment, session, protocol, ('conversion', ),
+                                             code, original_session, new_experiment, **kwargs)
+    tasks = [MatlabEventConversionTask(protocol, subject, montage, experiment, session,
+                                       original_session=original_session, **kwargs)]
+
+    if do_math:
+        tasks.append(MatlabEventConversionTask(protocol, subject, montage, experiment, session,
+                                               event_label='math', converter_type=MathMatConverter,
+                                               original_session=original_session, **kwargs))
+
+    return TransferPipeline(transferer, *tasks)
+
+def test_convert_events_pipeline():
+    subject = 'R1154D'
+    montage = 0.0
+    experiment = 'FR3'
+    session = 1
+
+    pipeline = build_convert_events_pipeline(subject, montage, experiment, session)
+    pipeline.run()
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(DB_ROOT, 'protocols', protocol, 'montages', code, 'info.json')
@@ -230,16 +271,17 @@ BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)),
 
 EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
 
+
 def clean_db_dir(db_dir):
     for root, dirs, files in os.walk(db_dir, False):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
 
-def test_ps_sessions():
+def xtest_ps_sessions():
     for test in run_from_json_file('ps_sessions.json'):
         yield test
 
-def test_verbal_imports():
+def xtest_verbal_imports():
     for test in run_from_json_file('verbal_sessions.json'):
         yield test
 

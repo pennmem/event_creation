@@ -11,10 +11,11 @@ from readers.eeg_reader import get_eeg_reader
 from viewers.view_recarray import to_json, from_json
 from parsers.fr_log_parser import FRSessionLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
-from parsers.math_parser import MathSessionLogParser
+from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
 from parsers.base_log_parser import StimComparator
+from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor
 from loggers import log, logger
 from transferer import DATA_ROOT, DB_ROOT
 
@@ -88,13 +89,32 @@ class SplitEEGTask(object):
             raise UnProcessableException(
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(self.pipeline.destination))
 
+
+class MatlabEEGConversionTask(object):
+
+    def __init__(self, subject, experiment, original_session, **kwargs):
+        self.name = 'matlab EEG extraction for {subj}: {exp}_{sess}'.format(subj=subject,
+                                                                            exp=experiment,
+                                                                            sess=original_session)
+        self.original_session = original_session
+        self.kwargs = kwargs
+        self.pipeline = None
+
+    def set_pipeline(self, pipeline):
+        self.pipeline = pipeline
+
+    def run(self, files, db_folder):
+        logger.set_label(self.name)
+        extractor = MatlabEEGExtractor(self.original_session, files)
+        extractor.copy_ephys(db_folder)
+
 class EventCreationTask(object):
 
     PARSERS = {
         'FR': FRSessionLogParser,
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
-        'math': MathSessionLogParser,
+        'math': MathLogParser,
         'PS': PSLogParser
     }
 
@@ -117,7 +137,7 @@ class EventCreationTask(object):
 
     def run(self, files, db_folder):
         logger.set_label(self.name)
-        parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, files)
+        parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
         if self.is_sys2:
             aligner = System2Aligner(unaligned_events, files, db_folder)
@@ -130,6 +150,41 @@ class EventCreationTask(object):
         events = parser.clean_events(events)
         with open(os.path.join(self.pipeline.destination, self.filename), 'w') as f:
             to_json(events, f)
+
+class MatlabEventConversionTask(object):
+
+    CONVERTERS = {
+        'FR': FRMatConverter
+    }
+
+    def __init__(self, protocol, subject, montage, experiment, session,
+                 event_label='task', converter_type=None, original_session=None, **kwargs):
+        self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
+        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
+        self.protocol = protocol
+        self.subject = subject
+        self.montage = montage
+        self.experiment = experiment
+        self.session = session
+        self.original_session = original_session if not original_session is None else session
+        self.kwargs = kwargs
+        self.event_label = event_label
+        self.filename = '{label}_events.json'.format(label=event_label)
+        self.pipeline = None
+
+    def set_pipeline(self, pipeline):
+        self.pipeline = pipeline
+
+    def run(self, files, db_folder):
+        logger.set_label(self.name)
+        converter = self.converter_type(self.protocol, self.subject, self.montage, self.experiment, self.session,
+                                        self.original_session, files)
+        events = converter.convert()
+
+        with open(os.path.join(self.pipeline.destination, self.filename), 'w') as f:
+            to_json(events, f)
+
+
 
 class AggregatorTask(object):
 

@@ -159,7 +159,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def apply_word(self, event):
-        event.word = self._word
+        event.word = self._word.upper()
         self._word = self._word.upper()
         if (self._wordpool == self._word).any():
             wordno = np.where(self._wordpool == self._word)
@@ -260,5 +260,5 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     def find_presentation(word, events):
         events = events.view(np.recarray)
         return np.logical_and(np.logical_or(events.word == word,
-                                            events.word == word.lower()),
+                                            events.word == word),
                               events.type == 'WORD')
