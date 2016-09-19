@@ -125,14 +125,15 @@ class PSSessionLogParser(BaseSessionLogParser):
 
     def begin_burst(self, split_line):
         event = self.event_default(split_line)
-        event.type = 'STIM'
+        event.type = 'STIM_ON'
+        event.is_stim = True
         params = {}
         params['anode_label'] = self._stim_anode_label
         params['cathode_label'] = self._stim_cathode_label
         params['amplitude'] = float(split_line[7])
         params['pulse_freq'] = int(split_line[3])
         params['burst_freq'] = int(split_line[4])
-        params['n_pulses'] = int(split_line[5])
+        params['n_pulses'] = int(float(split_line[5]) / 1000 * params['pulse_freq'])
         params['n_bursts'] = int(split_line[6])
         params['pulse_width'] = self.PULSE_WIDTH
         params['stim_duration'] = 1000. * params['n_bursts'] / params['burst_freq']
@@ -143,7 +144,7 @@ class PSSessionLogParser(BaseSessionLogParser):
 
     def event_stimulating(self, split_line):
         event = self.event_default(split_line)
-        event.type = 'STIM'
+        event.type = 'STIM_ON'
         event.is_stim = True
         params = {}
         params['stim_duration'] = int(split_line[5])
@@ -157,7 +158,7 @@ class PSSessionLogParser(BaseSessionLogParser):
         params['cathode_label'] = self._stim_cathode_label
         params['amplitude'] = float(split_line[4])
         params['pulse_freq'] = int(split_line[3])
-        params['n_pulses'] = params['pulse_freq'] / params['stim_duration']
+        params['n_pulses'] = params['pulse_freq'] *  params['stim_duration'] / 1000
         params['burst_freq'] = 1
         params['n_bursts'] = 1
         params['pulse_width'] = self.PULSE_WIDTH
@@ -235,6 +236,7 @@ class PSHostLogParser(BaseSessionLogParser):
                  primary_log='host_logs', allow_unparsed_events=True, include_stim_params=True):
         super(PSHostLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                    primary_log, allow_unparsed_events, include_stim_params)
+        self._experiment = 'PS2'
         self._exp_version = '2.0'
         self._saw_ad = False
         self.beginning_marked = False
@@ -273,6 +275,12 @@ class PSHostLogParser(BaseSessionLogParser):
         )
 
     def clean_events(self, events):
+        events = events.view(np.recarray)
+        events.protocol = self._protocol
+        events.montage = self._montage
+        events.experiment = self._experiment
+        events.exp_version = self._exp_version
+
         stim_events = np.logical_or(events['type'] == 'STIM', events['type'] == 'STIM_OFF')
         stim_events = np.logical_or(stim_events, events['type'] == 'SHAM')
         stim_event_indices = np.where(stim_events)[0]

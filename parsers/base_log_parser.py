@@ -588,6 +588,54 @@ class StimComparator(object):
                 mismatches += this_mismatch + '\n'
         return mismatches
 
+from viewers.view_recarray import to_dict, from_dict
+class EventCombiner(object):
+
+    def __init__(self, events, sort_field='mstime'):
+        self.events = events
+        self.sort_field = sort_field
+
+    @staticmethod
+    def get_default(instance):
+        if isinstance(instance, basestring):
+            return ''
+        elif isinstance(instance, (int, float)):
+            return -999
+        elif isinstance(instance, (list, tuple, np.ndarray)):
+            return []
+        elif isinstance(instance, dict):
+            return {}
+
+    def combine(self):
+        all_dict_events = []
+        for events in self.events:
+            dict_events = to_dict(events)
+            if len(all_dict_events) > 0:
+                keys = [k for k in dict_events[0].keys() if k not in all_dict_events[0].keys()]
+                for key in keys:
+                    default = self.get_default(dict_events[0][key])
+                    for event in all_dict_events:
+                        event[key] = default
+                keys = [k for k in all_dict_events[0].keys() if k not in dict_events[0].keys()]
+                for key in keys:
+                    default = self.get_default(all_dict_events[0][key])
+                    for event in dict_events:
+                        event[key] = default
+
+            all_dict_events += dict_events
+        all_dict_events = sorted(all_dict_events, key=lambda d:d[self.sort_field])
+        return from_dict(all_dict_events)
+
+
+def test_events_combiner():
+    from viewers.view_recarray import from_json
+    e1 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/0/behavioral/current_processed/task_events.json')
+    e2 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/0/behavioral/current_processed/math_events.json')
+    e3 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/1/behavioral/current_processed/task_events.json')
+    combiner = EventCombiner((e1, e2, e3), 'mstime')
+    from viewers.view_recarray import pprint_rec as ppr
+    combined_events = combiner.combine()
+    ppr(combined_events)
 
 def get_version_num(session_log_file):
     """

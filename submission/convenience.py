@@ -7,9 +7,13 @@ import sys
 import argparse
 import collections
 
-from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline
+from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline,\
+                       generate_montage_transferer
+
 from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
-                  EventCreationTask, AggregatorTask, CompareEventsTask
+                  EventCreationTask, SessionAggregatorTask, CompareEventsTask, EventCombinationTask, \
+                  ImportJsonMontageTask, CodeAgggregatorTask, MontageAggregatorTask
+
 from transferer import DB_ROOT, DATA_ROOT
 from loggers import log, logger
 from parsers.mat_converter import MathMatConverter
@@ -38,7 +42,7 @@ class UnknownMontageException(Exception):
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
     new_experiment = new_experiment if not new_experiment is None else experiment
-    transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups,
+    transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups + ('transfer',),
                                            code=code,
                                            original_session=original_session,
                                            new_experiment=new_experiment,
@@ -54,7 +58,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
     task = MatlabEEGConversionTask(subject, experiment, original_session)
     return TransferPipeline(transferer, task)
 
-def test_convert_eeg_pipeline():
+def xtest_convert_eeg_pipeline():
     subject = 'R1001P'
     montage = 0.0
     experiment = 'FR1'
@@ -70,15 +74,21 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         groups += GROUPS[exp_type]
     groups += (exp_type,)
 
-    transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups, code=code, **kwargs)
+    transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups + ('transfer',),
+                                                     code=code, **kwargs)
     tasks = [EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups)]
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups, 'math', MathLogParser))
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
-                                       kwargs['original_session'] if 'original_session' in kwargs else None))
-
-    tasks.append(AggregatorTask(subject, montage, experiment, session, protocol, code))
+                                       kwargs['original_session'] if 'original_session' in kwargs else None,
+                                       match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
+    tasks.append(EventCombinationTask(('task', 'math')))
+    tasks.append(SessionAggregatorTask(subject=subject,
+                                       experiment=experiment,
+                                       session=session,
+                                       protocol=protocol,
+                                       montage=montage))
     return TransferPipeline(transferer, *tasks)
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
@@ -94,16 +104,42 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
                                                event_label='math', converter_type=MathMatConverter,
                                                original_session=original_session, **kwargs))
 
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
+    tasks.append(EventCombinationTask(('task', 'math')))
+    tasks.append(SessionAggregatorTask(subject=subject,
+                                       experiment=experiment,
+                                       session=session,
+                                       protocol=protocol,
+                                       localization=localization,
+                                       montage=montage_num))
+
     return TransferPipeline(transferer, *tasks)
 
-def test_convert_events_pipeline():
-    subject = 'R1154D'
-    montage = 0.0
-    experiment = 'FR3'
-    session = 1
 
-    pipeline = build_convert_events_pipeline(subject, montage, experiment, session)
-    pipeline.run()
+def build_import_montage_pipeline(subject, montage, protocol, code):
+    transferer, groups = generate_montage_transferer(subject, montage, protocol, code)
+
+    tasks = [ImportJsonMontageTask(subject, montage)]
+
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
+
+    tasks.append(CodeAgggregatorTask(protocol=protocol,
+                                     subject=subject,
+                                     localization=localization,
+                                     montage=montage_num,
+                                     code=code))
+
+    tasks.append(MontageAggregatorTask(protocol=protocol,
+                                     subject=subject,
+                                     localization=localization,
+                                     montage=montage_num,
+                                     code=code))
+
+    return TransferPipeline(transferer, *tasks)
+
+
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(DB_ROOT, 'protocols', protocol, 'montages', code, 'info.json')
@@ -141,6 +177,20 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
         return '%1.1f' % (new_montage_num)
 
+
+def get_all_codes():
+    subjects = []
+    for experiment in EXPERIMENTS:
+        if re.match(r'catFR[0-4]', experiment):
+            ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+        else:
+            ram_exp = 'RAM_{}'.format(experiment)
+        events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
+        events_files = sorted(glob.glob(os.path.join(events_dir, '*_events.mat')),
+                              key=lambda f: f.split('_')[:-1])
+        subjects.extend([os.path.basename(f).replace('_events.mat', '') for f in events_files])
+    return sorted(list(set(subjects)))
+
 def get_previous_subjects(subject):
     prev_subjects = []
     while '_' in subject:
@@ -174,8 +224,27 @@ def build_verbal_import_database():
                 }
                 subject_without_montage = subject.split('_')[0]
                 subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
-            #print(json.dumps(subjects, indent=2, sort_keys=True))
+            print(json.dumps(subjects, indent=2, sort_keys=True))
     json.dump(subjects, open('verbal_sessions.json', 'w'), indent=2, sort_keys=True)
+
+def run_montage_import_pipeline(kwargs, force_run=False):
+    pipeline = build_import_montage_pipeline(**kwargs)
+    pipeline.run(force_run)
+
+def test_import_existing_montages():
+    codes = get_all_codes()
+    for code in codes:
+        subject = code.split('_')[0]
+        montage = determine_montage_from_code(code, 'r1', allow_new=True, allow_skip=True)
+        kwargs = dict(
+            subject=subject,
+            montage=montage,
+            code=code,
+            protocol='r1'
+        )
+        yield run_montage_import_pipeline, kwargs, False
+
+
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
     if re.match('catFR[0-4]', experiment):
@@ -223,6 +292,19 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline = pipeline_fn(**kwargs)
     pipeline.run(force_run)
 
+def run_full_import_pipeline(kwargs, force_run=False):
+    try:
+        split_pipeline = build_split_pipeline( **kwargs)
+        split_pipeline.run(force_run)
+        events_pipeline = build_events_pipeline( **kwargs)
+        events_pipeline.run(force_run)
+    except Exception as e:
+        log("Exception %s occurred! Defaulting to events conversion")
+        convert_eeg_pipeline = build_convert_eeg_pipeline( **kwargs)
+        convert_eeg_pipeline.run(force_run)
+        convert_events_pipeline = build_convert_events_pipeline(**kwargs)
+        convert_events_pipeline.run(force_run)
+
 
 def check_subject_sessions(code, experiment, sessions, protocol='r1'):
     bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
@@ -257,8 +339,8 @@ def check_subject_sessions(code, experiment, sessions, protocol='r1'):
                                                                                   sess=session,
                                                                                   exp=experiment,
                                                                                   orig_sess=test_inputs['session']))
-        yield run_individual_pipline, build_split_pipeline, test_inputs
-        yield run_individual_pipline, build_events_pipeline, test_inputs, False
+
+        yield run_full_import_pipeline, test_inputs, test_inputs['force']
 
 
 def check_experiment(experiment):
@@ -304,12 +386,12 @@ def run_from_json_file(filename):
         for new_experiment in experiments:
             sessions = experiments[new_experiment]
             for session in sessions:
-                if subject in bad_sessions and \
-                                new_experiment in bad_sessions[subject] and \
-                                str(session) in bad_sessions[subject][new_experiment]:
-                    log('SKIPPING {} {}_{}: {}'.format(subject, new_experiment, session,
-                                                       bad_sessions[subject][new_experiment][str(session)]))
-                    continue
+               # if subject in bad_sessions and \
+               #                 new_experiment in bad_sessions[subject] and \
+               #                 str(session) in bad_sessions[subject][new_experiment]:
+               #     log('SKIPPING {} {}_{}: {}'.format(subject, new_experiment, session,
+               #                                        bad_sessions[subject][new_experiment][str(session)]))
+               #     continue
                 info = sessions[session]
                 experiment = info.get('original_experiment', new_experiment)
                 original_session = info.get('original_session', session)
@@ -343,8 +425,7 @@ def run_from_json_file(filename):
                 if 'PS' in experiment or 'TH' in experiment:
                     inputs['do_math'] = False
 
-                yield run_individual_pipline, build_split_pipeline, inputs
-                yield run_individual_pipline, build_events_pipeline, inputs, force
+                yield run_full_import_pipeline, inputs, force
 
 
 
@@ -417,6 +498,9 @@ if __name__ == '__main__':
 
     if 'PS' in experiment or 'TH' in experiment:
         inputs['do_math'] = False
+
+    if experiment[-1] == '3':
+        inputs['match_field'] = 'eegoffset'
 
     run_individual_pipline(build_split_pipeline, inputs)
     run_individual_pipline(build_events_pipeline, inputs)

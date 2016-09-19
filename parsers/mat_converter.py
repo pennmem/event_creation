@@ -1,20 +1,19 @@
-from base_log_parser import BaseSessionLogParser, EventComparator
+from base_log_parser import BaseSessionLogParser
 from fr_log_parser import FRSessionLogParser
 from catfr_log_parser import CatFRSessionLogParser
 from pal_log_parser import PALSessionLogParser
 from math_parser import MathLogParser
+from ps_log_parser import PSSessionLogParser
 import numpy as np
 import re
 import os
-import shutil
 import json
 import glob
 import datetime
 from readers import eeg_reader
 from ptsa.data.readers.BaseEventReader import BaseEventReader
 from submission.transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT, EVENTS_ROOT
-from viewers.view_recarray import pformat_rec
-from parsers.system2_log_parser import System2LogParser
+from viewers.view_recarray import strip_accents
 
 
 class BaseMatConverter(object):
@@ -105,8 +104,11 @@ class BaseMatConverter(object):
     def convert_fields(self, mat_event):
         py_event = self._empty_event
         for mat_field, py_field in self._field_conversion.items():
-            if py_field in mat_event.dtype.names:
-                py_event[py_field] = mat_event[mat_field]
+            if mat_field in mat_event.dtype.names:
+                if isinstance(mat_event[mat_field], basestring):
+                    py_event[py_field] = strip_accents(mat_event[mat_field])
+                else:
+                    py_event[py_field] = mat_event[mat_field]
         return py_event
 
 
@@ -133,7 +135,7 @@ class BaseMatConverter(object):
             new_py_event = self.convert_single_event(mat_event)
             if new_py_event:
                 py_events = np.append(py_events, new_py_event)
-        self.clean_events(py_events.view(np.recarray))
+        py_events = self.clean_events(py_events.view(np.recarray))
         return py_events[1:]
 
     def _skip_event(self, mat_event):
@@ -235,7 +237,6 @@ class FRMatConverter(BaseMatConverter):
         'is_stim': { -999: False },
         'recalled': { -999: False },
         'stim_list': { -999: False },
-        'type': {'STIM_ON': 'STIM'}
     }
 
     _FR_FIELDS = FRSessionLogParser._fr_fields()
@@ -268,6 +269,7 @@ class FRMatConverter(BaseMatConverter):
 
     def clean_events(self, events):
         super(FRMatConverter, self).clean_events(events)
+
         serialpos = 0
         current_list = -999
         current_word = 'X'
@@ -320,20 +322,23 @@ class FRMatConverter(BaseMatConverter):
             if event.serialpos > 0:
                 current_serialpos = event.serialpos
 
-            if event.type in ('STIM', 'STIM_ON'):
+            if event.type == 'STIM_ON':
+                event.stim_params['stim_on'] = True
                 last_stim_time = event.mstime
                 last_stim_duration = self.FR2_STIM_DURATION
                 events.stim_list[events.list == event.list] = True
+              #  if last_event:
+              #      last_event.stim_params = event.stim_params
+              #      last_event.stim_params['stim_on'] = 0
 
             if event.mstime <= last_stim_time + last_stim_duration:
                 event.is_stim = 1
                 event.stim_params['stim_on'] = True
-                if last_event:
-                    last_event.stim_params = event.stim_params
             else:
                 event.stim_params = BaseSessionLogParser.empty_stim_params()
 
             last_event = event
+        return events
 
     def stim_field_conversion(self, mat_event, py_event):
         if self._experiment == 'FR1':
@@ -349,25 +354,11 @@ class FRMatConverter(BaseMatConverter):
                 'amplitude': mat_event.stimAmp
             }
             params.update(self._fr2_stim_params)
+            BaseSessionLogParser.set_event_stim_params(py_event, self._jacksheet, **params)
 
         if self._experiment == 'FR3':
-            if np.isnan(mat_event.stimParams.elec1):
-                return
+            raise NotImplementedError
 
-            params = {
-                'anode_number': mat_event.stimParams.elec1,
-                'cathode_number': mat_event.stimParams.elec2,
-                'amplitude': mat_event.stimParams.amplitude,
-                'burst_freq': mat_event.stimParams.burstFreq,
-                'n_bursts': mat_event.stimParams.nBursts,
-                'pulse_freq': mat_event.stimParams.pulseFreq,
-                'n_pulses': mat_event.stimParams.nPulses,
-                'pulse_width': mat_event.stimParams.pulseWidth
-            }
-
-            params['stim_duration'] = System2LogParser.get_duration(params)
-
-        BaseSessionLogParser.set_event_stim_params(py_event, self._jacksheet, **params)
 
 
 class MathMatConverter(BaseMatConverter):
@@ -387,13 +378,6 @@ class MathMatConverter(BaseMatConverter):
                                                events_type='math_events', include_stim_params=False)
         self._add_fields(*self._MATH_FIELDS)
         self._add_field_conversion(**self._MATH_FIELD_CONVERSION)
-
-
-    def clean_events(self, events):
-        super(MathMatConverter, self).clean_events(events)
-
-        for event in events:
-            event.version = re.sub(r'[^\d]', '', event.version)
 
 class CatFRMatConverter(BaseMatConverter):
 
@@ -468,7 +452,7 @@ class CatFRMatConverter(BaseMatConverter):
                 event.wordno = -1
                 event.intrusion = -1
 
-            if event.type in ('STIM', 'STIM_ON'):
+            if event.type  == 'STIM_ON':
                 last_stim_time = event.mstime
                 last_stim_duration = self.CATFR2_STIM_DURATION
                 events.stim_list[events.list == event.list] = True
@@ -476,12 +460,11 @@ class CatFRMatConverter(BaseMatConverter):
             if event.mstime <= last_stim_time + last_stim_duration:
                 event.is_stim = 1
                 event.stim_params['stim_on'] = True
-                if last_event and last_event.type == 'WORD':
-                    last_event.stim_params = event.stim_params
             else:
                 event.stim_params = BaseSessionLogParser.empty_stim_params()
 
             last_event = event
+        return events
 
     def stim_field_conversion(self, mat_event, py_event):
         if self._experiment == 'catFR1':
@@ -505,7 +488,8 @@ class PALMatConverter(BaseMatConverter):
 
     _PAL_FIELD_CONVERSION = {
         'stimType': 'stim_type',
-        'stimTrial': 'stim_trial',
+        'stimTrial': 'stim_list',
+        'stimList': 'stim_list',
         'list': 'list',
         'serialpos': 'serialpos',
         'probepos': 'probepos',
@@ -529,10 +513,22 @@ class PALMatConverter(BaseMatConverter):
         'probe_word': {-999: ''},
         'resp_word': {-999: ''},
         'study_1': {-999: ''},
-        'study_2': {-999: ''}
+        'study_2': {-999: ''},
+        'is_stim': {-999: 0},
+        'stim_type': {'[]': 'NONE',
+                      '': 'NONE'},
+        'stim_list': {np.nan: 0}
     }
 
     _PAL_FIELDS = PALSessionLogParser._pal_fields()
+
+
+    PAL2_STIM_DURATION = PALSessionLogParser.PAL2_STIM_DURATION
+    PAL2_STIM_PULSE_FREQUENCY = PALSessionLogParser.PAL2_STIM_PULSE_FREQUENCY
+    PAL2_STIM_N_PULSES = PALSessionLogParser.PAL2_STIM_N_PULSES
+    PAL2_STIM_BURST_FREQUENCY = PALSessionLogParser.PAL2_STIM_BURST_FREQUENCY
+    PAL2_STIM_N_BURSTS = PALSessionLogParser.PAL2_STIM_N_BURSTS
+    PAL2_STIM_PULSE_WIDTH = PALSessionLogParser.PAL2_STIM_PULSE_WIDTH
 
     def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
         super(PALMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
@@ -541,23 +537,100 @@ class PALMatConverter(BaseMatConverter):
         self._add_field_conversion(**self._PAL_FIELD_CONVERSION)
         self._add_value_conversion(**self._PAL_VALUE_CONVERSION)
 
+        self._fr2_stim_params = {
+            'pulse_freq': self.PAL2_STIM_PULSE_FREQUENCY,
+            'n_pulses': self.PAL2_STIM_N_PULSES,
+            'burst_freq': self.PAL2_STIM_BURST_FREQUENCY,
+            'n_bursts': self.PAL2_STIM_N_BURSTS,
+            'pulse_width': self.PAL2_STIM_PULSE_WIDTH,
+            'stim_duration': self.PAL2_STIM_DURATION
+        }
+
+
     def clean_events(self, events):
         super(PALMatConverter, self).clean_events(events)
 
         last_event = None
+        last_stim_time = 0
+        last_stim_duration = 0
         for i, event in enumerate(events):
             word_mask = np.logical_and(events.study_1 == event.study_1, events.list == event.list)
+
+            if event.type == 'SESS_START':
+                event.resp_pass = 0
+                event.stim_list = 0
+
+            if event.type == 'STIM_ON':
+                event.list = events[i-1].list
+
+            if event.type == 'REC_EVENT':
+                if event.resp_word == 'PASS':
+                    event.resp_pass = True
+
+                if event.resp_word == '<>':
+                    event.vocalization = True
+
+                study_pair = events[np.logical_and(
+                    np.logical_or(events.study_1 == event.resp_word, events.study_2 == event.resp_word),
+                    events.type == 'STUDY_PAIR')]
+
+                if len(study_pair) > 0:
+                    study_pair = study_pair[0]
+                    if event.list - study_pair.list >= 0:
+                        event.intrusion = event.list - study_pair.list
+                    else:
+                        event.intrusion = -1
+
+                this_study_mask = np.logical_and(
+                    events.probepos == event.probepos, events.list == event.list
+                )
+                events.intrusion[this_study_mask] = event.intrusion
+
+                if not event.vocalization:
+                    events.vocalization[this_study_mask] = 0
+
+
+
 
             if event.type in ('STUDY_ORIENT', 'STUDY_PAIR'):
                 cue_directions = np.unique(events[word_mask].cue_direction)
                 if np.any(cue_directions!=-999):
                     event.cue_direction = cue_directions[cue_directions != -999]
 
-                test_probe = events[np.logical_and(
+                test_probe_mask = np.logical_and(
                     np.logical_or(events.probe_word == event.study_1, events.probe_word == event.study_2),
-                    events.type == 'TEST_PROBE')]
+                    events.type == 'TEST_PROBE')
 
-                event.probe_word = test_probe.probe_word
+                test_probe = events[test_probe_mask]
+
+                event.probe_word = test_probe.probe_word[0]
+                event.expecting_word = test_probe.expecting_word[0]
+
+                rec_event_mask = np.logical_and(
+                    np.logical_or(events.probe_word == event.study_1, events.probe_word == event.study_2),
+                    events.type == 'REC_EVENT')
+                rec_events = events[rec_event_mask]
+
+                if np.any(rec_events.vocalization != -999):
+                    if np.any(rec_events.vocalization == 1):
+                        event.vocalization = 1
+                    else:
+                        event.vocalization = 0
+                else:
+                    event.vocalization = 0
+
+                if np.any(rec_events.intrusion != -999):
+                    if np.any(rec_events.intrusion != 1):
+                        event.intrusion = 0
+                    else:
+                        event.intrusion = 1
+                else:
+                    event.vocalization = 0
+
+                if np.any(rec_events.resp_word == 'PASS'):
+                    event.resp_pass = 1
+
+
 
 
             if event.type == 'STUDY_ORIENT':
@@ -584,6 +657,9 @@ class PALMatConverter(BaseMatConverter):
                     event.vocalization = rec_event[0].vocalization
                     event.intrusion = rec_event[0].intrusion
 
+                if np.any(rec_event.resp_word == 'PASS'):
+                    event.resp_pass = 1
+
             if event.type == 'REC_START':
                 next_event = events[i+1]
                 if next_event.type == 'REC_EVENT':
@@ -600,21 +676,226 @@ class PALMatConverter(BaseMatConverter):
 
 
             if event.type in ('MATH_START', 'MATH_END'):
-                event.list = events[i-2].list
+                event.list = events[i-1].list
+
+            if event.type in ('TEST_START', 'MATH_START', 'MATH_END'):
+                event.resp_pass = 0
+
 
             last_event = event
 
+        for i, event in enumerate(events):
+
+            if event.type == 'STIM_ON':
+                last_stim_time = event.mstime
+                last_stim_duration = self.PAL2_STIM_DURATION
+                events.stim_list[events.list == event.list] = True
+                for name in ('resp_word', 'probe_word', 'probepos', 'cue_direction', 'resp_pass', 'RT', 'correct',
+                             'study_1', 'study_2', 'vocalization', 'intrusion', 'list', 'expecting_word', 'serialpos'):
+                    event[name] = events[i+1][name]
+
+                if 'TEST' in events[i-1].type:
+                    test_mask = np.logical_and(events.probepos == events[i-1].probepos, events.list == events[i-1].list)
+                    for type in ('TEST_ORIENT', 'TEST_PROBE', 'REC_EVENT'):
+                        type_mask = np.logical_and(events.type == type, test_mask)
+                        events.is_stim[type_mask] = True
+                        events.stim_params[type_mask] = event.stim_params
+                        events.stim_params[type_mask]['stim_on'] = False
+
+                if 'STUDY' in events[i-1].type:
+                    test_mask = np.logical_and(events.probepos == events[i-1].probepos, events.list == events[i-1].list)
+                    for type in ('STUDY_ORIENT', 'STUDY_PAIR'):
+                        type_mask = np.logical_and(events.type == type, test_mask)
+                        events.is_stim[type_mask] = True
+                        events.stim_params[type_mask] = event.stim_params
+                        events.stim_params[type_mask]['stim_on'] = False
+
+            if event.mstime <= last_stim_time + last_stim_duration:
+                event.is_stim = 1
+                event.stim_params['stim_on'] = True
+
+            if event.is_stim == 0:
+                event.stim_params['_remove'] = True
+
+        return events
+
     def stim_field_conversion(self, mat_event, py_event):
-        pass
+        if self._experiment == 'PAL1':
+            return
+
+        if self._experiment == 'PAL2':
+
+
+            if 'stimLoc' in mat_event.dtype.names:
+                if np.isnan(mat_event.stimLoc[0]):
+                    return
+                params = {
+                    'anode_number': mat_event.stimLoc[0],
+                    'cathode_number': mat_event.stimLoc[1],
+                    'amplitude': mat_event.stimAmp
+                }
+            else:
+                if np.isnan(mat_event.stimAnode):
+                    return
+                params = {
+                    'anode_number': mat_event.stimAnode,
+                    'cathode_number': mat_event.stimCathode,
+                    'amplitude': mat_event.stimAmp
+                }
+
+            params.update(self._fr2_stim_params)
+            BaseSessionLogParser.set_event_stim_params(py_event, self._jacksheet, **params)
+
+        if self._experiment == 'PAL3':
+            raise NotImplementedError
+
+
+class PSMatConverter(BaseMatConverter):
+
+    _PS_FIELD_CONVERSION = {
+        'ADs_present': 'ad_observed',
+        'expVersion': 'exp_version',
+    }
+
+    _PS_VALUE_CONVERSION = {
+        'type': {'STIMULATING': 'STIM_ON'},
+    }
+
+    _PS_FIELDS = PSSessionLogParser._ps_fields()
+
+    _PULSE_WIDTH = 300
+
+    def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
+        super(PSMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
+                                             include_stim_params = True)
+        self._add_fields(*self._PS_FIELDS)
+        self._add_field_conversion(**self._PS_FIELD_CONVERSION)
+        self._add_value_conversion(**self._PS_VALUE_CONVERSION)
+
+    def clean_events(self, events):
+        super(PSMatConverter, self).clean_events(events)
+        exp_version = np.unique(events.exp_version)
+        exp_version = [e for e in exp_version if e != '']
+        if len(exp_version) == 0:
+            exp_version = '1.0'
+
+        events.exp_version = exp_version
+        events.protocol = self._protocol
+        events.montage = self._montage
+        events.experiment = self._experiment
+        events.exp_version = exp_version
+
+        mstime_diff = events[10].mstime - events[1].mstime
+        eegoffset_diff = events[10].eegoffset - events[1].eegoffset
+        eeg_rate = float(eegoffset_diff)/float(mstime_diff)
+
+        stim_mask = events.type == 'STIM_ON'
+        stim_off_events = events[stim_mask]
+        stim_off_events.type = 'STIM_OFF'
+        durations = stim_off_events.stim_params.stim_duration[:,0]
+        burst_freqs = stim_off_events.stim_params.burst_freq[:,0]
+        pulse_freqs = stim_off_events.stim_params.pulse_freq[:,0]
+        n_pulses = stim_off_events.stim_params.n_pulses[:,0]
+        durations = np.array([d if b == 1 else (d+n*p) for b, d, p, n in zip(burst_freqs, durations, pulse_freqs, n_pulses)])
+
+
+        stim_off_events.mstime = stim_off_events.mstime + durations
+        stim_off_events.eegoffset += np.array(durations * eeg_rate, dtype=int)
+        stim_off_events.is_stim = 0
+        stim_off_events.stim_params.stim_on = 0
+
+        events = np.insert(events, np.where(stim_mask)[0], stim_off_events)
+        return events
+
+    def stim_field_conversion(self, mat_event, py_event):
+
+
+        if py_event.type in ('STIM_ON', 'STIM_SINGLE_PULSE', 'BEGIN_BURST'):
+            py_event.is_stim = True
+        else:
+            py_event.is_stim = False
+
+
+
+        if 'stimDuration' in mat_event.dtype.names:
+            py_event.exp_version = '2.0'
+            stim_duration = mat_event.stimDuration
+            n_bursts = mat_event.nBursts if mat_event.nBursts > 0 else 1
+            pulse_freq = mat_event.pulse_frequency if mat_event.pulse_frequency > 0 else 1
+            amplitude = mat_event.amplitude * 1000
+            n_pulses = mat_event.nPulses
+            stim_duration = (float(n_bursts - 1) / (mat_event.burst_frequency if mat_event.burst_frequency > 0 else 1)) + \
+                             (float(n_pulses - 1) / pulse_freq) + \
+                            (float(self._PULSE_WIDTH/1000000 & 2))
+            stim_duration = round(stim_duration * 1000, -1)
+
+        elif py_event.type == 'STIM_SINGLE_PULSE':
+            n_pulses = 1
+            stim_duration = 1
+            pulse_freq = -1
+            n_bursts = 1
+            amplitude = mat_event.amplitude
+        elif py_event.type == 'BEGIN_BURST':
+            n_pulses = mat_event.pulse_duration * mat_event.pulse_frequency / 1000
+            n_bursts = mat_event.nBursts
+            stim_duration = int(float(mat_event.nBursts) / mat_event.burst_frequency * 1000)
+            pulse_freq = mat_event.pulse_frequency
+            py_event.type = 'STIM_ON'
+            amplitude = mat_event.amplitude
+        else:
+            n_pulses = (mat_event.pulse_frequency * mat_event.pulse_duration) / 1000
+            n_bursts = mat_event.nBursts if mat_event.nBursts != -999 else 1
+            stim_duration = mat_event.pulse_duration * n_bursts
+            pulse_freq = mat_event.pulse_frequency
+            amplitude = mat_event.amplitude
+
+        if not py_event.type in ('STIM_ON', 'STIM_OFF', 'STIM_SINGLE_PULSE', 'BEGIN_BURST'):
+            return
+
+        params = {
+            'anode_label': mat_event.stimAnodeTag,
+            'cathode_label': mat_event.stimCathodeTag,
+            'amplitude': amplitude,
+            'pulse_freq': pulse_freq,
+            'burst_freq': mat_event.burst_frequency if mat_event.burst_frequency > 0 else 1,
+            'n_bursts': n_bursts,
+            'n_pulses': n_pulses,
+            'stim_duration': stim_duration,
+            'pulse_width': self._PULSE_WIDTH,
+            'stim_on': py_event.is_stim
+        }
+        BaseSessionLogParser.set_event_stim_params(py_event, self._jacksheet, **params)
+
 
 CONVERTERS = {
     'FR': FRMatConverter,
     'catFR': CatFRMatConverter,
-    'PAL': PALMatConverter
+    'PAL': PALMatConverter,
+    'PS': PSMatConverter
 }
 
 test_sessions = (
-    ('R1001P', 'PAL1', 0,),
+    #('R1001P', ('FR1',), (0,)),
+    # ('R1082N', ('PAL2',), (0,)),
+    # ('R1050M', ('PAL2',), (0,)),
+    # ('R1100D', ('PAL1',), (1,)),
+    # ('R1001P', ('PAL1',), (0,)),
+    # ('R1016M', ('catFR2',), (0,)),
+    # ('R1050M', ('catFR2',), (0,)),
+    # ('R1004D', ('catFR1',), (0,)),
+    # ('R1041M', ('catFR1',), (0,)),
+    # ('R1060M', ('catFR1',), (0,)),
+    # ('R1101T', ('FR2',), (0,)),
+    # ('R1001P', ('FR2',), (1,)),
+    # ('R1060M', ('FR1',), (0,)),
+    ('R1136N', ('PS', 'PS1'), (0, 0)),
+    ('R1136N', ('PS', 'PS1'), (0, 0)),
+    ('R1136N', ('PS', 'PS1'), (0, 0)),
+    ('R1136N', ('PS', 'PS3'), (2, 0)),
+    ('R1025P', ('PS', 'PS1'), (0, 0)),
+    ('R1050M', ('PS', 'PS2'), (3, 0)),
+    ('R1034D', ('PS', 'PS3'), (3, 0)),
+    ('R1150J', ('PS', 'PS2'), (0, 0)),
 )
 
 def test_fr_mat_converter():
@@ -624,16 +905,21 @@ def test_fr_mat_converter():
 
 
     for subject, exp, session in test_sessions:
+        orig_exp = exp[0]
+        orig_sess = session[0]
+        new_exp = exp[1] if len(exp)>1 else exp[0]
+        new_sess = session[1] if len(session)>1 else session[0]
+
         DB_ROOT = EVENTS_ROOT
         print subject, exp, session
 
-        mat_file = os.path.join(EVENTS_ROOT, 'RAM_{}'.format(exp[0].upper()+exp[1:]), '{}_events.mat'.format(subject))
+        mat_file = os.path.join(EVENTS_ROOT, 'RAM_{}'.format(orig_exp[0].upper()+orig_exp[1:]), '{}_events.mat'.format(subject))
 
         files = {'jacksheet': os.path.join(DATA_ROOT, subject, 'docs', 'jacksheet.txt'),
                  'matlab_events': mat_file}
 
-        converter_type = CONVERTERS[re.sub(r'[\d]','', exp)]
-        converter = converter_type('r1', subject, 0.0, exp, session, session, files)
+        converter_type = CONVERTERS[re.sub(r'[\d]','', new_exp)]
+        converter = converter_type('r1', subject, 0.0, new_exp, new_sess, orig_sess, files)
         py_events = converter.convert()
 
         from viewers.view_recarray import to_json, from_json
@@ -642,14 +928,14 @@ def test_fr_mat_converter():
         new_events = from_json('test_{}_events.json'.format(subject))
         DB_ROOT = old_db_root
 
-        old_events = from_json(os.path.join(DB_ROOT, 'protocols', 'r1', 'subjects', subject, 'experiments', exp,
-                                            'sessions', str(session), 'behavioral', 'current_processed', 'task_events.json'))
+        old_events = from_json(os.path.join(DB_ROOT, 'protocols', 'r1', 'subjects', subject, 'experiments', new_exp,
+                                            'sessions', str(new_sess), 'behavioral', 'current_processed', 'task_events.json'))
 
         compare_converted_events(old_events, new_events)
 
 def compare_converted_events(new_events, old_events):
     for new_event in new_events:
-        close_old_events = old_events[np.abs(old_events.mstime - new_event.mstime) < 5]
+        close_old_events = old_events[np.abs(old_events.eegoffset - new_event.eegoffset) < 15]
         matching_old_event = close_old_events[close_old_events.type == new_event.type]
         if len(matching_old_event) == 0:
             print 'MISSING EVENT! {}'.format(new_event.type)
@@ -661,6 +947,8 @@ def compare_converted_events(new_events, old_events):
             print '******2*****'
             ppr(matching_old_event)
             print '------------'
+        else:
+            print '.',
 
 
 from viewers.view_recarray import pprint_rec as ppr
@@ -669,9 +957,9 @@ def compare_single_event(new_event, old_event):
     is_bad = False
     for name in names:
 
-        if name not in ('eegfile', 'eegoffset', 'mstime', 'rectime', 'msoffset'):
+        if name not in ('eegfile', 'eegoffset', 'mstime', 'rectime', 'msoffset', 'session'):
             if isinstance(new_event[name], (np.ndarray, np.record)) and new_event[name].dtype.names:
-                compare_single_event(new_event[name], old_event[name])
+                is_bad = is_bad or compare_single_event(new_event[name], old_event[name])
             elif new_event[name] != old_event[name]:
                 if not exceptions(new_event, old_event, name):
                     print '{}: {} vs {}'.format(name, new_event[name], old_event[name])
@@ -683,8 +971,10 @@ def exceptions(new_event, old_event, field):
     if isinstance(new_event[field], basestring):
         if new_event[field].upper() == old_event[field].upper():
             return True
+    if not 'type' in new_event.dtype.names:
+        return False
 
-    if new_event.type == 'REC_START':
+    if new_event.type in ('REC_START', 'REC_END'):
         return True
 
     if new_event.type in ('TEST_PROBE', 'TEST_ORIENT') and field in ('vocalization', 'intrusion'):
@@ -697,8 +987,7 @@ def exceptions(new_event, old_event, field):
         if new_event[field] == 0 or new_event[field] == '':
             return True
 
-    if not 'type' in new_event.dtype.names:
-        return False
+
 
     if field == 'is_stim' and new_event.type == 'DISTRACT_START':
         return True
@@ -709,4 +998,14 @@ def exceptions(new_event, old_event, field):
     if field == 'exp_version' and new_event['experiment'] == 'PAL1':
         return True
 
+    if field in ('vocalization', 'intrusion') and new_event.type in ('STIM_ON', 'STUDY_PAIR', 'STUDY_ORIENT'):
+        return True
+
+    if field == 'stim_type' and new_event['stim_type'] == '' and old_event['stim_type'] == 'NONE':
+        return True
+
     return False
+
+
+if __name__ == '__main__':
+    test_fr_mat_converter()

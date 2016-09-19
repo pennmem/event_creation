@@ -5,6 +5,7 @@ import numpy
 import unicodedata
 #from loggers import log
 from collections import defaultdict
+import re
 
 PPRINT_PADDING = 2
 
@@ -49,8 +50,6 @@ def _format_and_indent(this_input, indent):
 
 
 def to_dict(arr):
-
-
     arr_as_dict = []
     names_without_remove = [name for name in arr.dtype.names if name != '_remove']
     for x in arr:
@@ -64,9 +63,12 @@ def to_dict(arr):
         return arr_as_dict
 
     recarray_keys = []
+    array_keys = []
     for key, value in arr_as_dict[0].items():
         if isinstance(value, (np.ndarray, np.record)) and value.dtype.names:
             recarray_keys.append(key)
+        elif isinstance(value, (np.ndarray)):
+            array_keys.append(key)
 
     for key in recarray_keys:
         for entry in arr_as_dict:
@@ -75,6 +77,9 @@ def to_dict(arr):
             else:
                 entry[key] = dict(zip(entry[key].dtype.names, entry[key]))
 
+    for key in array_keys:
+        for entry in arr_as_dict:
+            entry[key] = list(entry[key])
 
 
     return arr_as_dict
@@ -109,6 +114,8 @@ def get_element_dtype(element):
         return 'b'
     elif isinstance(element, float):
         return 'float64'
+    elif isinstance(element, list):
+        return get_element_dtype(element[0])
     else:
         raise Exception('Could not convert type %s' % type(element))
 
@@ -133,8 +140,15 @@ def from_json_old(json_filename):
     return arr.view(np.recarray)
 
 
+def from_jsons(jsons):
+    d = json.loads(jsons)
+    return from_dict(d)
+
 def from_json(json_filename):
     d = json.load(open(json_filename))
+    return from_dict(d)
+
+def from_dict(d):
     if not isinstance(d, list):
         d = [d]
 
@@ -150,7 +164,10 @@ def from_json(json_filename):
         for k in list_names:
             list_info[k]['len'] = max(list_info[k]['len'], len(entry[k]))
             if not list_info[k]['dtype'] and len(entry[k]) > 0:
-                list_info[k]['dtype'] = mkdtype(entry[k][0])
+                if isinstance(entry[k][0], dict):
+                    list_info[k]['dtype'] = mkdtype(entry[k][0])
+                else:
+                    list_info[k]['dtype'] = get_element_dtype(entry[k])
 
     dtypes = []
     for k, v in d[0].items():
@@ -163,7 +180,6 @@ def from_json(json_filename):
     arr = np.zeros(len(d), dtypes).view(np.recarray)
     copy_values(d, arr, list_info)
     return arr.view(np.recarray)
-
 
 def copy_values(dict_list, rec_arr, list_info=None):
     if len(dict_list) == 0:
@@ -190,16 +206,22 @@ def copy_values(dict_list, rec_arr, list_info=None):
         for k,v in sub_dict.items():
             if list_info and k in list_info:
                 arr = np.zeros(list_info[k]['len'], list_info[k]['dtype'])
-                copy_values(v, arr)
+                if len(v) > 0:
+                    if isinstance(v[0], dict):
+                        copy_values(v, arr)
+                    else:
+                        for j, element in enumerate(v):
+                            arr[j] = element
+
                 rec_arr[i][k] = arr.view(np.recarray)
 
     for k, v in dict_fields.items():
         copy_values( v, rec_arr[k])
 
 def strip_accents(s):
-    return str(''.join(c for c in unicodedata.normalize('NFD', unicode(s))
-                  if unicodedata.category(c) != 'Mn'))
+    try:
+        return str(''.join(c for c in unicodedata.normalize('NFD', unicode(s))
+                      if unicodedata.category(c) != 'Mn'))
+    except UnicodeError: # If accents can't be converted, just remove them
+        return str(re.sub(r'[^A-Za-z0-9 -_.]', '', s))
 
-def test_from_json():
-    x = from_json('/Volumes/LaCie/test_data/protocols/R1/subjects/R1045E/experiments/FR1/sessions/0/behavioral/current_processed/task_events.json')
-    pprint_rec(x[100])

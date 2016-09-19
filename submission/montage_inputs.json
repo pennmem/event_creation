@@ -1,0 +1,21 @@
+{
+  "json_import": {
+    "type": "group",
+    "contacts": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{loc_db_root}/protocols/{protocol}/codes/{code}",
+      "origin_file": "contacts.json",
+      "destination": "contacts.json"
+    },
+    "pairs": {
+      "type": "file",
+      "multiple": false,
+      "required": true,
+      "origin_directory": "{loc_db_root}/protocols/{protocol}/codes/{code}",
+      "origin_file": "pairs.json",
+      "destination": "pairs.json"
+    }
+  }
+}

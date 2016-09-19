@@ -82,7 +82,7 @@ class System2LogParser:
             else:
                 event_to_copy = BaseSessionLogParser.event_from_template(event_template)
             new_event = self.partial_copy(event_to_copy, event_template, persistent_field_fn)
-            new_event.type = 'STIM'
+            new_event.type = 'STIM_ON' if stim_event.stim_params['n_pulses'][0] > 1 else 'STIM_SINGLE_PULSE'
             new_event[self._STIM_ON_FIELD] = True
             new_event[self._TASK_SORT_FIELD] = sort_value
             new_event[self._STIM_PARAMS_FIELD] = stim_event.stim_params
@@ -90,30 +90,31 @@ class System2LogParser:
             merged_events = np.append(merged_events[:insert_index],
                                       np.append(new_event, merged_events[insert_index:]))
 
-            # Do the same for the stim_off_event
-            stim_off_sub_event = deepcopy(stim_event.stim_params).view(np.recarray)
-            stim_off_sub_event.stim_on = False
-            stim_off_sub_event.hosttime += stim_off_sub_event.stim_duration
-            stim_off_value = event_to_sort_value(stim_off_sub_event)
-            modify_indices = np.where(np.logical_and(merged_events[self._TASK_SORT_FIELD] > sort_value,
-                                                     merged_events[self._TASK_SORT_FIELD] < stim_off_value))[0]
+            if stim_event.stim_params['n_pulses'][0] > 1:
+                # Do the same for the stim_off_event
+                stim_off_sub_event = deepcopy(stim_event.stim_params).view(np.recarray)
+                stim_off_sub_event.stim_on = False
+                stim_off_sub_event.hosttime += stim_off_sub_event.stim_duration
+                stim_off_value = event_to_sort_value(stim_off_sub_event)
+                modify_indices = np.where(np.logical_and(merged_events[self._TASK_SORT_FIELD] > sort_value,
+                                                         merged_events[self._TASK_SORT_FIELD] < stim_off_value))[0]
 
-            # Modify the events between STIM and STIM_OFF to show that stim was applied
-            for modify_index in modify_indices:
-                merged_events[modify_index][self._STIM_PARAMS_FIELD][0] = stim_event[0]
-                merged_events[modify_index][self._STIM_ON_FIELD] = True
+                # Modify the events between STIM and STIM_OFF to show that stim was applied
+                for modify_index in modify_indices:
+                    merged_events[modify_index][self._STIM_PARAMS_FIELD][0] = stim_event[0]
+                    merged_events[modify_index][self._STIM_ON_FIELD] = True
 
-            # Insert the STIM_OFF event after the modified events if any, otherwise directly after the STIM event
-            insert_index = modify_indices[-1] + 1 if len(modify_indices) > 0 else insert_index + 1
-            stim_off_event = self.partial_copy(merged_events[insert_index-1], event_template, persistent_field_fn)
-            stim_off_event.type = 'STIM_OFF'
-            stim_off_event[self._STIM_ON_FIELD] = False
-            stim_off_event[self._STIM_PARAMS_FIELD] = stim_off_sub_event
-            stim_off_event[self._TASK_SORT_FIELD] = stim_off_value
+                # Insert the STIM_OFF event after the modified events if any, otherwise directly after the STIM event
+                insert_index = modify_indices[-1] + 1 if len(modify_indices) > 0 else insert_index + 1
+                stim_off_event = self.partial_copy(merged_events[insert_index-1], event_template, persistent_field_fn)
+                stim_off_event.type = 'STIM_OFF'
+                stim_off_event[self._STIM_ON_FIELD] = False
+                stim_off_event[self._STIM_PARAMS_FIELD] = stim_off_sub_event
+                stim_off_event[self._TASK_SORT_FIELD] = stim_off_value
 
-            # Merge the
-            merged_events = np.append(merged_events[:insert_index],
-                                      np.append(stim_off_event, merged_events[insert_index:]))
+                # Merge the stim off event
+                merged_events = np.append(merged_events[:insert_index],
+                                          np.append(stim_off_event, merged_events[insert_index:]))
         return merged_events
 
     @staticmethod
@@ -143,6 +144,7 @@ class System2LogParser:
         stim_params['n_bursts'] = stim_params['n_bursts'] or 1
         stim_params['burst_freq'] = stim_params['burst_freq'] or 1
         stim_params['stim_duration'] = cls.get_duration(stim_params)
+        stim_params['pulse_freq'] = stim_params['pulse_freq'] if stim_params['n_pulses'] > 1 else 1
         stim_params['stim_on'] = True
         BaseSessionLogParser.set_event_stim_params(stim_event, jacksheet=jacksheet, **stim_params)
         return stim_event

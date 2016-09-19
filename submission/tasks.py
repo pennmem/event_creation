@@ -14,8 +14,9 @@ from parsers.catfr_log_parser import CatFRSessionLogParser
 from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
-from parsers.base_log_parser import StimComparator
-from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor
+from parsers.base_log_parser import StimComparator, EventCombiner
+from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
+                                  CatFRMatConverter, PSMatConverter, MathMatConverter
 from loggers import log, logger
 from transferer import DATA_ROOT, DB_ROOT
 
@@ -30,19 +31,45 @@ except:
     log('PTSA NOT LOADED')
     PTSA_LOADED = False
 
-class SplitEEGTask(object):
+class PipelineTask(object):
+
+    def __init__(self):
+        self.name = str(self)
+        self.pipeline = None
+
+    def set_pipeline(self, pipeline):
+        self.pipeline = pipeline
+
+    def create_file(self, filename, contents, label):
+        with open(os.path.join(self.pipeline.destination, filename), 'w') as f:
+            f.write(contents)
+        self.pipeline.register_output(filename, label)
+
+
+class ImportJsonMontageTask(PipelineTask):
+
+    def __init__(self, subject, montage):
+        super(ImportJsonMontageTask, self).__init__()
+        self.name = 'Importing {subj} montage {montage}'.format(subj=subject, montage=montage)
+
+    def run(self, files, db_folder):
+        for file in ('contacts', 'pairs'):
+            with open(files[file]) as f:
+                filename = '{}.json'.format(file)
+                output = json.load(f)
+                self.create_file(filename, json.dumps(output, indent=2, sort_keys=True), file)
+
+class SplitEEGTask(PipelineTask):
 
     SPLIT_FILENAME = '{subject}_{experiment}_{session}_{time}'
 
     def __init__(self, subject, montage, experiment, session, **kwargs):
+        super(SplitEEGTask, self).__init__()
         self.name = 'Splitting {subj} {exp}_{sess}'.format(subj=subject, exp=experiment, sess=session)
         self.subject = subject
         self.experiment = experiment
         self.session = session
         self.kwargs = kwargs
-
-    def set_pipeline(self, pipeline):
-        self.pipeline = pipeline
 
     @staticmethod
     def group_ns2_files(raw_eegs):
@@ -90,25 +117,21 @@ class SplitEEGTask(object):
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(self.pipeline.destination))
 
 
-class MatlabEEGConversionTask(object):
+class MatlabEEGConversionTask(PipelineTask):
 
     def __init__(self, subject, experiment, original_session, **kwargs):
+        super(MatlabEEGConversionTask, self).__init__()
         self.name = 'matlab EEG extraction for {subj}: {exp}_{sess}'.format(subj=subject,
                                                                             exp=experiment,
                                                                             sess=original_session)
         self.original_session = original_session
         self.kwargs = kwargs
-        self.pipeline = None
-
-    def set_pipeline(self, pipeline):
-        self.pipeline = pipeline
-
     def run(self, files, db_folder):
         logger.set_label(self.name)
         extractor = MatlabEEGExtractor(self.original_session, files)
         extractor.copy_ephys(db_folder)
 
-class EventCreationTask(object):
+class EventCreationTask(PipelineTask):
 
     PARSERS = {
         'FR': FRSessionLogParser,
@@ -118,7 +141,9 @@ class EventCreationTask(object):
         'PS': PSLogParser
     }
 
-    def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task', parser_type=None, **kwargs):
+    def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
+                 parser_type=None, **kwargs):
+        super(EventCreationTask, self).__init__()
         self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
@@ -148,10 +173,31 @@ class EventCreationTask(object):
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
         events = parser.clean_events(events)
-        with open(os.path.join(self.pipeline.destination, self.filename), 'w') as f:
-            to_json(events, f)
+        self.create_file(self.filename, to_json(events),
+                         '{}_events'.format(self.event_label))
 
-class MatlabEventConversionTask(object):
+class EventCombinationTask(PipelineTask):
+
+    COMBINED_LABEL='all'
+
+    def __init__(self, event_labels, sort_field='mstime'):
+        super(EventCombinationTask, self).__init__()
+        self.name = 'Event combination task for events {}'.format(event_labels)
+        self.event_labels = event_labels
+        self.sort_field = sort_field
+
+    def run(self, files, db_folder):
+        event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
+        events = [from_json(event_file) for event_file in event_files]
+        combiner = EventCombiner(events)
+        combined_events = combiner.combine()
+
+        self.create_file('{}_events.json'.format(self.COMBINED_LABEL),
+                         to_json(combined_events), '{}_events'.format(self.COMBINED_LABEL))
+
+
+
+class MatlabEventConversionTask(PipelineTask):
 
     CONVERTERS = {
         'FR': FRMatConverter
@@ -159,6 +205,7 @@ class MatlabEventConversionTask(object):
 
     def __init__(self, protocol, subject, montage, experiment, session,
                  event_label='task', converter_type=None, original_session=None, **kwargs):
+        super(MatlabEventConversionTask, self).__init__()
         self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
@@ -172,98 +219,229 @@ class MatlabEventConversionTask(object):
         self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
 
-    def set_pipeline(self, pipeline):
-        self.pipeline = pipeline
-
     def run(self, files, db_folder):
         logger.set_label(self.name)
         converter = self.converter_type(self.protocol, self.subject, self.montage, self.experiment, self.session,
                                         self.original_session, files)
         events = converter.convert()
 
-        with open(os.path.join(self.pipeline.destination, self.filename), 'w') as f:
-            to_json(events, f)
+        self.create_file( self.filename, to_json(events),
+                         '{}_events'.format(self.event_label))
 
+class ImportEventsTask(PipelineTask):
 
+    PARSERS = {
+        'FR': FRSessionLogParser,
+        'PAL': PALSessionLogParser,
+        'catFR': CatFRSessionLogParser,
+        'math': MathLogParser,
+        'PS': PSLogParser
+    }
 
-class AggregatorTask(object):
+    CONVERTERS = {
+        'FR': FRMatConverter,
+        'PAL': PALMatConverter,
+        'catFR': CatFRMatConverter,
+        'math': MathMatConverter,
+        'PS': PSMatConverter
+    }
 
-    def __init__(self, subject, montage, experiment, session, protocol='r1', code=None):
-        self.name = 'Aggregation of {subj}: {exp}_{sess}'.format(subj=subject, exp=experiment, sess=session)
-        self.subject, self.montage, self.experiment, self.session, self.protocol =\
-            subject, montage, experiment, session, protocol
-        self.code = code or subject
+    def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
+                 converter_type=None, parser_type=None, original_session=None, **kwargs):
+        super(ImportEventsTask, self).__init__()
+        self.name = '{label} Event Import for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
+        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
+        self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
+        self.protocol = protocol
+        self.subject = subject
+        self.montage = montage
+        self.experiment = experiment
+        self.session = session
+        self.original_session = original_session
+        self.is_sys2 = is_sys2
+        self.kwargs = kwargs
+        self.event_label = event_label
+        self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
-        self.protocol_folder = os.path.join(DB_ROOT, 'protocols', self.protocol)
-        if not os.path.exists(self.protocol_folder):
-            os.makedirs(self.protocol_folder)
-
-        self.montages_folder = os.path.join(DB_ROOT, 'protocols', self.protocol, 'montages', self.code)
-        if not os.path.exists(self.montages_folder):
-            os.makedirs(self.montages_folder)
-
-    def set_pipeline(self, pipeline):
-        self.pipeline = pipeline
-
-    def build_experiments_aggregate(self):
-        experiments_aggregate = os.path.join(self.protocol_folder, 'experiments.json')
-        if os.path.exists(experiments_aggregate):
-            experiments = json.load(open(experiments_aggregate))
-        else:
-            experiments = {}
-        if self.experiment not in experiments:
-            experiments[self.experiment] = {}
-        if self.subject not in experiments[self.experiment]:
-            experiments[self.experiment][self.subject] = []
-        if self.session not in experiments[self.experiment][self.subject]:
-            experiments[self.experiment][self.subject].append(self.session)
-
-        with open(experiments_aggregate, 'w') as experiment_output:
-            json.dump(experiments, experiment_output, indent=2, sort_keys=True)
-
-    def build_sessions_aggregate(self):
-        code_aggregate = os.path.join(self.montages_folder, 'sessions.json')
-        if os.path.exists(code_aggregate):
-            sessions = json.load(open(code_aggregate))
-        else:
-            sessions = {}
-
-        if self.experiment not in sessions:
-            sessions[self.experiment] = {}
-        sessions[self.experiment][self.session] = {'montage': self.montage,
-                                                   'submitted': datetime.datetime.now().strftime('%Y-%m-%d')}
-
-        with open(code_aggregate, 'w') as code_output:
-            json.dump(sessions, code_output, indent=2)
-
-    def build_code_info_aggregate(self):
-        info_aggregate = os.path.join(self.montages_folder, 'info.json')
-        if os.path.exists(info_aggregate):
-            info = json.load(open(info_aggregate))
-            if float(info['montage']) != float(self.montage):
-                raise UnProcessableException('Montage number conflicts for subject {}. Existing: {}, new: {}'.format(
-                    self.subject, info['montage'], self.montage
-                ))
-            return
-        else:
-            info = {}
-
-        info['montage'] = self.montage
-        info['submitted'] = datetime.datetime.now().strftime('%Y-%m-%d')
-
-        with open(info_aggregate, 'w') as info_output:
-            json.dump(info, info_output, indent=2)
 
     def run(self, files, db_folder):
-        logger.set_label(self.name)
-        log('Building experiments aggregate')
-        self.build_experiments_aggregate()
-        log('Building codes aggregate')
-        self.build_code_info_aggregate()
+        try:
+            EventCreationTask.run(self, files, db_folder)
+        except Exception:
+            log("Exception occurred creating events! Defaulting to event conversion!")
+            MatlabEventConversionTask.run(self, files, db_folder)
 
-class CompareEventsTask(object):
 
-    def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None):
+class HierarchicalAggregatorTask(PipelineTask):
+
+    DIRECTORY_ORDER = None
+    GLOBAL_AGGREGATIONS = {}
+
+    def __init__(self, additional_values=None, additional_keys=None, **kwargs):
+        super(HierarchicalAggregatorTask, self).__init__()
+        self.additional_values = additional_values or {}
+        self.additional_keys = additional_keys or {}
+        self.kwargs = kwargs
+
+    @classmethod
+    def aggregate_hierarchy(cls, directory_order, global_aggregations, files, additional_entries, **kwargs):
+        # Once for the globals
+        for aggregation_label, aggregation_key in global_aggregations.items():
+            directory_path = DB_ROOT
+            for i, (directory, key) in enumerate(directory_order):
+                log('Aggregating {}: {} in {}'.format(aggregation_label, aggregation_key.format(**kwargs), directory))
+                directory_path = os.path.join(directory_path, directory)
+                cls.build_aggregate(directory_path, directory_order[i:],
+                                    aggregation_label, aggregation_key, files, additional_entries, **kwargs)
+
+                directory_path = os.path.join(directory_path, key.format(**kwargs))
+                if directory == aggregation_label:
+                    break
+        # Once for indexing of current directory
+        directory_path = DB_ROOT
+        for i, (directory, key) in enumerate(directory_order):
+            directory_path = os.path.join(directory_path, directory)
+            if not directory in global_aggregations:
+                log('Aggregating {}: {} in {}'.format(directory, key.format(**kwargs), directory))
+                cls.build_aggregate(directory_path, directory_order[i:],
+                                    directory, key, files, additional_entries, **kwargs)
+            directory_path = os.path.join(directory_path, key.format(**kwargs))
+
+    @staticmethod
+    def build_aggregate(directory_path, directory_order, aggregation_label, aggregation_key, files,
+                        additional_values, **kwargs):
+        agg_file = os.path.join(directory_path, '{}.json'.format(aggregation_label))
+        if os.path.exists(agg_file):
+            aggregate = json.load(open(agg_file))
+        else:
+            aggregate = {}
+
+        key_value = aggregation_key.format(**kwargs)
+
+        if key_value not in aggregate:
+            aggregate[key_value] = {}
+
+        aggregate_level = aggregate[key_value]
+
+        for entry, entry_key in directory_order:
+            if entry == aggregation_label:
+                continue
+            entry_key_value = entry_key.format(**kwargs)
+            if entry not in aggregate_level:
+                aggregate_level[entry] = {}
+
+            aggregate_entry = aggregate_level[entry]
+            if entry_key_value not in aggregate_entry:
+                aggregate_entry[entry_key_value] = {}
+
+            aggregate_level = aggregate_entry[entry_key_value]
+
+        aggregate_level.clear()
+        for label, file in files.items():
+            aggregate_level[label] = os.path.relpath(file, directory_path)
+        aggregate_level.update(additional_values)
+
+        json.dump(aggregate, open(agg_file, 'w'), indent=2, sort_keys=True)
+
+    def run(self, files, db_folder):
+        if not self.DIRECTORY_ORDER:
+            raise NotImplementedError("Must use subclass specifying directory order")
+        self.aggregate_hierarchy(self.DIRECTORY_ORDER, self.GLOBAL_AGGREGATIONS, self.pipeline.output_files,
+                                 self.additional_values, **self.kwargs)
+
+
+class FlatAggregatorTask(PipelineTask):
+
+
+    DIRECTORY_ORDER = None
+    AGGREGATE_NAME = None
+    AGGREGATE_KEY = None
+
+    def __init__(self, info=None, **kwargs):
+        super(FlatAggregatorTask, self).__init__()
+        self.info = info or {}
+        self.kwargs = kwargs
+
+    @classmethod
+    def aggregate_info(cls, directory_order, aggregate_name, aggregate_key, additional_keys, files, **kwargs):
+        directory_path = DB_ROOT
+        for i, (directory, key) in enumerate(directory_order):
+            log('Aggregating {}: {} in {}'.format(aggregate_name, aggregate_key.format(**kwargs),
+                                                  directory))
+            directory_path = os.path.join(directory_path, directory)
+            cls.build_aggregate(directory_path, aggregate_name, aggregate_key, additional_keys, files, **kwargs)
+
+            used_kwargs = []
+            for kwarg, kwkey in kwargs.items():
+                try:
+                    directory_path = os.path.join(directory_path, key.format(**{kwarg:kwkey}))
+                    used_kwargs.append(kwarg)
+                except KeyError:
+                    pass
+            for kwarg in used_kwargs:
+                del kwargs[kwarg]
+
+
+    @staticmethod
+    def build_aggregate(directory_path, aggregate_name, aggregate_key, info, files, **kwargs):
+        if not os.path.exists(directory_path):
+            os.makedirs(directory_path)
+
+        agg_file = os.path.join(directory_path, '{}.json'.format(aggregate_name))
+        if os.path.exists(agg_file):
+            aggregate = json.load(open(agg_file))
+        else:
+            aggregate = {}
+
+        key_value = aggregate_key.format(**kwargs)
+
+        aggregate[key_value] = info.copy()
+
+        for label, file in files.items():
+            aggregate[key_value][label] = os.path.relpath(file, directory_path)
+
+        aggregate[key_value].update(kwargs)
+
+        json.dump(aggregate, open(agg_file, 'w'), indent=2, sort_keys=True)
+
+    def run(self, files, db_folder):
+        if not self.DIRECTORY_ORDER or not self.AGGREGATE_KEY or not self.AGGREGATE_NAME:
+            raise NotImplementedError("Must use subclass specifying directory order")
+        self.aggregate_info(self.DIRECTORY_ORDER, self.AGGREGATE_NAME, self.AGGREGATE_KEY, self.info, files,
+                            **self.kwargs)
+
+class SessionAggregatorTask(HierarchicalAggregatorTask):
+
+
+    DIRECTORY_ORDER = (('protocols', '{protocol}'),
+                       ('subjects', '{subject}'),
+                       ('experiments', '{experiment}'),
+                       ('sessions', '{session}'))
+
+    GLOBAL_AGGREGATIONS = {'protocols': '{protocol}',
+                            'subjects': '{subject}',
+                            'experiments': '{experiment}'}
+
+    def __init__(self, montage, localization, **kwargs):
+        super(SessionAggregatorTask, self).__init__({'montage': montage, 'localization': localization}, **kwargs)
+
+
+class CodeAgggregatorTask(FlatAggregatorTask):
+
+    DIRECTORY_ORDER = (('protocols', '{protocol}'),
+                       ('subjects', '{subject}'),
+                       ('localizations', '{localization}'),
+                       ('montages', '{montage}'))
+
+    AGGREGATE_NAME = 'codes'
+    AGGREGATE_KEY = '{code}'
+
+
+class CompareEventsTask(PipelineTask):
+
+    def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
+                 match_field=None):
+        super(CompareEventsTask, self).__init__()
         self.name = 'Comparator {}: {}_{}'.format(subject, experiment, session)
         self.subject = subject
         self.code = code if code else subject
@@ -272,9 +450,7 @@ class CompareEventsTask(object):
         self.experiment = experiment
         self.session = session
         self.protocol = protocol
-
-    def set_pipeline(self, pipeline):
-        self.pipeline = pipeline
+        self.match_field = match_field if match_field else 'mstime'
 
     def run(self, files, db_folder):
         logger.set_label(self.name)
@@ -297,7 +473,7 @@ class CompareEventsTask(object):
             comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
         else:
             comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
-        comparator = EventComparator(new_events, self.sess_mat_events, **comparator_inputs)
+        comparator = EventComparator(new_events, self.sess_mat_events, match_field=self.match_field, **comparator_inputs)
         log('Comparing events...')
 
         found_bad, error_message = comparator.compare()
@@ -373,7 +549,7 @@ def change_current(source_folder, *args):
         os.symlink(previous_current_source, current_source)
         os.symlink(previous_current_processed, current_processed)
 
-def test_change_current():
+def xtest_change_current():
     from convenience import build_split_pipeline
     import time
     subject, montage, experiment, session, protocol = 'R1001P', '0.0', 'FR1', 0, 'r1',

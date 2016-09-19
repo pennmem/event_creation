@@ -68,6 +68,9 @@ class PALSessionLogParser(BaseSessionLogParser):
         }
 
         self._pal2_stim_on_time = 0
+        self._pal2_stim_serialpos = -1
+        self._pal2_stim_list = -1
+        self._pal2_stim_is_retrieval = False
 
         self._stim_type = ''
         self._add_fields(*self._pal_fields())
@@ -121,6 +124,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             PRACTICE_RETRIEVAL_ORIENT=self.modify_orient,
             RETRIEVAL_ORIENT=self.modify_orient,
             PRACTICE_PAIR=self.modify_practice_pair,
+            STIM_ON=self.modify_stim_on
         )
 
     def event_default(self, split_line):
@@ -130,7 +134,6 @@ class PALSessionLogParser(BaseSessionLogParser):
         :return:
         """
         event = BaseSessionLogParser.event_default(self, split_line)
-        self.check_apply_stim(event)
 
         event.stimList = self._stimList
         event.exp_version = self._version
@@ -138,6 +141,9 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.stim_list = self._stim_list
         event.list = self._list
         event.serialpos = self._serialpos
+
+        self.check_apply_stim(event)
+
         return event
 
     def check_apply_stim(self, event):
@@ -146,6 +152,13 @@ class PALSessionLogParser(BaseSessionLogParser):
                 event.mstime >= self._pal2_stim_on_time:
             event.is_stim = True
             self.set_event_stim_params(event, jacksheet=self._jacksheet, stim_on=True, **self._pal2_stim_params)
+        #elif self._pal2_stim_on_time and \
+        #        event.list == self._pal2_stim_list and event.serialpos == self._pal2_stim_serialpos:
+        #    item = event.type.item()
+        #    if  ('TEST' in item or 'RETRIEVAL' in item or 'REC' in item) ^ (self._stim_type == 'ENCODING'):
+        #        event.is_stim = True
+        #        self.set_event_stim_params(event, jacksheet=self._jacksheet, stim_on=False, **self._pal2_stim_params)
+
 
     def event_stim_params(self, split_line):
         self._is_fr2 = True
@@ -205,6 +218,12 @@ class PALSessionLogParser(BaseSessionLogParser):
         event.is_stim = True
         self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._pal2_stim_params)
         return event
+
+    def modify_stim_on(self, events):
+        self._pal2_stim_serialpos = events[-2].serialpos
+        self._pal2_stim_list = events[-2].list
+        self._pal2_stim_is_retrieval = 'TEST' in events[-2].type
+        return events
 
     def event_trial(self, split_line):
         self._list = int(split_line[3])
@@ -476,6 +495,7 @@ class PALSessionLogParser(BaseSessionLogParser):
 
     def modify_recalls(self, events):
         rec_start_event = events[-1]
+        is_stim = rec_start_event.is_stim
         rec_start_time = float(rec_start_event.mstime)
         list_str = str(self._list-1) if self._list != -1 else 'p'
         ann_file = list_str + '_' + str(self._probepos-1)
@@ -497,6 +517,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             word = recall[-1]
             new_event = self._empty_event
             new_event.list = self._list
+            new_event.is_stim = is_stim
             new_event.serialpos = self._serialpos
             new_event.probepos = self._probepos
             new_event.probe_word = self._probe_word
@@ -579,6 +600,14 @@ class PALSessionLogParser(BaseSessionLogParser):
                     else:  # xli
                         new_event.intrusion = -1
                         events.intrusion[modify_events_mask] = -1
+
+            if self._pal2_stim_serialpos == new_event.serialpos and \
+                    self._pal2_stim_list == new_event.list and \
+                    self._pal2_stim_is_retrieval:
+                new_event.is_stim = True
+                stim_on = new_event.mstime - self._pal2_stim_on_time < self.PAL2_STIM_DURATION
+                self.set_event_stim_params(new_event, jacksheet=self._jacksheet, stim_on=stim_on, **self._pal2_stim_params)
+
             events = np.append(events, new_event).view(np.recarray)
 
         return events

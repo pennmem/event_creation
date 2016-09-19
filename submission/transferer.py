@@ -12,7 +12,8 @@ from loggers import log, logger
 
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
-DB_ROOT='/Volumes/db_root/'
+LOC_DB_ROOT=RHINO_ROOT
+DB_ROOT='/Volumes/db_root/test/'
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 class UnTransferrableException(Exception):
@@ -22,13 +23,13 @@ class Transferer(object):
 
     CURRENT_NAME = 'current_source'
     INDEX_NAME='index.json'
-
+    STRFTIME = '%Y%m%d.%H%M%S'
 
     def __init__(self, json_file, groups, destination, **kwargs):
         self.groups = groups
         self.destination_root = os.path.abspath(destination)
         self.destination_current = os.path.join(self.destination_root, self.CURRENT_NAME)
-        self.label = datetime.datetime.now().strftime('%y%m%d.%H%M%S')
+        self.label = datetime.datetime.now().strftime(self.STRFTIME)
         log('Transferer {} created'.format(self.label))
         self.kwargs = kwargs
         self.transferred_files = {}
@@ -348,7 +349,9 @@ class Transferer(object):
     @classmethod
     def delete_if_empty(cls, path):
         try:
-            for (subpath, _, _) in os.walk(path):
+            for (subpath, _, files) in os.walk(path):
+                if len(files) and files[0] == 'log.txt':
+                    os.remove(os.path.join(subpath, files[0]))
                 if subpath == path:
                     continue
                 cls.delete_if_empty(subpath)
@@ -397,6 +400,27 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
                       data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
                       code=code, original_session=original_session, **kwargs)
 
+
+
+def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
+
+    groups = groups + ('json_import',)
+    json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'montage_inputs.json')
+    code = code or subject
+
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
+
+    destination = os.path.join(DB_ROOT,
+                               'protocols', protocol,
+                               'subjects', subject,
+                               'localizations', localization,
+                               'montages', montage_num,
+                               'neuroradiology')
+
+    transferer = Transferer(json_file, groups, destination, protocol=protocol, subject=subject, code=code,
+                            loc_db_root=LOC_DB_ROOT)
+    return transferer, groups
 
 
 def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
@@ -467,7 +491,10 @@ class TransferPipeline(object):
             os.path.join(self.destination_root, 'log.txt'),
             os.path.join(self.destination, 'log.txt')
         ]
+        self.output_files = {}
 
+    def register_output(self, filename, label):
+        self.output_files[label] = os.path.join(self.current_dir, filename)
 
     @property
     def source_label(self):
@@ -529,8 +556,8 @@ class TransferPipeline(object):
             os.symlink(self.processed_label, self.current_dir)
 
         except Exception as e:
-            log('Task {} failed!!\nRolling back transfer'.format(pipeline_task.name if pipeline_task else
-                                                                   'initialization'), 'CRITICAL')
+            log('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
+                                                                   'initialization', e), 'CRITICAL')
 
 
             self.transferer.remove_transferred_files()
