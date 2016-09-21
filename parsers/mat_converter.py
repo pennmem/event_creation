@@ -12,12 +12,16 @@ import glob
 import datetime
 from readers import eeg_reader
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from submission.transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT, EVENTS_ROOT
+from submission.transferer import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
 from viewers.view_recarray import strip_accents
 
 
 class BaseMatConverter(object):
+    """
+    Base class to convert .mat files to record arrays
+    """
 
+    # These fields get converted regardless of the type of event
     _BASE_FIELD_CONVERSION = {
         'eegfile': 'eegfile',
         'eegoffset': 'eegoffset',
@@ -26,8 +30,10 @@ class BaseMatConverter(object):
         'type': 'type'
     }
 
+    # No values get converted automatically
     _BASE_VALUE_CONVERSION = {}
 
+    # The base fields and stim fields are inherited from the BaseLogParser
     _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS
     _STIM_FIELDS = BaseSessionLogParser._STIM_FIELDS
 
@@ -37,6 +43,18 @@ class BaseMatConverter(object):
 
     def __init__(self, protocol, subject, montage, experiment, session, original_session, files,
                  events_type='matlab_events', include_stim_params=False):
+        """
+        Constructor
+        :param protocol: New protocol for the events
+        :param subject: New subject...
+        :param montage: New montage number...
+        :param experiment: New experiment...
+        :param session: New session...
+        :param original_session: Original session (used to parse old events to specific session)
+        :param files: Output of Transferer instance
+        :param events_type: key from which to grab events file from transferer output
+        :param include_stim_params: Whether to include stimulation parameters in the final record array
+        """
         self._protocol = protocol
         self._subject = subject
         self._montage = montage
@@ -45,8 +63,8 @@ class BaseMatConverter(object):
         self._include_stim_params = include_stim_params
         self._fields = self._BASE_FIELDS
 
-        event_reader = BaseEventReader(filename=str(files[events_type]),
-                                       common_root=DB_ROOT)
+        # Get the matlab events for this specific session
+        event_reader = BaseEventReader(filename=str(files[events_type]), common_root=DB_ROOT)
         mat_events = event_reader.read()
         sess_events = mat_events[mat_events.session == original_session]
         self._mat_events = sess_events
@@ -56,6 +74,8 @@ class BaseMatConverter(object):
 
         self._field_conversion = self._BASE_FIELD_CONVERSION.copy()
         self._value_converion = self._BASE_VALUE_CONVERSION.copy()
+
+        # B, E, and empty event types can be skipped
         self._type_conversion = {
             'B': self._skip_event,
             'E': self._skip_event,
@@ -70,29 +90,53 @@ class BaseMatConverter(object):
             self._jacksheet = None
 
     def _add_fields(self, *args):
+        """
+        Adds these fields to the default record array output
+        :param args: Fields, like listed in _BASE_FIELDS
+        """
         init_fields = list(self._fields)
         init_fields.extend(args)
         self._fields = tuple(init_fields)
 
     def _add_field_conversion(self, **kwargs):
+        """
+        :param kwargs: fields of the mat structure with name 'key' will be converted to name 'value'
+        """
         self._field_conversion.update(kwargs)
 
     @property
     def _reverse_field_conversion(self):
+        """
+        Convenience to reverse the field conversion dictionary
+        """
         return {v:k for k,v in self._field_conversion.items()}
 
     def _add_type_conversion(self, **kwargs):
+        """
+        :param kwargs Fields with type 'key' are converted to have type 'value'
+        """
         self._type_conversion.update(kwargs)
 
     def _add_value_conversion(self, **kwargs):
+        """
+        :param kwargs: Fields with type 'key' that have value 'v' are converted to have value 'value'['v']
+        """
         self._value_converion.update(kwargs)
 
     @property
     def event_template(self):
+        """
+        The template for each event
+        :return: The template
+        """
         return self._fields
 
     @property
     def _empty_event(self):
+        """
+        Outputs the event with fields that will be the same for every event in the session
+        :return: the empty event
+        """
         event = BaseSessionLogParser.event_from_template(self.event_template)
         event.protocol = self._protocol
         event.subject = self._subject
@@ -102,6 +146,11 @@ class BaseMatConverter(object):
         return event
 
     def convert_fields(self, mat_event):
+        """
+        Converts the fields for a given matlab event to the record array, ignoring special rules
+        :param mat_event: the matlab event to convert
+        :return: the record array event
+        """
         py_event = self._empty_event
         for mat_field, py_field in self._field_conversion.items():
             if mat_field in mat_event.dtype.names:
@@ -113,9 +162,16 @@ class BaseMatConverter(object):
 
 
     def convert_single_event(self, mat_event):
+        """
+        Converts a single matlab event to a python event, applying the specified conversions
+        :param mat_event: The matlab event
+        :return: The record array event
+        """
+        # Can implement a specific conversion based on type
         if mat_event.type in self._type_conversion:
             py_event = self._type_conversion[mat_event.type](mat_event)
         else:
+            # Otherwise it undergoes the default conversion
             py_event = self.convert_fields(mat_event)
             for key, value in self._value_converion.items():
                 mat_field = self._reverse_field_conversion[key]
@@ -130,6 +186,10 @@ class BaseMatConverter(object):
         return py_event
 
     def convert(self):
+        """
+        Converts all matlab events to record-array events
+        :return: The record array events
+        """
         py_events = self._empty_event
         for mat_event in self._mat_events:
             new_py_event = self.convert_single_event(mat_event)
@@ -143,6 +203,11 @@ class BaseMatConverter(object):
 
 
     def clean_events(self, events):
+        """
+        Wound up being the meat of the conversion.
+        :param events: Events with type and values converted
+        :return: Events modified in whatever custom way. In this case, fixing experiment version and eegfile
+        """
         if 'exp_version' in events.dtype.names:
             events.exp_version = re.sub(r'[^\d.]', '', events[10].exp_version)
         for event in events:
@@ -150,13 +215,27 @@ class BaseMatConverter(object):
         return events
 
     def stim_field_conversion(self, mat_event, py_event):
+        """
+        Subclasses must implement their own stim field conversion
+        """
         raise NotImplementedError
 
 
 class MatlabEEGExtractor(object):
+    """
+    Class that reads in EEG files referenced in a matlab file and applies the appropriate gain,
+    then saves them out with a gain of 1 and the new parameters file
+    """
+
+    # Matches anything that looks like an EEG file
     EEG_FILE_REGEX = re.compile(r'.*\.[0-9]+$')
 
     def __init__(self, original_session, files):
+        """
+        Constructor
+        :param original_session: The session to reference in the matlab events
+        :param files: output of transferer, must include 'matlab_events'
+        """
         event_reader = BaseEventReader(filename=str(files['matlab_events']),
                                        common_root=DB_ROOT)
         mat_events = event_reader.read()
@@ -165,13 +244,24 @@ class MatlabEEGExtractor(object):
 
 
     def copy_ephys(self, destination):
+        """
+        Copies the eeg recordings to the specified destination
+        :param destination: The folder in which to place the noreref dir containing the eeg recordings
+        """
+
+        # Get the locations of the eeg files
         eeg_locations = np.unique(self._mat_events.eegfile)
         info = {}
         os.makedirs(os.path.join(destination, 'noreref'))
+
+        # For each unique eeg location:
         for eeg_location in eeg_locations:
             eeg_location = os.path.join(RHINO_ROOT, eeg_location)
+            # Get the original parameters
             params = self.get_params(eeg_location)
             n_samples = np.nan
+
+            # For each channel file in the folder, copy them to the output
             eeg_filenames = glob.glob('{}.*'.format(eeg_location))
             for eeg_filename in eeg_filenames:
                 if re.match(self.EEG_FILE_REGEX, eeg_filename):
@@ -183,6 +273,7 @@ class MatlabEEGExtractor(object):
                         data.tofile(out_file)
                         n_samples = len(data)
 
+            # Fill out the new parameters
             name = os.path.basename(eeg_location)
             date_str = '_'.join(name.split('_')[-2:])
             date_time = datetime.datetime.strptime(date_str, eeg_reader.EEG_reader.STRFTIME)
@@ -196,12 +287,19 @@ class MatlabEEGExtractor(object):
                 'start_time_ms': date_ms,
                 'start_time_str': date_str
             }
+
+        # Output the parameters file
         with open(os.path.join(destination, 'sources.json'), 'w') as source_file:
             json.dump(info, source_file, indent=2, sort_keys=True)
 
 
     @staticmethod
     def get_params(eeg_location):
+        """
+        Gets the parameters for an old eeg file
+        :param eeg_location: location in which to find the params.txt file
+        :return: dictionary of parameters
+        """
         params = {}
         params_filename = '{}.params.txt'.format(eeg_location)
 
@@ -219,7 +317,11 @@ class MatlabEEGExtractor(object):
 
 
 class FRMatConverter(BaseMatConverter):
+    """
+    Specifics for converting FR events
+    """
 
+    # These fields appear in the final record array
     _FR_FIELD_CONVERSION = {
         'serialpos': 'serialpos',
         'item': 'word',
@@ -233,6 +335,7 @@ class FRMatConverter(BaseMatConverter):
         'list': 'list'
     }
 
+    # These values are converted in the record array (if not done, -999 defaults to True)
     _FR_VALUE_CONVERSION = {
         'is_stim': { -999: False },
         'recalled': { -999: False },
@@ -241,6 +344,7 @@ class FRMatConverter(BaseMatConverter):
 
     _FR_FIELDS = FRSessionLogParser._fr_fields()
 
+    # FR2 specific fields
     FR2_STIM_DURATION = FRSessionLogParser.FR2_STIM_DURATION
     FR2_STIM_PULSE_FREQUENCY = FRSessionLogParser.FR2_STIM_PULSE_FREQUENCY
     FR2_STIM_N_PULSES = FRSessionLogParser.FR2_STIM_N_PULSES
@@ -249,6 +353,16 @@ class FRMatConverter(BaseMatConverter):
     FR2_STIM_PULSE_WIDTH = FRSessionLogParser.FR2_STIM_PULSE_WIDTH
 
     def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
+        """
+        Constructor
+        :param protocol: New protocol for the events
+        :param subject: New subject...
+        :param montage: New montage number...
+        :param experiment: New experiment...
+        :param session: New session...
+        :param original_session: Original session (used to parse old events to specific session)
+        :param files: Output of Transferer instance
+        """
         super(FRMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
                                              include_stim_params=True)
         if experiment == 'FR3':
@@ -268,6 +382,12 @@ class FRMatConverter(BaseMatConverter):
         }
 
     def clean_events(self, events):
+        """
+        For the provided events structure, "cleans" the events, fixing any errors and discrepancies between
+        the matlab and the record-array events
+        :param events: Events to modify
+        :return: modified events
+        """
         super(FRMatConverter, self).clean_events(events)
 
         serialpos = 0

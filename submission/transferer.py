@@ -13,7 +13,7 @@ from loggers import log, logger
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT='/Volumes/db_root/test/'
+DB_ROOT='/Volumes/db_root/'
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 class UnTransferrableException(Exception):
@@ -349,8 +349,8 @@ class Transferer(object):
     @classmethod
     def delete_if_empty(cls, path):
         try:
-            for (subpath, _, files) in os.walk(path):
-                if len(files) and files[0] == 'log.txt':
+            for (subpath, _, files) in os.walk(path, topdown=False):
+                if len(files) == 1 and files[0] == 'log.txt':
                     os.remove(os.path.join(subpath, files[0]))
                 if subpath == path:
                     continue
@@ -452,7 +452,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     kwarg_inputs['subject'] = subject
     if is_sys2:
         groups += ('system_2', )
-    else:
+    elif not 'conversion' in groups:
         groups += ('system_1', )
         kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = find_sync_file(code, experiment, original_session)
 
@@ -475,8 +475,9 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 class TransferPipeline(object):
 
     CURRENT_PROCESSED_DIRNAME = 'current_processed'
+    INDEX_FILE = 'index.json'
 
-    def __init__(self, transferer, *pipeline_tasks):
+    def __init__(self, transferer, *pipeline_tasks, **info):
         self.transferer = transferer
         self.pipeline_tasks = pipeline_tasks
         self.exports = {}
@@ -492,9 +493,13 @@ class TransferPipeline(object):
             os.path.join(self.destination, 'log.txt')
         ]
         self.output_files = {}
+        self.output_info = info
 
     def register_output(self, filename, label):
         self.output_files[label] = os.path.join(self.current_dir, filename)
+
+    def register_info(self, info_key, info_value):
+        self.output_info[info_key] = info_value
 
     @property
     def source_label(self):
@@ -509,6 +514,18 @@ class TransferPipeline(object):
             logger.add_log_files(*self.log_filenames)
         except:
             log('Could not set logging path.')
+
+    def create_index(self):
+        index = {}
+        if len(self.output_files) > 0:
+            index['files'] = {}
+            for name, path in self.output_files.items():
+                index['files'][name] = os.path.relpath( path, self.current_dir)
+        if len(self.output_info) > 0:
+            index['info'] = self.output_info
+        if len(index) > 0:
+            json.dump(index, open(os.path.join(self.current_dir, self.INDEX_FILE), 'w'),
+                      indent=2, sort_keys=True)
 
     def stop_logging(self):
         logger.remove_log_files(*self.log_filenames)
@@ -569,6 +586,7 @@ class TransferPipeline(object):
             raise
 
         log('Transfer pipeline ended normally')
+        self.create_index()
         self.stop_logging()
 
 

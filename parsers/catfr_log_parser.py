@@ -1,11 +1,12 @@
-from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
-from system2_log_parser import System2LogParser
+from base_log_parser import BaseSessionLogParser
 from viewers.view_recarray import strip_accents
 import numpy as np
-import os
 import re
 
 class CatFRSessionLogParser(BaseSessionLogParser):
+    """
+    Handles parsing of catFR log files and production of catFR events
+    """
 
     @classmethod
     def _catfr_fields(cls):
@@ -28,6 +29,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             ('stim_list', False, 'b1'),
         )
 
+    # Params specific to FR2
     CATFR2_STIM_DURATION= 4600
     CATFR2_STIM_PULSE_FREQUENCY = 50
     CATFR2_STIM_N_PULSES = 250
@@ -36,6 +38,18 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     CATFR2_STIM_PULSE_WIDTH = 300
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
+        """
+        constructor
+        :param protocol: Protocol for this subject/session
+        :param subject: Subject that ran in this session (no montage code)
+        :param montage: Montage for this subject/session
+        :param experiment: Experiment name and number for this session (e.g. FR3, catFR1)
+        :param session: Session for this subject/session
+        :param files: A dictionary of files (as returned from an instance of Transferer). Must include 'session_log'
+                      and a list of files under the key 'annotations' pointing to .ann files
+        :return:
+        """
+
         super(CatFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                     include_stim_params=True)
         if 'no_accent_wordpool' in files:
@@ -94,8 +108,15 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         )
 
     def _set_stim_params(self, split_line):
+        """
+        For catFR2 specifically, used to set the catFR2 stim parameters
+        :param split_line: the line defining stim params, split on tabs
+        :return:
+        """
         self._is_fr2 = True
         if split_line[9] != '0':
+            # Have to do this annoying thing because there were a few sessions where patients from these sites
+            # had one less in their anode and cathode numbers
             if split_line[5].isdigit():
                 if self._subject[-1] in ('M', 'W', 'E'):
                     offset = 1

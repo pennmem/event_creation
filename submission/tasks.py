@@ -40,10 +40,11 @@ class PipelineTask(object):
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
 
-    def create_file(self, filename, contents, label):
+    def create_file(self, filename, contents, label, index_file=True):
         with open(os.path.join(self.pipeline.destination, filename), 'w') as f:
             f.write(contents)
-        self.pipeline.register_output(filename, label)
+        if index_file:
+            self.pipeline.register_output(filename, label)
 
 
 class ImportJsonMontageTask(PipelineTask):
@@ -57,7 +58,7 @@ class ImportJsonMontageTask(PipelineTask):
             with open(files[file]) as f:
                 filename = '{}.json'.format(file)
                 output = json.load(f)
-                self.create_file(filename, json.dumps(output, indent=2, sort_keys=True), file)
+                self.create_file(filename, json.dumps(output, indent=2, sort_keys=True), file, False)
 
 class SplitEEGTask(PipelineTask):
 
@@ -196,11 +197,50 @@ class EventCombinationTask(PipelineTask):
                          to_json(combined_events), '{}_events'.format(self.COMBINED_LABEL))
 
 
+class MontageLinkerTask(PipelineTask):
+    """
+    Simple task to verify that the appropriate montage files exist for this patient, then
+    link them within the pipeline so they will be indicated in the index file
+    """
+
+    MONTAGE_PATH = os.path.join('protocols', '{protocol}',
+                                'subjects', '{subject}',
+                                'localizations', '{localization}',
+                                'montages', '{montage}',
+                                'neuroradiology', 'current_processed')
+
+    FILES = {'pairs': 'pairs.json',
+             'contacts': 'contacts.json'}
+
+
+    def __init__(self, protocol, subject, montage):
+        super(MontageLinkerTask, self).__init__()
+        self.name = 'Montage linker'
+        self.protocol = protocol
+        self.subject = subject
+        self.montage = montage
+
+    def run(self, files, db_folder):
+        montage_path = self.MONTAGE_PATH.format(protocol=self.protocol,
+                                                subject=self.subject,
+                                                localization=self.montage.split('.')[0],
+                                                montage=self.montage.split('.')[1])
+        for name, file in self.FILES.items():
+            fullfile = os.path.join(montage_path, file)
+            if not os.path.exists(os.path.join(DB_ROOT, fullfile)):
+                raise UnProcessableException("Cannot find montage for {} in {}".format(self.subject, fullfile))
+            log('File {} found'.format(file))
+            self.pipeline.register_info(name, fullfile)
+
+
 
 class MatlabEventConversionTask(PipelineTask):
 
     CONVERTERS = {
-        'FR': FRMatConverter
+        'FR': FRMatConverter,
+        'PAL': PALMatConverter,
+        'catFR': CatFRMatConverter,
+        'PS': PSMatConverter
     }
 
     def __init__(self, protocol, subject, montage, experiment, session,
@@ -272,6 +312,83 @@ class ImportEventsTask(PipelineTask):
             MatlabEventConversionTask.run(self, files, db_folder)
 
 
+class IndexAggregatorTask(PipelineTask):
+
+    INDEX_LOCATION = os.path.join(DB_ROOT, 'protocols', 'index.json')
+    PROCESSED_DIRNAME = 'current_processed'
+    INDEX_FILENAME = 'index.json'
+
+    def __init__(self):
+        super(IndexAggregatorTask, self).__init__()
+
+    @classmethod
+    def build_index(cls):
+        index_files = cls.find_index_files()
+        d = {}
+        for index_file in index_files:
+            cls.build_single_file_index(index_file, d)
+        return d
+
+
+    @classmethod
+    def find_index_files(cls):
+        result = []
+        for root, dirs, files in os.walk(DB_ROOT):
+            if cls.PROCESSED_DIRNAME in dirs and \
+                    cls.INDEX_FILENAME in os.listdir(os.path.join(root, cls.PROCESSED_DIRNAME)):
+                result.append(os.path.join(root, cls.PROCESSED_DIRNAME, cls.INDEX_FILENAME))
+        return result
+
+    @classmethod
+    def build_single_file_index(cls, index_path, d):
+        index = json.load(open(index_path))
+        info_list = cls.list_from_index_path(index_path)
+
+        sub_d = d
+        for entry in info_list:
+            if entry[0] not in sub_d:
+                sub_d[entry[0]] = {}
+            if entry[1] not in sub_d[entry[0]]:
+                sub_d[entry[0]][entry[1]] = {}
+            sub_d = sub_d[entry[0]][entry[1]]
+
+        current_dir = os.path.dirname(index_path)
+        rel_dirname = os.path.relpath(current_dir, DB_ROOT)
+        if 'files' in index:
+            for name, file in index['files'].items():
+                sub_d[name] = os.path.join(rel_dirname, file)
+        if 'info' in index:
+            sub_d.update(index['info'])
+
+    @classmethod
+    def list_from_index_path(cls, index_path):
+        """
+        IndexAggregatorTask.dict_from_path('/protocols/r1') == {'protocols': {'r1': {}}}
+        :param path:
+        :return:
+        """
+        processed_dir = os.path.dirname(index_path)
+        type_dir = os.path.dirname(processed_dir)
+
+        value_dir = os.path.dirname(type_dir)
+        path_list = []
+        while os.path.realpath(value_dir) != os.path.realpath(DB_ROOT):
+            key_dir = os.path.dirname(value_dir)
+            path_list.append((os.path.basename(key_dir), os.path.basename(value_dir)))
+            value_dir = os.path.dirname(key_dir)
+            if os.path.basename(key_dir) == '':
+                raise Exception('Could not locate {} in {}'.format(DB_ROOT, index_path))
+        return path_list[::-1]
+
+    def run(self, *_):
+        index = self.build_index()
+        json.dump(index, open(self.INDEX_LOCATION,'w'), sort_keys=True, indent=2)
+
+def test_list_from_index_path():
+    import pprint
+    pprint.pprint(IndexAggregatorTask.build_index())
+
+"""
 class HierarchicalAggregatorTask(PipelineTask):
 
     DIRECTORY_ORDER = None
@@ -435,7 +552,7 @@ class CodeAgggregatorTask(FlatAggregatorTask):
 
     AGGREGATE_NAME = 'codes'
     AGGREGATE_KEY = '{code}'
-
+"""
 
 class CompareEventsTask(PipelineTask):
 

@@ -11,8 +11,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     @classmethod
     def _fr_fields(cls):
         """
-        Returns the template for a new FR field
-        :return:
+        :return: the template for a new FR field
         """
         return (
             ('list', -999, 'int16'),
@@ -27,6 +26,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             ('is_stim', False, 'b1'),
         )
 
+    # FR2 specific fields
     FR2_STIM_DURATION= 4600
     FR2_STIM_PULSE_FREQUENCY = 50
     FR2_STIM_N_PULSES = 250

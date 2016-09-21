@@ -1,9 +1,10 @@
 import numpy as np
-from viewers.view_recarray import pformat_rec
+from viewers.view_recarray import pformat_rec, to_dict, from_dict
 import os
 import re
 from loggers import log
 import codecs
+
 
 class UnparsableLineException(Exception):
     pass
@@ -76,6 +77,7 @@ class BaseSessionLogParser(object):
         ('eegfile', '', 'S256')
     )
 
+    # These fields are to be added if include_stim_params is true
     _STIM_FIELDS = (
         ('anode_number', -1, 'int16'),
         ('cathode_number', -1, 'int16'),
@@ -105,7 +107,7 @@ class BaseSessionLogParser(object):
         """
         Maximum of 10 stimulated electrodes at once, completely arbitrarily
         """
-        return ('stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS)
+        return 'stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS
 
     # Alignment doesn't have to start until this event is seen
     START_EVENT = 'SESS_START'
@@ -116,11 +118,12 @@ class BaseSessionLogParser(object):
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='session_log', allow_unparsed_events=False, include_stim_params=False):
         """
-
+        constructor
         :param protocol: Protocol for this subject/session
         :param subject: Subject that ran in this session (no montage code)
         :param montage: Montage for this subject/session
         :param experiment: Experiment name and number for this session (e.g. FR3, catFR1)
+        :param session: Session for this subject/session
         :param files: A dictionary of files (as returned from an instance of Transferer). Must include an entry with
                       the key as primary_log, and may include a list of files under the key 'annotations' pointing to
                       .ann files
@@ -588,15 +591,27 @@ class StimComparator(object):
                 mismatches += this_mismatch + '\n'
         return mismatches
 
-from viewers.view_recarray import to_dict, from_dict
 class EventCombiner(object):
+    """
+    Merges separate events into a single structure
+    """
 
     def __init__(self, events, sort_field='mstime'):
+        """
+        constructor
+        :param events: A list of the events to be combined
+        :param sort_field: The field that determines the order of the events
+        """
         self.events = events
         self.sort_field = sort_field
 
     @staticmethod
     def get_default(instance):
+        """
+        Gets the default value for a field based on a single value
+        :param instance: the model value
+        :return: the default value
+        """
         if isinstance(instance, basestring):
             return ''
         elif isinstance(instance, (int, float)):
@@ -607,9 +622,16 @@ class EventCombiner(object):
             return {}
 
     def combine(self):
+        """
+        Combines the events that were passed into the constructor
+        :return: combined events, sorted by the specified sort_field
+        """
+
+        # Convert the events to a dictionary
         all_dict_events = []
         for events in self.events:
             dict_events = to_dict(events)
+            # Add fields to each dictionary that don't appear in the other
             if len(all_dict_events) > 0:
                 keys = [k for k in dict_events[0].keys() if k not in all_dict_events[0].keys()]
                 for key in keys:
@@ -621,21 +643,12 @@ class EventCombiner(object):
                     default = self.get_default(all_dict_events[0][key])
                     for event in dict_events:
                         event[key] = default
-
             all_dict_events += dict_events
+
+        # Sort them, and return them
         all_dict_events = sorted(all_dict_events, key=lambda d:d[self.sort_field])
         return from_dict(all_dict_events)
 
-
-def test_events_combiner():
-    from viewers.view_recarray import from_json
-    e1 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/0/behavioral/current_processed/task_events.json')
-    e2 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/0/behavioral/current_processed/math_events.json')
-    e3 = from_json('/Volumes/db_root/protocols/r1/subjects/R1001P/experiments/FR1/sessions/1/behavioral/current_processed/task_events.json')
-    combiner = EventCombiner((e1, e2, e3), 'mstime')
-    from viewers.view_recarray import pprint_rec as ppr
-    combined_events = combiner.combine()
-    ppr(combined_events)
 
 def get_version_num(session_log_file):
     """
