@@ -15,13 +15,14 @@ from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
+from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter
 from loggers import log, logger
 from transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
-    SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS
+    SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
 
 
 try:
@@ -139,7 +140,8 @@ class EventCreationTask(PipelineTask):
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
         'math': MathLogParser,
-        'PS': PSLogParser
+        'PS': PSLogParser,
+        'ltpFR': LTPFR2SessionLogParser
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
@@ -164,6 +166,7 @@ class EventCreationTask(PipelineTask):
     def run(self, files, db_folder):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
+        '''
         unaligned_events = parser.parse()
         if self.is_sys2:
             aligner = System2Aligner(unaligned_events, files, db_folder)
@@ -173,6 +176,8 @@ class EventCreationTask(PipelineTask):
         else:
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
+        '''
+        events = parser.parse()
         events = parser.clean_events(events)
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
@@ -219,12 +224,16 @@ class MontageLinkerTask(PipelineTask):
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
+        self.localization = montage.split('.')[0]
+        self.montage_num = montage.split('.')[1]
 
     def run(self, files, db_folder):
         montage_path = self.MONTAGE_PATH.format(protocol=self.protocol,
                                                 subject=self.subject,
-                                                localization=self.montage.split('.')[0],
-                                                montage=self.montage.split('.')[1])
+                                                localization=self.localization,
+                                                montage=self.montage_num)
+        self.pipeline.register_into('localization', self.localization)
+        self.pipeline.register_info('montage', self.montage_num)
         for name, file in self.FILES.items():
             fullfile = os.path.join(montage_path, file)
             if not os.path.exists(os.path.join(DB_ROOT, fullfile)):
@@ -315,8 +324,9 @@ class ImportEventsTask(PipelineTask):
 class IndexAggregatorTask(PipelineTask):
 
     PROTOCOLS_DIR = os.path.join(DB_ROOT, 'protocols')
-    PROTOCOLS = ('r1',)
+    PROTOCOLS = ('r1', 'ltp')
     PROCESSED_DIRNAME = 'current_processed'
+    INDEX_FILENAME = 'index.json'
 
     def __init__(self):
         super(IndexAggregatorTask, self).__init__()
@@ -410,11 +420,13 @@ class CompareEventsTask(PipelineTask):
     def get_matlab_event_file(self):
         if self.protocol == 'r1':
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
-            event_directory = os.path.join(RHINO_ROOT, 'data', 'events', ram_exp)
+            event_directory = os.path.join(RHINO_ROOT, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
+        elif self.protocol == 'ltp':
+            event_directory = os.path.join(RHINO_ROOT, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code, 'session_{}'.format(self.original_session), 'events.mat')
         else:
-            raise NotImplementedError('Only R1 event comparison implemented')
+            raise NotImplementedError('Only R1 and LTP event comparison implemented')
 
-        return os.path.join(event_directory, '{}_events.mat'.format(self.code))
+        return os.path.join(event_directory)
 
     def run(self, files, db_folder):
         logger.set_label(self.name)
@@ -426,16 +438,19 @@ class CompareEventsTask(PipelineTask):
             )
         log('Loading matlab events')
         mat_events = mat_events_reader.read()
-        self.sess_mat_events = mat_events[mat_events.session == self.original_session]
+        self.sess_mat_events = mat_events[mat_events.session == self.original_session + 1] # TODO: dependent on protocol
         if not PTSA_LOADED:
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
-        major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
+        if self.protocol == 'r1':
+            major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
 
-        if float(major_version.split('_')[-1]) >= 2:
-            comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
+            if float(major_version.split('_')[-1]) >= 2:
+                comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
+            else:
+                comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
         else:
-            comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
+            comparator_inputs = LTP_COMPARATOR_INPUTS[self.experiment]
         comparator = EventComparator(new_events, self.sess_mat_events, match_field=self.match_field, **comparator_inputs)
         log('Comparing events...')
 
@@ -448,19 +463,19 @@ class CompareEventsTask(PipelineTask):
 
         log('Comparing stim events...')
 
+        if self.protocol == 'r1':
+            if float(major_version.split('_')[-1]) >= 2:
+                comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
+            else:
+                comparator_inputs = SYS1_STIM_COMPARISON_INPUTS[self.experiment]
 
-        if float(major_version.split('_')[-1]) >= 2:
-            comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
-        else:
-            comparator_inputs = SYS1_STIM_COMPARISON_INPUTS[self.experiment]
+            stim_comparator = StimComparator(new_events, self.sess_mat_events, **comparator_inputs)
+            errors = stim_comparator.compare()
 
-        stim_comparator = StimComparator(new_events, self.sess_mat_events, **comparator_inputs)
-        errors = stim_comparator.compare()
-
-        if errors:
-            assert False, errors
-        else:
-            log('Stim comparison success!')
+            if errors:
+                assert False, errors
+            else:
+                log('Stim comparison success!')
 
 
 

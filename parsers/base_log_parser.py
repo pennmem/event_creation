@@ -343,7 +343,10 @@ class BaseSessionLogParser(object):
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
 
         # Remove first (empty) event
-        return events[1:]
+        if events.ndim > 0:
+            return events[1:]
+        else:
+            return events
 
     # Used to find relevant lines in .ann files
     MATCHING_ANN_REGEX = r'\d+\.\d+\s+-?\d+\s+(([A-Z]+)|(<>))'
@@ -630,6 +633,8 @@ class EventCombiner(object):
         # Convert the events to a dictionary
         all_dict_events = []
         for events in self.events:
+            if len(events) == 0:
+                continue
             dict_events = to_dict(events)
             # Add fields to each dictionary that don't appear in the other
             if len(all_dict_events) > 0:

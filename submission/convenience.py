@@ -358,6 +358,7 @@ if __name__ == '__main__':
         experiment = original_experiment
 
     inputs = dict(
+        protocol='ltp',
         subject=subject,
         montage=montage,
         experiment=original_experiment,
@@ -386,6 +387,6 @@ if __name__ == '__main__':
     if experiment[-1] == '3':
         inputs['match_field'] = 'eegoffset'
 
-    run_individual_pipline(build_split_pipeline, inputs)
+    #run_individual_pipline(build_split_pipeline, inputs)
     run_individual_pipline(build_events_pipeline, inputs)
 
