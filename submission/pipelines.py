@@ -196,11 +196,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups + ('transfer',),
                                              code=code, **kwargs)
 
-    if protocol == 'r1':
-        tasks = [MontageLinkerTask(protocol, subject, montage)]
-    else:
-        tasks = []
-
+    tasks = [MontageLinkerTask(protocol, subject, montage)]
     tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
 
     if do_math:
@@ -212,10 +208,11 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
                                        kwargs['original_session'] if 'original_session' in kwargs else None,
                                        match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
-
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
 
     tasks.append(IndexAggregatorTask())
-    return TransferPipeline(transferer, subject_alias=code, *tasks)
+    return TransferPipeline(transferer, localization=localization, montage=montage_num, subject_alias=code, *tasks)
 
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,

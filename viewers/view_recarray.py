@@ -50,9 +50,6 @@ def _format_and_indent(this_input, indent):
 
 
 def to_dict(arr):
-    if arr.ndim == 0:
-        return {}
-
     arr_as_dict = []
     names_without_remove = [name for name in arr.dtype.names if name != '_remove']
     for x in arr:
@@ -179,11 +176,9 @@ def from_dict(d):
         else:
             dtypes.append((str(k), list_info[k]['dtype'], list_info[k]['len']))
 
-    if dtypes:
-        arr = np.zeros(len(d), dtypes).view(np.recarray)
-        copy_values(d, arr, list_info)
-    else:
-        arr = np.array([])
+
+    arr = np.zeros(len(d), dtypes).view(np.recarray)
+    copy_values(d, arr, list_info)
     return arr.view(np.recarray)
 
 def copy_values(dict_list, rec_arr, list_info=None):
