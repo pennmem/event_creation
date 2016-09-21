@@ -13,7 +13,7 @@ from loggers import log
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT='/Volumes/db_root/'
+DB_ROOT='/Users/jessepazdera/db_root/'
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')

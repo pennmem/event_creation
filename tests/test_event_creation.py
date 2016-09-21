@@ -896,6 +896,59 @@ def ps_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
 
     return False
 
+def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
+    # New parser retroactively logs 'rectime' on the presentation events for subsequently recalled words; old did not
+    if field == 'rectime' and event2['rectime'] == -999:
+        return True
+    # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
+    if field == 'word' and event1['word'] == '' and event2['word'] == '[]':
+        return True
+    # New parser records 'recalled', 'intruded', and recognized as booleans, with a default of 0 instead of -999
+    if field in ('recalled', 'finalrecalled', 'intruded', 'recognized') and event1[field] == 0 and event2[field] == -999:
+        return True
+    # New parser fills in 'recalled' and 'intruded' on word recalls; original did not
+    if field in ('recalled', 'intruded') and event1['type'] == 'REC_WORD':
+        return True
+    # New parser records empty font and case fields as empty strings instead of NaN
+    if field in ('font', 'case') and event1[field] == '' and event2[field] == 'nan':
+        return True
+    # Original .mat files only have the first four decimal places of the font color
+    if field in ('color_r', 'color_g', 'color_b') and abs(event2[field] - event1[field]) <= .001:
+        return True
+    if field == 'wordno' and event1['type'] == 'REC_START' and event1['wordno'] == -999 and event2['wordno'] == 0:
+        return True
+    return False
+
+
+def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
+    # New parser retroactively logs 'rectime' on the presentation events for subsequently recalled words; old did not
+    if field == 'rectime' and event2['rectime'] == -999 and event1['type'] == 'WORD':
+        return True
+    # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
+    if field == 'word' and event1['word'] == '' and event2['word'] == '[]':
+        return True
+    # New parser records 'recalled' and 'intruded' as booleans, with a default of 0 instead of -999
+    if field in ('recalled', 'intruded') and event1[field] == 0 and event2[field] == -999:
+        return True
+    # New parser fills in 'recalled' and 'intruded' on word recalls; original did not
+    if field in ('recalled', 'intruded') and event1['type'] == 'REC_WORD':
+        return True
+    # New parser considers beginning distractors to be part of the trial they precede, rather than the previous trial
+    if field == 'trial' and (event1['trial'] == event2['trial'] + 1 or (event1['trial'] == 1 and event2['trial'] == -999)) and event1['type'] == 'DISTRACTOR':
+        return True
+    # New parser gives REC_START events a begin_distractor value of -999 instead of 0
+    if field == 'begin_distractor' and event1['begin_distractor'] == -999 and event2['begin_distractor'] == 0:
+        return True
+    if field == 'wordno' and event1['wordno'] == -999 and event2['wordno'] == 0:
+        return True
+    if field == 'serialpos' and event1['serialpos'] == -999 and event2['serialpos'] == 0:
+        return True
+    if field == 'final_distractor' and event1[field] == -999 and event2[field] == 0:
+        return True
+    if field == 'final_distractor' and event1[field] == -999 and event1['type'] == 'REC_START':
+        return True
+    return False
+
 FR1_STIM_COMPARISON = dict(
     fields_to_compare={
         'stim_params.anode_number': 'stimAnode',
@@ -1116,6 +1169,23 @@ CATFR_SYS1_COMPARATOR_INPUTS = dict(
                  'SESSION_SKIPPED', 'INSTRUCT_VIDEO', 'STIM_OFF', 'STIM_PARAMS',
                  'B', 'E', 'COUNTDOWN_START', 'SESS_END', 'PRACTICE_REC_START', 'PRACTICE_REC_END')
 )
+
+LTPFR_COMPARATOR_INPUTS = dict(
+    field_switch={'word': 'item', 'wordno': 'itemno'},
+    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
+                               'badEvent', 'badEventChannel'),
+    exceptions=ltpfr_comparison_exceptions,
+    type_ignore=()
+)
+
+LTPFR2_COMPARATOR_INPUTS = dict(
+    field_switch={'word': 'item', 'wordno': 'itemno'},
+    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
+                               'badEvent', 'badEventChannel'),
+    exceptions=ltpfr2_comparison_exceptions,
+    type_ignore=()
+)
+
 SYS2_COMPARATOR_INPUTS = dict(
     FR3=FR3_SYS2_COMPARATOR_INPUTS,
     FR1=FR1_SYS2_COMPARATOR_INPUTS,
@@ -1134,6 +1204,11 @@ SYS1_COMPARATOR_INPUTS = dict(
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS,
     catFR2=CATFR_SYS1_COMPARATOR_INPUTS,
     PS=PS_COMPARATOR_INPUTS
+)
+
+LTP_COMPARATOR_INPUTS = dict(
+    ltpFR=LTPFR_COMPARATOR_INPUTS,
+    ltpFR2=LTPFR2_COMPARATOR_INPUTS
 )
 
 SYS1_STIM_COMPARISON_INPUTS = dict(
