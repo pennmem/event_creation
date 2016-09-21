@@ -8,13 +8,21 @@ import hashlib
 
 from parsers.base_log_parser import get_version_num
 
-from loggers import log, logger
+from loggers import log
 
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 LOC_DB_ROOT=RHINO_ROOT
 DB_ROOT='/Volumes/db_root/'
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
+
+TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
+
+TRANSFER_INPUTS = {
+    'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.json'),
+    'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.json'),
+    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.json')
+}
 
 class UnTransferrableException(Exception):
     pass
@@ -381,7 +389,7 @@ def find_sync_file(subject, experiment, session):
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
                               code=None, original_session=None, new_experiment=None, **kwargs):
-    json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ephys_inputs.json')
+    json_file = TRANSFER_INPUTS['ephys']
     if new_experiment is None:
         new_experiment = experiment
     destination = os.path.join(DB_ROOT,
@@ -405,7 +413,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
 def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
     groups = groups + ('json_import',)
-    json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'montage_inputs.json')
+    json_file = TRANSFER_INPUTS['montage']
     code = code or subject
 
     localization = montage.split('.')[0]
@@ -420,14 +428,12 @@ def generate_montage_transferer(subject, montage, protocol, code=None, groups=tu
 
     transferer = Transferer(json_file, groups, destination, protocol=protocol, subject=subject, code=code,
                             loc_db_root=LOC_DB_ROOT)
-    return transferer, groups
+    return transferer
 
 
 def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
                                 original_session=None, new_experiment=None, **kwargs):
-    groups = groups+(re.sub('\d', '', experiment),)
-    json_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'behavioral_inputs.json')
-    source_files = Transferer.load_groups(json.load(open(json_file)), groups)
+    json_file = TRANSFER_INPUTS['behavioral']
 
     code = code or subject
     original_session = original_session if not original_session is None else session
@@ -437,23 +443,9 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
                         code=code, original_session=original_session,
                         data_root=DATA_ROOT, events_root=EVENTS_ROOT, db_root=DB_ROOT, **kwargs)
 
-    try:
-        session_log = Transferer.get_origin_files(source_files['session_log'], **kwarg_inputs)[0]
-        if experiment != 'PS':
-            is_sys2 = get_version_num(session_log) >= 2
-        else:
-            is_sys2 = False
-    except KeyError:
-        log('Could not find session log!','WARNING')
-        is_sys2 = True
-
-
-
     kwarg_inputs['subject'] = subject
-    if is_sys2:
-        groups += ('system_2', )
-    elif not 'conversion' in groups:
-        groups += ('system_1', )
+
+    if 'system_1' in groups and 'transfer' in groups:
         kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = find_sync_file(code, experiment, original_session)
 
     if not new_experiment:
@@ -467,127 +459,9 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
                                'behavioral')
 
     transferer= Transferer(json_file, (experiment,) + groups, destination, new_experiment=new_experiment,**kwarg_inputs)
-    return transferer, groups
+    return transferer
 
 
-
-
-class TransferPipeline(object):
-
-    CURRENT_PROCESSED_DIRNAME = 'current_processed'
-    INDEX_FILE = 'index.json'
-
-    def __init__(self, transferer, *pipeline_tasks, **info):
-        self.transferer = transferer
-        self.pipeline_tasks = pipeline_tasks
-        self.exports = {}
-        self.destination_root = self.transferer.destination_root
-        self.destination = os.path.join(self.destination_root, self.processed_label)
-        self.current_dir = os.path.join(self.destination_root, self.CURRENT_PROCESSED_DIRNAME)
-        if not os.path.exists(self.destination):
-            os.makedirs(self.destination)
-        for task in self.pipeline_tasks:
-            task.set_pipeline(self)
-        self.log_filenames = [
-            os.path.join(self.destination_root, 'log.txt'),
-            os.path.join(self.destination, 'log.txt')
-        ]
-        self.output_files = {}
-        self.output_info = info
-
-    def register_output(self, filename, label):
-        self.output_files[label] = os.path.join(self.current_dir, filename)
-
-    def register_info(self, info_key, info_value):
-        self.output_info[info_key] = info_value
-
-    @property
-    def source_label(self):
-        return self.transferer.get_label()
-
-    @property
-    def processed_label(self):
-        return '{}_processed'.format(self.transferer.get_label())
-
-    def start_logging(self):
-        try:
-            logger.add_log_files(*self.log_filenames)
-        except:
-            log('Could not set logging path.')
-
-    def create_index(self):
-        index = {}
-        if len(self.output_files) > 0:
-            index['files'] = {}
-            for name, path in self.output_files.items():
-                index['files'][name] = os.path.relpath( path, self.current_dir)
-        if len(self.output_info) > 0:
-            index['info'] = self.output_info
-        if len(index) > 0:
-            json.dump(index, open(os.path.join(self.current_dir, self.INDEX_FILE), 'w'),
-                      indent=2, sort_keys=True)
-
-    def stop_logging(self):
-        logger.remove_log_files(*self.log_filenames)
-
-    def run(self, force=False):
-        logger.set_label('Transfer initialization')
-        self.start_logging()
-
-        log('Transfer pipeline to {} started'.format(self.destination_root))
-        missing_files = self.transferer.missing_required_files()
-        if missing_files:
-            log("Missing file {}. Deleting processed folder {}".format(missing_files, self.destination), 'CRITICAL')
-            self.stop_logging()
-            shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}'.format(missing_files))
-
-        should_transfer = self.transferer.check_checksums()
-        if should_transfer != True:
-            log('No changes to transfer...')
-            if not os.path.exists(self.current_dir):
-                log('{} does not exist! Continuing anyway!'.format(self.current_dir))
-            else:
-                self.transferer.transfer_aborted = True
-                if not force:
-                    log('Removing processed folder {}'.format(self.destination))
-                    log('Transfer pipeline ended without transfer')
-                    self.stop_logging()
-                    shutil.rmtree(self.destination)
-                    return
-                else:
-                    log('Forcing transfer to happen anyway')
-
-        logger.set_label('Transfer in progress')
-        transferred_files = self.transferer.transfer_with_rollback()
-        pipeline_task = None
-        try:
-            for i, pipeline_task in enumerate(self.pipeline_tasks):
-
-                log('Executing task {}: {}'.format(i+1, pipeline_task.name))
-                pipeline_task.run(transferred_files, self.destination)
-                log('Task {} finished successfully'.format(pipeline_task.name))
-
-            if os.path.islink(self.current_dir):
-                os.unlink(self.current_dir)
-            os.symlink(self.processed_label, self.current_dir)
-
-        except Exception as e:
-            log('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
-                                                                   'initialization', e), 'CRITICAL')
-
-
-            self.transferer.remove_transferred_files()
-            log('Transfer pipeline errored: {}'.format(e.message), 'CRITICAL')
-            log('Removing processed folder {}'.format(self.destination), 'CRITICAL')
-            self.stop_logging()
-            if os.path.exists(self.destination):
-                shutil.rmtree(self.destination)
-            raise
-
-        log('Transfer pipeline ended normally')
-        self.create_index()
-        self.stop_logging()
 
 
 def xtest_load_groups():

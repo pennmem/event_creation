@@ -49,19 +49,19 @@
       "origin_directory": "{data_root}/{code}/raw/{substitute_raw_folder}/",
       "origin_file": ["*.edf", "*.EDF"],
       "destination": "substitute_eeg/"
-    }
-  },
+    },
 
-  "system_2":{
-    "type": "group",
-    "raw_eeg": {
-      "type": "file",
-      "multiple": true,
-      "required": true,
-      "checksum_filename_only": true,
-      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
-      "origin_file": "*/*.ns2",
-      "destination": "raw_eeg/"
+    "system_2":{
+      "type": "group",
+      "raw_eeg": {
+        "type": "file",
+        "multiple": true,
+        "required": true,
+        "checksum_filename_only": true,
+        "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
+        "origin_file": "*/*.ns2",
+        "destination": "raw_eeg/"
+      }
     }
   },
 

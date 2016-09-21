@@ -8,18 +8,12 @@ import argparse
 import collections
 import traceback
 
-from transferer import generate_ephys_transferer, generate_session_transferer, TransferPipeline,\
-                       generate_montage_transferer
 
-from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
-                  EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  ImportJsonMontageTask, IndexAggregatorTask, MontageLinkerTask
-
+from pipelines import build_events_pipeline, build_split_pipeline,\
+                      build_convert_eeg_pipeline, build_convert_events_pipeline,\
+                      build_import_montage_pipeline
 from transferer import DB_ROOT, DATA_ROOT
 from loggers import log, logger
-from parsers.mat_converter import MathMatConverter
-
-from parsers.math_parser import MathLogParser
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -28,95 +22,10 @@ except:
     log('PTSA NOT LOADED')
     PTSA_LOADED=False
 
-GROUPS = {
-    'FR': ('verbal', 'stim'),
-    'PAL': ('verbal', 'stim'),
-    'catFR': ('verbal', 'stim'),
-    'PS': ('stim',)
-}
 
 
 class UnknownMontageException(Exception):
     pass
-
-
-def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
-                         original_session=None, new_experiment=None, **kwargs):
-    new_experiment = new_experiment if not new_experiment is None else experiment
-    transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups + ('transfer',),
-                                           code=code,
-                                           original_session=original_session,
-                                           new_experiment=new_experiment,
-                                           **kwargs)
-    task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
-    return TransferPipeline(transferer, task)
-
-def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
-                               original_session=None, new_experiment=None, **kwargs):
-    new_experiment = new_experiment if not new_experiment is None else experiment
-    groups = kwargs['groups'] + ('conversion',)
-    del kwargs['groups']
-    transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups,
-                                           code, original_session, new_experiment, **kwargs)
-    task = MatlabEEGConversionTask(subject, experiment, original_session)
-    return TransferPipeline(transferer, task)
-
-
-def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
-                          groups=tuple(), do_compare=False, **kwargs):
-    exp_type = re.sub('\d','', experiment)
-    if exp_type in GROUPS:
-        groups += GROUPS[exp_type]
-    groups += (exp_type,)
-
-    transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups + ('transfer',),
-                                                     code=code, **kwargs)
-
-    tasks = [MontageLinkerTask(protocol, subject, montage)]
-    tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
-    if do_math:
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups, 'math', MathLogParser))
-    if do_compare:
-        tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
-                                       kwargs['original_session'] if 'original_session' in kwargs else None,
-                                       match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
-    localization = montage.split('.')[0]
-    montage_num = montage.split('.')[1]
-    if do_math:
-        tasks.append(EventCombinationTask(('task', 'math')))
-
-    tasks.append(IndexAggregatorTask())
-    return TransferPipeline(transferer, localization=localization, montage=montage_num, subject_alias=code, *tasks)
-
-def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
-                                  original_session=None, new_experiment=None, **kwargs):
-    new_experiment = new_experiment if not new_experiment is None else experiment
-    groups = kwargs['groups'] + ('conversion',)
-    del kwargs['groups']
-    transferer, groups = generate_session_transferer(subject, experiment, session, protocol, groups,
-                                             code, original_session, new_experiment, **kwargs)
-    tasks = [MatlabEventConversionTask(protocol, subject, montage, experiment, session,
-                                       original_session=original_session, **kwargs)]
-
-    if do_math:
-        tasks.append(MatlabEventConversionTask(protocol, subject, montage, experiment, session,
-                                               event_label='math', converter_type=MathMatConverter,
-                                               original_session=original_session, **kwargs))
-        tasks.append(EventCombinationTask(('task', 'math')))
-
-    localization = montage.split('.')[0]
-    montage_num = montage.split('.')[1]
-    tasks.append(IndexAggregatorTask())
-
-    return TransferPipeline(transferer, localization=localization, montage=montage_num, subject_alias=code, *tasks)
-
-
-def build_import_montage_pipeline(subject, montage, protocol, code):
-    transferer, groups = generate_montage_transferer(subject, montage, protocol, code)
-
-    tasks = [ImportJsonMontageTask(subject, montage)]
-
-    return TransferPipeline(transferer, subject_alias=code, *tasks)
 
 
 

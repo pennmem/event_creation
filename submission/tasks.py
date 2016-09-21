@@ -18,7 +18,7 @@ from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter
 from loggers import log, logger
-from transferer import DATA_ROOT, DB_ROOT
+from transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS
@@ -314,16 +314,16 @@ class ImportEventsTask(PipelineTask):
 
 class IndexAggregatorTask(PipelineTask):
 
-    INDEX_LOCATION = os.path.join(DB_ROOT, 'protocols', 'index.json')
+    PROTOCOLS_DIR = os.path.join(DB_ROOT, 'protocols')
+    PROTOCOLS = ('r1',)
     PROCESSED_DIRNAME = 'current_processed'
-    INDEX_FILENAME = 'index.json'
 
     def __init__(self):
         super(IndexAggregatorTask, self).__init__()
 
     @classmethod
-    def build_index(cls):
-        index_files = cls.find_index_files()
+    def build_index(cls, protocol):
+        index_files = cls.find_index_files(os.path.join(cls.PROTOCOLS_DIR, protocol))
         d = {}
         for index_file in index_files:
             cls.build_single_file_index(index_file, d)
@@ -331,9 +331,9 @@ class IndexAggregatorTask(PipelineTask):
 
 
     @classmethod
-    def find_index_files(cls):
+    def find_index_files(cls, root_dir):
         result = []
-        for root, dirs, files in os.walk(DB_ROOT):
+        for root, dirs, files in os.walk(root_dir):
             if cls.PROCESSED_DIRNAME in dirs and \
                     cls.INDEX_FILENAME in os.listdir(os.path.join(root, cls.PROCESSED_DIRNAME)):
                 result.append(os.path.join(root, cls.PROCESSED_DIRNAME, cls.INDEX_FILENAME))
@@ -381,180 +381,18 @@ class IndexAggregatorTask(PipelineTask):
         return path_list[::-1]
 
     def run(self, *_):
-        index = self.build_index()
-        json.dump(index, open(self.INDEX_LOCATION,'w'), sort_keys=True, indent=2)
+        for protocol in self.PROTOCOLS:
+            index = self.build_index(protocol)
+            json.dump(index, open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w'),
+                      sort_keys=True, indent=2)
 
 def test_list_from_index_path():
     import pprint
     pprint.pprint(IndexAggregatorTask.build_index())
 
-"""
-class HierarchicalAggregatorTask(PipelineTask):
-
-    DIRECTORY_ORDER = None
-    GLOBAL_AGGREGATIONS = {}
-
-    def __init__(self, additional_values=None, additional_keys=None, **kwargs):
-        super(HierarchicalAggregatorTask, self).__init__()
-        self.additional_values = additional_values or {}
-        self.additional_keys = additional_keys or {}
-        self.kwargs = kwargs
-
-    @classmethod
-    def aggregate_hierarchy(cls, directory_order, global_aggregations, files, additional_entries, **kwargs):
-        # Once for the globals
-        for aggregation_label, aggregation_key in global_aggregations.items():
-            directory_path = DB_ROOT
-            for i, (directory, key) in enumerate(directory_order):
-                log('Aggregating {}: {} in {}'.format(aggregation_label, aggregation_key.format(**kwargs), directory))
-                directory_path = os.path.join(directory_path, directory)
-                cls.build_aggregate(directory_path, directory_order[i:],
-                                    aggregation_label, aggregation_key, files, additional_entries, **kwargs)
-
-                directory_path = os.path.join(directory_path, key.format(**kwargs))
-                if directory == aggregation_label:
-                    break
-        # Once for indexing of current directory
-        directory_path = DB_ROOT
-        for i, (directory, key) in enumerate(directory_order):
-            directory_path = os.path.join(directory_path, directory)
-            if not directory in global_aggregations:
-                log('Aggregating {}: {} in {}'.format(directory, key.format(**kwargs), directory))
-                cls.build_aggregate(directory_path, directory_order[i:],
-                                    directory, key, files, additional_entries, **kwargs)
-            directory_path = os.path.join(directory_path, key.format(**kwargs))
-
-    @staticmethod
-    def build_aggregate(directory_path, directory_order, aggregation_label, aggregation_key, files,
-                        additional_values, **kwargs):
-        agg_file = os.path.join(directory_path, '{}.json'.format(aggregation_label))
-        if os.path.exists(agg_file):
-            aggregate = json.load(open(agg_file))
-        else:
-            aggregate = {}
-
-        key_value = aggregation_key.format(**kwargs)
-
-        if key_value not in aggregate:
-            aggregate[key_value] = {}
-
-        aggregate_level = aggregate[key_value]
-
-        for entry, entry_key in directory_order:
-            if entry == aggregation_label:
-                continue
-            entry_key_value = entry_key.format(**kwargs)
-            if entry not in aggregate_level:
-                aggregate_level[entry] = {}
-
-            aggregate_entry = aggregate_level[entry]
-            if entry_key_value not in aggregate_entry:
-                aggregate_entry[entry_key_value] = {}
-
-            aggregate_level = aggregate_entry[entry_key_value]
-
-        aggregate_level.clear()
-        for label, file in files.items():
-            aggregate_level[label] = os.path.relpath(file, directory_path)
-        aggregate_level.update(additional_values)
-
-        json.dump(aggregate, open(agg_file, 'w'), indent=2, sort_keys=True)
-
-    def run(self, files, db_folder):
-        if not self.DIRECTORY_ORDER:
-            raise NotImplementedError("Must use subclass specifying directory order")
-        self.aggregate_hierarchy(self.DIRECTORY_ORDER, self.GLOBAL_AGGREGATIONS, self.pipeline.output_files,
-                                 self.additional_values, **self.kwargs)
-
-
-class FlatAggregatorTask(PipelineTask):
-
-
-    DIRECTORY_ORDER = None
-    AGGREGATE_NAME = None
-    AGGREGATE_KEY = None
-
-    def __init__(self, info=None, **kwargs):
-        super(FlatAggregatorTask, self).__init__()
-        self.info = info or {}
-        self.kwargs = kwargs
-
-    @classmethod
-    def aggregate_info(cls, directory_order, aggregate_name, aggregate_key, additional_keys, files, **kwargs):
-        directory_path = DB_ROOT
-        for i, (directory, key) in enumerate(directory_order):
-            log('Aggregating {}: {} in {}'.format(aggregate_name, aggregate_key.format(**kwargs),
-                                                  directory))
-            directory_path = os.path.join(directory_path, directory)
-            cls.build_aggregate(directory_path, aggregate_name, aggregate_key, additional_keys, files, **kwargs)
-
-            used_kwargs = []
-            for kwarg, kwkey in kwargs.items():
-                try:
-                    directory_path = os.path.join(directory_path, key.format(**{kwarg:kwkey}))
-                    used_kwargs.append(kwarg)
-                except KeyError:
-                    pass
-            for kwarg in used_kwargs:
-                del kwargs[kwarg]
-
-
-    @staticmethod
-    def build_aggregate(directory_path, aggregate_name, aggregate_key, info, files, **kwargs):
-        if not os.path.exists(directory_path):
-            os.makedirs(directory_path)
-
-        agg_file = os.path.join(directory_path, '{}.json'.format(aggregate_name))
-        if os.path.exists(agg_file):
-            aggregate = json.load(open(agg_file))
-        else:
-            aggregate = {}
-
-        key_value = aggregate_key.format(**kwargs)
-
-        aggregate[key_value] = info.copy()
-
-        for label, file in files.items():
-            aggregate[key_value][label] = os.path.relpath(file, directory_path)
-
-        aggregate[key_value].update(kwargs)
-
-        json.dump(aggregate, open(agg_file, 'w'), indent=2, sort_keys=True)
-
-    def run(self, files, db_folder):
-        if not self.DIRECTORY_ORDER or not self.AGGREGATE_KEY or not self.AGGREGATE_NAME:
-            raise NotImplementedError("Must use subclass specifying directory order")
-        self.aggregate_info(self.DIRECTORY_ORDER, self.AGGREGATE_NAME, self.AGGREGATE_KEY, self.info, files,
-                            **self.kwargs)
-
-class SessionAggregatorTask(HierarchicalAggregatorTask):
-
-
-    DIRECTORY_ORDER = (('protocols', '{protocol}'),
-                       ('subjects', '{subject}'),
-                       ('experiments', '{experiment}'),
-                       ('sessions', '{session}'))
-
-    GLOBAL_AGGREGATIONS = {'protocols': '{protocol}',
-                            'subjects': '{subject}',
-                            'experiments': '{experiment}'}
-
-    def __init__(self, montage, localization, **kwargs):
-        super(SessionAggregatorTask, self).__init__({'montage': montage, 'localization': localization}, **kwargs)
-
-
-class CodeAgggregatorTask(FlatAggregatorTask):
-
-    DIRECTORY_ORDER = (('protocols', '{protocol}'),
-                       ('subjects', '{subject}'),
-                       ('localizations', '{localization}'),
-                       ('montages', '{montage}'))
-
-    AGGREGATE_NAME = 'codes'
-    AGGREGATE_KEY = '{code}'
-"""
 
 class CompareEventsTask(PipelineTask):
+
 
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
                  match_field=None):
@@ -569,13 +407,21 @@ class CompareEventsTask(PipelineTask):
         self.protocol = protocol
         self.match_field = match_field if match_field else 'mstime'
 
+    def get_matlab_event_file(self):
+        if self.protocol == 'r1':
+            ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
+            event_directory = os.path.join(RHINO_ROOT, 'data', 'events', ram_exp)
+        else:
+            raise NotImplementedError('Only R1 event comparison implemented')
+
+        return os.path.join(event_directory, '{}_events.mat'.format(self.code))
+
     def run(self, files, db_folder):
         logger.set_label(self.name)
         mat_events_reader = \
             BaseEventReader(
-                filename=os.path.join(DATA_ROOT, '..', 'events', 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:]),
-                                      '{}_events.mat'.format(self.code)),
-                common_root=DATA_ROOT,
+                filename=os.path.join(self.get_matlab_event_file()),
+                common_root=RHINO_ROOT,
                 eliminate_events_with_no_eeg=False,
             )
         log('Loading matlab events')
