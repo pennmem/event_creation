@@ -1,7 +1,7 @@
 
 
 from transferer import Transferer, generate_ephys_transferer, generate_session_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, DATA_ROOT
 
 from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
@@ -27,7 +27,10 @@ GROUPS = {
     'ltpFR': ('verbal',)
 }
 
-def determine_groups(protocol, experiment, group_dict):
+MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
+SOURCE_IMPORT_TYPE = 'IMPORT'
+
+def determine_groups(protocol, subject, experiment, session, group_dict, *args, **kwargs):
     exp_type = re.sub('\d', '', experiment)
 
     groups = tuple()
@@ -35,15 +38,25 @@ def determine_groups(protocol, experiment, group_dict):
         groups += GROUPS[exp_type]
     groups += (exp_type, experiment)
 
+    groups += tuple(args)
+
 
     if protocol == 'r1':
-        source_files = Transferer.load_groups(group_dict, groups)
-        if 'session_log' in source_files:
-            version = get_version_num(source_files['session_log'])
+        source_file_info = Transferer.load_groups(group_dict, groups)
+        if 'session_log' in source_file_info:
+            session_log_info = source_file_info['session_log']
+            session_log_file = Transferer.get_origin_files(session_log_info,
+                                                           protocol=protocol,
+                                                           subject=subject,
+                                                           code=subject,
+                                                           experiment=experiment,
+                                                           original_session=session,
+                                                           data_root=DATA_ROOT)[0]
+            version = get_version_num(session_log_file)
             if version >= 2:
-                groups += ('system_2')
+                groups += ('system_2',)
             else:
-                groups += ('system_1')
+                groups += ('system_1',)
 
     return groups
 
@@ -65,10 +78,15 @@ class TransferPipeline(object):
             task.set_pipeline(self)
         self.log_filenames = [
             os.path.join(self.destination_root, 'log.txt'),
-            os.path.join(self.destination, 'log.txt')
         ]
         self.output_files = {}
         self.output_info = info
+
+    def previous_transfer_type(self):
+        return self.transferer.previous_transfer_type()
+
+    def current_transfer_type(self):
+        return self.transferer.transfer_type
 
     def register_output(self, filename, label):
         self.output_files[label] = os.path.join(self.current_dir, filename)
@@ -106,7 +124,9 @@ class TransferPipeline(object):
         logger.remove_log_files(*self.log_filenames)
 
     def run(self, force=False):
-        logger.set_label('Transfer initialization')
+        if not os.path.exists(self.destination):
+            os.makedirs(self.destination)
+        logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
         self.start_logging()
 
         log('Transfer pipeline to {} started'.format(self.destination_root))
@@ -128,7 +148,10 @@ class TransferPipeline(object):
                     log('Removing processed folder {}'.format(self.destination))
                     log('Transfer pipeline ended without transfer')
                     self.stop_logging()
-                    shutil.rmtree(self.destination)
+                    try:
+                        shutil.rmtree(self.destination)
+                    except OSError:
+                        log('Could not remove destination {}'.format(self.destination))
                     return
                 else:
                     log('Forcing transfer to happen anyway')
@@ -173,6 +196,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
                                            original_session=original_session,
                                            new_experiment=new_experiment,
                                            **kwargs)
+    transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
     task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
@@ -185,6 +209,8 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
     transferer = generate_ephys_transferer(subject, experiment, session, protocol,
                                            code=code,
                                            original_session=original_session, new_experiment=new_experiment, **kwargs)
+    transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
+
     task = MatlabEEGConversionTask(subject, experiment, original_session)
     return TransferPipeline(transferer, task)
 
@@ -192,11 +218,15 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
 
-    groups +=  determine_groups(protocol, experiment, json.load(open(TRANSFER_INPUTS['behavioral'])))
+    original_session = kwargs['original_session'] if 'original_session' in kwargs else session
+    code = code or subject
 
-    transferer = generate_session_transferer(subject, experiment, session, protocol, groups + ('transfer',),
+    groups +=  determine_groups(protocol, code, experiment, original_session,
+                                json.load(open(TRANSFER_INPUTS['behavioral'])), 'transfer')
+
+    transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
                                              code=code, **kwargs)
-
+    transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
     else:
@@ -210,8 +240,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks.append(EventCombinationTask(('task', 'math')))
 
     if do_compare:
-        tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code,
-                                       kwargs['original_session'] if 'original_session' in kwargs else None,
+        tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,
                                        match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
 
 
@@ -221,11 +250,15 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                                   original_session=None, new_experiment=None, **kwargs):
+    kwargs['groups'] += determine_groups(protocol, code, experiment, original_session,
+                                         json.load(open(TRANSFER_INPUTS['behavioral'])),
+                                         'conversion')
+
     new_experiment = new_experiment if not new_experiment is None else experiment
-    kwargs['groups'] += ('conversion',)
     transferer = generate_session_transferer(subject, experiment, session, protocol,
                                              code=code, original_session=original_session,
                                              new_experiment=new_experiment, **kwargs)
+    transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
     tasks = [MatlabEventConversionTask(protocol, subject, montage, experiment, session,
                                        original_session=original_session, **kwargs)]
@@ -248,5 +281,5 @@ def build_import_montage_pipeline(subject, montage, protocol, code):
 
     tasks = [ImportJsonMontageTask(subject, montage)]
 
-    return TransferPipeline(transferer, subject_alias=code, *tasks)
+    return TransferPipeline(transferer, *tasks)
 

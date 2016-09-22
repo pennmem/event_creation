@@ -166,7 +166,6 @@ class EventCreationTask(PipelineTask):
     def run(self, files, db_folder):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
-        '''
         unaligned_events = parser.parse()
         if self.is_sys2:
             aligner = System2Aligner(unaligned_events, files, db_folder)
@@ -176,8 +175,6 @@ class EventCreationTask(PipelineTask):
         else:
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
-        '''
-        events = parser.parse()
         events = parser.clean_events(events)
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
@@ -232,7 +229,7 @@ class MontageLinkerTask(PipelineTask):
                                                 subject=self.subject,
                                                 localization=self.localization,
                                                 montage=self.montage_num)
-        self.pipeline.register_into('localization', self.localization)
+        self.pipeline.register_info('localization', self.localization)
         self.pipeline.register_info('montage', self.montage_num)
         for name, file in self.FILES.items():
             fullfile = os.path.join(montage_path, file)
@@ -438,7 +435,8 @@ class CompareEventsTask(PipelineTask):
             )
         log('Loading matlab events')
         mat_events = mat_events_reader.read()
-        self.sess_mat_events = mat_events[mat_events.session == self.original_session + 1] # TODO: dependent on protocol
+        mat_session = self.original_session + (1 if self.protocol == 'ltp' else 0)
+        self.sess_mat_events = mat_events[mat_events.session == mat_session] # TODO: dependent on protocol
         if not PTSA_LOADED:
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
@@ -449,21 +447,26 @@ class CompareEventsTask(PipelineTask):
                 comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
             else:
                 comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
-        else:
+        elif self.protocol == 'ltp':
             comparator_inputs = LTP_COMPARATOR_INPUTS[self.experiment]
+        else:
+            raise NotImplementedError('Only r1 and ltp event comparison implemented')
+
         comparator = EventComparator(new_events, self.sess_mat_events, match_field=self.match_field, **comparator_inputs)
         log('Comparing events...')
 
         found_bad, error_message = comparator.compare()
 
         if found_bad is True:
-            assert False, error_message
+            log(error_message)
+            assert False, 'Event comparison failed!'
         else:
             log('Comparison Success!')
 
         log('Comparing stim events...')
 
         if self.protocol == 'r1':
+            major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
             if float(major_version.split('_')[-1]) >= 2:
                 comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
             else:
@@ -473,14 +476,10 @@ class CompareEventsTask(PipelineTask):
             errors = stim_comparator.compare()
 
             if errors:
-                assert False, errors
+                log(errors)
+                assert False, 'Stim comparison failed!'
             else:
                 log('Stim comparison success!')
-
-
-
-
-
 
 
 class UnProcessableException(Exception):

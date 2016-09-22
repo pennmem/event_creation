@@ -11,8 +11,8 @@ import traceback
 
 from pipelines import build_events_pipeline, build_split_pipeline,\
                       build_convert_eeg_pipeline, build_convert_events_pipeline,\
-                      build_import_montage_pipeline
-from transferer import DB_ROOT, DATA_ROOT
+                      build_import_montage_pipeline, MATLAB_CONVERSION_TYPE, SOURCE_IMPORT_TYPE
+from transferer import DB_ROOT, DATA_ROOT, UnTransferrableException
 from loggers import log, logger
 
 try:
@@ -184,19 +184,29 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline.run(force_run)
 
 def run_full_import_pipeline(kwargs, force_run=False):
-    try:
-        split_pipeline = build_split_pipeline( **kwargs)
-        split_pipeline.run(force_run)
-        events_pipeline = build_events_pipeline( **kwargs)
-        events_pipeline.run(force_run)
-    except Exception as e:
-        log("Exception %s occurred! Defaulting to events conversion" % e)
-        traceback.print_exc()
-        convert_eeg_pipeline = build_convert_eeg_pipeline( **kwargs)
-        convert_eeg_pipeline.run(force_run)
-        convert_events_pipeline = build_convert_events_pipeline(**kwargs)
-        convert_events_pipeline.run(force_run)
+    split_pipeline = build_split_pipeline(**kwargs)
+    events_pipeline = build_events_pipeline(**kwargs)
+    convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
+    convert_events_pipeline = build_convert_events_pipeline(**kwargs)
 
+    if split_pipeline.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+        pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),
+                          (split_pipeline, events_pipeline))
+    else:
+        pipeline_order = ((split_pipeline, events_pipeline),
+                          (convert_eeg_pipeline, convert_events_pipeline))
+
+    for pipelines in pipeline_order:
+        log("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
+        try:
+            for pipeline in pipelines:
+                pipeline.run(force_run)
+            return
+        except Exception as e:
+            log("Exception {} encountered while running pipeline {}".format(e, pipelines[0].current_transfer_type()))
+            traceback.print_exc()
+
+    raise UnTransferrableException("All pipelines failed!")
 
 def check_subject_sessions(code, experiment, sessions, protocol='r1'):
     bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
@@ -251,7 +261,7 @@ def clean_db_dir(db_dir):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
 
-def test_import_all_ps_sessions():
+def xtest_import_all_ps_sessions():
     for test in run_from_json_file('ps_sessions.json'):
         yield test
 
