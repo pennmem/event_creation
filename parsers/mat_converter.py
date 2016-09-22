@@ -769,11 +769,12 @@ class PALMatConverter(BaseMatConverter):
                 study_mask = np.logical_and(events.type == 'STUDY_PAIR',
                                             np.logical_or(events.study_1 == event.expecting_word,
                                                           events.study_2 == event.expecting_word))
-                study_pair = events[study_mask]
-                event.study_1 = study_pair[0].study_1
-                event.study_2 = study_pair[0].study_2
-                event.vocalization = study_pair.vocalization
-                event.intrusion = study_pair.intrusion
+                if np.any(study_mask):
+                    study_pair = events[study_mask]
+                    event.study_1 = study_pair[0].study_1
+                    event.study_2 = study_pair[0].study_2
+                    event.vocalization = study_pair.vocalization
+                    event.intrusion = study_pair.intrusion
 
                 rec_event = events[np.logical_and(events.type == 'REC_EVENT', events.expecting_word == event.expecting_word)]
 

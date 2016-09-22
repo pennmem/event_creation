@@ -294,8 +294,10 @@ def run_from_json_file(filename):
                 montage = info.get('montage', 0.0)
                 force = info.get('force', False)
                 code = info.get('code', subject)
+                protocol = info.get('protocol', 'r1')
 
                 inputs = dict(
+                    protocol=protocol,
                     subject = subject,
                     montage = montage,
                     experiment = experiment,
@@ -305,8 +307,10 @@ def run_from_json_file(filename):
                     code=code,
                     session=session,
                     original_session=original_session,
-                    groups = tuple()
+                    groups = (protocol,)
                 )
+
+
 
                 raw_substitute = info.get('raw_substitute', False)
                 if raw_substitute:
