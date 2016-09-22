@@ -383,6 +383,7 @@ if __name__ == '__main__':
         groups=tuple()
     )
 
+    inputs['groups'] += (inputs['protocol'],)
 
     if args.raw_header:
         header_substitute = raw_input('Enter raw folder containing substitute for header: ')

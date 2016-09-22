@@ -1,5 +1,6 @@
 {
   "r1": {
+    "type": "group",
     "conversion": {
       "type": "group",
       "matlab_events": {
@@ -194,6 +195,7 @@
   },
 
   "ltp": {
+    "type": "group",
     "ltpFR": {
       "type": "group",
       "wordpool": {
