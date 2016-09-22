@@ -1,5 +1,6 @@
 {
   "r1": {
+    "type": "group",
     "json_import": {
       "type": "group",
       "contacts": {
@@ -20,5 +21,7 @@
       }
     }
   },
-  "ltp" : {}
+  "ltp" : {
+      "type": "group"
+  }
 }
