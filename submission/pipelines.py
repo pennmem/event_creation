@@ -23,7 +23,8 @@ GROUPS = {
     'FR': ('verbal', 'stim'),
     'PAL': ('verbal', 'stim'),
     'catFR': ('verbal', 'stim'),
-    'PS': ('stim',)
+    'PS': ('stim',),
+    'ltpFR': ('verbal',)
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'

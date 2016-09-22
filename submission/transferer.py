@@ -42,7 +42,7 @@ class Transferer(object):
         log('Transferer {} created'.format(self.label))
         self.kwargs = kwargs
         self.transferred_files = {}
-        self.transfer_dict = self.load_groups(json.load(open(json_file)), groups)
+        self.transfer_dict = self.load_groups(json.load(open(json_file))[self.kwargs['protocol']], groups)
         self.old_symlink = None
         self.transfer_aborted = False
         self.previous_label = self.get_current_target()
