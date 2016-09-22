@@ -670,7 +670,7 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'word' and event1['subject'] == 'R1039M' and event1['type'] == 'REC_WORD' and '"' in event2['word'][0]:
         return True
 
-    if field == 'word' and event1['type'] == 'REC_WORD' and ' ' in event1['word'] or ' ' in event2['word']:
+    if field == 'word' and event1['type'] == 'REC_WORD' and (' ' in event1['word'] or ' ' in event2['word']):
         return True
 
     if field == 'RT' and event1['subject'] in ('R1060M', 'R1087M', 'R1090C', 'R1091N', 'R1106M', 'R1149N',
@@ -735,6 +735,9 @@ def verbal_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     if field_name1 == 'stim_params.anode_number' and field1 == 2 and event1['subject'] == 'R1053M':
         return True
     if field_name1 == 'stim_params.cathode_number' and field1 == 3 and event1['subject'] == 'R1053M':
+        return True
+
+    if field_name1 in ('stim_params.anode_number', 'stim_params.cathode_number') and field2_is_nan:
         return True
 
     return False

@@ -318,6 +318,8 @@ def run_from_json_file(filename):
 
                 if 'PS' in experiment or 'TH' in experiment:
                     inputs['do_math'] = False
+                else:
+                    inputs['groups'] += ('verbal',)
 
                 yield run_full_import_pipeline, inputs, force
 
@@ -368,7 +370,7 @@ if __name__ == '__main__':
         experiment = original_experiment
 
     inputs = dict(
-        protocol='ltp',
+        protocol='r1',
         subject=subject,
         montage=montage,
         experiment=original_experiment,
@@ -377,7 +379,8 @@ if __name__ == '__main__':
         do_compare=True,
         code=code,
         session=session,
-        original_session=original_session
+        original_session=original_session,
+        groups=tuple()
     )
 
 
@@ -385,18 +388,21 @@ if __name__ == '__main__':
         header_substitute = raw_input('Enter raw folder containing substitute for header: ')
         inputs['substitute_raw_folder'] = header_substitute
     if args.sys2:
-        inputs['groups'] = ('system_2',)
-    if args.sys1:
-        inputs['groups'] = ('system_1',)
+        inputs['groups'] += ('system_2',)
+    else:
+        inputs['groups'] += ('system_1',)
     if args.force:
         inputs['force'] = True
 
     if 'PS' in experiment or 'TH' in experiment:
         inputs['do_math'] = False
+    else:
+        inputs['groups'] += ('verbal',)
 
     if experiment[-1] == '3':
         inputs['match_field'] = 'eegoffset'
 
+    run_full_import_pipeline(inputs)
     #run_individual_pipline(build_split_pipeline, inputs)
-    run_individual_pipline(build_events_pipeline, inputs)
+    #run_individual_pipline(build_events_pipeline, inputs)
 

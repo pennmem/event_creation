@@ -196,14 +196,17 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
                                            new_experiment=new_experiment,
                                            **kwargs)
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
-    task = SplitEEGTask(subject, montage, experiment, session, **kwargs)
+    task = SplitEEGTask(subject, montage, new_experiment, session, **kwargs)
     return TransferPipeline(transferer, task)
 
 
 def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
                                original_session=None, new_experiment=None, **kwargs):
     new_experiment = new_experiment if not new_experiment is None else experiment
-    kwargs['groups'] += ('conversion',)
+    if experiment[:-1] == 'catFR':
+        experiment = 'CatFR'+experiment[-1]
+
+    kwargs['groups'] = kwargs['groups'] + ('conversion',) if 'groups' in kwargs else ('conversion',)
 
     transferer = generate_ephys_transferer(subject, experiment, session, protocol,
                                            code=code,
@@ -249,9 +252,14 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                                   original_session=None, new_experiment=None, **kwargs):
-    kwargs['groups'] += determine_groups(protocol, code, experiment, original_session,
+    if experiment[:-1] == 'catFR':
+        experiment = 'CatFR' + experiment[-1]
+        new_experiment = 'catFR' + experiment[-1]
+
+    new_groups = determine_groups(protocol, code, experiment, original_session,
                                          json.load(open(TRANSFER_INPUTS['behavioral'])),
                                          'conversion')
+    kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment
     transferer = generate_session_transferer(subject, experiment, session, protocol,
@@ -259,11 +267,11 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
                                              new_experiment=new_experiment, **kwargs)
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
-    tasks = [MatlabEventConversionTask(protocol, subject, montage, experiment, session,
+    tasks = [MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
                                        original_session=original_session, **kwargs)]
 
     if do_math:
-        tasks.append(MatlabEventConversionTask(protocol, subject, montage, experiment, session,
+        tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
                                                event_label='math', converter_type=MathMatConverter,
                                                original_session=original_session, **kwargs))
         tasks.append(EventCombinationTask(('task', 'math')))
