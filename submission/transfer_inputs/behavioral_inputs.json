@@ -1,70 +1,26 @@
 {
-
-  "conversion": {
-    "type": "group",
-    "matlab_events": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{events_root}/RAM_{experiment}",
-      "origin_file": "{code}_events.mat",
-      "destination": "original_events.mat"
-    },
-    "verbal": {
+  "r1": {
+    "conversion": {
       "type": "group",
-      "math_events": {
+      "matlab_events": {
         "type": "file",
         "multiple": false,
         "required": true,
         "origin_directory": "{events_root}/RAM_{experiment}",
-        "origin_file": "{code}_math.mat",
-        "destination": "math_events.mat"
-      }
-    },
-    "jacksheet": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/{code}/docs",
-      "origin_file": "jacksheet.txt",
-      "destination": "jacksheet.txt"
-    }
-  },
-
-  "transfer": {
-    "type": "group",
-    "system_1": {
-      "type": "group",
-      "eeg_log": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
-        "origin_file": "eeg.eeglog",
-        "destination": "logs/eeg.eeglog"
+        "origin_file": "{code}_events.mat",
+        "destination": "original_events.mat"
       },
-      "sync_pulses": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/{sync_folder}/",
-        "origin_file": "{sync_filename}",
-        "destination": "logs/extracted_syncs.txt"
-      },
-      "PS": {
+      "verbal": {
         "type": "group",
-        "session_log": {
+        "math_events": {
           "type": "file",
           "multiple": false,
           "required": true,
-          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
-          "origin_file": "session.log",
-          "destination": "logs/session.log"
+          "origin_directory": "{events_root}/RAM_{experiment}",
+          "origin_file": "{code}_math.mat",
+          "destination": "math_events.mat"
         }
-      }
-    },
-    "stim": {
-      "type": "group",
+      },
       "jacksheet": {
         "type": "file",
         "multiple": false,
@@ -74,29 +30,187 @@
         "destination": "jacksheet.txt"
       }
     },
-    "default": {
+    "transfer": {
       "type": "group",
-      "eeg_sources": {
-        "type": "link",
-        "multiple": false,
-        "required": false,
-        "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{new_experiment}/sessions/{session}/ephys/current_processed",
-        "origin_file": "sources.json",
-        "destination": "eeg_sources.json"
-      }
-    },
-    "PS": {
-      "type": "group",
-      "system_2": {
+      "system_1": {
         "type": "group",
-        "host_logs": {
+        "eeg_log": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "eeg.eeglog",
+          "destination": "logs/eeg.eeglog"
+        },
+        "sync_pulses": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/{sync_folder}/",
+          "origin_file": "{sync_filename}",
+          "destination": "logs/extracted_syncs.txt"
+        },
+        "PS": {
+          "type": "group",
+          "session_log": {
+            "type": "file",
+            "multiple": false,
+            "required": true,
+            "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+            "origin_file": "session.log",
+            "destination": "logs/session.log"
+          }
+        }
+      },
+      "stim": {
+        "type": "group",
+        "jacksheet": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/docs",
+          "origin_file": "jacksheet.txt",
+          "destination": "jacksheet.txt"
+        }
+      },
+      "default": {
+        "type": "group",
+        "eeg_sources": {
+          "type": "link",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{new_experiment}/sessions/{session}/ephys/current_processed",
+          "origin_file": "sources.json",
+          "destination": "eeg_sources.json"
+        }
+      },
+      "PS": {
+        "type": "group",
+        "system_2": {
+          "type": "group",
+          "host_logs": {
+            "type": "file",
+            "multiple": true,
+            "required": true,
+            "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
+            "origin_file": "log_*.log",
+            "destination": "logs/host_logs/"
+          }
+        }
+      },
+      "verbal": {
+        "type": "group",
+        "session_log": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "session.log",
+          "destination": "logs/session.log"
+        },
+        "math_log": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}/",
+          "origin_file": "math.log",
+          "destination": "logs/math.log"
+        },
+        "annotations": {
           "type": "file",
           "multiple": true,
-          "required": true,
-          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
-          "origin_file": "log_*.log",
-          "destination": "logs/host_logs/"
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "*.ann",
+          "destination": "annotations/"
+        },
+        "config": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+          "origin_file": "config.py",
+          "destination": "experiment_files/config.py"
+        },
+        "sconfig": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+          "origin_file": "sconfig.py",
+          "destination": "experiment_files/sconfig.py"
+        },
+        "system_2": {
+          "type": "group",
+          "host_logs": {
+            "type": "file",
+            "multiple": true,
+            "required": true,
+            "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
+            "origin_file": "{experiment}_{subject}_*.log",
+            "destination": "logs/host_logs/"
+          }
         }
+      },
+      "catFR": {
+        "type": "group",
+        "wordpool": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+          "origin_file": "CatFR_WORDS.txt",
+          "destination": "experiment_files/wordpool.txt"
+        },
+        "no_accent_wordpool": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+          "origin_file": "CatFR_WORDS_noAcc.txt",
+          "destination": "experiment_files/wordpool_no_accent.txt"
+        }
+      },
+      "FR": {
+        "type": "group",
+        "wordpool": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
+          "origin_file": "RAM_wordpool.txt",
+          "destination": "experiment_files/wordpool.txt"
+        },
+        "no_accent_wordpool": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
+          "origin_file": "RAM_wordpool_noAcc.txt",
+          "destination": "experiment_files/wordpool_no_accent.txt"
+        }
+      }
+    }
+  },
+
+  "ltp": {
+    "ltpFR": {
+      "type": "group",
+      "wordpool": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/",
+        "origin_file": "wasnorm_wordpool.txt",
+        "destination": "experiment_files/wordpool.txt"
+      },
+      "eeg_log": {
+        "type": "file",
+        "multiple": false,
+        "required": false,
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
+        "origin_file": "eeg.eeglog",
+        "destination": "logs/eeg.eeglog"
       }
     },
     "verbal": {
@@ -105,7 +219,7 @@
         "type": "file",
         "multiple": false,
         "required": true,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
         "origin_file": "session.log",
         "destination": "logs/session.log"
       },
@@ -113,7 +227,7 @@
         "type": "file",
         "multiple": false,
         "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}/",
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
         "origin_file": "math.log",
         "destination": "logs/math.log"
       },
@@ -121,7 +235,7 @@
         "type": "file",
         "multiple": true,
         "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
         "origin_file": "*.ann",
         "destination": "annotations/"
       },
@@ -129,7 +243,7 @@
         "type": "file",
         "multiple": false,
         "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}",
         "origin_file": "config.py",
         "destination": "experiment_files/config.py"
       },
@@ -137,119 +251,10 @@
         "type": "file",
         "multiple": false,
         "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}",
         "origin_file": "sconfig.py",
         "destination": "experiment_files/sconfig.py"
-      },
-      "system_2": {
-        "type": "group",
-        "host_logs": {
-          "type": "file",
-          "multiple": true,
-          "required": true,
-          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
-          "origin_file": "{experiment}_{subject}_*.log",
-          "destination": "logs/host_logs/"
-        }
       }
-    },
-    "catFR": {
-      "type": "group",
-      "wordpool": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
-        "origin_file": "CatFR_WORDS.txt",
-        "destination": "experiment_files/wordpool.txt"
-      },
-      "no_accent_wordpool": {
-        "type": "file",
-        "multiple": false,
-        "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
-        "origin_file": "CatFR_WORDS_noAcc.txt",
-        "destination": "experiment_files/wordpool_no_accent.txt"
-      }
-    },
-    "FR": {
-      "type": "group",
-      "wordpool": {
-        "type": "file",
-        "multiple": false,
-        "required": true,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
-        "origin_file": "RAM_wordpool.txt",
-        "destination": "experiment_files/wordpool.txt"
-      },
-      "no_accent_wordpool": {
-        "type": "file",
-        "multiple": false,
-        "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/",
-        "origin_file": "RAM_wordpool_noAcc.txt",
-        "destination": "experiment_files/wordpool_no_accent.txt"
-      }
-    }
-  },
-
-  "ltpFR": {
-    "type": "group",
-    "wordpool": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/",
-      "origin_file": "wasnorm_wordpool.txt",
-      "destination": "experiment_files/wordpool.txt"
-    },
-    "session_log": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
-      "origin_file": "session.log",
-      "destination": "logs/session.log"
-    },
-    "annotations": {
-      "type": "file",
-      "multiple": true,
-      "required": false,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
-      "origin_file": "*.ann",
-      "destination": "annotations/"
-    },
-    "math_log": {
-      "type": "file",
-      "multiple": false,
-      "required": false,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
-      "origin_file": "math.log",
-      "destination": "logs/math.log"
-    },
-    "eeg_log": {
-      "type": "file",
-      "multiple": false,
-      "required": false,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
-      "origin_file": "eeg.eeglog",
-      "destination": "logs/eeg.eeglog"
-    },
-    "config": {
-      "type": "file",
-      "multiple": false,
-      "required": false,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}",
-      "origin_file": "config.py",
-      "destination": "experiment_files/config.py"
-    },
-    "sconfig": {
-      "type": "file",
-      "multiple": false,
-      "required": false,
-      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}",
-      "origin_file": "sconfig.py",
-      "destination": "experiment_files/sconfig.py"
     }
   }
 }

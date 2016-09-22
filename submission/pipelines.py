@@ -23,7 +23,8 @@ GROUPS = {
     'FR': ('verbal', 'stim'),
     'PAL': ('verbal', 'stim'),
     'catFR': ('verbal', 'stim'),
-    'PS': ('stim',)
+    'PS': ('stim',),
+    'ltpFR': ('verbal',)
 }
 
 def determine_groups(protocol, experiment, group_dict):

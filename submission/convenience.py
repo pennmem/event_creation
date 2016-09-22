@@ -358,7 +358,7 @@ if __name__ == '__main__':
         experiment = original_experiment
 
     inputs = dict(
-        protocol='ltp',
+        protocol='ltp' if experiment.startswith('ltp') else 'r1',
         subject=subject,
         montage=montage,
         experiment=original_experiment,
