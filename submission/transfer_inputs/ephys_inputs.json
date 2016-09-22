@@ -1,57 +1,17 @@
 {
-
-  "conversion": {
-    "type": "group",
-    "matlab_events": {
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{events_root}/RAM_{experiment}",
-      "origin_file": "{code}_events.mat",
-      "destination": "original_events.mat"
-    }
-  },
-
-  "transfer": {
-    "type": "group",
-    "raw_eeg": {
-      "type": "file",
-      "multiple": true,
-      "required": true,
-      "checksum_filename_only": true,
-      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
-      "origin_file": ["*.edf", "*.EDF", "*.eeg", "*.EEG", "*/*.ns*"],
-      "destination": "raw_eeg/"
+  "r1" : {
+    "conversion": {
+      "type": "group",
+      "matlab_events": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{events_root}/RAM_{experiment}",
+        "origin_file": "{code}_events.mat",
+        "destination": "original_events.mat"
+      }
     },
-
-    "elec_file": {
-      "type": "file",
-      "multiple": true,
-      "required": false,
-      "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
-      "origin_file": ["*.21[eE]"],
-      "destination": "raw_eeg/"
-    },
-
-    "jacksheet":{
-      "type": "file",
-      "multiple": false,
-      "required": true,
-      "origin_directory": "{data_root}/{code}/docs/",
-      "origin_file": "jacksheet.txt",
-      "destination": "jacksheet.txt"
-    },
-
-    "substitute_raw_file_for_header":{
-      "type": "file",
-      "multiple": true,
-      "required": false,
-      "origin_directory": "{data_root}/{code}/raw/{substitute_raw_folder}/",
-      "origin_file": ["*.edf", "*.EDF"],
-      "destination": "substitute_eeg/"
-    },
-
-    "system_2":{
+    "transfer": {
       "type": "group",
       "raw_eeg": {
         "type": "file",
@@ -59,21 +19,78 @@
         "required": true,
         "checksum_filename_only": true,
         "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
-        "origin_file": "*/*.ns2",
+        "origin_file": [
+          "*.edf",
+          "*.EDF",
+          "*.eeg",
+          "*.EEG",
+          "*/*.ns*"
+        ],
         "destination": "raw_eeg/"
+      },
+      "elec_file": {
+        "type": "file",
+        "multiple": true,
+        "required": false,
+        "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
+        "origin_file": [
+          "*.21[eE]"
+        ],
+        "destination": "raw_eeg/"
+      },
+      "jacksheet": {
+        "type": "file",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{data_root}/{code}/docs/",
+        "origin_file": "jacksheet.txt",
+        "destination": "jacksheet.txt"
+      },
+      "substitute_raw_file_for_header": {
+        "type": "file",
+        "multiple": true,
+        "required": false,
+        "origin_directory": "{data_root}/{code}/raw/{substitute_raw_folder}/",
+        "origin_file": [
+          "*.edf",
+          "*.EDF"
+        ],
+        "destination": "substitute_eeg/"
+      },
+      "system_2": {
+        "type": "group",
+        "raw_eeg": {
+          "type": "file",
+          "multiple": true,
+          "required": true,
+          "checksum_filename_only": true,
+          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}/",
+          "origin_file": "*/*.ns2",
+          "destination": "raw_eeg/"
+        }
+      }
+    },
+    "new": {
+      "type": "group",
+      "jacksheet": {
+        "type": "link",
+        "multiple": false,
+        "required": true,
+        "source_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage}/neuroradiology/current_processed",
+        "source_file": "jacksheet.json",
+        "destination": "jacksheet.json"
       }
     }
   },
 
-  "new": {
-    "type": "group",
-    "jacksheet":{
-      "type": "link",
-      "multiple": false,
-      "required": true,
-      "source_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage}/neuroradiology/current_processed",
-      "source_file": "jacksheet.json",
-      "destination": "jacksheet.json"
+  "ltp" : {
+    "raw_eeg" : {
+      "type" : "file",
+      "multiple" : false,
+      "required" : true,
+      "origin_directory" : "{db_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
+      "origin_file" : "*.raw.bz2",
+      "destination" : "raw_eeg/"
     }
   }
 }
