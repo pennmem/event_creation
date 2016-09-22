@@ -252,7 +252,9 @@ class MatlabEEGExtractor(object):
         # Get the locations of the eeg files
         eeg_locations = np.unique(self._mat_events.eegfile)
         info = {}
-        os.makedirs(os.path.join(destination, 'noreref'))
+        noreref = os.path.join(destination, 'noreref')
+        if not os.path.exists(noreref):
+            os.makedirs(noreref)
 
         # For each unique eeg location:
         for eeg_location in eeg_locations:
@@ -269,7 +271,7 @@ class MatlabEEGExtractor(object):
                         data = np.fromfile(eeg_file, params['data_format'])
                         data = data * params['gain']
                         data = data.astype(params['data_format'])
-                        out_file = os.path.join(destination, 'noreref', os.path.basename(eeg_filename))
+                        out_file = os.path.join(noreref, os.path.basename(eeg_filename))
                         data.tofile(out_file)
                         n_samples = len(data)
 
@@ -302,6 +304,8 @@ class MatlabEEGExtractor(object):
         """
         params = {}
         params_filename = '{}.params.txt'.format(eeg_location)
+        if not os.path.exists(params_filename):
+            params_filename = os.path.join(os.path.dirname(eeg_location), 'params.txt')
 
         with open(params_filename) as params_file:
             for line in params_file:

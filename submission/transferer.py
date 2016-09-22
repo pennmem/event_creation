@@ -13,7 +13,7 @@ from loggers import log
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT='/Users/jessepazdera/db_root/'
+DB_ROOT='/Volumes/db_root/'
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
@@ -32,6 +32,7 @@ class Transferer(object):
     CURRENT_NAME = 'current_source'
     INDEX_NAME='index.json'
     STRFTIME = '%Y%m%d.%H%M%S'
+    TRANSFER_TYPE_NAME='TRANSFER_TYPE'
 
     def __init__(self, json_file, groups, destination, **kwargs):
         self.groups = groups
@@ -46,12 +47,16 @@ class Transferer(object):
         self.transfer_aborted = False
         self.previous_label = self.get_current_target()
         self._should_transfer = True
+        self.transfer_type = 'IMPORT'
 
     def get_label(self):
         if self.transfer_aborted:
             return self.previous_label
         else:
             return self.label
+
+    def set_transfer_type(self, transfer_type):
+        self.transfer_type = transfer_type
 
     def build_transferred_index(self):
         md5_dict = {}
@@ -97,6 +102,18 @@ class Transferer(object):
         index = self.build_transferred_index()
         with open(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
+
+    def write_transfer_type(self):
+        with open(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
+            type_file.write(self.transfer_type)
+
+    def previous_transfer_type(self):
+        try:
+            with open(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'r') as type_file:
+                return type_file.read()
+        except Exception:
+            log('No type file found')
+            return None
 
     @classmethod
     def load_groups(cls, full_dict, groups):
@@ -294,6 +311,7 @@ class Transferer(object):
         os.symlink(self.label, self.destination_current)
 
         self.write_index_file()
+        self.write_transfer_type()
 
         return self.transferred_files
 
@@ -342,6 +360,10 @@ class Transferer(object):
         index_file = os.path.join(self.destination_current, self.INDEX_NAME)
         if os.path.exists(index_file):
             os.remove(index_file)
+
+        transfer_type_file = os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME)
+        if os.path.exists(transfer_type_file):
+            os.remove(transfer_type_file)
 
 
         self.delete_if_empty(self.destination_root)
@@ -446,7 +468,11 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     kwarg_inputs['subject'] = subject
 
     if 'system_1' in groups and 'transfer' in groups:
-        kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = find_sync_file(code, experiment, original_session)
+        try:
+            kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
+                find_sync_file(code, experiment, original_session)
+        except UnTransferrableException:
+            log("Could not find syncs! Will likely fail soon!")
 
     if not new_experiment:
         new_experiment = experiment
