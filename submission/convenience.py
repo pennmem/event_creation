@@ -311,10 +311,10 @@ def run_from_json_file(filename):
                 raw_substitute = info.get('raw_substitute', False)
                 if raw_substitute:
                     inputs['substitute_raw_folder'] = raw_substitute
-                if is_sys1:
-                    inputs['groups'] += ('system_1',)
-                if is_sys2:
+                if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3'):
                     inputs['groups'] += ('system_2',)
+                elif is_sys1:
+                    inputs['groups'] += ('system_1',)
 
                 if 'PS' in experiment or 'TH' in experiment:
                     inputs['do_math'] = False
