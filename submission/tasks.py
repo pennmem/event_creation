@@ -109,33 +109,43 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
-        if 'contacts' in files:
-            jacksheet_file = files['contacts']
-        elif 'jacksheet' in files:
-            jacksheet_file = files['jacksheet']
+        if self.kwargs['protocol'] == 'ltp':  # LTP studies do not use a jacksheet
+            for raw_eeg in raw_eeg_groups:
+                reader = get_eeg_reader(raw_eeg, None)
+                split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
+                                                                experiment=self.experiment,
+                                                                session=self.session,
+                                                                time=reader.get_start_time_string())
+                reader.split_data(self.pipeline.destination, split_eeg_filename)
         else:
-            raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
-
-        for raw_eeg in raw_eeg_groups:
-            if 'substitute_raw_file_for_header' in files:
-                reader = get_eeg_reader(raw_eeg, jacksheet_file,
-                                       substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
+            if 'contacts' in files:
+                jacksheet_file = files['contacts']
+            elif 'jacksheet' in files:
+                jacksheet_file = files['jacksheet']
             else:
-                try:
-                    reader = get_eeg_reader(raw_eeg, jacksheet_file)
-                except KeyError as k:
-                    log('Cannot split file with extension {}'.format(k), 'WARNING')
-                    continue
+                raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
 
-            split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
-                                                            experiment=self.experiment,
-                                                            session=self.session,
-                                                            time=reader.get_start_time_string())
-            reader.split_data(self.pipeline.destination, split_eeg_filename)
+            for raw_eeg in raw_eeg_groups:
+                if 'substitute_raw_file_for_header' in files:
+                    reader = get_eeg_reader(raw_eeg, jacksheet_file,
+                                            substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
+                else:
+                    try:
+                        reader = get_eeg_reader(raw_eeg, jacksheet_file)
+                    except KeyError as k:
+                        log('Cannot split file with extension {}'.format(k), 'WARNING')
+                        continue
+
+                split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
+                                                                experiment=self.experiment,
+                                                                session=self.session,
+                                                                time=reader.get_start_time_string())
+                reader.split_data(self.pipeline.destination, split_eeg_filename)
         num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
         if num_split_files == 0:
             raise UnProcessableException(
-                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(self.pipeline.destination))
+                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
+                    self.pipeline.destination))
 
 
 class MatlabEEGConversionTask(PipelineTask):
