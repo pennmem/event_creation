@@ -11,6 +11,7 @@ import json
 import glob
 import datetime
 from readers import eeg_reader
+from readers.eeg_reader import read_jacksheet
 from ptsa.data.readers.BaseEventReader import BaseEventReader
 from submission.transferer import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
 from viewers.view_recarray import strip_accents
@@ -83,9 +84,10 @@ class BaseMatConverter(object):
         }
 
         # Try to read the jacksheet if it is present
-        if 'jacksheet' in files:
-            jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
-            self._jacksheet = {int(x[0]): x[1].upper() for x in jacksheet_contents}
+        if 'contacts' in files:
+            self._jacksheet = read_jacksheet(files['contacts'])
+        elif 'jacksheet' in files:
+            self._jacksheet = read_jacksheet(files['jacksheet'])
         else:
             self._jacksheet = None
 

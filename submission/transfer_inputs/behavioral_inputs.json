@@ -16,7 +16,7 @@
         "math_events": {
           "type": "file",
           "multiple": false,
-          "required": true,
+          "required": false,
           "origin_directory": "{events_root}/RAM_{experiment}",
           "origin_file": "{code}_math.mat",
           "destination": "math_events.mat"
