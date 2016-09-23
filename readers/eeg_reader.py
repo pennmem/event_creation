@@ -717,7 +717,7 @@ class EGI_reader(EEG_reader):
 
             # Read event codes
             for i in range(0, self.header['num_events']):
-                self.header['event_codes'] = np.empty((self.header['num_events'], 1))
+                self.header['event_codes'] = np.empty((self.header['num_events'], 1), dtype=str)
                 code = struct.unpack('>4c', raw_file.read(4))
                 code = (x.rstrip() for x in code)
                 self.header['event_codes'][i] = ''.join(code)
@@ -756,12 +756,12 @@ class EGI_reader(EEG_reader):
             log('Loading %d samples...' % total_samples)
             # Read samples in blocks of step_size, until all samples have been read
             while total_read < total_samples:
-                log(i)
+                log(total_read)
                 samples_left = total_samples - total_read
                 samples_to_read = samples_left if samples_left * bytes_per_sample < step_size else step_size
-                unpacked_samples = struct.unpack(fmt + str(samples_to_read), raw_file.read(samples_to_read * bytes_per_sample))
+                unpacked_samples = struct.unpack(fmt[0]+str(samples_to_read)+fmt[1], raw_file.read(samples_to_read * bytes_per_sample))
                 samples_array = np.array(unpacked_samples, dtype=np.int16) / amp_gain
-                raw[total_read:total_read+samples_to_read] = samples_array
+                raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
                 total_read += samples_to_read
             log('%d...Done' % total_read)
 
@@ -786,7 +786,8 @@ class EGI_reader(EEG_reader):
         # Write event channel files
         current_event = 0
         for i in range(self.header['num_channels'], self.header['num_channels'] + self.header['num_events']):
-            filename = os.path.join(location, basename + '.' + self.header['event_codes'][current_event])
+            # FIXME: sequence item 2: expected string, numpy.ndarray found
+            filename = os.path.join(location, ''.join((basename, '.', self.header['event_codes'][current_event])))
             log(i)
             sys.stdout.flush()
             self._data[i].astype(self.DATA_FORMAT).tofile(filename)
