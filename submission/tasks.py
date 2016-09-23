@@ -96,7 +96,9 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
         for raw_eeg in raw_eeg_groups:
-            if 'substitute_raw_file_for_header' in files:
+            if self.kwargs['protocol'] == 'ltp':  # LTP experiments have no jacksheet
+                reader = get_eeg_reader(raw_eeg, None)
+            elif 'substitute_raw_file_for_header' in files:
                 reader = get_eeg_reader(raw_eeg,
                                        files['jacksheet'],
                                        substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
