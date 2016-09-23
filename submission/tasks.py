@@ -3,6 +3,7 @@ import glob
 import re
 import json
 import datetime
+import traceback
 
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
@@ -34,7 +35,8 @@ except:
 
 class PipelineTask(object):
 
-    def __init__(self):
+    def __init__(self, critical=True):
+        self.critical = critical
         self.name = str(self)
         self.pipeline = None
 
@@ -47,14 +49,26 @@ class PipelineTask(object):
         if index_file:
             self.pipeline.register_output(filename, label)
 
+    def run(self, files, db_folder):
+        try:
+            self._run(files, db_folder)
+        except Exception:
+            if self.critical:
+                raise
+            else:
+                traceback.print_exc()
+
+    def _run(self, files, db_folder):
+        raise NotImplementedError()
+
 
 class ImportJsonMontageTask(PipelineTask):
 
-    def __init__(self, subject, montage):
-        super(ImportJsonMontageTask, self).__init__()
+    def __init__(self, subject, montage, critical=True):
+        super(ImportJsonMontageTask, self).__init__(critical)
         self.name = 'Importing {subj} montage {montage}'.format(subj=subject, montage=montage)
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         for file in ('contacts', 'pairs'):
             with open(files[file]) as f:
                 filename = '{}.json'.format(file)
@@ -65,8 +79,8 @@ class SplitEEGTask(PipelineTask):
 
     SPLIT_FILENAME = '{subject}_{experiment}_{session}_{time}'
 
-    def __init__(self, subject, montage, experiment, session, **kwargs):
-        super(SplitEEGTask, self).__init__()
+    def __init__(self, subject, montage, experiment, session, critical=True, **kwargs):
+        super(SplitEEGTask, self).__init__(critical)
         self.name = 'Splitting {subj} {exp}_{sess}'.format(subj=subject, exp=experiment, sess=session)
         self.subject = subject
         self.experiment = experiment
@@ -87,7 +101,7 @@ class SplitEEGTask(PipelineTask):
         return raw_eeg_groups
 
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         raw_eegs = files['raw_eeg']
         if not isinstance(raw_eegs, list):
@@ -95,17 +109,20 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
+        if 'contacts' in files:
+            jacksheet_file = files['contacts']
+        elif 'jacksheet' in files:
+            jacksheet_file = files['jacksheet']
+        else:
+            raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
+
         for raw_eeg in raw_eeg_groups:
-            if self.kwargs['protocol'] == 'ltp':  # LTP experiments have no jacksheet
-                reader = get_eeg_reader(raw_eeg, None)
-            elif 'substitute_raw_file_for_header' in files:
-                reader = get_eeg_reader(raw_eeg,
-                                       files['jacksheet'],
+            if 'substitute_raw_file_for_header' in files:
+                reader = get_eeg_reader(raw_eeg, jacksheet_file,
                                        substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
             else:
                 try:
-                    reader = get_eeg_reader(raw_eeg,
-                                            files['jacksheet'])
+                    reader = get_eeg_reader(raw_eeg, jacksheet_file)
                 except KeyError as k:
                     log('Cannot split file with extension {}'.format(k), 'WARNING')
                     continue
@@ -123,14 +140,15 @@ class SplitEEGTask(PipelineTask):
 
 class MatlabEEGConversionTask(PipelineTask):
 
-    def __init__(self, subject, experiment, original_session, **kwargs):
-        super(MatlabEEGConversionTask, self).__init__()
+    def __init__(self, subject, experiment, original_session, critical=True, **kwargs):
+        super(MatlabEEGConversionTask, self).__init__(critical)
         self.name = 'matlab EEG extraction for {subj}: {exp}_{sess}'.format(subj=subject,
                                                                             exp=experiment,
                                                                             sess=original_session)
         self.original_session = original_session
         self.kwargs = kwargs
-    def run(self, files, db_folder):
+
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         extractor = MatlabEEGExtractor(self.original_session, files)
         extractor.copy_ephys(db_folder)
@@ -147,8 +165,8 @@ class EventCreationTask(PipelineTask):
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
-                 parser_type=None, **kwargs):
-        super(EventCreationTask, self).__init__()
+                 parser_type=None, critical=True, **kwargs):
+        super(EventCreationTask, self).__init__(critical)
         self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
@@ -165,7 +183,7 @@ class EventCreationTask(PipelineTask):
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
@@ -185,13 +203,13 @@ class EventCombinationTask(PipelineTask):
 
     COMBINED_LABEL='all'
 
-    def __init__(self, event_labels, sort_field='mstime'):
-        super(EventCombinationTask, self).__init__()
+    def __init__(self, event_labels, sort_field='mstime', critical=True):
+        super(EventCombinationTask, self).__init__(critical)
         self.name = 'Event combination task for events {}'.format(event_labels)
         self.event_labels = event_labels
         self.sort_field = sort_field
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
         events = [from_json(event_file) for event_file in event_files]
         combiner = EventCombiner(events)
@@ -217,8 +235,8 @@ class MontageLinkerTask(PipelineTask):
              'contacts': 'contacts.json'}
 
 
-    def __init__(self, protocol, subject, montage):
-        super(MontageLinkerTask, self).__init__()
+    def __init__(self, protocol, subject, montage, critical=True):
+        super(MontageLinkerTask, self).__init__(critical)
         self.name = 'Montage linker'
         self.protocol = protocol
         self.subject = subject
@@ -226,7 +244,7 @@ class MontageLinkerTask(PipelineTask):
         self.localization = montage.split('.')[0]
         self.montage_num = montage.split('.')[1]
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         montage_path = self.MONTAGE_PATH.format(protocol=self.protocol,
                                                 subject=self.subject,
                                                 localization=self.localization,
@@ -252,8 +270,8 @@ class MatlabEventConversionTask(PipelineTask):
     }
 
     def __init__(self, protocol, subject, montage, experiment, session,
-                 event_label='task', converter_type=None, original_session=None, **kwargs):
-        super(MatlabEventConversionTask, self).__init__()
+                 event_label='task', converter_type=None, original_session=None, critical=True, **kwargs):
+        super(MatlabEventConversionTask, self).__init__(critical)
         self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
@@ -267,7 +285,7 @@ class MatlabEventConversionTask(PipelineTask):
         self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         converter = self.converter_type(self.protocol, self.subject, self.montage, self.experiment, self.session,
                                         self.original_session, files)
@@ -295,8 +313,8 @@ class ImportEventsTask(PipelineTask):
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
-                 converter_type=None, parser_type=None, original_session=None, **kwargs):
-        super(ImportEventsTask, self).__init__()
+                 converter_type=None, parser_type=None, original_session=None, critical=True, **kwargs):
+        super(ImportEventsTask, self).__init__(critical)
         self.name = '{label} Event Import for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
@@ -312,13 +330,25 @@ class ImportEventsTask(PipelineTask):
         self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         try:
             EventCreationTask.run(self, files, db_folder)
         except Exception:
             log("Exception occurred creating events! Defaulting to event conversion!")
             MatlabEventConversionTask.run(self, files, db_folder)
 
+class CleanDbTask(PipelineTask):
+
+    @staticmethod
+    def run(*_):
+        for root, dirs, files in os.walk(DB_ROOT, False):
+            if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
+                os.remove(os.path.join(root, 'log.txt'))
+                log('Removing {}'.format(root))
+                os.rmdir(root)
+            elif len(os.listdir(root)) == 0:
+                log('Removing {}'.format(root))
+                os.rmdir(root)
 
 class IndexAggregatorTask(PipelineTask):
 
@@ -326,9 +356,6 @@ class IndexAggregatorTask(PipelineTask):
     PROTOCOLS = ('r1', 'ltp')
     PROCESSED_DIRNAME = 'current_processed'
     INDEX_FILENAME = 'index.json'
-
-    def __init__(self):
-        super(IndexAggregatorTask, self).__init__()
 
     @classmethod
     def build_index(cls, protocol):
@@ -395,17 +422,14 @@ class IndexAggregatorTask(PipelineTask):
             json.dump(index, open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w'),
                       sort_keys=True, indent=2)
 
-def test_list_from_index_path():
-    import pprint
-    pprint.pprint(IndexAggregatorTask.build_index())
 
 
 class CompareEventsTask(PipelineTask):
 
 
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
-                 match_field=None):
-        super(CompareEventsTask, self).__init__()
+                 match_field=None, critical=True):
+        super(CompareEventsTask, self).__init__(critical)
         self.name = 'Comparator {}: {}_{}'.format(subject, experiment, session)
         self.subject = subject
         self.code = code if code else subject
@@ -427,7 +451,7 @@ class CompareEventsTask(PipelineTask):
 
         return os.path.join(event_directory)
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         mat_events_reader = \
             BaseEventReader(

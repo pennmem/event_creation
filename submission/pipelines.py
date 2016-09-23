@@ -5,7 +5,7 @@ from transferer import Transferer, generate_ephys_transferer, generate_session_t
 
 from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  ImportJsonMontageTask, IndexAggregatorTask, MontageLinkerTask
+                  ImportJsonMontageTask, IndexAggregatorTask, MontageLinkerTask, CleanDbTask
 
 from parsers.base_log_parser import get_version_num
 
@@ -214,8 +214,10 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
                                            original_session=original_session, new_experiment=new_experiment, **kwargs)
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
-    task = MatlabEEGConversionTask(subject, experiment, original_session)
-    return TransferPipeline(transferer, task)
+    tasks = [MatlabEEGConversionTask(subject, experiment, original_session),
+             CleanDbTask()]
+
+    return TransferPipeline(transferer, *tasks)
 
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
@@ -239,15 +241,15 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups,
-                                       'math', MathLogParser))
-        tasks.append(EventCombinationTask(('task', 'math')))
+                                       'math', MathLogParser), critical=False)
+        tasks.append(EventCombinationTask(('task', 'math')), critical=False)
 
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,
                                        match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
 
-
     tasks.append(IndexAggregatorTask())
+    tasks.append(CleanDbTask())
     return TransferPipeline(transferer, subject_alias=code, *tasks)
 
 
@@ -274,13 +276,13 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
     if do_math:
         tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
                                                event_label='math', converter_type=MathMatConverter,
-                                               original_session=original_session, **kwargs))
-        tasks.append(EventCombinationTask(('task', 'math')))
+                                               original_session=original_session, critical=False, **kwargs ))
+        tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
     tasks.append(IndexAggregatorTask())
-
+    tasks.append(CleanDbTask())
     return TransferPipeline(transferer, localization=localization, montage=montage_num, subject_alias=code, *tasks)
 
 
@@ -288,6 +290,6 @@ def build_import_montage_pipeline(subject, montage, protocol, code):
     transferer = generate_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
-
+    tasks.append(CleanDbTask())
     return TransferPipeline(transferer, *tasks)
 

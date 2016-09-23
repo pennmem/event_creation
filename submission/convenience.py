@@ -256,17 +256,23 @@ BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)),
 EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3', 'PS')
 
 
-def clean_db_dir(db_dir):
-    for root, dirs, files in os.walk(db_dir, False):
+def clean_db_dir():
+    for root, dirs, files in os.walk(DB_ROOT, False):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
+            log('Removing %s'%root)
+            os.rmdir(root)
+        elif len(os.listdir(root)) == 0:
+            log('Removing %s'%root)
+            os.rmdir(root)
+this_dir = os.path.realpath(os.path.dirname(__file__))
 
 def xtest_import_all_ps_sessions():
-    for test in run_from_json_file('ps_sessions.json'):
+    for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
         yield test
 
 def test_import_all_verbal_sessions():
-    for test in run_from_json_file('verbal_sessions.json'):
+    for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
 
@@ -291,15 +297,19 @@ def run_from_json_file(filename):
                 original_session = info.get('original_session', session)
                 is_sys1 = info.get('system_1', False)
                 is_sys2 = info.get('system_2', False)
-                montage = info.get('montage', 0.0)
+                montage = info.get('montage', '0.0')
                 force = info.get('force', False)
                 code = info.get('code', subject)
                 protocol = info.get('protocol', 'r1')
 
+                montage_num = montage.split('.')[1]
+                localization = montage.split('.')[0]
                 inputs = dict(
                     protocol=protocol,
                     subject = subject,
                     montage = montage,
+                    montage_num = montage_num,
+                    localization=localization,
                     experiment = experiment,
                     new_experiment = new_experiment,
                     force = force,
@@ -317,7 +327,7 @@ def run_from_json_file(filename):
                     inputs['substitute_raw_folder'] = raw_substitute
                 if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3'):
                     inputs['groups'] += ('system_2',)
-                elif is_sys1:
+                else:
                     inputs['groups'] += ('system_1',)
 
                 if 'PS' in experiment or 'TH' in experiment:

@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from readers.eeg_reader import NSx_reader
 from copy import deepcopy
+from readers.eeg_reader import read_jacksheet
 from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
 import itertools
@@ -55,9 +56,10 @@ class System2TaskAligner(object):
             self.host_log_files = [files['host_logs']]
 
         # Read the jacksheet into a dictionary
-        if 'jacksheet' in files:
-            jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
-            self.jacksheet = {int(x[0]): x[1] for x in jacksheet_contents}
+        if 'contacts' in files:
+            self.jacksheet = read_jacksheet(files['contacts'])
+        elif 'jacksheet' in files:
+            self.jacksheet = read_jacksheet(files['jacksheet'])
         else:
             self.jacksheet = None
 

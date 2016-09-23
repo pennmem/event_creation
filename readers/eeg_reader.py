@@ -82,7 +82,7 @@ class NK_reader(EEG_reader):
     def __init__(self, nk_filename, jacksheet_filename=None):
         self.raw_filename = nk_filename
         if jacksheet_filename:
-            self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
         self.sample_rate = None
@@ -100,7 +100,7 @@ class NK_reader(EEG_reader):
         return self.sample_rate
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
 
     def get_start_time(self):
         with open(self.raw_filename, 'rb') as f:
@@ -533,10 +533,10 @@ class NSx_reader(EEG_reader):
         self.raw_filename = nsx_filename
         self.lowest_channel = file_number * self.N_CHANNELS
         if jacksheet_filename:
-            if os.path.splitext(jacksheet_filename)[1] == '.txt':
+            if os.path.splitext(jacksheet_filename)[1] in ('.txt', '.json'):
                 self.jacksheet = read_jacksheet(jacksheet_filename)
             else:
-                raise NotImplementedError('Non-txt jacksheet not implemented')
+                raise NotImplementedError('Non-txt, non-json jacksheet not implemented')
         else:
             self.jacksheet = None
         try:
@@ -608,7 +608,7 @@ class EDF_reader(EEG_reader):
     def __init__(self, edf_filename, jacksheet_filename=None, substitute_raw_file_for_header=None):
         self.raw_filename = edf_filename
         if jacksheet_filename:
-            self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
         try:
@@ -631,7 +631,7 @@ class EDF_reader(EEG_reader):
         return n_samples[0]
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v['label']:k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
 
     def get_channel_info(self, substitute_file=None):
         if substitute_file is None:
@@ -808,11 +808,12 @@ def read_jacksheet(filename):
 
 def read_text_jacksheet(filename):
     lines = [line.strip().split() for line in open(filename).readlines()]
-    return {int(line[0]): {'label': line[1]} for line in lines}
+    return {int(line[0]): line[1] for line in lines}
 
 def read_json_jacksheet(filename):
     json_load = json.load(open(filename))
-    jacksheet = {int(k):v for k,v in json_load.items()}
+    contacts = json_load.values()[0]['contacts']
+    jacksheet = {int(v['channel']): k for k,v in contacts.items()}
     return jacksheet
 
 def convert_nk_to_edf(filename):

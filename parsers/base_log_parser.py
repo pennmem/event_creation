@@ -1,5 +1,6 @@
 import numpy as np
 from viewers.view_recarray import pformat_rec, to_dict, from_dict
+from readers.eeg_reader import read_jacksheet
 import os
 import re
 from loggers import log
@@ -156,9 +157,10 @@ class BaseSessionLogParser(object):
         self._type_to_modify_events = {}
 
         # Try to read the jacksheet if it is present
-        if 'jacksheet' in files:
-            jacksheet_contents = [x.strip().split() for x in open(files['jacksheet']).readlines()]
-            self._jacksheet = {int(x[0]): x[1].upper() for x in jacksheet_contents}
+        if 'contacts' in files:
+            self._jacksheet = read_jacksheet(files['contacts'])
+        elif 'jacksheet' in files:
+            self._jacksheet = read_jacksheet(files['jacksheet'])
         else:
             self._jacksheet = None
 
