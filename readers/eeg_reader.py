@@ -14,6 +14,7 @@ from readers.nsx_utility.brpylib import NsxFile
 import struct
 import datetime
 import sys
+import bz2
 from loggers import log
 
 
@@ -689,6 +690,114 @@ class EDF_reader(EEG_reader):
             data.tofile(filename)
             already_split_channels.append(label)
         log('Saved.')
+
+class EGI_reader(EEG_reader):
+    """
+    Parses the EEG data from a .raw.bz2 file. More information on the formatting of EGI .raw fiiles can be found online
+    at https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
+    """
+    def __init__(self, raw_filename):
+        self.raw_filename = raw_filename
+        self.start_datetime = None
+        self._data = None
+        self.header = {}
+        self.header_names = (('version', '>l'), ('year', '>h'), ('month', '>h'), ('day', '>h'), ('hour', '>h'),
+                             ('minute', '>h'), ('second', '>h'), ('msec', '>l'), ('sample_rate', '>h'),
+                             ('num_channels', '>h'), ('gain', '>h'), ('bits', '>h'), ('amp_range', '>h'),
+                             ('num_samples', '>l'), ('num_events', '>h'))
+
+    def get_data(self):
+        with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
+
+            # Read header info; each pair from self.header_names contains the name of the header and the format to be
+            # used by struct.unpack(); '>l' unpacks a long, '>h' unpacks a short.
+            for pair in self.header_names:
+                bytes_to_read = 2 if pair[1] == '>h' else 4
+                self.header[pair[0]] = struct.unpack(pair[1], raw_file.read(bytes_to_read))[0]
+
+            # Read event codes
+            for i in range(0, self.header['num_events']):
+                self.header['event_codes'] = np.empty((self.header['num_events'], 1), dtype=str)
+                code = struct.unpack('>4c', raw_file.read(4))
+                code = (x.rstrip() for x in code)
+                self.header['event_codes'][i] = ''.join(code)
+
+            # Determine whether the EEG data is formatted as shorts, singles, or doubles and set the unpacking format
+            # accordingly.
+            eeg_format_map = {2: ('>l', 2), 4: ('>f', 4), 6: ('>d', 8)}
+            fmt, bytes_per_sample = eeg_format_map[self.header['version']] if self.header['version'] in eeg_format_map else (False, False)
+            if not fmt:
+                raise Exception('Unknown EGI format %d' % self.header['version'])
+
+            # Log various information about the file
+            log('EEG File Information:')
+            log('---------------------')
+            log('Sample Rate = %d' % self.header['sample_rate'])
+            log('Start of recording = %d/%d/%d %02d:%02d' % (self.header['month'], self.header['day'],
+                                                               self.header['year'], self.header['hour'],
+                                                               self.header['minute']))
+            log('Number of Channels = %d' % self.header['num_channels'])
+            log('Number of Events = %d' % self.header['num_events'])
+
+            self.start_datetime = datetime.datetime(self.header['year'], self.header['month'], self.header['day'],
+                                                    self.header['hour'], self.header['minute'], self.header['second'])
+            # Calculate total number of samples to read
+            total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
+
+            # Calculate the gain factor for converting raw EEG data to uV
+            amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
+            amp_fact = 1000.
+            amp_gain = calc_gain(amp_info, amp_fact)
+
+            # Limit the number of samples that are copied at once, to reduce memory usage
+            step_size = 1000000
+            total_read = 0
+            raw = np.zeros((total_samples, 1), dtype=np.int16)
+            log('Loading %d samples...' % total_samples)
+            # Read samples in blocks of step_size, until all samples have been read
+            while total_read < total_samples:
+                log(total_read)
+                samples_left = total_samples - total_read
+                samples_to_read = samples_left if samples_left * bytes_per_sample < step_size else step_size
+                unpacked_samples = struct.unpack(fmt[0]+str(samples_to_read)+fmt[1], raw_file.read(samples_to_read * bytes_per_sample))
+                samples_array = np.array(unpacked_samples, dtype=np.int16) / amp_gain
+                raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
+                total_read += samples_to_read
+            log('%d...Done' % total_read)
+
+            # Organize the data into a matrix with each channel and event on its own row
+            self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], self.header['num_samples']))
+
+    def split_data(self, location, basename):
+        # Create directory if needed
+        if not os.path.exists(location):
+            os.makedirs(location)
+
+        log('Spltting into %s/%s: ' % (location, basename))
+        sys.stdout.flush()
+
+        # Write EEG channel files
+        for i in range(self.header['num_channels']):
+            filename = os.path.join(location, basename + ('.%03d' % i))
+            log(i)
+            sys.stdout.flush()
+            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+
+        # Write event channel files
+        current_event = 0
+        for i in range(self.header['num_channels'], self.header['num_channels'] + self.header['num_events']):
+            # FIXME: sequence item 2: expected string, numpy.ndarray found
+            filename = os.path.join(location, ''.join((basename, '.', self.header['event_codes'][current_event])))
+            log(i)
+            sys.stdout.flush()
+            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+            current_event += 1
+
+        log('Saved.')
+
+    def get_start_time(self):
+        return self.start_datetime
+
 def read_jacksheet(filename):
     [_, ext] = os.path.splitext(filename)
     if ext.lower() == '.txt':
@@ -733,11 +842,27 @@ def convert_nk_to_edf(filename):
         log('Success!')
         return edf_file[0]
 
+def calc_gain(amp_info, amp_fact):
+    """
+    Calculates the gain factor for converting raw EEG to uV.
+    :param amp_info: Info to convert from raw to voltage
+    :param amp_fact: Amplification factor to correct for
+    :return: Gain factor for converting raw data to uV.
+    """
+    arange = abs(np.diff(amp_info[0])[0])
+    drange = abs(np.diff(amp_info[1])[0])
+    if np.diff(abs(amp_info[0]))[0] == 0 and np.diff(abs(amp_info[1]))[0] == 0:
+        return (drange * 1000000./amp_fact) / arange
+    else:
+        log('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
+        return 1
+
 
 READERS = {
     '.edf': EDF_reader,
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
+    '.bz2': EGI_reader
 }
 
 def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):

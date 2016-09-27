@@ -1,4 +1,4 @@
-from readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, UnSplittableEEGFileException, NK_reader, read_text_jacksheet
+from readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, UnSplittableEEGFileException, NK_reader, read_text_jacksheet, EGI_reader
 import numpy as np
 import os
 import glob
@@ -156,5 +156,11 @@ def test_nk_split():
             except:
                 raise Exception('Could not compare new and old data')
 
+def test_egi_split():
+    path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
+    reader = EGI_reader(path)
+    reader.get_data()
+    reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
+
 if __name__ == '__main__':
-    test_nsx_split()
+    test_egi_split()

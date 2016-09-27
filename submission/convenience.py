@@ -265,13 +265,14 @@ def clean_db_dir():
         elif len(os.listdir(root)) == 0:
             log('Removing %s'%root)
             os.rmdir(root)
+this_dir = os.path.realpath(os.path.dirname(__file__))
 
 def xtest_import_all_ps_sessions():
-    for test in run_from_json_file('ps_sessions.json'):
+    for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
         yield test
 
 def test_import_all_verbal_sessions():
-    for test in run_from_json_file('verbal_sessions.json'):
+    for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
 
