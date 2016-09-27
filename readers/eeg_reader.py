@@ -559,7 +559,7 @@ class NSx_reader(EEG_reader):
 
     @property
     def labels(self):
-        return {channel['label']:num for num, channel in self.jacksheet.items()}
+        return {channel:num for num, channel in self.jacksheet.items()}
 
     @property
     def data(self):
