@@ -214,8 +214,8 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
                                            original_session=original_session, new_experiment=new_experiment, **kwargs)
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
-    tasks = [MatlabEEGConversionTask(subject, experiment, original_session),
-             CleanDbTask()]
+    tasks = [MatlabEEGConversionTask(subject, experiment, original_session)]
+
 
     return TransferPipeline(transferer, *tasks)
 
@@ -241,16 +241,28 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups,
-                                       'math', MathLogParser), critical=False)
-        tasks.append(EventCombinationTask(('task', 'math')), critical=False)
+                                       'math', MathLogParser, critical=False))
+        tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,
                                        match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
 
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
+
     tasks.append(IndexAggregatorTask())
-    tasks.append(CleanDbTask())
-    return TransferPipeline(transferer, subject_alias=code, *tasks)
+
+    info = dict(
+        localization=localization,
+        montage=montage_num,
+        subject_alias=code,
+        import_type='build'
+    )
+    if original_session != session:
+        info['original_session'] = session
+
+    return TransferPipeline(transferer, *tasks, **info)
 
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
@@ -282,14 +294,24 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
     tasks.append(IndexAggregatorTask())
-    tasks.append(CleanDbTask())
-    return TransferPipeline(transferer, localization=localization, montage=montage_num, subject_alias=code, *tasks)
+
+    info = dict(
+        localization=localization,
+        montage=montage_num,
+        subject_alias=code,
+        import_type='conversion'
+    )
+    if original_session != session:
+        info['original_session'] = original_session
+    if experiment != new_experiment:
+        info['original_experiment'] = experiment
+
+    return TransferPipeline(transferer, *tasks, **info)
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code):
     transferer = generate_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
-    tasks.append(CleanDbTask())
     return TransferPipeline(transferer, *tasks)
 

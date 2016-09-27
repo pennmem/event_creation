@@ -471,7 +471,7 @@ class FRMatConverter(BaseMatConverter):
             return
 
         if self._experiment == 'FR2':
-            if np.isnan(mat_event.stimAnode):
+            if np.isnan(mat_event.stimAnode) or mat_event.stimAnode == -999:
                 return
 
             params = {

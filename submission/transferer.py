@@ -2,18 +2,15 @@ import json
 import os
 import glob
 import shutil
-import re
 import datetime
 import hashlib
-
-from parsers.base_log_parser import get_version_num
 
 from loggers import log
 
 RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
 DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
 LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT='/Volumes/db_root/'
+DB_ROOT=os.path.join(RHINO_ROOT, 'data', 'eeg')
 EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
@@ -34,6 +31,8 @@ class Transferer(object):
     STRFTIME = '%Y%m%d.%H%M%S'
     TRANSFER_TYPE_NAME='TRANSFER_TYPE'
 
+    JSON_FILES = {}
+
     def __init__(self, json_file, groups, destination, **kwargs):
         self.groups = groups
         self.destination_root = os.path.abspath(destination)
@@ -42,12 +41,18 @@ class Transferer(object):
         log('Transferer {} created'.format(self.label))
         self.kwargs = kwargs
         self.transferred_files = {}
-        self.transfer_dict = self.load_groups(json.load(open(json_file))[self.kwargs['protocol']], groups)
+        self.transfer_dict = self.load_groups(self.load_json_input(json_file)[self.kwargs['protocol']], groups)
         self.old_symlink = None
         self.transfer_aborted = False
         self.previous_label = self.get_current_target()
         self._should_transfer = True
         self.transfer_type = 'IMPORT'
+
+    @classmethod
+    def load_json_input(cls, json_file):
+        if json_file not in cls.JSON_FILES:
+            cls.JSON_FILES[json_file] = json.load(open(json_file))
+        return cls.JSON_FILES[json_file]
 
     def get_label(self):
         if self.transfer_aborted:
