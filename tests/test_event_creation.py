@@ -697,6 +697,9 @@ def fr3_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'type' and event1['type'] == 'STIM_ON' and event2['type'] == 'STIM':
         return True
 
+    if field is None and event2 and event2['eegoffset'] < 0:
+        return True
+
     return False
 
 def verbal_stim_comparison_exceptions(event1, event2, field_name1, field_name2):

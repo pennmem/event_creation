@@ -115,6 +115,30 @@ def build_verbal_import_database():
             print(json.dumps(subjects, indent=2, sort_keys=True))
     json.dump(subjects, open('verbal_sessions.json', 'w'), indent=2, sort_keys=True)
 
+def build_YC_import_database():
+    nested_dict = lambda: collections.defaultdict(nested_dict)
+    subjects = nested_dict()
+    for experiment in ('YC1', 'YC2'):
+        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
+        for subject, sessions in subject_sessions:
+            previous_subjects = get_previous_subjects(subject)
+            max_previous_sessions = 0
+            for previous_subject in previous_subjects:
+                if previous_subject in subjects and experiment in subjects[previous_subject]:
+                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
+                    max_session = max(previous_sessions)
+                    max_previous_sessions = max(max_session, max_previous_sessions)
+            for session in sessions:
+                session_dict = {
+                    'original_session': session,
+                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
+                    'code': subject
+                }
+                subject_without_montage = subject.split('_')[0]
+                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
+            print(json.dumps(subjects, indent=2, sort_keys=True))
+    json.dump(subjects, open('yc_sessions.json', 'w'), indent=2, sort_keys=True)
+
 def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
@@ -184,17 +208,35 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline.run(force_run)
 
 def run_full_import_pipeline(kwargs, force_run=False):
-    split_pipeline = build_split_pipeline(**kwargs)
-    events_pipeline = build_events_pipeline(**kwargs)
-    convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
-    convert_events_pipeline = build_convert_events_pipeline(**kwargs)
+    try:
+        split_pipeline = build_split_pipeline(**kwargs)
+        events_pipeline = build_events_pipeline(**kwargs)
+        build = True
+    except Exception as e:
+        log('Could not make build pipeline: {}'.format(e))
+        build = False
 
-    if split_pipeline.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-        pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),
-                          (split_pipeline, events_pipeline))
+    try:
+        convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
+        convert_events_pipeline = build_convert_events_pipeline(**kwargs)
+        convert = True
+    except:
+        log('Could not make convert pipeline: {}'.format(e))
+        if not build:
+            raise
+        convert = False
+
+    if build and convert:
+        if split_pipeline.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+            pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),
+                              (split_pipeline, events_pipeline))
+        else:
+            pipeline_order = ((split_pipeline, events_pipeline),
+                              (convert_eeg_pipeline, convert_events_pipeline))
+    elif build:
+        pipeline_order = ((split_pipeline, events_pipeline),)
     else:
-        pipeline_order = ((split_pipeline, events_pipeline),
-                          (convert_eeg_pipeline, convert_events_pipeline))
+        pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),)
 
     for pipelines in pipeline_order:
         log("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
@@ -275,6 +317,9 @@ def test_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
+def test_import_all_yc_sessions():
+    for test in run_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
+        yield test
 
 
 def xtest_all_experiments():
@@ -330,7 +375,7 @@ def run_from_json_file(filename):
                 else:
                     inputs['groups'] += ('system_1',)
 
-                if 'PS' in experiment or 'TH' in experiment:
+                if 'PS' in experiment or 'TH' or 'YC' in experiment:
                     inputs['do_math'] = False
                 else:
                     inputs['groups'] += ('verbal',)

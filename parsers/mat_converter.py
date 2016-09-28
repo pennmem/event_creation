@@ -15,7 +15,7 @@ from readers.eeg_reader import read_jacksheet
 from ptsa.data.readers.BaseEventReader import BaseEventReader
 from submission.transferer import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
 from viewers.view_recarray import strip_accents
-
+from scipy.io import loadmat
 
 class BaseMatConverter(object):
     """
@@ -486,6 +486,186 @@ class FRMatConverter(BaseMatConverter):
             raise NotImplementedError
 
 
+class YCMatConverter(BaseMatConverter):
+
+    YC_FIELD_CONVERSION = {
+        'item': 'stimulus',
+        'itemno': 'stimulus_num',
+        'goodThresholdDistErr': 'good_threshold_dist_err',
+        'recalled': 'recalled',
+        'isStim': 'is_stim',
+        'expVersion': 'exp_version',
+        'env_size': 'env_size',
+        'block': 'block',
+        'blocknum': 'block_num',
+        'startLocs': 'start_locs',
+        'trialtype': 'trial_type',
+        'paired_block': 'paired_block',
+        'objLocs': 'obj_locs',
+        'respLocs': 'resp_locs',
+        'respDistErr': 'resp_dist_err',
+        'respPerformanceFactor': 'resp_performance_factor',
+        'respXDistErr': 'resp_x_dist_err',
+        'respYDistErr': 'resp_y_dist_err',
+        'respHeading': 'resp_heading',
+        'respReactionTime': 'resp_reaction_time',
+        'respPathLength': 'resp_path_length',
+        'respNormDistErr': 'resp_norm_dist_err',
+        'respTravelTime': 'resp_travel_time',
+        'respRightQuadrant': 'resp_right_quadrant',
+        'respStartAngleErr': 'resp_start_angle_err',
+        'respEndAngleErr': 'resp_end_angle_err',
+        'respRelativeDistErr': 'resp_relative_dist_err',
+        'Path': 'path',
+        'respMirrorDistErr': 'resp_mirror_dist_err',
+        'respFlipX_DistErr': 'resp_flip_x_dist_err',
+        'respFlipY_DistErr': 'resp_flip_y_dist_err',
+        'respRectDistErr': 'resp_rect_dist_err',
+        'respFlipX_XDistErr': 'resp_flip_x_xdist_err',
+        'respFlipY_YDistErr': 'resp_flip_y_ydist_err',
+    }
+
+    MAX_PATH_ENTRIES = 10000
+
+    PATH_FIELDS = (
+        ('x', -999, 'f8'),
+        ('y', -999, 'f8'),
+        ('direction', -999, 'f8'),
+        ('time', -999, 'f8'),
+        ('_remove', True, 'b')
+    )
+
+    @classmethod
+    def empty_path_field(cls):
+        return BaseSessionLogParser.event_from_template(cls.PATH_FIELDS)
+
+    @classmethod
+    def get_yc_fields(cls):
+        return (
+            ('stimulus', '', 'S64'),
+            ('stimulus_num', -999, 'int16'),
+            ('good_threshold_dist_err', -999., 'f8'),
+            ('recalled', False, 'int16'),
+            ('is_stim', False, 'int16'),
+            ('exp_version', '', 'S64'),
+            ('env_size', -999, 'f8', 4),
+            ('block', -999, 'int16'),
+            ('block_num', -999, 'int16'),
+            ('start_locs', -999, 'f8', 2),
+            ('trial_type', -999, 'int16'),
+            ('paired_block', -999, 'int16'),
+            ('obj_locs', -999., 'f8', 2),
+            ('resp_locs', -999, 'f8', 2),
+            ('resp_dist_err', -999, 'f8'),
+            ('resp_performance_factor', -999, 'f8'),
+            ('resp_x_dist_err', -999, 'f8'),
+            ('resp_y_dist_err', -999, 'f8'),
+            ('resp_heading', -999, 'f8'),
+            ('resp_reaction_time', -999, 'f8'),
+            ('resp_path_length', -999, 'f8'),
+            ('resp_norm_dist_err', -999, 'f8'),
+            ('resp_travel_time', -999, 'f8'),
+            ('resp_right_quadrant', -999, 'int16'),
+            ('resp_start_angle_err', -999, 'f8'),
+            ('resp_end_angle_err', -999, 'f8'),
+            ('resp_relative_dist_err', -999, 'f8'),
+            ('path', cls.empty_path_field(), BaseSessionLogParser.dtype_from_template(cls.PATH_FIELDS), cls.MAX_PATH_ENTRIES),
+            ('resp_mirror_dist_err', -999, 'f8'),
+            ('resp_flip_x_dist_err', -999, 'f8'),
+            ('resp_flip_y_dist_err', -999, 'f8'),
+            ('resp_rect_dist_err', -999, 'f8'),
+            ('resp_flip_x_xdist_err', -999, 'f8'),
+            ('resp_flip_y_ydist_err', -999, 'f8')
+        )
+
+
+
+    def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
+        """
+        Constructor
+        :param protocol: New protocol for the events
+        :param subject: New subject...
+        :param montage: New montage number...
+        :param experiment: New experiment...
+        :param session: New session...
+        :param original_session: Original session (used to parse old events to specific session)
+        :param files: Output of Transferer instance
+        """
+        super(YCMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
+                                             include_stim_params=True)
+        self._add_fields(*self.get_yc_fields())
+        self._add_field_conversion(**self.YC_FIELD_CONVERSION)
+        self._add_type_conversion(Path=self.convert_path)
+        filename = str(files['matlab_events'])
+        mat_events = loadmat(filename, squeeze_me=True)['events']
+        sess_events = mat_events[mat_events['session'] == original_session]
+        self.events_for_path = sess_events
+
+
+    def stim_field_conversion(self, mat_event, py_event):
+        return py_event
+
+    def convert_fields(self, mat_event, i):
+        """
+        Converts the fields for a given matlab event to the record array, ignoring special rules
+        :param mat_event: the matlab event to convert
+        :return: the record array event
+        """
+        py_event = self._empty_event
+        for mat_field, py_field in self._field_conversion.items():
+            if mat_field in mat_event.dtype.names:
+                if mat_field == 'Path':
+                    self.convert_path(py_event, self.events_for_path[i])
+                elif isinstance(mat_event[mat_field], basestring):
+                    py_event[py_field] = strip_accents(mat_event[mat_field])
+                else:
+                    py_event[py_field] = mat_event[mat_field]
+        return py_event
+
+    def convert_path(self, py_event, mat_event):
+        for name in ('x', 'y', 'direction', 'time'):
+            for i, entry in enumerate(mat_event['Path'][name].item()):
+                py_event.path[name][i] = entry
+                py_event.path._remove[i] = False
+
+
+    def convert_single_event(self, mat_event, i):
+        """
+        Converts a single matlab event to a python event, applying the specified conversions
+        :param mat_event: The matlab event
+        :return: The record array event
+        """
+        # Can implement a specific conversion based on type
+        if mat_event.type in self._type_conversion:
+            py_event = self._type_conversion[mat_event.type](mat_event)
+        else:
+            # Otherwise it undergoes the default conversion
+            py_event = self.convert_fields(mat_event, i)
+            for key, value in self._value_converion.items():
+                mat_field = self._reverse_field_conversion[key]
+                if isinstance(mat_event[mat_field], np.ndarray):
+                    mat_item = mat_event[mat_field].item()
+                else:
+                    mat_item = mat_event[mat_field]
+                if mat_item in value:
+                    py_event[key] = value[mat_item]
+        if self._include_stim_params and py_event:
+            self.stim_field_conversion(mat_event, py_event)
+        return py_event
+
+
+    def convert(self):
+        """
+        Converts all matlab events to record-array events
+        :return: The record array events
+        """
+        py_events = self._empty_event
+        for i, mat_event in enumerate(self._mat_events):
+            new_py_event = self.convert_single_event(mat_event, i)
+            if new_py_event:
+                py_events = np.append(py_events, new_py_event)
+        py_events = self.clean_events(py_events.view(np.recarray))
+        return py_events[1:]
 
 class MathMatConverter(BaseMatConverter):
 
@@ -998,7 +1178,8 @@ CONVERTERS = {
     'FR': FRMatConverter,
     'catFR': CatFRMatConverter,
     'PAL': PALMatConverter,
-    'PS': PSMatConverter
+    'PS': PSMatConverter,
+    'YC': YCMatConverter
 }
 
 test_sessions = (
@@ -1015,14 +1196,7 @@ test_sessions = (
     # ('R1101T', ('FR2',), (0,)),
     # ('R1001P', ('FR2',), (1,)),
     # ('R1060M', ('FR1',), (0,)),
-    ('R1136N', ('PS', 'PS1'), (0, 0)),
-    ('R1136N', ('PS', 'PS1'), (0, 0)),
-    ('R1136N', ('PS', 'PS1'), (0, 0)),
-    ('R1136N', ('PS', 'PS3'), (2, 0)),
-    ('R1025P', ('PS', 'PS1'), (0, 0)),
-    ('R1050M', ('PS', 'PS2'), (3, 0)),
-    ('R1034D', ('PS', 'PS3'), (3, 0)),
-    ('R1150J', ('PS', 'PS2'), (0, 0)),
+    ('R1001P', ('YC1',), (0, )),
 )
 
 def test_fr_mat_converter():
