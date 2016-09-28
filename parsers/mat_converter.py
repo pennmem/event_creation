@@ -609,7 +609,7 @@ class YCMatConverter(BaseMatConverter):
         self._add_type_conversion(Path=self.convert_path)
 
     def stim_field_conversion(self, mat_event, py_event):
-        if mat_event['stimAmp'] == -999:
+        if not mat_event['stimAmp'] > 0:
             return py_event
 
         stim_params = {
