@@ -91,6 +91,34 @@ def get_previous_subjects(subject):
         prev_subjects.append(subject)
     return prev_subjects
 
+def build_data_export_database():
+    nested_dict = lambda: collections.defaultdict(nested_dict)
+    subjects_for_export = [x.strip() for x in open('subjects_for_export.txt').readlines() if len(x.strip()) > 0 ]
+    subjects = nested_dict()
+    for experiment in ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2'):
+        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
+        for subject, sessions in subject_sessions:
+            if not subject[:6] in subjects_for_export:
+                continue
+            previous_subjects = get_previous_subjects(subject)
+            max_previous_sessions = 0
+            for previous_subject in previous_subjects:
+                if previous_subject in subjects and experiment in subjects[previous_subject]:
+                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
+                    max_session = max(previous_sessions)
+                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
+            for session in sessions:
+                session_dict = {
+                    'original_session': session,
+                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
+                    'code': subject
+                }
+                subject_without_montage = subject.split('_')[0]
+                print 'adding', subject, experiment, session+max_previous_sessions
+                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
+            #print(json.dumps(subjects, indent=2, sort_keys=True))
+    json.dump(subjects, open('export_sessions.json', 'w'), indent=2, sort_keys=True)
+
 def build_verbal_import_database():
     nested_dict = lambda: collections.defaultdict(nested_dict)
     subjects = nested_dict()
@@ -103,7 +131,7 @@ def build_verbal_import_database():
                 if previous_subject in subjects and experiment in subjects[previous_subject]:
                     previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
                     max_session = max(previous_sessions)
-                    max_previous_sessions = max(max_session, max_previous_sessions)
+                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
             for session in sessions:
                 session_dict = {
                     'original_session': session,
@@ -127,7 +155,7 @@ def build_YC_import_database():
                 if previous_subject in subjects and experiment in subjects[previous_subject]:
                     previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
                     max_session = max(previous_sessions)
-                    max_previous_sessions = max(max_session, max_previous_sessions)
+                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
             for session in sessions:
                 session_dict = {
                     'original_session': session,
@@ -295,7 +323,7 @@ def check_experiment(experiment):
 
 BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'unrecoverable_sessions.json')
 
-EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3', 'PS')
+EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
 
 
 def clean_db_dir():
@@ -313,14 +341,18 @@ def xtest_import_all_ps_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
         yield test
 
-def test_import_all_verbal_sessions():
+def xtest_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
-def test_import_all_yc_sessions():
+def xtest_import_all_yc_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
         yield test
 
+
+def test_import_sharing_database():
+    for test in run_from_json_file(os.path.join(this_dir, 'export_sessions.json')):
+        yield test
 
 def xtest_all_experiments():
     logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
@@ -375,7 +407,7 @@ def run_from_json_file(filename):
                 else:
                     inputs['groups'] += ('system_1',)
 
-                if 'PS' in experiment or 'TH' or 'YC' in experiment:
+                if 'PS' in experiment or 'TH' in experiment or 'YC' in experiment:
                     inputs['do_math'] = False
                 else:
                     inputs['groups'] += ('verbal',)

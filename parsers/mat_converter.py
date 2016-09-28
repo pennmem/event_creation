@@ -499,6 +499,7 @@ class YCMatConverter(BaseMatConverter):
         'block': 'block',
         'blocknum': 'block_num',
         'startLocs': 'start_locs',
+        'stimLoc': 'stim_loc',
         'trialtype': 'trial_type',
         'paired_block': 'paired_block',
         'objLocs': 'obj_locs',
@@ -525,8 +526,6 @@ class YCMatConverter(BaseMatConverter):
         'respFlipY_YDistErr': 'resp_flip_y_ydist_err',
     }
 
-    MAX_PATH_ENTRIES = 10000
-
     PATH_FIELDS = (
         ('x', -999, 'f8'),
         ('y', -999, 'f8'),
@@ -539,14 +538,14 @@ class YCMatConverter(BaseMatConverter):
     def empty_path_field(cls):
         return BaseSessionLogParser.event_from_template(cls.PATH_FIELDS)
 
-    @classmethod
-    def get_yc_fields(cls):
+    def get_yc_fields(self):
         return (
             ('stimulus', '', 'S64'),
             ('stimulus_num', -999, 'int16'),
             ('good_threshold_dist_err', -999., 'f8'),
             ('recalled', False, 'int16'),
             ('is_stim', False, 'int16'),
+            ('stim_loc', '', 'S64'),
             ('exp_version', '', 'S64'),
             ('env_size', -999, 'f8', 4),
             ('block', -999, 'int16'),
@@ -569,7 +568,7 @@ class YCMatConverter(BaseMatConverter):
             ('resp_start_angle_err', -999, 'f8'),
             ('resp_end_angle_err', -999, 'f8'),
             ('resp_relative_dist_err', -999, 'f8'),
-            ('path', cls.empty_path_field(), BaseSessionLogParser.dtype_from_template(cls.PATH_FIELDS), cls.MAX_PATH_ENTRIES),
+            ('path', self.empty_path_field(), BaseSessionLogParser.dtype_from_template(self.PATH_FIELDS), self.max_path_entries),
             ('resp_mirror_dist_err', -999, 'f8'),
             ('resp_flip_x_dist_err', -999, 'f8'),
             ('resp_flip_y_dist_err', -999, 'f8'),
@@ -579,6 +578,12 @@ class YCMatConverter(BaseMatConverter):
         )
 
 
+    YC2_STIM_DURATION = 5000
+    YC2_STIM_PULSE_FREQUENCY = 50
+    YC2_STIM_N_PULSES = 250
+    YC2_STIM_BURST_FREQUENCY = 1
+    YC2_STIM_N_BURSTS = 1
+    YC2_STIM_PULSE_WIDTH = 300
 
     def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
         """
@@ -593,16 +598,41 @@ class YCMatConverter(BaseMatConverter):
         """
         super(YCMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
                                              include_stim_params=True)
-        self._add_fields(*self.get_yc_fields())
-        self._add_field_conversion(**self.YC_FIELD_CONVERSION)
-        self._add_type_conversion(Path=self.convert_path)
         filename = str(files['matlab_events'])
         mat_events = loadmat(filename, squeeze_me=True)['events']
         sess_events = mat_events[mat_events['session'] == original_session]
+        self.max_path_entries = max([e['Path'].item()[0].shape[0] for e in sess_events])
         self.events_for_path = sess_events
 
+        self._add_fields(*self.get_yc_fields())
+        self._add_field_conversion(**self.YC_FIELD_CONVERSION)
+        self._add_type_conversion(Path=self.convert_path)
 
     def stim_field_conversion(self, mat_event, py_event):
+        if mat_event['stimAmp'] == -999:
+            return py_event
+
+        stim_params = {
+            'pulse_freq': self.YC2_STIM_PULSE_FREQUENCY,
+            'n_pulses': self.YC2_STIM_N_PULSES,
+            'burst_freq': self.YC2_STIM_BURST_FREQUENCY,
+            'n_bursts': self.YC2_STIM_N_BURSTS,
+            'pulse_width': self.YC2_STIM_PULSE_WIDTH,
+            'stim_duration': self.YC2_STIM_DURATION,
+        }
+
+        if isinstance(mat_event['stimAnode'], (int, float)):
+            stim_params['anode_number'] = mat_event['stimAnode']
+            stim_params['cathode_number'] = mat_event['stimCathode']
+        else:
+            stim_params['anode_label'] = mat_event['stimAnode']
+            stim_params['cathode_label'] = mat_event['stimCathode']
+
+        stim_params['amplitude'] = mat_event['stimAmp']
+
+        stim_params['stim_on'] = mat_event['isStim']
+
+        BaseSessionLogParser.set_event_stim_params(py_event, self._jacksheet, **stim_params)
         return py_event
 
     def convert_fields(self, mat_event, i):

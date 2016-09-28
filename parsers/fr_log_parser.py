@@ -29,7 +29,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     # FR2 specific fields
     FR2_STIM_DURATION= 4600
     FR2_STIM_PULSE_FREQUENCY = 50
-    FR2_STIM_N_PULSES = 250
+    FR2_STIM_N_PULSES = 230
     FR2_STIM_BURST_FREQUENCY = 1
     FR2_STIM_N_BURSTS = 1
     FR2_STIM_PULSE_WIDTH = 300

@@ -109,7 +109,7 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
-        if self.kwargs['protocol'] == 'ltp':  # LTP studies do not use a jacksheet
+        if 'protocol' in self.kwargs and self.kwargs['protocol'] == 'ltp':  # LTP studies do not use a jacksheet
             for raw_eeg in raw_eeg_groups:
                 reader = get_eeg_reader(raw_eeg, None)
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,

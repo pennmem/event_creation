@@ -35,6 +35,23 @@
         "montage": "0.0", 
         "original_session": 1
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1001P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1001P", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1001P", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
     }
   }, 
   "R1002P": {
@@ -163,6 +180,58 @@
         "montage": "0.1", 
         "original_session": 1
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1006P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1006P", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1006P", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1006P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1006P", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1006P_1", 
+        "montage": "0.1", 
+        "original_session": 0
+      }
+    }
+  }, 
+  "R1008J": {
+    "YC1": {
+      "0": {
+        "code": "R1008J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
+  "R1009W": {
+    "YC1": {
+      "0": {
+        "code": "R1009W", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
     }
   }, 
   "R1010J": {
@@ -177,14 +246,64 @@
         "montage": "0.0", 
         "original_session": 1
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1010J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1010J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1013E": {
+    "YC1": {
+      "0": {
+        "code": "R1013E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1013E_1", 
+        "montage": "0.1", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1013E_1", 
+        "montage": "0.1", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1013E_1", 
+        "montage": "0.1", 
+        "original_session": 1
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1013E_1", 
         "montage": "0.1", 
         "original_session": 0
+      }
+    }
+  }, 
+  "R1014D": {
+    "YC1": {
+      "0": {
+        "code": "R1014D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1014D", 
+        "montage": "0.0", 
+        "original_session": 1
       }
     }
   }, 
@@ -194,6 +313,55 @@
         "code": "R1015J", 
         "montage": "0.0", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 3
+      }, 
+      "4": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 4
+      }, 
+      "5": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 5
+      }, 
+      "6": {
+        "code": "R1015J", 
+        "montage": "0.0", 
+        "original_session": 6
       }
     }, 
     "catFR1": {
@@ -256,6 +424,15 @@
       }
     }
   }, 
+  "R1017J": {
+    "YC2": {
+      "0": {
+        "code": "R1017J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
   "R1018P": {
     "FR1": {
       "0": {
@@ -266,6 +443,11 @@
     }, 
     "FR2": {
       "0": {
+        "code": "R1018P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
         "code": "R1018P_1", 
         "montage": "1.1", 
         "original_session": 0
@@ -276,6 +458,69 @@
         "code": "R1018P_1", 
         "montage": "1.1", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1018P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
+  "R1019J": {
+    "YC1": {
+      "0": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 3
+      }, 
+      "4": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 4
+      }, 
+      "5": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 5
+      }, 
+      "6": {
+        "code": "R1019J", 
+        "montage": "0.0", 
+        "original_session": 6
       }
     }
   }, 
@@ -308,9 +553,33 @@
         "montage": "0.0", 
         "original_session": 3
       }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1020J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1020J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1021D": {
+    "YC1": {
+      "0": {
+        "code": "R1021D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1021D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1021D", 
@@ -366,6 +635,30 @@
         "montage": "0.0", 
         "original_session": 0
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1023J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1023J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1023J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1023J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1024E": {
@@ -374,6 +667,40 @@
         "code": "R1024E_2", 
         "montage": "1.2", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1024E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1024E_1", 
+        "montage": "1.1", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1024E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1024E", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1024E_1", 
+        "montage": "1.1", 
+        "original_session": 0
+      }, 
+      "4": {
+        "code": "R1024E_2", 
+        "montage": "1.2", 
+        "original_session": 1
       }
     }, 
     "catFR1": {
@@ -396,6 +723,15 @@
       }
     }
   }, 
+  "R1025P": {
+    "YC1": {
+      "0": {
+        "code": "R1025P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
   "R1026D": {
     "FR1": {
       "0": {
@@ -405,6 +741,25 @@
       }
     }, 
     "FR2": {
+      "0": {
+        "code": "R1026D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1026D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1026D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
       "0": {
         "code": "R1026D", 
         "montage": "0.0", 
@@ -464,6 +819,28 @@
         "code": "R1027J", 
         "montage": "0.0", 
         "original_session": 2
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1027J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1027J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1027J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1027J", 
+        "montage": "0.0", 
+        "original_session": 3
       }
     }
   }, 
@@ -589,6 +966,35 @@
         "montage": "0.0", 
         "original_session": 6
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1030J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1030J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1030J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1030J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1030J", 
+        "montage": "0.0", 
+        "original_session": 3
+      }
     }
   }, 
   "R1031M": {
@@ -648,6 +1054,25 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1032D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1032D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1032D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1032D", 
@@ -685,6 +1110,25 @@
         "montage": "0.0", 
         "original_session": 2
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1033D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1033D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1033D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1034D": {
@@ -703,6 +1147,18 @@
         "code": "R1034D", 
         "montage": "0.0", 
         "original_session": 2
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1034D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1034D", 
+        "montage": "0.0", 
+        "original_session": 1
       }
     }
   }, 
@@ -790,6 +1246,52 @@
       }
     }
   }, 
+  "R1037D": {
+    "YC1": {
+      "0": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "4": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 4
+      }, 
+      "5": {
+        "code": "R1037D", 
+        "montage": "0.0", 
+        "original_session": 5
+      }
+    }
+  }, 
   "R1039M": {
     "FR1": {
       "0": {
@@ -814,6 +1316,23 @@
     }
   }, 
   "R1041M": {
+    "YC1": {
+      "0": {
+        "code": "R1041M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1041M", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1041M", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1041M", 
@@ -851,6 +1370,20 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1042M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1042M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1042M", 
@@ -874,6 +1407,13 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1044J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1044J", 
@@ -890,6 +1430,18 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1045E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1045E", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1045E", 
@@ -898,6 +1450,27 @@
       }, 
       "1": {
         "code": "R1045E", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }
+  }, 
+  "R1047D": {
+    "YC1": {
+      "0": {
+        "code": "R1047D", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1047D", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
+    "YC2": {
+      "1": {
+        "code": "R1047D", 
         "montage": "0.0", 
         "original_session": 1
       }
@@ -917,6 +1490,13 @@
         "montage": "0.1", 
         "original_session": 0
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1048E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
     }
   }, 
   "R1049J": {
@@ -925,6 +1505,18 @@
         "code": "R1049J", 
         "montage": "0.0", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1049J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1049J", 
+        "montage": "0.0", 
+        "original_session": 1
       }
     }
   }, 
@@ -951,6 +1543,20 @@
       }
     }, 
     "PAL2": {
+      "0": {
+        "code": "R1050M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1050M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
       "0": {
         "code": "R1050M", 
         "montage": "0.0", 
@@ -989,6 +1595,18 @@
         "montage": "0.0", 
         "original_session": 2
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1051J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1051J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1052E": {
@@ -999,11 +1617,16 @@
         "original_session": 0
       }, 
       "1": {
+        "code": "R1052E_1", 
+        "montage": "0.1", 
+        "original_session": 1
+      }, 
+      "2": {
         "code": "R1052E_2", 
         "montage": "1.2", 
         "original_session": 0
       }, 
-      "2": {
+      "3": {
         "code": "R1052E_2", 
         "montage": "1.2", 
         "original_session": 1
@@ -1014,6 +1637,33 @@
         "code": "R1052E_1", 
         "montage": "0.1", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1052E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1052E_1", 
+        "montage": "0.1", 
+        "original_session": 0
+      }, 
+      "2": {
+        "code": "R1052E_1", 
+        "montage": "0.1", 
+        "original_session": 1
+      }, 
+      "3": {
+        "code": "R1052E_2", 
+        "montage": "1.2", 
+        "original_session": 0
+      }, 
+      "4": {
+        "code": "R1052E_2", 
+        "montage": "1.2", 
+        "original_session": 1
       }
     }
   }, 
@@ -1045,19 +1695,12 @@
         "montage": "0.0", 
         "original_session": 1
       }
-    }
-  }, 
-  "R1055J": {
-    "FR1": {
+    }, 
+    "YC1": {
       "0": {
-        "code": "R1055J", 
+        "code": "R1054J", 
         "montage": "0.0", 
         "original_session": 0
-      }, 
-      "1": {
-        "code": "R1055J", 
-        "montage": "0.0", 
-        "original_session": 1
       }
     }
   }, 
@@ -1077,6 +1720,20 @@
       }
     }, 
     "PAL1": {
+      "0": {
+        "code": "R1056M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1056M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
       "0": {
         "code": "R1056M", 
         "montage": "0.0", 
@@ -1108,14 +1765,26 @@
         "original_session": 0
       }, 
       "1": {
-        "code": "R1059J_1", 
-        "montage": "1.1", 
-        "original_session": 0
+        "code": "R1059J", 
+        "montage": "0.0", 
+        "original_session": 1
       }, 
       "2": {
         "code": "R1059J_1", 
         "montage": "1.1", 
+        "original_session": 0
+      }, 
+      "3": {
+        "code": "R1059J_1", 
+        "montage": "1.1", 
         "original_session": 1
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1059J_1", 
+        "montage": "1.1", 
+        "original_session": 0
       }
     }
   }, 
@@ -1173,6 +1842,25 @@
         "original_session": 2
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1060M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "2": {
+        "code": "R1060M", 
+        "montage": "0.0", 
+        "original_session": 2
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1060M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1060M", 
@@ -1211,6 +1899,20 @@
         "original_session": 3
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1061T", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1061T", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1061T", 
@@ -1241,11 +1943,28 @@
         "montage": "0.0", 
         "original_session": 3
       }
+    }, 
+    "YC1": {
+      "1": {
+        "code": "R1062J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "3": {
+        "code": "R1062J", 
+        "montage": "0.0", 
+        "original_session": 3
+      }
     }
   }, 
   "R1063C": {
     "FR1": {
       "0": {
+        "code": "R1063C", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
         "code": "R1063C_1", 
         "montage": "0.1", 
         "original_session": 0
@@ -1255,6 +1974,37 @@
       "0": {
         "code": "R1063C_1", 
         "montage": "0.1", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1063C_1", 
+        "montage": "0.1", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1063C_1", 
+        "montage": "0.1", 
+        "original_session": 1
+      }
+    }
+  }, 
+  "R1064E": {
+    "YC1": {
+      "0": {
+        "code": "R1064E", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1064E", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1064E_1", 
+        "montage": "1.1", 
         "original_session": 0
       }
     }
@@ -1309,6 +2059,45 @@
         "original_session": 2
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 3
+      }, 
+      "4": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 4
+      }, 
+      "5": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 5
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1065J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1065J", 
@@ -1350,11 +2139,16 @@
         "original_session": 2
       }, 
       "3": {
+        "code": "R1066P", 
+        "montage": "0.0", 
+        "original_session": 3
+      }, 
+      "4": {
         "code": "R1066P_1", 
         "montage": "0.1", 
         "original_session": 0
       }, 
-      "4": {
+      "5": {
         "code": "R1066P_1", 
         "montage": "0.1", 
         "original_session": 1
@@ -1364,6 +2158,28 @@
       "0": {
         "code": "R1066P", 
         "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1066P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1066P", 
+        "montage": "0.0", 
+        "original_session": 1
+      }, 
+      "2": {
+        "code": "R1066P", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
+        "code": "R1066P_1", 
+        "montage": "0.1", 
         "original_session": 0
       }
     }, 
@@ -1403,6 +2219,13 @@
         "original_session": 3
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1067P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1067P", 
@@ -1440,6 +2263,18 @@
         "montage": "0.0", 
         "original_session": 2
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1068J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1068J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1069M": {
@@ -1458,6 +2293,20 @@
       }
     }, 
     "PAL1": {
+      "0": {
+        "code": "R1069M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1069M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
       "0": {
         "code": "R1069M", 
         "montage": "0.0", 
@@ -1505,6 +2354,15 @@
       }
     }
   }, 
+  "R1073J": {
+    "YC1": {
+      "0": {
+        "code": "R1073J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
   "R1074M": {
     "FR1": {
       "0": {
@@ -1534,6 +2392,20 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1074M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC2": {
+      "0": {
+        "code": "R1074M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1074M", 
@@ -1551,6 +2423,18 @@
   }, 
   "R1075J": {
     "FR1": {
+      "0": {
+        "code": "R1075J", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1075J", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
+    }, 
+    "YC1": {
       "0": {
         "code": "R1075J", 
         "montage": "0.0", 
@@ -1613,12 +2497,33 @@
         "montage": "0.0", 
         "original_session": 0
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1077T", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
+        "code": "R1077T", 
+        "montage": "0.0", 
+        "original_session": 1
+      }
     }
   }, 
   "R1078N": {
     "PAL1": {
       "0": {
         "code": "R1078N", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }
+  }, 
+  "R1079E": {
+    "YC1": {
+      "0": {
+        "code": "R1079E", 
         "montage": "0.0", 
         "original_session": 0
       }
@@ -1696,8 +2601,20 @@
         "original_session": 3
       }, 
       "4": {
+        "code": "R1083J", 
+        "montage": "0.0", 
+        "original_session": 4
+      }, 
+      "5": {
         "code": "R1083J_1", 
         "montage": "0.1", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1083J", 
+        "montage": "0.0", 
         "original_session": 0
       }
     }, 
@@ -1742,6 +2659,13 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1086M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1086M", 
@@ -1773,6 +2697,13 @@
       }
     }, 
     "PAL1": {
+      "0": {
+        "code": "R1089P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
       "0": {
         "code": "R1089P", 
         "montage": "0.0", 
@@ -1845,6 +2776,11 @@
         "original_session": 1
       }, 
       "2": {
+        "code": "R1092J_2", 
+        "montage": "0.2", 
+        "original_session": 2
+      }, 
+      "3": {
         "code": "R1092J_3", 
         "montage": "0.3", 
         "original_session": 0
@@ -1943,20 +2879,6 @@
       }
     }
   }, 
-  "R1096E": {
-    "FR1": {
-      "0": {
-        "code": "R1096E", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1096E", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }
-  }, 
   "R1097N": {
     "PAL1": {
       "0": {
@@ -2035,6 +2957,13 @@
         "montage": "0.0", 
         "original_session": 0
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1101T", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
     }
   }, 
   "R1102P": {
@@ -2062,15 +2991,6 @@
         "code": "R1102P", 
         "montage": "0.0", 
         "original_session": 1
-      }
-    }
-  }, 
-  "R1104D": {
-    "FR1": {
-      "0": {
-        "code": "R1104D", 
-        "montage": "0.0", 
-        "original_session": 0
       }
     }
   }, 
@@ -2108,6 +3028,13 @@
         "code": "R1106M", 
         "montage": "0.0", 
         "original_session": 0
+      }
+    }, 
+    "YC1": {
+      "1": {
+        "code": "R1106M", 
+        "montage": "0.0", 
+        "original_session": 1
       }
     }, 
     "catFR1": {
@@ -2335,6 +3262,13 @@
         "original_session": 0
       }
     }, 
+    "YC1": {
+      "0": {
+        "code": "R1112M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
     "catFR1": {
       "0": {
         "code": "R1112M", 
@@ -2364,6 +3298,13 @@
   }, 
   "R1114C": {
     "FR1": {
+      "0": {
+        "code": "R1114C", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
+    }, 
+    "YC1": {
       "0": {
         "code": "R1114C", 
         "montage": "0.0", 
@@ -2419,6 +3360,11 @@
         "original_session": 1
       }, 
       "2": {
+        "code": "R1118N", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
         "code": "R1118N_1", 
         "montage": "1.1", 
         "original_session": 0
@@ -2584,16 +3530,11 @@
         "original_session": 2
       }
     }, 
-    "FR3": {
+    "YC1": {
       "0": {
-        "code": "R1124J_1", 
-        "montage": "0.1", 
+        "code": "R1124J", 
+        "montage": "0.0", 
         "original_session": 0
-      }, 
-      "1": {
-        "code": "R1124J_1", 
-        "montage": "0.1", 
-        "original_session": 1
       }
     }
   }, 
@@ -2619,6 +3560,11 @@
   "R1127P": {
     "FR1": {
       "0": {
+        "code": "R1127P", 
+        "montage": "0.0", 
+        "original_session": 0
+      }, 
+      "1": {
         "code": "R1127P_1", 
         "montage": "0.1", 
         "original_session": 0
@@ -2762,16 +3708,21 @@
         "original_session": 0
       }, 
       "1": {
-        "code": "R1135E_1", 
-        "montage": "1.1", 
-        "original_session": 0
+        "code": "R1135E", 
+        "montage": "0.0", 
+        "original_session": 1
       }, 
       "2": {
         "code": "R1135E_1", 
         "montage": "1.1", 
-        "original_session": 1
+        "original_session": 0
       }, 
       "3": {
+        "code": "R1135E_1", 
+        "montage": "1.1", 
+        "original_session": 1
+      }, 
+      "4": {
         "code": "R1135E_1", 
         "montage": "1.1", 
         "original_session": 2
@@ -2939,13 +3890,6 @@
         "montage": "0.1", 
         "original_session": 3
       }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1145J_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }
     }
   }, 
   "R1146E": {
@@ -3106,33 +4050,6 @@
         "montage": "0.0", 
         "original_session": 3
       }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1154D", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1154D", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1154D", 
-        "montage": "0.0", 
-        "original_session": 2
-      }, 
-      "3": {
-        "code": "R1154D", 
-        "montage": "0.0", 
-        "original_session": 3
-      }, 
-      "4": {
-        "code": "R1154D", 
-        "montage": "0.0", 
-        "original_session": 4
-      }
     }
   }, 
   "R1155D": {
@@ -3246,18 +4163,6 @@
         "montage": "0.0", 
         "original_session": 2
       }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1161E", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1161E", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
     }
   }, 
   "R1162N": {
@@ -3311,18 +4216,6 @@
         "original_session": 1
       }
     }, 
-    "FR3": {
-      "0": {
-        "code": "R1163T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1163T", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
     "catFR1": {
       "0": {
         "code": "R1163T", 
@@ -3356,18 +4249,6 @@
         "code": "R1166D", 
         "montage": "0.0", 
         "original_session": 2
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1166D", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1166D", 
-        "montage": "0.0", 
-        "original_session": 1
       }
     }
   }, 
@@ -3450,18 +4331,6 @@
         "original_session": 2
       }
     }, 
-    "FR3": {
-      "0": {
-        "code": "R1170J_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1170J_1", 
-        "montage": "0.1", 
-        "original_session": 1
-      }
-    }, 
     "catFR1": {
       "0": {
         "code": "R1170J_1", 
@@ -3483,6 +4352,11 @@
         "original_session": 1
       }, 
       "2": {
+        "code": "R1171M", 
+        "montage": "0.0", 
+        "original_session": 2
+      }, 
+      "3": {
         "code": "R1171M_1", 
         "montage": "0.1", 
         "original_session": 0
@@ -3570,15 +4444,13 @@
         "original_session": 1
       }, 
       "20": {
-        "code": "R1175N_1", 
-        "montage": "1.1", 
-        "original_session": 0
-      }
-    }, 
-    "PAL3": {
-      "0": {
         "code": "R1175N", 
         "montage": "0.0", 
+        "original_session": 20
+      }, 
+      "21": {
+        "code": "R1175N_1", 
+        "montage": "1.1", 
         "original_session": 0
       }
     }
@@ -3670,6 +4542,13 @@
         "montage": "0.0", 
         "original_session": 6
       }
+    }, 
+    "YC1": {
+      "0": {
+        "code": "R1177M", 
+        "montage": "0.0", 
+        "original_session": 0
+      }
     }
   }, 
   "R1178P": {
@@ -3688,658 +4567,6 @@
     "catFR1": {
       "0": {
         "code": "R1178P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1180C": {
-    "catFR1": {
-      "0": {
-        "code": "R1180C", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1180C", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1180C", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "catFR2": {
-      "0": {
-        "code": "R1180C", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1181E": {
-    "catFR1": {
-      "1": {
-        "code": "R1181E", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1181E", 
-        "montage": "0.0", 
-        "original_session": 2
-      }, 
-      "3": {
-        "code": "R1181E", 
-        "montage": "0.0", 
-        "original_session": 3
-      }
-    }
-  }, 
-  "R1184M": {
-    "FR1": {
-      "0": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "FR2": {
-      "0": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 2
-      }, 
-      "3": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 3
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1184M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1185N": {
-    "FR1": {
-      "0": {
-        "code": "R1185N_1", 
-        "montage": "1.1", 
-        "original_session": 0
-      }
-    }, 
-    "PAL1": {
-      "0": {
-        "code": "R1185N", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1185N_1", 
-        "montage": "1.1", 
-        "original_session": 0
-      }
-    }, 
-    "PAL2": {
-      "0": {
-        "code": "R1185N_1", 
-        "montage": "1.1", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1186P": {
-    "FR1": {
-      "0": {
-        "code": "R1186P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1186P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1187P": {
-    "FR1": {
-      "0": {
-        "code": "R1187P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1187P", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1187P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1188C": {
-    "catFR1": {
-      "0": {
-        "code": "R1188C", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1189M": {
-    "FR1": {
-      "0": {
-        "code": "R1189M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1189M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1189M", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1189M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1190P": {
-    "catFR1": {
-      "0": {
-        "code": "R1190P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1190P", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }
-  }, 
-  "R1191J": {
-    "FR1": {
-      "0": {
-        "code": "R1191J", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1191J", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1191J", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1191J_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1192C": {
-    "catFR1": {
-      "0": {
-        "code": "R1192C", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1192C", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1192C", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "catFR2": {
-      "0": {
-        "code": "R1192C", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1192C", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }
-  }, 
-  "R1193T": {
-    "FR1": {
-      "0": {
-        "code": "R1193T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1193T", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "3": {
-        "code": "R1193T", 
-        "montage": "0.0", 
-        "original_session": 3
-      }
-    }
-  }, 
-  "R1195E": {
-    "FR1": {
-      "0": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1195E", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }
-  }, 
-  "R1196N": {
-    "PAL1": {
-      "2": {
-        "code": "R1196N", 
-        "montage": "0.0", 
-        "original_session": 2
-      }, 
-      "3": {
-        "code": "R1196N", 
-        "montage": "0.0", 
-        "original_session": 3
-      }, 
-      "4": {
-        "code": "R1196N", 
-        "montage": "0.0", 
-        "original_session": 4
-      }, 
-      "5": {
-        "code": "R1196N", 
-        "montage": "0.0", 
-        "original_session": 5
-      }
-    }, 
-    "PAL3": {
-      "0": {
-        "code": "R1196N", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1198M": {
-    "FR1": {
-      "0": {
-        "code": "R1198M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1200T": {
-    "FR1": {
-      "0": {
-        "code": "R1200T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1200T", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1200T", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1200T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1201P": {
-    "FR1": {
-      "0": {
-        "code": "R1201P_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1201P_1", 
-        "montage": "0.1", 
-        "original_session": 1
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1201P_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1201P_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1202M": {
-    "FR1": {
-      "0": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
-    "PAL1": {
-      "0": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1202M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }
-  }, 
-  "R1203T": {
-    "FR1": {
-      "0": {
-        "code": "R1203T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1204T": {
-    "FR1": {
-      "0": {
-        "code": "R1204T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1204T", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1204T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1204T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1207J": {
-    "FR1": {
-      "0": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }, 
-    "PAL1": {
-      "0": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "1": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 2
-      }, 
-      "3": {
-        "code": "R1207J", 
-        "montage": "0.0", 
-        "original_session": 3
-      }
-    }
-  }, 
-  "R1212P": {
-    "PAL1": {
-      "0": {
-        "code": "R1212P", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1212P", 
-        "montage": "0.0", 
-        "original_session": 1
-      }
-    }
-  }, 
-  "R1214M": {
-    "FR1": {
-      "0": {
-        "code": "R1214M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1215M": {
-    "FR1": {
-      "0": {
-        "code": "R1215M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1215M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1215M", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "PAL1": {
-      "0": {
-        "code": "R1215M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1215M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1216E": {
-    "FR1": {
-      "0": {
-        "code": "R1216E_1", 
-        "montage": "0.1", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1216E_1", 
-        "montage": "0.1", 
-        "original_session": 1
-      }, 
-      "10": {
-        "code": "R1216E_1", 
-        "montage": "0.1", 
-        "original_session": 10
-      }
-    }
-  }, 
-  "R1217T": {
-    "FR1": {
-      "1": {
-        "code": "R1217T", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1217T", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "FR3": {
-      "0": {
-        "code": "R1217T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1217T", 
-        "montage": "0.0", 
-        "original_session": 0
-      }
-    }
-  }, 
-  "R1222M": {
-    "FR1": {
-      "0": {
-        "code": "R1222M", 
-        "montage": "0.0", 
-        "original_session": 0
-      }, 
-      "1": {
-        "code": "R1222M", 
-        "montage": "0.0", 
-        "original_session": 1
-      }, 
-      "2": {
-        "code": "R1222M", 
-        "montage": "0.0", 
-        "original_session": 2
-      }
-    }, 
-    "catFR1": {
-      "0": {
-        "code": "R1222M", 
         "montage": "0.0", 
         "original_session": 0
       }
