@@ -161,6 +161,12 @@ def test_egi_split():
     reader = EGI_reader(path)
     reader.get_data()
     reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
+    old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.001')
+    new_file = os.path.expanduser('~/noreref/TEST.001')
+    old_data = np.fromfile(old_file, 'int16')
+    new_data = np.fromfile(new_file, 'int16')
+    print old_data[0]
+    print new_data[0]
 
 if __name__ == '__main__':
     test_egi_split()
