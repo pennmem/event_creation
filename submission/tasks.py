@@ -18,7 +18,7 @@ from parsers.ps_log_parser import PSLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
-                                  CatFRMatConverter, PSMatConverter, MathMatConverter
+                                  CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
 from loggers import log, logger
 from transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT
 
@@ -276,7 +276,8 @@ class MatlabEventConversionTask(PipelineTask):
         'FR': FRMatConverter,
         'PAL': PALMatConverter,
         'catFR': CatFRMatConverter,
-        'PS': PSMatConverter
+        'PS': PSMatConverter,
+        'YC': YCMatConverter
     }
 
     def __init__(self, protocol, subject, montage, experiment, session,
