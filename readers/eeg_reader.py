@@ -733,7 +733,7 @@ class EGI_reader(EEG_reader):
             if not fmt:
                 raise Exception('Unknown EGI format %d' % self.header['version'])
 
-            run_highpass = False  # True if self.header['version'] == 4 else False
+            run_highpass = True if self.header['version'] == 4 else False
 
             # Log various information about the file
             log('EEG File Information:')
@@ -748,7 +748,7 @@ class EGI_reader(EEG_reader):
             self.start_datetime = datetime.datetime(self.header['year'], self.header['month'], self.header['day'],
                                                     self.header['hour'], self.header['minute'], self.header['second'])
             # Calculate total number of samples to read
-            total_samples = (self.header['num_channels'] + self.header['num_events']) * 1000  # * self.header['num_samples']
+            total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
 
             # Calculate the gain factor for converting raw EEG data to uV
             amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
@@ -762,7 +762,6 @@ class EGI_reader(EEG_reader):
             log('Loading %d samples...' % total_samples)
             # Read samples in blocks of step_size, until all samples have been read
             while total_read < total_samples:
-                log(total_read)
                 samples_left = total_samples - total_read
                 samples_to_read = samples_left if samples_left * bytes_per_sample < step_size else step_size
                 unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read)+fmt[1], raw_file.read(samples_to_read * bytes_per_sample))
@@ -772,8 +771,8 @@ class EGI_reader(EEG_reader):
             log('%d...Done' % total_read)
 
             # Organize the data into a matrix with each channel and event on its own row
-            self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000))
-            #self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], self.header['num_samples']))
+            # self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000)). order='F')
+            self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
 
             if run_highpass:
                 log('Running first-order .1 Hz highpass filter on all channels.')
@@ -895,7 +894,7 @@ def calc_gain(amp_info, amp_fact):
         log('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
         return 1
 
-def butter_filt(data, freq_range=[58, 62], sample_rate=256, filt_type='bandstop', order=4): # FIXME: Should ultimately be implemented in the eeg_toolbox
+def butter_filt(data, freq_range=[58, 62], sample_rate=256, filt_type='bandstop', order=4):
     """
     Designs and runs an Nth order digital butterworth filter on an array of data
     :param data: An array containing the data to be filtered
@@ -910,8 +909,8 @@ def butter_filt(data, freq_range=[58, 62], sample_rate=256, filt_type='bandstop'
     # Get the Butterworth values and run the filter for zero phase distortion
     freq_range = [freq_range] if isinstance(freq_range, (int, float)) else freq_range
     for i in range(len(freq_range)):
-        (Bb, Ab) = butter(order, freq_range[i]/nyq, btype=filt_type)
-        data = filtfilt(Bb, Ab, data)
+        Bb, Ab = butter(order, freq_range[i]/nyq, btype=filt_type)
+        data = filtfilt(Bb, Ab, data, padlen=3)  # need to set pad length to 3 to match what MATLAB scripts used
     return data
 
 READERS = {
