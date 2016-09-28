@@ -157,16 +157,20 @@ def test_nk_split():
                 raise Exception('Could not compare new and old data')
 
 def test_egi_split():
-    path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
-    reader = EGI_reader(path)
-    reader.get_data()
-    reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
-    old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.001')
-    new_file = os.path.expanduser('~/noreref/TEST.001')
-    old_data = np.fromfile(old_file, 'int16')
-    new_data = np.fromfile(new_file, 'int16')
-    print old_data[0]
-    print new_data[0]
+    split = True
+    if split:
+        path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
+        reader = EGI_reader(path)
+        reader.get_data()
+        reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
+    for i in range(1, 10):
+        print 'Channel', i
+        old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.00'+str(i))
+        new_file = os.path.expanduser('~/noreref/TEST.00'+str(i))
+        old_data = np.fromfile(old_file, 'int16')
+        new_data = np.fromfile(new_file, 'int16')
+        print old_data[0:10]
+        print new_data[0:10]
 
 if __name__ == '__main__':
     test_egi_split()
