@@ -1176,6 +1176,13 @@ CATFR_SYS1_COMPARATOR_INPUTS = dict(
                  'B', 'E', 'COUNTDOWN_START', 'SESS_END', 'PRACTICE_REC_START', 'PRACTICE_REC_END')
 )
 
+TH_COMPARATOR_INPUTS = dict(
+    field_switch = {'is_stim': 'isStim', 'item_name': 'item'},
+    field_ignore = all_ignore + ('stim_list', 'normErr', 'pathInfo'),
+    exceptions = event_comparison_exceptions,
+    type_ignore = ()
+)
+
 LTPFR_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
     field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
@@ -1198,8 +1205,8 @@ SYS2_COMPARATOR_INPUTS = dict(
     PAL1=PAL1_SYS2_COMPARATOR_INPUTS,
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS,
     PAL3=PAL3_COMPARATOR_INPUTS,
-    PS=PS_SYS2_COMPARATOR_INPUTS
-
+    PS=PS_SYS2_COMPARATOR_INPUTS,
+    TH1=TH_COMPARATOR_INPUTS
 )
 
 SYS1_COMPARATOR_INPUTS = dict(
@@ -1209,7 +1216,8 @@ SYS1_COMPARATOR_INPUTS = dict(
     PAL2=PAL2_COMPARATOR_INPUTS,
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS,
     catFR2=CATFR_SYS1_COMPARATOR_INPUTS,
-    PS=PS_COMPARATOR_INPUTS
+    PS=PS_COMPARATOR_INPUTS,
+    TH1=TH_COMPARATOR_INPUTS
 )
 
 LTP_COMPARATOR_INPUTS = dict(

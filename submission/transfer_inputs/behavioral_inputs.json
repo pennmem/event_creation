@@ -31,6 +31,7 @@
         "destination": "jacksheet.txt"
       }
     },
+
     "transfer": {
       "type": "group",
       "system_1": {
@@ -99,6 +100,17 @@
           }
         }
       },
+      "TH": {
+        "type": "group",
+        "session_log": {
+          "type": "file",
+          "multiple": false,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "{code}Log.txt",
+          "destination": "logs/session_log.txt"
+        }
+      },
       "verbal": {
         "type": "group",
         "session_log": {
@@ -140,17 +152,17 @@
           "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
           "origin_file": "sconfig.py",
           "destination": "experiment_files/sconfig.py"
-        },
-        "system_2": {
-          "type": "group",
-          "host_logs": {
-            "type": "file",
-            "multiple": true,
-            "required": true,
-            "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
-            "origin_file": "{experiment}_{subject}_*.log",
-            "destination": "logs/host_logs/"
-          }
+        }
+      },
+      "system_2": {
+        "type": "group",
+        "host_logs": {
+          "type": "file",
+          "multiple": true,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
+          "origin_file": "{experiment}_{subject}_*.log",
+          "destination": "logs/host_logs/"
         }
       },
       "catFR": {

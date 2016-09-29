@@ -333,6 +333,9 @@ class Transferer(object):
         new_transferred_files = {k:v for k,v in self.transferred_files.items()}
         for file in self.transferred_files:
             log('Removing Entry : {} '.format(file))
+            if file not in self.transfer_dict: # Must have been added later. This is messy. Should be fixed.
+                os.remove(self.transferred_files[file])
+                continue
             info = self.transfer_dict[file]
             destination_path = self.get_destination_path(info)
 

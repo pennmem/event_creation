@@ -15,6 +15,7 @@ from parsers.catfr_log_parser import CatFRSessionLogParser
 from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
+from parsers.th_log_parser import THSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
@@ -171,7 +172,8 @@ class EventCreationTask(PipelineTask):
         'catFR': CatFRSessionLogParser,
         'math': MathLogParser,
         'PS': PSLogParser,
-        'ltpFR': LTPFR2SessionLogParser
+        'ltpFR': LTPFR2SessionLogParser,
+        'TH': THSessionLogParser
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
@@ -277,7 +279,7 @@ class MatlabEventConversionTask(PipelineTask):
         'PAL': PALMatConverter,
         'catFR': CatFRMatConverter,
         'PS': PSMatConverter,
-        'YC': YCMatConverter
+        'YC': YCMatConverter,
     }
 
     def __init__(self, protocol, subject, montage, experiment, session,
@@ -478,9 +480,12 @@ class CompareEventsTask(PipelineTask):
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
         if self.protocol == 'r1':
-            major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
-
-            if float(major_version.split('_')[-1]) >= 2:
+            try:
+                major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
+                major_version_num = float(major_version.split('_')[-1])
+            except:
+                major_version_num = 0
+            if major_version_num >= 2:
                 comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
             else:
                 comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
