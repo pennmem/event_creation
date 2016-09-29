@@ -282,8 +282,13 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
                                              new_experiment=new_experiment, **kwargs)
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
-    tasks = [MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
-                                       original_session=original_session, **kwargs)]
+    if protocol == 'r1':
+        tasks = [MontageLinkerTask(protocol, subject, montage)]
+    else:
+        tasks = []
+
+    tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
+                                       original_session=original_session, **kwargs))
 
     if do_math:
         tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
