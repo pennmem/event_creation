@@ -248,7 +248,7 @@ def run_full_import_pipeline(kwargs, force_run=False):
         convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
         convert_events_pipeline = build_convert_events_pipeline(**kwargs)
         convert = True
-    except:
+    except Exception as e:
         log('Could not make convert pipeline: {}'.format(e))
         if not build:
             raise
