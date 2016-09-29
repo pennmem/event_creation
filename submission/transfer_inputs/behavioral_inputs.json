@@ -213,7 +213,23 @@
         "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
         "origin_file": "eeg.eeglog",
         "destination": "logs/eeg.eeglog"
-      }
+      },
+      "eeg_params": {
+        "type": "file",
+        "multiple": false,
+        "required": false,
+        "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/eeg.noreref",
+        "origin_file": "params.txt",
+        "destination": "experiment_files/"
+      },
+      "sync_pulses": {
+          "type": "file",
+          "multiple": true,
+          "required": false,
+          "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/eeg.noreref",
+          "origin_file": "*.D*",
+          "destination": "logs/extracted_syncs.txt"
+        }
     },
     "verbal": {
       "type": "group",
