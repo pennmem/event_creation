@@ -158,15 +158,27 @@ def test_nk_split():
 
 def test_egi_split():
     split = True
+    reref = True
+    path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
+    reader = EGI_reader(path)
     if split:
-        path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
-        reader = EGI_reader(path)
         reader.get_data()
-        reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
+        reader._split_data(os.path.expanduser('~/noreref'), 'TEST')
     for i in range(1, 10):
-        print 'Channel', i
+        print 'Channel', i, 'noreref'
         old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.00'+str(i))
         new_file = os.path.expanduser('~/noreref/TEST.00'+str(i))
+        old_data = np.fromfile(old_file, 'int16')
+        new_data = np.fromfile(new_file, 'int16')
+        print old_data[0:10]
+        print new_data[0:10]
+    if reref:
+        good_chans = np.array(range(1, 130))
+        reader.reref(good_chans, os.path.expanduser('~/reref'))
+    for i in range(1, 10):
+        print 'Channel', i, 'reref'
+        old_file = os.path.expanduser('~/eeg.reref/LTP117_15Jul14_1225.00' + str(i))
+        new_file = os.path.expanduser('~/reref/TEST.00' + str(i))
         old_data = np.fromfile(old_file, 'int16')
         new_data = np.fromfile(new_file, 'int16')
         print old_data[0:10]
