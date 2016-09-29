@@ -107,15 +107,15 @@ def build_data_export_database():
                     previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
                     max_session = max(previous_sessions)
                     max_previous_sessions = max(max_session, max_previous_sessions) + 1
-            for session in sessions:
+            for i, session in enumerate(sessions):
                 session_dict = {
                     'original_session': session,
                     'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
                     'code': subject
                 }
                 subject_without_montage = subject.split('_')[0]
-                print 'adding', subject, experiment, session+max_previous_sessions
-                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
+                print 'adding', subject, experiment, i+max_previous_sessions
+                subjects[subject_without_montage][experiment][i + max_previous_sessions] = session_dict
             #print(json.dumps(subjects, indent=2, sort_keys=True))
     json.dump(subjects, open('export_sessions.json', 'w'), indent=2, sort_keys=True)
 
