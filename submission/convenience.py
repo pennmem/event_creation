@@ -171,7 +171,7 @@ def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
 
-def test_import_existing_montages():
+def xtest_import_existing_montages():
     codes = get_all_codes()
     for code in codes:
         try:
@@ -234,6 +234,13 @@ def get_first_unused_session(subject, experiment, protocol='r1'):
 def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline = pipeline_fn(**kwargs)
     pipeline.run(force_run)
+
+def run_convert_import_pipeline(kwargs, force_run_ephys, force_run_beh):
+    convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
+    convert_events_pipeline = build_convert_events_pipeline(**kwargs)
+
+    convert_eeg_pipeline.run(force_run_ephys)
+    convert_events_pipeline(force_run_beh)
 
 def run_full_import_pipeline(kwargs, force_run=False):
     try:
@@ -345,12 +352,12 @@ def xtest_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
-def xtest_import_all_yc_sessions():
+def test_import_all_yc_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
         yield test
 
 
-def test_import_sharing_database():
+def xtest_import_sharing_database():
     for test in run_from_json_file(os.path.join(this_dir, 'export_sessions.json')):
         yield test
 
