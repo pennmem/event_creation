@@ -240,7 +240,7 @@ def run_convert_import_pipeline(kwargs, force_run_ephys, force_run_beh):
     convert_events_pipeline = build_convert_events_pipeline(**kwargs)
 
     convert_eeg_pipeline.run(force_run_ephys)
-    convert_events_pipeline(force_run_beh)
+    convert_events_pipeline.run(force_run_beh)
 
 def run_full_import_pipeline(kwargs, force_run=False):
     try:
@@ -353,7 +353,7 @@ def xtest_import_all_verbal_sessions():
         yield test
 
 def test_import_all_yc_sessions():
-    for test in run_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
+    for test in convert_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
         yield test
 
 
@@ -366,6 +366,61 @@ def xtest_all_experiments():
     for experiment in EXPERIMENTS:
         for test in check_experiment(experiment):
             yield test
+
+
+def convert_from_json_file(filename):
+    subjects = json.load(open(filename))
+    sorted_subjects = sorted(subjects.keys())
+    for subject in sorted_subjects:
+        experiments = subjects[subject]
+        for new_experiment in experiments:
+            sessions = experiments[new_experiment]
+            for session in sessions:
+                info = sessions[session]
+                experiment = info.get('original_experiment', new_experiment)
+                original_session = info.get('original_session', session)
+                is_sys1 = info.get('system_1', False)
+                is_sys2 = info.get('system_2', False)
+                montage = info.get('montage', '0.0')
+                force = info.get('force', False)
+                code = info.get('code', subject)
+                protocol = info.get('protocol', 'r1')
+
+                montage_num = montage.split('.')[1]
+                localization = montage.split('.')[0]
+                inputs = dict(
+                    protocol=protocol,
+                    subject = subject,
+                    montage = montage,
+                    montage_num = montage_num,
+                    localization=localization,
+                    experiment = experiment,
+                    new_experiment = new_experiment,
+                    force = force,
+                    do_compare = True,
+                    code=code,
+                    session=session,
+                    original_session=original_session,
+                    groups = (protocol,)
+                )
+
+
+
+                raw_substitute = info.get('raw_substitute', False)
+                if raw_substitute:
+                    inputs['substitute_raw_folder'] = raw_substitute
+                if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3'):
+                    inputs['groups'] += ('system_2',)
+                else:
+                    inputs['groups'] += ('system_1',)
+
+                if 'PS' in experiment or 'TH' in experiment or 'YC' in experiment:
+                    inputs['do_math'] = False
+                else:
+                    inputs['groups'] += ('verbal',)
+
+                yield run_convert_import_pipeline, inputs, False, True
+
 
 
 def run_from_json_file(filename):
