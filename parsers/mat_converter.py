@@ -491,7 +491,6 @@ class YCMatConverter(BaseMatConverter):
     YC_FIELD_CONVERSION = {
         'item': 'stimulus',
         'itemno': 'stimulus_num',
-        'goodThresholdDistErr': 'good_threshold_dist_err',
         'recalled': 'recalled',
         'isStim': 'is_stim',
         'expVersion': 'exp_version',
@@ -506,24 +505,10 @@ class YCMatConverter(BaseMatConverter):
         'respLocs': 'resp_locs',
         'respDistErr': 'resp_dist_err',
         'respPerformanceFactor': 'resp_performance_factor',
-        'respXDistErr': 'resp_x_dist_err',
-        'respYDistErr': 'resp_y_dist_err',
-        'respHeading': 'resp_heading',
         'respReactionTime': 'resp_reaction_time',
         'respPathLength': 'resp_path_length',
-        'respNormDistErr': 'resp_norm_dist_err',
         'respTravelTime': 'resp_travel_time',
-        'respRightQuadrant': 'resp_right_quadrant',
-        'respStartAngleErr': 'resp_start_angle_err',
-        'respEndAngleErr': 'resp_end_angle_err',
-        'respRelativeDistErr': 'resp_relative_dist_err',
         'Path': 'path',
-        'respMirrorDistErr': 'resp_mirror_dist_err',
-        'respFlipX_DistErr': 'resp_flip_x_dist_err',
-        'respFlipY_DistErr': 'resp_flip_y_dist_err',
-        'respRectDistErr': 'resp_rect_dist_err',
-        'respFlipX_XDistErr': 'resp_flip_x_xdist_err',
-        'respFlipY_YDistErr': 'resp_flip_y_ydist_err',
     }
 
     PATH_FIELDS = (
@@ -542,7 +527,6 @@ class YCMatConverter(BaseMatConverter):
         return (
             ('stimulus', '', 'S64'),
             ('stimulus_num', -999, 'int16'),
-            ('good_threshold_dist_err', -999., 'f8'),
             ('recalled', False, 'int16'),
             ('is_stim', False, 'int16'),
             ('stim_loc', '', 'S64'),
@@ -557,24 +541,10 @@ class YCMatConverter(BaseMatConverter):
             ('resp_locs', -999, 'f8', 2),
             ('resp_dist_err', -999, 'f8'),
             ('resp_performance_factor', -999, 'f8'),
-            ('resp_x_dist_err', -999, 'f8'),
-            ('resp_y_dist_err', -999, 'f8'),
-            ('resp_heading', -999, 'f8'),
             ('resp_reaction_time', -999, 'f8'),
             ('resp_path_length', -999, 'f8'),
-            ('resp_norm_dist_err', -999, 'f8'),
             ('resp_travel_time', -999, 'f8'),
-            ('resp_right_quadrant', -999, 'int16'),
-            ('resp_start_angle_err', -999, 'f8'),
-            ('resp_end_angle_err', -999, 'f8'),
-            ('resp_relative_dist_err', -999, 'f8'),
             ('path', self.empty_path_field(), BaseSessionLogParser.dtype_from_template(self.PATH_FIELDS), self.max_path_entries),
-            ('resp_mirror_dist_err', -999, 'f8'),
-            ('resp_flip_x_dist_err', -999, 'f8'),
-            ('resp_flip_y_dist_err', -999, 'f8'),
-            ('resp_rect_dist_err', -999, 'f8'),
-            ('resp_flip_x_xdist_err', -999, 'f8'),
-            ('resp_flip_y_ydist_err', -999, 'f8')
         )
 
 
