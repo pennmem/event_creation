@@ -794,7 +794,7 @@ class EGI_reader(EEG_reader):
         Splits the data extracted from the raw file into each channel and event, and writes the data for each channel
         into a separate file. Also writes two parameter files containing the sample rate, data format, and amp gain
         for the session.
-        :param location: The directory in which the channel files are to be written
+        :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
         """
         self.basename = basename
@@ -856,9 +856,9 @@ class EGI_reader(EEG_reader):
     def reref(self, good_chans, location):
         """
         Rereferences the EEG recordings and writes the referenced data to separate files for each channel
-        :param good_chans: Numpy array containing all channel numbers to be included in the calculation of the reference
+        :param good_chans: 1-D numpy array containing all channel numbers to be included in the calculation of the reference
         average.
-        :param location: The directory to which the reref files will be written
+        :param location: A string denoting the directory to which the reref files will be written
         """
         # Create directory if needed
         if not os.path.exists(location):
