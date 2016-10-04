@@ -22,6 +22,7 @@ class EGI_Aligner:
         behav_files: The list of sync pulse logs from the behavioral computer (eeg.eeglog, eeg.eeglog.up).
         pulse_files: The list of sync pulse logs from the ephys computer (.D255, .DI15, .DIN1 files).
         eeg_dir: The path to the EEG noreref directory.
+        num_samples: The number of EEG samples in the sync channel file.
         pulses: A numpy array containing the indices of EEG samples that contain sync pulses.
         ephys_ms: The mstimes of the sync pulses received by the ephys computer.
         behav_ms: The mstimes of the sync pulses sent by the behavioral computer.
@@ -33,6 +34,7 @@ class EGI_Aligner:
         self.behav_files = files['eeg_log']
         self.pulse_files = files['sync_pulses']
         self.eeg_dir = os.path.dirname(self.pulse_files[0])
+        self.num_samples = 0
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
@@ -79,14 +81,13 @@ class EGI_Aligner:
         # Calculate the eeg offset for each event using PTSA's alignment system
         log('Calculating EEG offsets...')
         eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
-                                       window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
+                                                     window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
         log('Done.')
-
         # Add eeg offset and eeg file information to the events
         log('Adding EEG file and offset information to events structure...')
         oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
         for i in range(self.events.shape[0]):
-            if eeg_offsets[i] >= s_ind and eeg_offsets <= e_ind:
+            if 0 <= eeg_offsets[i] <= self.num_samples:
                 self.events[i].eegoffset = eeg_offsets[i]
                 self.events[i].eegfile = self.basename
             else:
@@ -107,11 +108,15 @@ class EGI_Aligner:
         the sample rate.
         """
         log('Acquiring EEG sync pulses...')
+        if not hasattr(self.pulse_files, '__iter__'):
+            self.pulse_files = [self.pulse_files]
         for file_type in ('.D255', '.DI15', '.DIN1'):
             for f in self.pulse_files:
                 if f.endswith(file_type):
                     pulse_sync_file = f
-                    self.pulses = np.where(np.fromfile(pulse_sync_file, 'int8') > 0)[0]
+                    eeg_samples = np.fromfile(pulse_sync_file, 'int8')
+                    self.num_samples = len(eeg_samples)
+                    self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000 / self.sample_rate
                     self.basename = f[:-5]
                     log('Done.')
@@ -124,6 +129,8 @@ class EGI_Aligner:
         sync pulses.
         """
         log('Acquiring behavioral sync pulse times...')
+        if not hasattr(self.pulse_files, '__iter__'):
+            self.pulse_files = [self.pulse_files]
         for f in self.behav_files:
             if f.endswith('.up'):
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0])
@@ -199,7 +206,10 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     m, c = np.linalg.lstsq(np.vstack([x - x[0], np.ones(len(x))]).T, y)[0]
     c = c - x[0] * m
 
+    eeg_start_ms = round((1-c)/m)
+
     # Use the regression to convert task event mstimes to EEG offsets
     offsets = np.int64(np.round((m*ev_ms + c)*samplerate/1000.))
+    eeg_start = np.round(eeg_start_ms*samplerate/1000.)
 
     return offsets, s_ind, e_ind

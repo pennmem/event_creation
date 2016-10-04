@@ -701,6 +701,16 @@ class EGI_reader(EEG_reader):
     Parses the EEG sample data from a .raw.bz2 file. The raw file begins with a header with a series of information
     such as the version number, start time, and sample rate of the recording. More detailed information on the format of
     EGI .raw files can be found online at https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
+
+    DATA FIELDS:
+    raw_filename: The path to the .raw file containing the EEG data for the session.
+    basename: The string used to name the channel files once split (typically subj_DDMonYY_HHMM).
+    noreref_loc: The path to the noreref directory.
+    data: Holds the unpacked and split EEG data.
+    header: A dictionary where the header info from the beginning of the raw file is stored.
+    header_names: A mapping of header names to the format string required for unpacking that header item.
+    amp_gain: The gain factor
+    data_format: A string stating the format in which the output split channel files will be written.
     """
     def __init__(self, raw_filename, unused_jacksheet):
         self.raw_filename = raw_filename
@@ -961,6 +971,7 @@ def convert_nk_to_edf(filename):
 def calc_gain(amp_info, amp_fact):
     """
     Calculates the gain factor for converting raw EEG to uV.
+
     :param amp_info: Info to convert from raw to voltage
     :param amp_fact: Amplification factor to correct for
     :return: Gain factor for converting raw data to uV.
@@ -976,7 +987,12 @@ def calc_gain(amp_info, amp_fact):
 
 def butter_filt(data, freq_range=[58, 62], sample_rate=256, filt_type='bandstop', order=4):
     """
-    Designs and runs an Nth order digital butterworth filter on an array of data
+    Designs and runs an Nth order digital butterworth filter on an array of data.
+
+    NOTE: In order to match the original MATLAB implementation of the filtfilt function, the padlen argument must be
+    set to 3. Default padlen in SciPy is 6, which will cause it to filter the data differently from our old MATLAB
+    scripts if not set to 3.
+
     :param data: An array containing the data to be filtered
     :param freq_range: The range of the filter
     :param sample_rate: The sampling rate of the EEG recording
