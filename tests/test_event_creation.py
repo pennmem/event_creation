@@ -923,6 +923,14 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     if field == 'wordno' and event1['type'] == 'REC_START' and event1['wordno'] == -999 and event2['wordno'] == 0:
         return True
+    # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
+    # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
+    if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
+        return True
+    # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
+    # old event had one - not necessarily that they match (new pipeline may have different filepaths)
+    if field == 'eegfile' and event1[field] != '' and event2[field] != '':
+        return True
     return False
 
 
@@ -952,6 +960,14 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'final_distractor' and event1[field] == -999 and event2[field] == 0:
         return True
     if field == 'final_distractor' and event1[field] == -999 and event1['type'] == 'REC_START':
+        return True
+    # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
+    # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
+    if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
+        return True
+    # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
+    # old event had one - not necessarily that they match (new pipeline may have different filepaths)
+    if field == 'eegfile' and event1[field] != '' and event2[field] != '':
         return True
     return False
 
@@ -1185,7 +1201,7 @@ TH_COMPARATOR_INPUTS = dict(
 
 LTPFR_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
-    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
+    field_ignore=all_ignore + ('artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
                                'badEvent', 'badEventChannel'),
     exceptions=ltpfr_comparison_exceptions,
     type_ignore=()
@@ -1193,7 +1209,7 @@ LTPFR_COMPARATOR_INPUTS = dict(
 
 LTPFR2_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
-    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
+    field_ignore=all_ignore + ('artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
                                'badEvent', 'badEventChannel'),
     exceptions=ltpfr2_comparison_exceptions,
     type_ignore=()

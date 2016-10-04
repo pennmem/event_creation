@@ -31,10 +31,10 @@ class EGI_Aligner:
         basename: The path to the session directory.
         sample_rate: The sample rate of the EEG recording (typically 500).
         """
-        self.behav_files = files['eeg_log']
-        self.pulse_files = files['sync_pulses']
-        self.eeg_dir = os.path.dirname(self.pulse_files[0])
-        self.num_samples = 0
+        self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
+        self.pulse_files = files['sync_pulses'] if 'sync_pulses' in files else []
+        self.eeg_dir = os.path.dirname(self.pulse_files[0]) if self.pulse_files else ''
+        self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
@@ -42,9 +42,12 @@ class EGI_Aligner:
         self.events = events
         self.basename = ''
         # Determine sample rate from the params.txt file
-        with open(files['eeg_params']) as eeg_params_file:
-            params_text = [line.split() for line in eeg_params_file.readlines()]
-        self.sample_rate = int(params_text[0][1])
+        if 'eeg_params' in files:
+            with open(files['eeg_params']) as eeg_params_file:
+                params_text = [line.split() for line in eeg_params_file.readlines()]
+            self.sample_rate = int(params_text[0][1])
+        else:
+            self.sample_rate = -999
 
     def align(self):
         """
@@ -96,8 +99,9 @@ class EGI_Aligner:
                 oob += 1
         log('Done.')
         if oob > 0:
-            warn(str(oob) + ' events are out of bounds of the EEG files.')
+            warn(str(oob) + ' events are out of bounds of the EEG files.', Warning)
 
+        self.add_artifacts([(25,127),(8,126)])
         return self.events
 
     def get_ephys_sync(self):
@@ -139,6 +143,50 @@ class EGI_Aligner:
             self.behav_ms = extract_up_pulses(self.behav_files[0])
         log('Done.')
 
+    def add_artifacts(self, eog_chans):
+        chan_basename = self.events.eegfile[0]
+        artifact_mask = None
+        i = 0
+        for ch in eog_chans:
+            if isinstance(ch, tuple):
+                eeg1 = np.fromfile(chan_basename + '.{:03}'.format(ch[0]), 'int8')
+                eeg2 = np.fromfile(chan_basename + '.{:03}'.format(ch[1]), 'int8')
+                eeg = eeg1 - eeg2
+            else:
+                eeg = np.fromfile(chan_basename + '.{:03}'.format(ch), 'int8')
+            if artifact_mask is None:
+                artifact_mask = np.empty((len(eog_chans), len(eeg)))
+            artifact_mask[i] = self.find_blinks(eeg, 100)
+            i += 1
+        blinks = np.any((artifact_mask, 0))
+        for i in range(len(self.events)):
+            ev = self.events[i]
+            if ev.eegfile == '':
+                ev.artifactMS = -1
+                ev.artifactNum = -1
+                ev.artifactFrac = -1
+                ev.artifactMeanMS = -1
+                continue
+            # if i == len(self.events):
+                # ev_blink = blinks > ev.eegoffset
+
+    def find_blinks(self, data, thresh):
+        a, b = (.5, .5)
+        c, d = (.975, .025)
+        num_samples = len(data)
+
+        fast = np.empty((1, num_samples))
+        slow = np.empty((1, num_samples))
+
+        start_mean = np.mean[data[0:10]]
+        fast[0] = b * (data[0] - start_mean)
+        slow[0] = c * start_mean + d * data[0]
+
+        for i in range(1, num_samples):
+            fast[i] = a * fast[i-1] + b * (data[i] - slow[i-1])
+            slow[i] = c * slow[i-1] + d * data[i]
+
+        return abs(fast) >= thresh
 
 def extract_up_pulses(eeg_log):
     """
