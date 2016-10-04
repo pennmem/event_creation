@@ -197,7 +197,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
                                            new_experiment=new_experiment,
                                            **kwargs)
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
-    task = SplitEEGTask(subject, montage, new_experiment, session, **kwargs)
+    task = SplitEEGTask(subject, montage, new_experiment, session, protocol, **kwargs)
     return TransferPipeline(transferer, task)
 
 

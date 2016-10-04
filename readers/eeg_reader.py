@@ -702,7 +702,7 @@ class EGI_reader(EEG_reader):
     such as the version number, start time, and sample rate of the recording. More detailed information on the format of
     EGI .raw files can be found online at https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
     """
-    def __init__(self, raw_filename):
+    def __init__(self, raw_filename, unused_jacksheet):
         self.raw_filename = raw_filename
         self.basename = ''
         self.noreref_loc = ''
@@ -716,7 +716,7 @@ class EGI_reader(EEG_reader):
         self.amp_gain = 1.
         self.data_format = '\'short\''
 
-    def get_data(self):
+    def read_header(self):
         with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Read header info; each pair from self.header_names contains the name of the header and the format to be
             # used by struct.unpack(); '>l' unpacks a long, '>h' unpacks a short.
@@ -733,14 +733,8 @@ class EGI_reader(EEG_reader):
                 code = ''.join(code)
                 self.header['event_codes'][i] = code
 
-            # Determine whether the EEG data is formatted as shorts, singles, or doubles and set the unpacking format
-            # accordingly. Version 2 = short, 4 = single, 6 = double.
-            eeg_format_map = {2: ('>l', 2), 4: ('>f', 4), 6: ('>d', 8)}
-            fmt, bytes_per_sample = eeg_format_map[self.header['version']] if self.header['version'] in eeg_format_map else (False, False)
-            if not fmt:
-                raise Exception('Unknown EGI format %d' % self.header['version'])
-
-            run_highpass = True if self.header['version'] == 4 else False
+            self.start_datetime = datetime.datetime(self.header['year'], self.header['month'], self.header['day'],
+                                                    self.header['hour'], self.header['minute'], self.header['second'])
 
             # Log various information about the file
             log('EEG File Information:')
@@ -752,25 +746,43 @@ class EGI_reader(EEG_reader):
             log('Number of Channels = %d' % self.header['num_channels'])
             log('Number of Events = %d' % self.header['num_events'])
 
-            self.start_datetime = datetime.datetime(self.header['year'], self.header['month'], self.header['day'],
-                                                    self.header['hour'], self.header['minute'], self.header['second'])
-            # Calculate total number of samples to read
-            total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
+    def get_data(self):
+        # Read header info if have not already done so
+        if not self.header:
+            self.read_header()
 
-            # Calculate the gain factor for converting raw EEG data to uV
-            amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
-            amp_fact = 1000.
-            self.amp_gain = calc_gain(amp_info, amp_fact)
+        # Determine whether the EEG data is formatted as shorts, singles, or doubles and set the unpacking format
+        # accordingly. Version 2 = short, 4 = single, 6 = double.
+        eeg_format_map = {2: ('>h', 2), 4: ('>f', 4), 6: ('>d', 8)}
+        fmt, bytes_per_sample = eeg_format_map[self.header['version']] if self.header['version'] in eeg_format_map \
+            else (None, None)
+        if not fmt:
+            raise Exception('Unknown EGI format %d' % self.header['version'])
 
-            # Limit the number of samples that are copied at once, to reduce memory usage
-            step_size = 1000000
-            total_read = 0
-            raw = np.zeros((total_samples, 1))
-            log('Loading %d samples...' % total_samples)
+        # A highpass filter is run for "version 4" data
+        run_highpass = True if self.header['version'] == 4 else False
+
+        # Calculate total number of samples to read
+        total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
+
+        # Calculate the gain factor for converting raw EEG data to uV
+        amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
+        amp_fact = 1000.
+        self.amp_gain = calc_gain(amp_info, amp_fact)
+
+        # Limit the number of samples that are copied at once, to reduce memory usage
+        step_size = 1000000
+        total_read = 0
+        raw = np.zeros((total_samples, 1))
+        log('Loading %d samples...' % total_samples)
+        with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
+            # Go to index for the beginning of the EEG samples in the raw file
+            data_start_index = 36 + 4 * self.header['num_events']
+            raw_file.seek(data_start_index)
             # Read samples in blocks of step_size, until all samples have been read
             while total_read < total_samples:
                 samples_left = total_samples - total_read
-                samples_to_read = samples_left if samples_left * bytes_per_sample < step_size else step_size
+                samples_to_read = samples_left if samples_left < step_size else step_size
                 unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read)+fmt[1], raw_file.read(samples_to_read * bytes_per_sample))
                 samples_array = np.array(unpacked_samples)
                 raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
@@ -799,6 +811,7 @@ class EGI_reader(EEG_reader):
         """
         self.basename = basename
         self.noreref_loc = location
+        self.get_data()
         # Create directory if needed
         if not os.path.exists(location):
             os.makedirs(location)
@@ -839,6 +852,9 @@ class EGI_reader(EEG_reader):
         log('Done.')
 
     def get_start_time(self):
+        # Read header info if have not already done so, as the header contains the start time info
+        if not self.header:
+            self.read_header()
         return self.start_datetime
 
     def get_start_time_string(self):
@@ -848,10 +864,17 @@ class EGI_reader(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
+        if not self.header:
+            self.read_header()
         return self.header['sample_rate']
 
     def get_source_file(self):
         return self.raw_filename
+
+    def get_n_samples(self):
+        if not self.header:
+            self.read_header()
+        return self.header['num_samples']
 
     def reref(self, good_chans, location):
         """

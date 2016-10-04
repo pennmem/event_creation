@@ -70,9 +70,6 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         event.session = self._session
         event.trial = self._trial
-        # TODO: Implement EEG info parsing
-        # event.eegfile = None
-        # event.eegoffset = None
         return event
 
     def event_sess_start(self, split_line):
