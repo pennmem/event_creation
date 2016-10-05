@@ -57,9 +57,12 @@ class EGI_Aligner:
         the eeg.eeglog and eeg.eeglog.up files, located in the main session directory. Ephys sync pulses are identified
         from either a .D255, .DI15, or .DIN1 file located in the eeg.noreref directory. A linear regression is run on
         the behavioral and ephys sync pulse times in order to calculate the EEG sample number that corresponds to each
-        behavioral event. The events structure is then updated with this information, and returned.
+        behavioral event. The events structure is then updated with this information.
 
-        :return: The updated events structure, now with filled eegfile and eegoffset fields.
+        After alignment, blinks and other artifacts occurring within the EEG signal are identified, and their info is
+        also added into the events structure. Once all artifact info has been added, return the events structure.
+
+        :return: The updated events structure, now filled with eegfile, eegoffset, and artifact information
         """
         log('Aligning...')
 
@@ -86,6 +89,7 @@ class EGI_Aligner:
         eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
                                                      window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
         log('Done.')
+
         # Add eeg offset and eeg file information to the events
         log('Adding EEG file and offset information to events structure...')
         oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
@@ -94,14 +98,15 @@ class EGI_Aligner:
                 self.events[i].eegoffset = eeg_offsets[i]
                 self.events[i].eegfile = self.basename
             else:
-                self.events[i].eegoffset = 0
-                self.events[i].eegfile = ''
                 oob += 1
         log('Done.')
+
         if oob > 0:
             warn(str(oob) + ' events are out of bounds of the EEG files.', Warning)
 
-        self.add_artifacts([(25,127),(8,126)])
+        # Identify all artifacts, and add information about them to the events that occurred during those artifacts
+        self.add_artifacts([(25, 127), (8, 126)])
+
         return self.events
 
     def get_ephys_sync(self):
@@ -144,49 +149,112 @@ class EGI_Aligner:
         log('Done.')
 
     def add_artifacts(self, eog_chans):
+        """
+        Locates blinks/artifacts in the EOG channels, then identifies which artifacts occurred during which events and
+        adds this info to the existing events structure.
+
+        :param eog_chans: A list of integers and/or tuples denoting which channels should be used for identifying blinks
+        """
+        log('Identifying artifacts in the EEG signal...')
         chan_basename = self.events.eegfile[0]
         artifact_mask = None
         i = 0
         for ch in eog_chans:
+            # Load the eeg data from the files for the EOG cahnnels. If the channel is a binary channel (represented as
+            # a tuple, load both and subtract one from the other.
             if isinstance(ch, tuple):
+                log('Identifying artifacts in binary channel ' + str(ch) + '...')
                 eeg1 = np.fromfile(chan_basename + '.{:03}'.format(ch[0]), 'int8')
                 eeg2 = np.fromfile(chan_basename + '.{:03}'.format(ch[1]), 'int8')
                 eeg = eeg1 - eeg2
             else:
+                log('Identifying artifacts in channel ' + str(ch) + '...')
                 eeg = np.fromfile(chan_basename + '.{:03}'.format(ch), 'int8')
+
+            # Find the blinks recorded by each EOG channel using find_blinks() with a threshold setting of 100 uV
             if artifact_mask is None:
                 artifact_mask = np.empty((len(eog_chans), len(eeg)))
             artifact_mask[i] = self.find_blinks(eeg, 100)
             i += 1
-        blinks = np.any((artifact_mask, 0))
+            log('Done.')
+        log('Artifact identification complete.')
+
+        # Get a list of the indices for all samples that contain a blink
+        blinks = np.where(np.any((artifact_mask, 0)))
+        # TODO: Save blink indices to file
+
+        log('Aligning artifacts with events...')
+        # Check for blinks that occurred during each event
         for i in range(len(self.events)):
-            ev = self.events[i]
-            if ev.eegfile == '':
-                ev.artifactMS = -1
-                ev.artifactNum = -1
-                ev.artifactFrac = -1
-                ev.artifactMeanMS = -1
+            # Skip the event if it has no eegfile or no eegoffset, as it will not be possible to align artifacts with it
+            if self.events[i].eegfile == '' or self.events[i].eegoffset < 0:
                 continue
-            # if i == len(self.events):
-                # ev_blink = blinks > ev.eegoffset
+
+            # If possible, use the next event as the upper bound for aligning artifacts with the current event
+            # If not possible, look for artifacts occurring up to 1600 ms after the event onset
+            if self.events[i+1].eegoffset <= 0 or i == len(self.events)-1:
+                # FIXME: In original MATLAB, there is no handling for the final event's length. May want to introduce it here.
+                ev_len = 1600 * self.sample_rate / 1000  # Placeholder - considers the 1600 ms following event onset
+                ev_blink = blinks[np.where(self.events[i].eegoffset <= blinks <= self.events[i].eegoffset + ev_len)]
+            else:
+                ev_blink = blinks[np.where(self.events[i].eegoffset <= blinks < self.events[i+1].eegoffset)]
+                ev_len = self.events[i+1].eegoffset - self.events[i].eegoffset
+
+            # Calculate and add artifact info to the current event, if any artifacts were present
+            if ev_blink.size > 0:
+                # Calculate how many milliseconds after the event it was that the blink onset occurred
+                self.events[i].artifactMS = (ev_blink[0] - self.events[i].eegoffset) * 1000 / self.sample_rate
+                # Calculate the number of samples during the event with artifacts in them
+                self.events[i].artifactNum = len(ev_blink)
+                # Calculate the porportion of samples during the event that have artifacts in them
+                self.events[i].artifactFrac = float(len(ev_blink)) / ev_len
+                # Calculate the average number of milliseconds after the event that artifacts occurred
+                self.events[i].artifactMeanMs = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / self.sample_rate
+            else:
+                continue
+        log('Events successfully updated with artifact information.')
 
     def find_blinks(self, data, thresh):
+        """
+        Locates the blinks in an EEG signal. It does so by maintaining two running averages - one that changes quickly
+        and one that changes slowly.
+
+        The "slow" running average gives each new sample a weight of .025 and the current running average a weight of
+        .975, then adds them to produce the new average. This average is used as a type of baseline measure against
+        which the "fast" running average is calculated.
+
+        The fast average tracks the divergence of the signal voltage from the slow/baseline average, in order to detect
+        large spikes in voltage. In calculating each new average, it gives the new sample a weight of .5 and the
+        current fast running average a weight of .5, allowing it to be heavily influenced by rapid voltage changes.
+
+        Blinks are identified as occurring on any sample where the fast average exceeds the given threshold, i.e.
+        whenever voltage displays a large and rapid divergence from baseline.
+
+        :param data: A numpy array containing the EEG data that will be searched for blinks.
+        :param thresh: The uV threshold used for determining when a blink has occurred.
+        :return: A numpy array containing one boolean per EEG sample, indicating whether that sample contains a blink.
+        """
+        # Set weights for the fast-changing average (a, b) and the slow-changing average (c, d)
         a, b = (.5, .5)
         c, d = (.975, .025)
+
+        # Create the arrays for the two averages
         num_samples = len(data)
+        fast = np.empty(num_samples)
+        slow = np.empty(num_samples)
 
-        fast = np.empty((1, num_samples))
-        slow = np.empty((1, num_samples))
-
+        # Calculate starting "fast" and "slow" averages
         start_mean = np.mean[data[0:10]]
         fast[0] = b * (data[0] - start_mean)
         slow[0] = c * start_mean + d * data[0]
 
+        # Track the running averages across all samples
         for i in range(1, num_samples):
             fast[i] = a * fast[i-1] + b * (data[i] - slow[i-1])
             slow[i] = c * slow[i-1] + d * data[i]
 
         return abs(fast) >= thresh
+
 
 def extract_up_pulses(eeg_log):
     """
