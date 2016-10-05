@@ -6,7 +6,8 @@ from ptsa.data.align import find_needle_in_haystack
 
 class EGI_Aligner:
     """
-    Used for aligning the EGI data from the ephys computer with the task events from the behavioral computer.
+    Used for aligning the EGI data from the ephys computer with the task events from the behavioral computer. Also
+    identifies artifacts in the EGI data and adds info about them to the events structure.
     """
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESHOLD = 10  # This many milliseconds may differ between sync pulse times during matching
@@ -62,7 +63,7 @@ class EGI_Aligner:
         After alignment, blinks and other artifacts occurring within the EEG signal are identified, and their info is
         also added into the events structure. Once all artifact info has been added, return the events structure.
 
-        :return: The updated events structure, now filled with eegfile, eegoffset, and artifact information
+        :return: The updated events structure, now filled with eegfile, eegoffset, and artifact information.
         """
         log('Aligning...')
 
@@ -106,7 +107,7 @@ class EGI_Aligner:
 
         # Identify all artifacts, and add information about them to the events that occurred during those artifacts
         self.add_artifacts([(25, 127), (8, 126)])
-
+        # TODO: Implement eventArtifact() based on the corresponding MATLAB function
         return self.events
 
     def get_ephys_sync(self):
@@ -214,7 +215,8 @@ class EGI_Aligner:
                 continue
         log('Events successfully updated with artifact information.')
 
-    def find_blinks(self, data, thresh):
+    @staticmethod
+    def find_blinks(data, thresh):
         """
         Locates the blinks in an EEG signal. It does so by maintaining two running averages - one that changes quickly
         and one that changes slowly.
