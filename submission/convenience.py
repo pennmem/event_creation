@@ -67,17 +67,14 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
 
 def get_all_codes():
-    subjects = []
-    for experiment in EXPERIMENTS:
-        if re.match(r'catFR[0-4]', experiment):
-            ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
-        else:
-            ram_exp = 'RAM_{}'.format(experiment)
-        events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
-        events_files = sorted(glob.glob(os.path.join(events_dir, '*_events.mat')),
-                              key=lambda f: f.split('_')[:-1])
-        subjects.extend([os.path.basename(f).replace('_events.mat', '') for f in events_files])
-    return sorted(list(set(subjects)))
+    subjects = set()
+    for json_filename in ('ps_sessions.json', 'verbal_sessions.json', 'yc_sessions.json'):
+        json_dict = json.load(open(os.path.join(this_dir, json_filename)))
+        for s, subject in json_dict.items():
+            for exp in subject.values():
+                for session in exp.values():
+                    subjects.add(session['code'] if 'code' in session else s)
+    return list(subjects)
 
 def get_previous_subjects(subject):
     prev_subjects = []
@@ -171,7 +168,7 @@ def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
 
-def xtest_import_existing_montages():
+def test_import_existing_montages():
     codes = get_all_codes()
     for code in codes:
         try:
@@ -352,7 +349,7 @@ def xtest_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
-def test_import_all_yc_sessions():
+def xtest_import_all_yc_sessions():
     for test in convert_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
         yield test
 
@@ -480,6 +477,10 @@ def run_from_json_file(filename):
 
 
 if __name__ == '__main__':
+    if '--clean' in sys.argv:
+        clean_task = CleanDbTask()
+        clean_task.run()
+        exit(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('--from-file', dest='from_file', default=False,
                         help='process from file')
