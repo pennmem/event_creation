@@ -23,15 +23,14 @@
         }
       },
       "jacksheet": {
-        "type": "file",
+        "type": "link",
         "multiple": false,
         "required": true,
-        "origin_directory": "{data_root}/{code}/docs",
-        "origin_file": "jacksheet.txt",
-        "destination": "jacksheet.txt"
+        "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage_num}/neuroradiology/current_processed",
+        "origin_file": "contacts.json",
+        "destination": "contacts.json"
       }
     },
-
     "transfer": {
       "type": "group",
       "system_1": {
@@ -67,12 +66,12 @@
       "stim": {
         "type": "group",
         "jacksheet": {
-          "type": "file",
+          "type": "link",
           "multiple": false,
           "required": true,
-          "origin_directory": "{data_root}/{code}/docs",
-          "origin_file": "jacksheet.txt",
-          "destination": "jacksheet.txt"
+          "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage_num}/neuroradiology/current_processed",
+          "origin_file": "contacts.json",
+          "destination": "contacts.json"
         }
       },
       "default": {
