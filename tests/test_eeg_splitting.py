@@ -160,10 +160,9 @@ def test_egi_split():
     split = True
     reref = True
     path = os.path.expanduser('~/LTP117 20140715 1152.2.raw.bz2')
-    reader = EGI_reader(path)
+    reader = EGI_reader(path, None)
     if split:
-        reader.get_data()
-        reader._split_data(os.path.expanduser('~/noreref'), 'TEST')
+        reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
     for i in range(1, 10):
         print 'Channel', i, 'noreref'
         old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.00'+str(i))

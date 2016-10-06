@@ -220,11 +220,11 @@
       },
       "eeg_log": {
         "type": "file",
-        "multiple": false,
+        "multiple": true,
         "required": false,
         "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}",
-        "origin_file": "eeg.eeglog",
-        "destination": "logs/eeg.eeglog"
+        "origin_file": "eeg.eeglog*",
+        "destination": "logs/"
       },
       "eeg_params": {
         "type": "file",
@@ -232,7 +232,7 @@
         "required": false,
         "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/eeg.noreref",
         "origin_file": "params.txt",
-        "destination": "experiment_files/"
+        "destination": "experiment_files/params.txt"
       },
       "sync_pulses": {
           "type": "file",

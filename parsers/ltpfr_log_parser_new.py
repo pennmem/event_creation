@@ -26,7 +26,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return (
             ('trial', -999, 'int16'),
             ('studytrial', -999, 'int16'),
-            ('listtype', -999, 'int16'),  # TODO: Figure out where the listtype can be found
+            ('listtype', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('distractor', -999, 'int16'),
             ('final_distractor', -999, 'int16'),
@@ -52,16 +52,15 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('color_b', -999, 'float16'),
             ('font', '', 'S32'),
             ('case', '', 'S8'),
-            ('rejected', -999, 'int32'),  # Present in .MAT, but does not appear to be used
-            ('rej_time', -999, 'int32'),  # Present in .MAT, but does not appear to be used
+            ('rejected', -999, 'int32'),
+            ('rej_time', -999, 'int32'),
 
-            # TODO: Figure out how EEG information is obtained and how it should be parsed
             ('artifactMS', -999, 'int32'),
             ('artifactNum', -999, 'int32'),
             ('artifactFrac', -999, 'float16'),
             ('artifactMeanMS', -999, 'float16'),
             ('badEvent', -999, 'int16'),
-            ('badEventChannel', -999, 'S16')  # TODO: Figure out what dtype badEventChannel is
+            ('badEventChannel', -999, list)
         )
 
     def __init__(self, protocol, subject, montage, experiment, files):
@@ -126,9 +125,6 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         event = BaseSessionLogParser.event_default(self, split_line)
         event.session = self._session
         event.trial = self._trial
-        # TODO: Implement EEG info parsing
-        #event.eegfile = None
-        #event.eegoffset = None
         return event
 
     def event_sess_start(self, split_line):
