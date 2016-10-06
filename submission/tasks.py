@@ -354,7 +354,7 @@ class CleanDbTask(PipelineTask):
 
     @staticmethod
     def run(*_):
-        for root, dirs, files in os.walk(DB_ROOT, False):
+        for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
                 log('Removing {}'.format(root))

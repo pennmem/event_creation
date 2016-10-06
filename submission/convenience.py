@@ -67,17 +67,11 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
 
 def get_all_codes():
-    subjects = []
-    for experiment in EXPERIMENTS:
-        if re.match(r'catFR[0-4]', experiment):
-            ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
-        else:
-            ram_exp = 'RAM_{}'.format(experiment)
-        events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
-        events_files = sorted(glob.glob(os.path.join(events_dir, '*_events.mat')),
-                              key=lambda f: f.split('_')[:-1])
-        subjects.extend([os.path.basename(f).replace('_events.mat', '') for f in events_files])
-    return sorted(list(set(subjects)))
+    subjects = set()
+    for json_filename in ('ps_sessions.json', 'verbal_sessions.json', 'yc_sessions.json'):
+        json_dict = json.load(open(os.path.join(this_dir, json_filename)))
+        subjects.union(set(json_dict.keys()))
+    return list(subjects)
 
 def get_previous_subjects(subject):
     prev_subjects = []
@@ -480,6 +474,10 @@ def run_from_json_file(filename):
 
 
 if __name__ == '__main__':
+    if '--clean' in sys.argv:
+        clean_task = CleanDbTask()
+        clean_task.run()
+        exit(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('--from-file', dest='from_file', default=False,
                         help='process from file')
