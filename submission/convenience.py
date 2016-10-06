@@ -557,6 +557,6 @@ if __name__ == '__main__':
         inputs['match_field'] = 'eegoffset'
 
     #run_full_import_pipeline(inputs)
-    #run_individual_pipline(build_split_pipeline, inputs)
-    run_individual_pipline(build_events_pipeline, inputs)
+    run_individual_pipline(build_split_pipeline, inputs)
+    #run_individual_pipline(build_events_pipeline, inputs)
 

@@ -119,7 +119,9 @@ class SplitEEGTask(PipelineTask):
                                                                 experiment=self.experiment,
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
-                reader.split_data(self.pipeline.destination, split_eeg_filename)
+                reader.split_data(os.path.join(self.pipeline.destination, 'eeg.noreref'), split_eeg_filename)
+                bad_chans = {}
+                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'eeg.reref'))
         else:
             if 'contacts' in files:
                 jacksheet_file = files['contacts']
@@ -480,7 +482,7 @@ class CompareEventsTask(PipelineTask):
         log('Loading matlab events')
         mat_events = mat_events_reader.read()
         mat_session = self.original_session + (1 if self.protocol == 'ltp' else 0)
-        self.sess_mat_events = mat_events[mat_events.session == mat_session] # TODO: dependent on protocol
+        self.sess_mat_events = mat_events[mat_events.session == mat_session]  # TODO: dependent on protocol
         if not PTSA_LOADED:
             raise UnProcessableException('Cannot compare events without PTSA')
         new_events = from_json(os.path.join(db_folder, 'task_events.json'))
