@@ -70,7 +70,10 @@ def get_all_codes():
     subjects = set()
     for json_filename in ('ps_sessions.json', 'verbal_sessions.json', 'yc_sessions.json'):
         json_dict = json.load(open(os.path.join(this_dir, json_filename)))
-        subjects.union(set(json_dict.keys()))
+        for s, subject in json_dict.items():
+            for exp in subject.values():
+                for session in exp.values():
+                    subjects.add(session['code'] if 'code' in session else s)
     return list(subjects)
 
 def get_previous_subjects(subject):
@@ -165,7 +168,7 @@ def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
 
-def xtest_import_existing_montages():
+def test_import_existing_montages():
     codes = get_all_codes()
     for code in codes:
         try:
@@ -346,7 +349,7 @@ def xtest_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
-def test_import_all_yc_sessions():
+def xtest_import_all_yc_sessions():
     for test in convert_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
         yield test
 
