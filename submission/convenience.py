@@ -424,7 +424,7 @@ def convert_from_json_file(filename):
                 else:
                     inputs['groups'] += ('verbal',)
 
-                yield run_convert_import_pipeline, inputs, False, True
+                yield run_convert_import_pipeline, inputs, False, False
 
                 logger.unset_subject()
 
