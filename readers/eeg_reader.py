@@ -5,9 +5,7 @@ try:
 except ImportError:
     warnings.warn("pyEDFlib not available")
 import os
-from sys import platform as _platform
-import subprocess
-import glob
+import re
 import numpy as np
 import json
 from readers.nsx_utility.brpylib import NsxFile
@@ -230,6 +228,19 @@ class NK_reader(EEG_reader):
 
         return {i+1:c[0] for i,c in enumerate(channels)}
 
+
+    def get_matching_jacksheet_dict_label(self, label, jacksheet_dict):
+        label = label.replace(' ', '').upper()
+        if label in jacksheet_dict:
+            return label
+        ref_label = label.replace('-REF', '')
+        if ref_label in jacksheet_dict:
+            return ref_label
+        num_label = re.sub(r'(?<=[^\d])(?=\d+$)', '0', label)
+        if num_label in jacksheet_dict:
+            return num_label
+
+
     def get_data(self, jacksheet_dict):
         eeg_file = self.raw_filename
         elec_file = os.path.splitext(eeg_file)[0] + '.21E'
@@ -376,10 +387,12 @@ class NK_reader(EEG_reader):
 
             data_num_to_21e_index = np.zeros(num_channels) - 1
 
-            channel_mask = np.array([name in jacksheet_dict.keys() for name in names_21e_ordered])
+            channel_mask = np.array([not self.get_matching_jacksheet_dict_label(name, jacksheet_dict) is None
+                                     for name in names_21e_ordered])
             nums_21e_filtered = nums_21e_ordered[channel_mask]
             names_21e_filtered = names_21e_ordered[channel_mask]
-            jacksheet_filtered = [jacksheet_dict[name] for name in names_21e_filtered]
+            jacksheet_filtered = [jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict)]
+                                  for name in names_21e_filtered]
 
             gain = [-1 for _ in range(num_channels)]
             for i in range(num_channels):
@@ -667,20 +680,27 @@ class EDF_reader(EEG_reader):
     def channel_data(self, channel):
         return self.reader.readSignal(channel)
 
+    def get_matching_jacksheet_label(self, label):
+        label = label.replace(' ', '').upper()
+        if label in self.jacksheet:
+            return label
+        ref_label = label.replace('-REF', '')
+        if ref_label in self.jacksheet:
+            return ref_label
+        num_label = re.sub(r'(?<=[^\d])(?=\d+$)', '0', label)
+        if num_label in self.jacksheet:
+            return num_label
+
+
     def _split_data(self, location, basename):
         sys.stdout.flush()
-        already_split_channels = []
         for channel, header in self.headers.items():
             if self.jacksheet:
-                if header['label'] not in self.jacksheet:
-                    label = header['label'].replace('-REF', '')
-                    if label not in self.jacksheet:
-                        continue
-                else:
-                    label = header['label']
-                out_channel = self.jacksheet[label]
-                if label in already_split_channels:
+                label = self.get_matching_jacksheet_label(header['label'])
+                if not label:
+                    logger.debug("skipping channel {}".format(header['label']))
                     continue
+                out_channel = self.jacksheet[label]
             else:
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
@@ -689,7 +709,6 @@ class EDF_reader(EEG_reader):
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
-            already_split_channels.append(label)
 
 
 class EGI_reader(EEG_reader):

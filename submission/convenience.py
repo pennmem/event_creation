@@ -521,9 +521,13 @@ if __name__ == '__main__':
 
     if subject != code:
         montage = raw_input('Enter montage #: ')
+        montage_num = montage.split('.')[1]
+        localization = montage.split('.')[0]
     else:
         montage = '0.0'
         session = original_session
+        montage_num = 0
+        localization = 0
 
     if args.new_session:
         session = int(raw_input('Enter new session number: '))
@@ -539,6 +543,8 @@ if __name__ == '__main__':
         protocol='ltp' if experiment.startswith('ltp') else 'r1',
         subject=subject,
         montage=montage,
+        montage_num=montage_num,
+        localization=localization,
         experiment=original_experiment,
         new_experiment=experiment,
         force=False,
@@ -548,6 +554,8 @@ if __name__ == '__main__':
         original_session=original_session,
         groups=tuple()
     )
+
+    logger.set_subject(subject, 'ltp' if experiment.startswith('ltp') else 'r1')
 
     inputs['groups'] += (inputs['protocol'],)
 
