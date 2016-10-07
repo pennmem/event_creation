@@ -46,6 +46,9 @@ class Logger(object):
         self._logger.addHandler(self.stdout_handler)
 
         # Creates a new log file every 30 days
+        if not os.path.exists(os.path.join(DB_ROOT, 'protocols')):
+            os.makedirs(os.path.join(DB_ROOT, 'protocols'))
+
         self.master_file_handler = logging.handlers.TimedRotatingFileHandler(
             os.path.join(DB_ROOT, 'protocols', 'log.txt'), 'D', 30)
         self.master_file_handler.setLevel(logging.INFO)
@@ -64,6 +67,8 @@ class Logger(object):
                                 'protocols', self.protocol,
                                 'subjects', self.subject,
                                 'log.txt')
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
         self.subject_handler = logging.FileHandler(filename)
         self.subject_handler.setLevel(logging.DEBUG)
         self.subject_handler.setFormatter(self.formatter)
