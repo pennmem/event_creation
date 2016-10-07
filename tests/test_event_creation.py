@@ -826,6 +826,9 @@ def ps_sys2_event_exceptions(event1, event2, field, parent_field=None):
     if ps_event_exceptions(event1, event2, field, parent_field):
         return True
 
+    if field == 'subject' and event2['subject'][0].split('_')[0] == event1['subject']:
+        return True
+
     if field == 'mstime' and abs(event1['mstime'] - event2['mstime']) < 10000:
         return True
 

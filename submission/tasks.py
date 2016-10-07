@@ -292,7 +292,7 @@ class MatlabEventConversionTask(PipelineTask):
                  event_label='task', converter_type=None, original_session=None, critical=True, **kwargs):
         super(MatlabEventConversionTask, self).__init__(critical)
         self.name = '{label} Event Creation: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
-        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
+        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'[^A-Za-z]', '', experiment)]
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
@@ -335,8 +335,8 @@ class ImportEventsTask(PipelineTask):
                  converter_type=None, parser_type=None, original_session=None, critical=True, **kwargs):
         super(ImportEventsTask, self).__init__(critical)
         self.name = '{label} Event Import: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
-        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
-        self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
+        self.converter_type = converter_type or self.CONVERTERS[re.sub(r'[^A-Za-z]', '', experiment)]
+        self.parser_type = parser_type or self.PARSERS[re.sub(r'[^A-Za-z]', '', experiment)]
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
@@ -500,7 +500,7 @@ class CompareEventsTask(PipelineTask):
         else:
             raise NotImplementedError('Only r1 and ltp event comparison implemented')
 
-        comparator = EventComparator(new_events, self.sess_mat_events, match_field=self.match_field, **comparator_inputs)
+        comparator = EventComparator(new_events, self.sess_mat_events, **comparator_inputs)
         logger.debug('Comparing events...')
 
         found_bad, error_message = comparator.compare()

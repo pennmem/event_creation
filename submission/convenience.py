@@ -12,6 +12,7 @@ import traceback
 from pipelines import build_events_pipeline, build_split_pipeline,\
                       build_convert_eeg_pipeline, build_convert_events_pipeline,\
                       build_import_montage_pipeline, MATLAB_CONVERSION_TYPE, SOURCE_IMPORT_TYPE
+from tasks import CleanDbTask, IndexAggregatorTask
 from transferer import DB_ROOT, DATA_ROOT, UnTransferrableException
 from loggers import logger
 
@@ -492,6 +493,10 @@ if __name__ == '__main__':
     if '--clean' in sys.argv:
         clean_task = CleanDbTask()
         clean_task.run()
+        exit(0)
+    if '--aggregate' in sys.argv:
+        aggregate_task = IndexAggregatorTask()
+        aggregate_task.run()
         exit(0)
     parser = argparse.ArgumentParser()
     parser.add_argument('--from-file', dest='from_file', default=False,

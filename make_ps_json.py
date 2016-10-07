@@ -60,7 +60,7 @@ for subject, code, session, orig_session, experiment, version in get_subject_ses
         version = 2.1
         sys = 'system_2'
         orig_exp = 'PS'
-        experiment = 'PS2'
+        experiment = 'PS2.1'
     elif version >= 2:
         orig_exp='PS'
         sys = 'system_2'

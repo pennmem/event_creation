@@ -236,7 +236,7 @@ class PSHostLogParser(BaseSessionLogParser):
                  primary_log='host_logs', allow_unparsed_events=True, include_stim_params=True):
         super(PSHostLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                    primary_log, allow_unparsed_events, include_stim_params)
-        self._experiment = 'PS2'
+        self._experiment = 'PS2.1'
         self._exp_version = '2.0'
         self._saw_ad = False
         self.beginning_marked = False

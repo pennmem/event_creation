@@ -31,7 +31,7 @@ MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
 
 def determine_groups(protocol, subject, experiment, session, group_dict, *args, **kwargs):
-    exp_type = re.sub('\d', '', experiment)
+    exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
     groups = tuple()
     if exp_type in GROUPS:
