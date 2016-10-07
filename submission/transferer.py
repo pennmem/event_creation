@@ -297,7 +297,7 @@ class Transferer(object):
                     if os.path.islink(destination_file):
                         logger.warn('Removing link %s' % destination_file)
                         os.unlink(destination_file)
-                    link = os.path.relpath(origin_file, destination_path)
+                    link = os.path.relpath(os.path.realpath(origin_file), os.path.realpath(destination_path))
                     os.symlink(link, destination_file)
                     logger.debug('Linking {} to {}'.format(link, destination_file))
                 else:
