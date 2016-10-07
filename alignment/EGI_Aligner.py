@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from loggers import log
+from loggers import logger
 from warnings import warn
 from ptsa.data.align import find_needle_in_haystack
 
@@ -65,7 +65,7 @@ class EGI_Aligner:
 
         :return: The updated events structure, now filled with eegfile, eegoffset, and artifact information.
         """
-        log('Aligning...')
+        logger.debug('Aligning...')
 
         # Determine which sync pulse file to use and get the indices of the samples that contain sync pulses
         self.get_ephys_sync()
@@ -86,13 +86,13 @@ class EGI_Aligner:
         self.pulses = np.delete(self.pulses, mask)
 
         # Calculate the eeg offset for each event using PTSA's alignment system
-        log('Calculating EEG offsets...')
+        logger.debug('Calculating EEG offsets...')
         eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
                                                      window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
-        log('Done.')
+        logger.debug('Done.')
 
         # Add eeg offset and eeg file information to the events
-        log('Adding EEG file and offset information to events structure...')
+        logger.debug('Adding EEG file and offset information to events structure...')
         oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
         for i in range(self.events.shape[0]):
             if 0 <= eeg_offsets[i] <= self.num_samples:

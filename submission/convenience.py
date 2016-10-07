@@ -13,13 +13,13 @@ from pipelines import build_events_pipeline, build_split_pipeline,\
                       build_convert_eeg_pipeline, build_convert_events_pipeline,\
                       build_import_montage_pipeline, MATLAB_CONVERSION_TYPE, SOURCE_IMPORT_TYPE
 from transferer import DB_ROOT, DATA_ROOT, UnTransferrableException
-from loggers import log, logger
+from loggers import logger
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
     PTSA_LOADED=True
 except:
-    log('PTSA NOT LOADED')
+    logger.warn('PTSA NOT LOADED')
     PTSA_LOADED=False
 
 
@@ -57,7 +57,7 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
                 ref_montage, code))
         elif round((new_montage_num % 1) * 10) < montage_code:
             if allow_skip:
-                log('Warning: Skipping montages from {} to {}'.format(new_montage_num, montage_code))
+                logger.warn('Skipping montages from {} to {}'.format(new_montage_num, montage_code))
                 return '%d.%d' % (int(new_montage_num), montage_code)
             else:
                 raise Exception('Montage creation error: montages {} to {} do not exist'.format((new_montage_num%1)*10,
@@ -168,7 +168,7 @@ def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
 
-def test_import_existing_montages():
+def xtest_import_existing_montages():
     codes = get_all_codes()
     for code in codes:
         try:
@@ -199,12 +199,12 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
         if '_' in subject and not include_montage_changes:
             continue
         mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
-        log('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
+        logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
         try:
             mat_events = mat_events_reader.read()
             yield (subject, np.unique(mat_events['session']))
         except AttributeError:
-            log('Failed.')
+            logger.error('Could not get session from {}'.format(events_file))
 
 
 def get_first_unused_session(subject, experiment, protocol='r1'):
@@ -245,7 +245,7 @@ def run_full_import_pipeline(kwargs, force_run=False):
         events_pipeline = build_events_pipeline(**kwargs)
         build = True
     except Exception as e:
-        log('Could not make build pipeline: {}'.format(e))
+        logger.warn('Could not make build pipeline: {}'.format(e))
         build = False
 
     try:
@@ -253,7 +253,7 @@ def run_full_import_pipeline(kwargs, force_run=False):
         convert_events_pipeline = build_convert_events_pipeline(**kwargs)
         convert = True
     except Exception as e:
-        log('Could not make convert pipeline: {}'.format(e))
+        logger.warn('Could not make convert pipeline: {}'.format(e))
         if not build:
             raise
         convert = False
@@ -271,13 +271,13 @@ def run_full_import_pipeline(kwargs, force_run=False):
         pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),)
 
     for pipelines in pipeline_order:
-        log("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
+        logger.info("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
         try:
             for pipeline in pipelines:
                 pipeline.run(force_run)
             return
         except Exception as e:
-            log("Exception {} encountered while running pipeline {}".format(e, pipelines[0].current_transfer_type()))
+            logger.error("Exception {} encountered while running pipeline {}".format(e, pipelines[0].current_transfer_type()))
             traceback.print_exc()
 
     raise UnTransferrableException("All pipelines failed!")
@@ -299,7 +299,7 @@ def check_subject_sessions(code, experiment, sessions, protocol='r1'):
         if subject in bad_sessions and \
                         experiment in bad_sessions[subject] and \
                         str(session) in bad_sessions[subject][experiment]:
-            log('SKIPPING {} {}_{}: {}'.format(subject, experiment, session,
+            logger.debug('SKIPPING {} {}_{}: {}'.format(subject, experiment, session,
                                                bad_sessions[subject][experiment][str(session)]))
             continue
 
@@ -310,7 +310,7 @@ def check_subject_sessions(code, experiment, sessions, protocol='r1'):
             test_inputs['session'] = session
 
         if test_inputs['session'] != test_inputs['original_session']:
-            log('Warning: {subj} {exp}_{orig_sess} -> {code} {exp}_{sess}'.format(subj=subject,
+            logger.debug('Warning: {subj} {exp}_{orig_sess} -> {code} {exp}_{sess}'.format(subj=subject,
                                                                                   code=code,
                                                                                   sess=session,
                                                                                   exp=experiment,
@@ -334,10 +334,10 @@ def clean_db_dir():
     for root, dirs, files in os.walk(DB_ROOT, False):
         if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
             os.remove(os.path.join(root, 'log.txt'))
-            log('Removing %s'%root)
+            logger.debug('Removing %s'%root)
             os.rmdir(root)
         elif len(os.listdir(root)) == 0:
-            log('Removing %s'%root)
+            logger.debug('Removing %s'%root)
             os.rmdir(root)
 this_dir = os.path.realpath(os.path.dirname(__file__))
 
@@ -345,7 +345,7 @@ def xtest_import_all_ps_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
         yield test
 
-def xtest_import_all_verbal_sessions():
+def test_import_all_verbal_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
         yield test
 
@@ -438,6 +438,8 @@ def run_from_json_file(filename):
                 code = info.get('code', subject)
                 protocol = info.get('protocol', 'r1')
 
+                logger.set_subject(subject, protocol)
+
                 montage_num = montage.split('.')[1]
                 localization = montage.split('.')[0]
                 inputs = dict(
@@ -472,6 +474,8 @@ def run_from_json_file(filename):
                     inputs['groups'] += ('verbal',)
 
                 yield run_full_import_pipeline, inputs, force
+
+                logger.unset_subject()
 
 
 

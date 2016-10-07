@@ -3,7 +3,7 @@ from viewers.view_recarray import pformat_rec, to_dict, from_dict
 from readers.eeg_reader import read_jacksheet
 import os
 import re
-from loggers import log
+from loggers import logger
 import codecs
 
 
@@ -530,7 +530,7 @@ class StimComparator(object):
                 _ = self.get_subfield(self.events2[0], field_name2)
                 self.fields_to_compare[field_name1] = field_name2
             except ValueError:
-                log('Could not access fields {}/{} for comparison'.format(field_name1, field_name2), 'WARNING')
+                logger.warn('Could not access fields {}/{} for comparison'.format(field_name1, field_name2))
 
         self.exceptions = exceptions
 

@@ -4,7 +4,7 @@ import os
 
 from nose.tools import raises
 import json
-from loggers import log
+from loggers import logger
 
 
 class UnAlignableEEGException(Exception):
@@ -68,7 +68,7 @@ class System1Aligner:
         if n_out_of_range == self.events.size:
             raise UnAlignableEEGException('Could not align any events.')
         elif n_out_of_range:
-            log('{} events out of range of eeg'.format(n_out_of_range), 'WARNING')
+            logger.warn('{} events out of range of eeg'.format(n_out_of_range))
 
         # For files that are out of range, mark them as having no eegfile
         self.events[self.EEG_FILE_FIELD][out_of_range] = ''
@@ -110,7 +110,7 @@ class System1Aligner:
         slope, intercept, r, p, err = scipy.stats.linregress(matching_task_times, matching_eeg_times)
         prediction = matching_task_times * slope + intercept
         residual = matching_eeg_times - prediction
-        log('Slope: {0}\nIntercept: {1}\nStd. Err: {2}\nMax residual: {3}\nMin residual: {4}'\
+        logger.debug('Slope: {0}\nIntercept: {1}\nStd. Err: {2}\nMax residual: {3}\nMin residual: {4}'\
             .format(slope, intercept, err, max(residual), min(residual)))
         return slope, intercept
 
@@ -130,10 +130,10 @@ class System1Aligner:
         eeg_diff = np.diff(eeg_pulse_ms)
 
         # We match the beginning and the end separately, then draw a line between them
-        log('Scanning for start window')
+        logger.debug('Scanning for start window')
         task_start_range, eeg_start_range = cls.find_matching_window(eeg_diff, task_diff, True)
 
-        log('Scanning for end window')
+        logger.debug('Scanning for end window')
         task_end_range, eeg_end_range = cls.find_matching_window(eeg_diff, task_diff, False)
 
         # This whole next part was just for confirming that the fit is good,
@@ -146,12 +146,12 @@ class System1Aligner:
         prediction_start = slope_start * task_pulse_ms[task_start_range[0]: task_start_range[1]] + intercept_start
         residuals_start = eeg_pulse_ms[eeg_start_range[0]: eeg_start_range[1]] - prediction_start
         max_residual_start = max(abs(residuals_start))
-        log('Max residual start %.1f' % max_residual_start)
+        logger.debug('Max residual start %.1f' % max_residual_start)
 
         prediction_end = slope_end * task_pulse_ms[task_end_range[0]: task_end_range[1]] + intercept_end
         residuals_end = eeg_pulse_ms[eeg_end_range[0]: eeg_end_range[1]] - prediction_end
         max_residual_end = max(abs(residuals_end))
-        log('Max residual end %.1f;' % max_residual_end)
+        logger.debug('Max residual end %.1f;' % max_residual_end)
 
         max_residual = max(max_residual_start, max_residual_end)
 
@@ -215,7 +215,7 @@ class System1Aligner:
             if alignment_window - cls.ALIGNMENT_WINDOW_STEP < cls.MIN_ALIGNMENT_WINDOW:
                 raise UnAlignableEEGException("Could not align window")
             else:
-                log('Reducing align window to {}'.format(alignment_window - cls.ALIGNMENT_WINDOW_STEP), 'WARNING')
+                logger.warn('Reducing align window to {}'.format(alignment_window - cls.ALIGNMENT_WINDOW_STEP))
                 return cls.find_matching_window(eeg_diff, task_diff, from_front,
                                                 alignment_window - cls.ALIGNMENT_WINDOW_STEP)
 
