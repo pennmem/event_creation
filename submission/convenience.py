@@ -168,7 +168,7 @@ def run_montage_import_pipeline(kwargs, force_run=False):
     pipeline = build_import_montage_pipeline(**kwargs)
     pipeline.run(force_run)
 
-def xtest_import_existing_montages():
+def test_import_existing_montages():
     codes = get_all_codes()
     for code in codes:
         try:
@@ -187,6 +187,7 @@ def xtest_import_existing_montages():
 
         yield run_montage_import_pipeline, kwargs, False
         logger.unset_subject()
+
 
 
 

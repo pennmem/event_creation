@@ -22,7 +22,7 @@ from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
 from loggers import logger
-from transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT
+from config import DATA_ROOT, DB_ROOT, RHINO_ROOT
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS

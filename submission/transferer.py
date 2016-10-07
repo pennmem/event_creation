@@ -6,11 +6,7 @@ import datetime
 import hashlib
 
 
-RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
-DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
-LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT='/Volumes/db_root/' #os.path.join(RHINO_ROOT, 'data', 'eeg')
-EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
+from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
 
 from loggers import logger
 
@@ -437,7 +433,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
 
     return Transferer(json_file, (experiment,) + groups, destination,
                       protocol=protocol,
-                      subject=code, experiment=experiment, new_experiment=new_experiment, session=original_session,
+                      subject=subject, experiment=experiment, new_experiment=new_experiment, session=original_session,
                       data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
                       code=code, original_session=original_session, **kwargs)
 

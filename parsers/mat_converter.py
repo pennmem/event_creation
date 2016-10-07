@@ -13,7 +13,7 @@ import datetime
 from readers import eeg_reader
 from readers.eeg_reader import read_jacksheet
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from submission.transferer import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
+from submission.config import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
 from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
 

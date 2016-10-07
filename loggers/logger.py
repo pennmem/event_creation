@@ -2,7 +2,7 @@ from __future__ import print_function
 import logging
 import os
 import logging.handlers
-from submission.transferer import DB_ROOT
+from submission.config import DB_ROOT
 
 # TODO: REPLACE WITH PYTHON LOGGING MODULE
 
