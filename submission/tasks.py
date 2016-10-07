@@ -506,7 +506,8 @@ class CompareEventsTask(PipelineTask):
         found_bad, error_message = comparator.compare()
 
         if found_bad is True:
-            logger.error(error_message)
+            logger.error("Event comparison failed!")
+            logger.debug(error_message)
             assert False, 'Event comparison failed!'
         else:
             logger.debug('Comparison Success!')
@@ -524,7 +525,8 @@ class CompareEventsTask(PipelineTask):
             errors = stim_comparator.compare()
 
             if errors:
-                logger.error(errors)
+                logger.error("Stim comparison failed!")
+                logger.debug(errors)
                 assert False, 'Stim comparison failed!'
             else:
                 logger.debug('Stim comparison success!')
