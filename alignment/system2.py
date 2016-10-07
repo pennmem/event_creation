@@ -9,7 +9,7 @@ from parsers.system2_log_parser import System2LogParser
 from alignment.system1 import UnAlignableEEGException
 import itertools
 import json
-from loggers import log
+from loggers import logger
 
 
 def System2Aligner(events, files, plot_save_dir=None):
@@ -266,7 +266,7 @@ class System2TaskAligner(object):
         still_nans = np.where(np.isnan(time_dest))[0]
         if len(still_nans) > 0:
             if (np.array(still_nans) <= okay_no_align_up_to).all():
-                log('Warning: Could not align events %s' % still_nans)
+                logger.warn('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
                 raise Exception('Could not convert {} times past start of session'.format(len(still_nans)))
@@ -305,10 +305,10 @@ class System2TaskAligner(object):
         # Get NEUROPORT-TIMEs from host file
         [host_times, np_tics] = System2LogParser.get_columns_by_type(host_log_file, 'NEUROPORT-TIME', [0, 2], int)
         if (not host_times and not np_tics):
-            log('No NEUROPORT-TIMEs in %s' % host_log_file)
+            logger.debug('No NEUROPORT-TIMEs in %s' % host_log_file)
             return [], [], []
         if len(host_times) == 1:
-            log('Only one NEUROPORT-TIME in {}. Skipping.'.format(host_log_file), 'WARNING')
+            logger.debug('Only one NEUROPORT-TIME in {}. Skipping.'.format(host_log_file), 'WARNING')
 
         # "samples" from host log are actually tics of internal np counter. Convert those to actual samples
         np_times = cls.tics_to_samples(np_tics, nsx_file)

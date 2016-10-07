@@ -12,7 +12,7 @@ from parsers.base_log_parser import get_version_num
 from parsers.mat_converter import MathMatConverter
 
 from parsers.math_parser import MathLogParser
-from loggers import log, logger
+from loggers import logger
 
 import json
 import shutil
@@ -102,12 +102,6 @@ class TransferPipeline(object):
     def processed_label(self):
         return '{}_processed'.format(self.transferer.get_label())
 
-    def start_logging(self):
-        try:
-            logger.add_log_files(*self.log_filenames)
-        except:
-            log('Could not set logging path.')
-
     def create_index(self):
         index = {}
         if len(self.output_files) > 0:
@@ -120,41 +114,35 @@ class TransferPipeline(object):
             json.dump(index, open(os.path.join(self.current_dir, self.INDEX_FILE), 'w'),
                       indent=2, sort_keys=True)
 
-    def stop_logging(self):
-        logger.remove_log_files(*self.log_filenames)
-
     def run(self, force=False):
         if not os.path.exists(self.destination):
             os.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
-        self.start_logging()
 
-        log('Transfer pipeline to {} started'.format(self.destination_root))
+        logger.info('Transfer pipeline to {} started'.format(self.destination_root))
         missing_files = self.transferer.missing_required_files()
         if missing_files:
-            log("Missing file {}. Deleting processed folder {}".format(missing_files, self.destination), 'CRITICAL')
-            self.stop_logging()
+            logger.error("Missing file {}. Deleting processed folder {}".format(missing_files, self.destination))
             shutil.rmtree(self.destination)
             raise UnTransferrableException('Missing file {}'.format(missing_files))
 
         should_transfer = self.transferer.check_checksums()
         if should_transfer != True:
-            log('No changes to transfer...')
+            logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
-                log('{} does not exist! Continuing anyway!'.format(self.current_dir))
+                logger.info('{} does not exist! Continuing anyway!'.format(self.current_dir))
             else:
                 self.transferer.transfer_aborted = True
                 if not force:
-                    log('Removing processed folder {}'.format(self.destination))
-                    log('Transfer pipeline ended without transfer')
-                    self.stop_logging()
+                    logger.debug('Removing processed folder {}'.format(self.destination))
+                    logger.info('Transfer pipeline ended without transfer')
                     try:
                         shutil.rmtree(self.destination)
                     except OSError:
-                        log('Could not remove destination {}'.format(self.destination))
+                        logger.warn('Could not remove destination {}'.format(self.destination))
                     return
                 else:
-                    log('Forcing transfer to happen anyway')
+                    logger.info('Forcing transfer to happen anyway')
 
         logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
@@ -162,30 +150,29 @@ class TransferPipeline(object):
         try:
             for i, pipeline_task in enumerate(self.pipeline_tasks):
 
-                log('Executing task {}: {}'.format(i+1, pipeline_task.name))
+                logger.info('Executing task {}: {}'.format(i+1, pipeline_task.name))
+                logger.set_label(pipeline_task.name)
                 pipeline_task.run(transferred_files, self.destination)
-                log('Task {} finished successfully'.format(pipeline_task.name))
+                logger.info('Task {} finished successfully'.format(pipeline_task.name))
 
             if os.path.islink(self.current_dir):
                 os.unlink(self.current_dir)
             os.symlink(self.processed_label, self.current_dir)
 
         except Exception as e:
-            log('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
-                                                                   'initialization', e), 'CRITICAL')
+            logger.error('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
+                                                                   'initialization', e))
 
 
             self.transferer.remove_transferred_files()
-            log('Transfer pipeline errored: {}'.format(e.message), 'CRITICAL')
-            log('Removing processed folder {}'.format(self.destination), 'CRITICAL')
-            self.stop_logging()
+            logger.debug('Transfer pipeline errored: {}'.format(e.message))
+            logger.debug('Removing processed folder {}'.format(self.destination))
             if os.path.exists(self.destination):
                 shutil.rmtree(self.destination)
             raise
 
-        log('Transfer pipeline ended normally')
+        logger.info('Transfer pipeline ended normally')
         self.create_index()
-        self.stop_logging()
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,

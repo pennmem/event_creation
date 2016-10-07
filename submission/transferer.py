@@ -5,13 +5,11 @@ import shutil
 import datetime
 import hashlib
 
-from loggers import log
 
-RHINO_ROOT = os.path.join(os.environ['HOME'], 'rhino_mount')
-DATA_ROOT=os.path.join(RHINO_ROOT, 'data/eeg')
-LOC_DB_ROOT=RHINO_ROOT
-DB_ROOT=os.path.join(os.environ['HOME'], 'Volumes/db_root/') #os.path.join(RHINO_ROOT, 'data', 'eeg')
-EVENTS_ROOT=os.path.join(RHINO_ROOT, 'data/events')
+from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
+
+from loggers import logger
+
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
 
@@ -38,7 +36,7 @@ class Transferer(object):
         self.destination_root = os.path.abspath(destination)
         self.destination_current = os.path.join(self.destination_root, self.CURRENT_NAME)
         self.label = datetime.datetime.now().strftime(self.STRFTIME)
-        log('Transferer {} created'.format(self.label))
+        logger.debug('Transferer {} created'.format(self.label))
         self.kwargs = kwargs
         self.transferred_files = {}
         self.transfer_dict = self.load_groups(self.load_json_input(json_file)[self.kwargs['protocol']], groups)
@@ -117,7 +115,7 @@ class Transferer(object):
             with open(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'r') as type_file:
                 return type_file.read()
         except Exception:
-            log('No type file found')
+            logger.info('No type file found')
             return None
 
     @classmethod
@@ -178,12 +176,13 @@ class Transferer(object):
             origin_files = self.get_origin_files(info, **self.kwargs)
 
             if info['required'] and not origin_files:
-                log("Could not locate file {} in {}".format(name, info['origin_directory'].format(**self.kwargs)))
+                logger.error("Could not locate file {} in {}".format(name,
+                                                                     info['origin_directory'].format(**self.kwargs)))
                 return name
 
             if (not info['multiple']) and len(origin_files) > 1:
-                log("multiple = {}, but {} files found".format(info['multiple'],
-                                                               len(origin_files)))
+                logger.error("multiple = {}, but {} files found".format(info['multiple'],
+                                                                        len(origin_files)))
                 return name
         return False
 
@@ -192,7 +191,7 @@ class Transferer(object):
 
         found_change = False
         for name, info in self.transfer_dict.items():
-            log('Checking {}'.format(name))
+            logger.debug('Checking {}'.format(name))
 
             origin_files = self.get_origin_files(info, **self.kwargs)
 
@@ -207,7 +206,7 @@ class Transferer(object):
                 continue
 
             if not name in old_index:
-                log('Found new file: {}'.format(name))
+                logger.info('Found new file: {}'.format(name))
                 found_change = True
                 break
 
@@ -220,7 +219,7 @@ class Transferer(object):
 
             if not old_index[name]['md5'] == this_md5.hexdigest():
                 found_change = True
-                log('Found differing file: {}'.format(name))
+                logger.info('Found differing file: {}'.format(name))
                 break
 
         self._should_transfer = found_change
@@ -231,7 +230,7 @@ class Transferer(object):
         transferrable_files = []
 
         for name, info in self.transfer_dict.items():
-            log('Checking {}'.format(name))
+            logger.debug('Checking {}'.format(name))
 
             origin_files = self.get_origin_files(info, **self.kwargs)
 
@@ -256,11 +255,11 @@ class Transferer(object):
         if not os.path.exists(self.destination_root):
             os.makedirs(self.destination_root)
 
-        log('Transferring into {}'.format(self.destination_root))
+        logger.info('Transferring into {}'.format(self.destination_root))
 
         file_dicts = self.get_files_to_transfer()
         if not file_dicts:
-            log('No files to transfer.')
+            logger.info('No files to transfer.')
             self.transfer_aborted = True
             return None
 
@@ -269,7 +268,7 @@ class Transferer(object):
             info = file_dict['info']
             origin_files = file_dict['files']
 
-            log('Transferring {}'.format(name))
+            logger.info('Transferring {}'.format(name))
 
             destination_path = self.get_destination_path(info)
             if not os.path.exists(destination_path):
@@ -290,17 +289,17 @@ class Transferer(object):
                     if not os.path.exists(os.path.dirname(destination_file)):
                         os.makedirs(os.path.dirname(destination_file))
                     shutil.copyfile(origin_file, destination_file)
-                    log('Copied file {} to {}'.format(origin_file, destination_file))
+                    logger.debug('Copied file {} to {}'.format(origin_file, destination_file))
                 elif info['type'] == 'directory':
                     shutil.copytree(origin_file, destination_file)
-                    log('Copied directory {} to {}'.format(origin_file, destination_file))
+                    logger.debug('Copied directory {} to {}'.format(origin_file, destination_file))
                 elif info['type'] == 'link':
                     if os.path.islink(destination_file):
-                        log('Removing link %s' % destination_file, 'WARNING')
+                        logger.warn('Removing link %s' % destination_file)
                         os.unlink(destination_file)
                     link = os.path.relpath(origin_file, destination_path)
                     os.symlink(link, destination_file)
-                    log('Linking {} to {}'.format(link, destination_file))
+                    logger.debug('Linking {} to {}'.format(link, destination_file))
                 else:
                     raise UnTransferrableException("Type {} not known."+\
                                                    "Must be 'file' or 'directory'".format(info['type']))
@@ -324,7 +323,7 @@ class Transferer(object):
             try:
                 return self._transfer_files()
             except Exception as e:
-                log('Exception encountered: %s' % e.message)
+                logger.error('Exception encountered: %s' % e.message)
 
                 self.remove_transferred_files()
                 raise
@@ -332,7 +331,7 @@ class Transferer(object):
     def remove_transferred_files(self):
         new_transferred_files = {k:v for k,v in self.transferred_files.items()}
         for file in self.transferred_files:
-            log('Removing Entry : {} '.format(file))
+            logger.debug('Removing Entry : {} '.format(file))
             if file not in self.transfer_dict: # Must have been added later. This is messy. Should be fixed.
                 os.remove(self.transferred_files[file])
                 continue
@@ -348,14 +347,14 @@ class Transferer(object):
                     destination_files = glob.glob(os.path.join(destination_path, origin_file.format(**self.kwargs)))
                     for destination_file in destination_files:
                         if info['type'] == 'file':
-                            log('removing %s' % destination_file)
+                            logger.debug('removing %s' % destination_file)
                             os.remove(destination_file)
                         elif info['type'] == 'directory':
-                            log('removing %s' % destination_file)
+                            logger.debug('removing %s' % destination_file)
                             shutil.rmtree(destination_file)
                 else:
                     destination_file = os.path.join(self.destination_root, self.label, info['destination'])
-                    log('removing %s' % destination_file)
+                    logger.debug('removing %s' % destination_file)
                     if info['type'] == 'link':
                         os.unlink(destination_file)
                     else:
@@ -376,12 +375,12 @@ class Transferer(object):
 
         self.delete_if_empty(self.destination_root)
         if os.path.islink(self.destination_current):
-            log('removing symlink: %s' % self.destination_current)
+            logger.debug('removing symlink: %s' % self.destination_current)
             os.unlink(self.destination_current)
             if self.old_symlink:
                 os.symlink(self.old_symlink, self.destination_current)
         else:
-            log('Could not find symlink %s' % self.destination_current)
+            logger.warn('Could not find symlink %s' % self.destination_current)
 
 
     @classmethod
@@ -434,7 +433,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
 
     return Transferer(json_file, (experiment,) + groups, destination,
                       protocol=protocol,
-                      subject=code, experiment=experiment, new_experiment=new_experiment, session=original_session,
+                      subject=subject, experiment=experiment, new_experiment=new_experiment, session=original_session,
                       data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
                       code=code, original_session=original_session, **kwargs)
 
@@ -480,7 +479,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
         except UnTransferrableException:
-            log("Could not find syncs! Will likely fail soon!")
+            logger.warn("Could not find syncs! Will likely fail soon!")
 
     if not new_experiment:
         new_experiment = experiment

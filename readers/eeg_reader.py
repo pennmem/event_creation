@@ -15,7 +15,7 @@ import struct
 import datetime
 import sys
 import bz2
-from loggers import log
+from loggers import logger
 from scipy.signal import butter, filtfilt
 from shutil import copy
 
@@ -73,8 +73,10 @@ class EEG_reader:
         noreref_location = os.path.join(location, 'noreref')
         if not os.path.exists(noreref_location):
             os.makedirs(noreref_location)
+        logger.info("Splitting data into {}/{}".format(location, basename))
         self._split_data(noreref_location, basename)
         self.write_sources(location, basename)
+        logger.info("Splitting complete")
 
     def _split_data(self, location, basename):
         return NotImplementedError
@@ -272,8 +274,8 @@ class NK_reader(EEG_reader):
             T_minute = self.uint8(f)
             T_second = self.uint8(f)
 
-            log('Date of session: %d/%d/%d\n' % (T_month, T_day, T_year))
-            log('Time of start: %02d:%02d:%02d\n' % (T_hour, T_minute, T_second))
+            logger.debug('Date of session: %d/%d/%d\n' % (T_month, T_day, T_year))
+            logger.debug('Time of start: %02d:%02d:%02d\n' % (T_hour, T_minute, T_second))
 
             sample_rate = self.uint16(f)
             sample_rate_conversion = {
@@ -293,7 +295,7 @@ class NK_reader(EEG_reader):
                 raise UnSplittableEEGFileException('Unknown sample rate')
 
             num_100_ms_blocks = self.uint32(f)
-            log('Length of session: %2.2f hours\n' % (num_100_ms_blocks/10./3600.))
+            logger.debug('Length of session: %2.2f hours\n' % (num_100_ms_blocks/10./3600.))
             num_samples = actual_sample_rate * num_100_ms_blocks / 10.
             self.num_samples = num_samples
             ad_off = self.int16(f)
@@ -308,7 +310,7 @@ class NK_reader(EEG_reader):
                 raise UnSplittableEEGFileException('Expecting new format, but > 1 channel')
 
             if new_format:
-                log('NEW FORMAT...')
+                logger.debug('NEW FORMAT...')
 
                 waveform_block_old_format = 39 + 10 + 2 * actual_sample_rate + float(M) * actual_sample_rate
                 control_block_eeg1_new = 1072
@@ -418,17 +420,16 @@ class NK_reader(EEG_reader):
                     raise UnSplittableEEGFileException('Could not find recording for channels:\n%s' % unique_bad_names)
 
             # Get the data!
-            log('Reading...')
+            logger.debug('Reading...')
             data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples))
             if len(data) / (num_channels + 1) != num_samples:
                 num_samples = len(data) / (num_channels + 1)
-                log('Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
-                                                                                                     num_samples),
-                    'WARNING')
+                logger.warn('Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
+                                                                                                     num_samples))
                 self.num_samples = num_samples
             data = data.reshape((int(num_samples), int(num_channels + 1))).T
             #data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
-            log( 'Done.')
+            logger.debug( 'Done.')
 
             # Filter only for relevant channels
             data_num_mask = np.array(data_num_to_21e_index != -1)
@@ -456,15 +457,13 @@ class NK_reader(EEG_reader):
         if not self.sample_rate:
             raise UnSplittableEEGFileException('Sample rate not determined')
 
-        log('Spltting into %s/%s: ' % (location, basename))
         sys.stdout.flush()
         for channel, channel_data in data.items():
             filename = os.path.join(location, basename + ('.%03d' % channel))
 
-            log(channel)
+            logger.debug(channel)
             sys.stdout.flush()
             channel_data.astype(self.DATA_FORMAT).tofile(filename)
-        log('Saved.')
 
 
 class Multi_NSx_reader(EEG_reader):
@@ -594,14 +593,13 @@ class NSx_reader(EEG_reader):
 
     def _split_data(self, location, basename):
         channels = np.array(self.data['elec_ids'])
-        log('Splitting into %s/%s: ' % (location,basename))
         for label, channel in self.labels.items():
             recording_channel = channel - self.lowest_channel
             if recording_channel < 0 or recording_channel > self.data['data'].shape[0]:
-                log('Not getting channel {} from file {}'.format(channel, self.raw_filename), 'WARNING')
+                logger.warn('Not getting channel {} from file {}'.format(channel, self.raw_filename))
                 continue
             filename = os.path.join(location, basename + '.%03d' % channel)
-            log('%s: %s' % (label, channel))
+            logger.debug('%s: %s' % (label, channel))
             data = self.data['data'][channels==channel, :].astype(self.DATA_FORMAT)
             data.tofile(filename)
             sys.stdout.flush()
@@ -670,7 +668,6 @@ class EDF_reader(EEG_reader):
         return self.reader.readSignal(channel)
 
     def _split_data(self, location, basename):
-        log('Spltting into %s/%s: ' % (location, basename), end='')
         sys.stdout.flush()
         already_split_channels = []
         for channel, header in self.headers.items():
@@ -688,12 +685,11 @@ class EDF_reader(EEG_reader):
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
 
-            log('{}: {}'.format(out_channel, header['label']))
+            logger.debug('{}: {}'.format(out_channel, header['label']))
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
             already_split_channels.append(label)
-        log('Saved.')
 
 
 class EGI_reader(EEG_reader):
@@ -771,14 +767,14 @@ class EGI_reader(EEG_reader):
                                                     self.header['hour'], self.header['minute'], self.header['second'])
 
             # Log various information about the file
-            log('EEG File Information:')
-            log('---------------------')
-            log('Sample Rate = %d' % self.header['sample_rate'])
-            log('Start of recording = %d/%d/%d %02d:%02d' % (self.header['month'], self.header['day'],
-                                                               self.header['year'], self.header['hour'],
-                                                               self.header['minute']))
-            log('Number of Channels = %d' % self.header['num_channels'])
-            log('Number of Events = %d' % self.header['num_events'])
+            logger.debug('EEG File Information:')
+            logger.debug('---------------------')
+            logger.debug('Sample Rate = %d' % self.header['sample_rate'])
+            logger.debug('Start of recording = %d/%d/%d %02d:%02d' % (self.header['month'], self.header['day'],
+                                                                      self.header['year'], self.header['hour'],
+                                                                      self.header['minute']))
+            logger.debug('Number of Channels = %d' % self.header['num_channels'])
+            logger.debug('Number of Events = %d' % self.header['num_events'])
 
     def get_data(self):
         """
@@ -814,7 +810,7 @@ class EGI_reader(EEG_reader):
         step_size = 1000000
         total_read = 0
         raw = np.zeros((total_samples, 1))
-        log('Loading %d samples...' % total_samples)
+        logger.debug('Loading %d samples...' % total_samples)
         with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Go to index for the beginning of the EEG samples in the raw file
             data_start_index = 36 + 4 * self.header['num_events']
@@ -828,18 +824,18 @@ class EGI_reader(EEG_reader):
                 samples_array = np.array(unpacked_samples)
                 raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
                 total_read += samples_to_read
-        log('%d...Done' % total_read)
+            logger.debug('%d...Done' % total_read)
 
         # Organize the data into a matrix with each channel and event on its own row
         # self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000)). order='F')
         self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
 
-        if run_highpass:
-            # Run a first-order highpass butterworth filter on the EEG signal from each channel.
-            log('Running first-order .1 Hz highpass filter on all channels.')
-            for i in range(self._data.shape[0]):
-                self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
-            log('Done')
+            if run_highpass:
+                # Run a first-order highpass butterworth filter on the EEG signal from each channel
+                logger.debug('Running first-order .1 Hz highpass filter on all channels.')
+                for i in range(self._data.shape[0]):
+                    self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
+                logger.debug('Done')
 
         # Divide the signal by the amplifier gain
         self._data = self._data / self.amp_gain
@@ -860,13 +856,13 @@ class EGI_reader(EEG_reader):
         if not os.path.exists(location):
             os.makedirs(location)
 
-        log('Spltting into %s/%s: ' % (location, basename))
+        logger.debug('Spltting into %s/%s: ' % (location, basename))
 
         # Write EEG channel files
         for i in range(self.header['num_channels']):
             j = i+1
             filename = os.path.join(location, basename + ('.%03d' % j))
-            log(i+1)
+            logger.debug(str(i+1))
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event
             self._data[i].astype(self.DATA_FORMAT).tofile(filename)
@@ -876,15 +872,15 @@ class EGI_reader(EEG_reader):
         for i in range(self.header['num_channels'], self.header['num_channels'] + self.header['num_events']):
             filename = (basename, '.', self.header['event_codes'][current_event])
             filename = os.path.join(location, ''.join(filename))
-            log(self.header['event_codes'][current_event])
+            logger.debug(self.header['event_codes'][current_event])
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event, so write each row to its own file
             self._data[i].astype(self.DATA_FORMAT).tofile(filename)
             current_event += 1
-        log('Saved.')
+
 
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
-        log('Writing param files.')
+        logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.amp_gain)
         with open(paramfile, 'w') as f:
@@ -892,7 +888,7 @@ class EGI_reader(EEG_reader):
         paramfile = os.path.join(location, basename + '.params.txt')
         with open(paramfile, 'w') as f:
             f.write(params)
-        log('Done.')
+        logger.debug('Done.')
 
     def reref(self, bad_chans, location):
         """
@@ -907,7 +903,7 @@ class EGI_reader(EEG_reader):
         if not os.path.exists(location):
             os.makedirs(location)
 
-        log('Rerefencing data...')
+        logger.debug('Rerefencing data...')
 
         # Ignore bad channels for the purposes of calculating the averages for rereference
         good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
@@ -920,20 +916,20 @@ class EGI_reader(EEG_reader):
 
         # Reverse the gain (even though noreref already did this?)
         # self._data = (self._data / self.amp_gain).astype('int16')
-        log('Done.')
+        logger.debug('Done.')
 
         # Write reref files
-        log('Writing rereferenced channels...')
+        logger.debug('Writing rereferenced channels...')
         for chan in good_chans:
             filename = os.path.join(location, self.basename + ('.%03d' % chan))
             # Write the rereferenced data from each channel to its own file
             self._data[chan-1].astype(self.DATA_FORMAT).tofile(filename)
-        log('Done.')
+        logger.debug('Done.')
 
         # Copy the params.txt file from the noreref folder
-        log('Copying param file...')
+        logger.debug('Copying param file...')
         copy(os.path.join(self.noreref_loc, 'params.txt'), location)
-        log('Done.')
+        logger.debug('Done.')
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
@@ -1064,14 +1060,14 @@ class BIO_reader(EEG_reader):
         self.gain = (self.header['physical_max'] - self.header['physical_min']).astype(float) / \
                     (self.header['digital_max'] - self.header['digital_min']).astype(float)
 
-        # Log various information about the file
-        log('EEG File Information:')
-        log('---------------------')
-        log('Sample Rate(s) = ' + str(self.sample_rate))
-        log('Start of recording = %d/%d/%d %02d:%02d' % (self.header['date'][1], self.header['date'][0],
-                                                         self.header['date'][2], self.header['time'][0],
-                                                         self.header['time'][1]))
-        log('Number of Channels and Events = %d' % self.header['num_channels'])
+            # Log various information about the file
+            logger.debug('EEG File Information:')
+            logger.debug('---------------------')
+            logger.debug('Sample Rate = %d' % self.sample_rate)
+            logger.debug('Start of recording = %d/%d/%d %02d:%02d' % (self.header['date'][1], self.header['date'][0],
+                                                               self.header['date'][2], self.header['time'][0],
+                                                               self.header['time'][1]))
+            logger.debug('Number of Channels and Events = %d' % self.header['num_channels'])
 
     def get_data(self):
         """
@@ -1093,7 +1089,8 @@ class BIO_reader(EEG_reader):
         # Data will be stored in a matrix with one row for each channel and one column for each sample
         self._data = np.zeros((self.header['num_channels'], self.header['num_records'] * self.header['samps_per_record'][0]))
 
-        log('Loading %d samples...' % self.total_samples)
+        raw = np.zeros((total_samples, 1))
+        logger.debug('Loading %d samples...' % self.total_samples)
         with open(self.raw_filename, 'rb') as raw_file:
             # Go to index for the beginning of the EEG samples in the raw file
             data_start_index = self.header['num_header_bytes']
@@ -1110,7 +1107,7 @@ class BIO_reader(EEG_reader):
                     for h in samp_range:
                         self._data[j, i * self.header['samps_per_record'][0] + h] = \
                             struct.unpack('<i', '\x00' + raw_file.read(3))[0] >> 8
-            log('Done.')
+            logger.debug('Done.')
 
             # Run a first-order highpass butterworth filter on each channel
             log('Running first-order .1 Hz highpass filter on all channels.')
@@ -1251,32 +1248,6 @@ def read_json_jacksheet(filename):
     return jacksheet
 
 
-def convert_nk_to_edf(filename):
-    current_dir = os.path.abspath(os.path.dirname(__file__))
-    if _platform == 'darwin': # OS X
-        program = os.path.join(current_dir, 'nk2edf_mac')
-    else:
-        program = os.path.join(current_dir, 'nk2edf_linux')
-    log('Converting to edf')
-    try:
-        subprocess.check_call([program, filename])
-    except subprocess.CalledProcessError:
-        log('Could not process annotat')
-        subprocess.call([program, '-no-annotations', filename])
-    edf_dir = os.path.dirname(filename)
-    edf_file = glob.glob(os.path.join(edf_dir, '*.edf'))
-    import stat
-    try:
-        os.chmod(edf_file, stat.S_IWGRP)
-    except:
-        log('Could not chmod %s' % edf_file)
-    if not edf_file:
-        raise UnSplittableEEGFileException("Could not convert %s to edf" % filename)
-    else:
-        log('Success!')
-        return edf_file[0]
-
-
 def calc_gain(amp_info, amp_fact):
     """
     Calculates the gain factor for converting raw EEG to uV.
@@ -1290,7 +1261,7 @@ def calc_gain(amp_info, amp_fact):
     if np.diff(abs(amp_info[0]))[0] == 0 and np.diff(abs(amp_info[1]))[0] == 0:
         return (drange * 1000000./amp_fact) / arange
     else:
-        log('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
+        logger.warn('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
         return 1
 
 

@@ -21,8 +21,8 @@ from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
-from loggers import log, logger
-from transferer import DATA_ROOT, DB_ROOT, RHINO_ROOT
+from loggers import logger
+from config import DATA_ROOT, DB_ROOT, RHINO_ROOT
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
@@ -32,7 +32,7 @@ try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
     PTSA_LOADED = True
 except:
-    log('PTSA NOT LOADED')
+    logger.warn('PTSA NOT LOADED')
     PTSA_LOADED = False
 
 class PipelineTask(object):
@@ -83,7 +83,7 @@ class SplitEEGTask(PipelineTask):
 
     def __init__(self, subject, montage, experiment, session, protocol, critical=True, **kwargs):
         super(SplitEEGTask, self).__init__(critical)
-        self.name = 'Splitting {subj} {exp}_{sess}'.format(subj=subject, exp=experiment, sess=session)
+        self.name = 'Splitting {exp}_{sess}'.format(exp=experiment, sess=session)
         self.subject = subject
         self.experiment = experiment
         self.session = session
@@ -138,7 +138,7 @@ class SplitEEGTask(PipelineTask):
                     try:
                         reader = get_eeg_reader(raw_eeg, jacksheet_file)
                     except KeyError as k:
-                        log('Cannot split file with extension {}'.format(k), 'WARNING')
+                        logger.warn('Cannot split file with extension {}'.format(k))
                         continue
 
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
@@ -157,9 +157,8 @@ class MatlabEEGConversionTask(PipelineTask):
 
     def __init__(self, subject, experiment, original_session, critical=True, **kwargs):
         super(MatlabEEGConversionTask, self).__init__(critical)
-        self.name = 'matlab EEG extraction for {subj}: {exp}_{sess}'.format(subj=subject,
-                                                                            exp=experiment,
-                                                                            sess=original_session)
+        self.name = 'matlab EEG extraction {exp}_{sess}'.format(exp=experiment,
+                                                                sess=original_session)
         self.original_session = original_session
         self.kwargs = kwargs
 
@@ -183,7 +182,7 @@ class EventCreationTask(PipelineTask):
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
-        self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
+        self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
         self.subject = subject
@@ -224,7 +223,7 @@ class EventCombinationTask(PipelineTask):
 
     def __init__(self, event_labels, sort_field='mstime', critical=True):
         super(EventCombinationTask, self).__init__(critical)
-        self.name = 'Event combination task for events {}'.format(event_labels)
+        self.name = 'Event combination: {}'.format(event_labels)
         self.event_labels = event_labels
         self.sort_field = sort_field
 
@@ -274,7 +273,7 @@ class MontageLinkerTask(PipelineTask):
             fullfile = os.path.join(montage_path, file)
             if not os.path.exists(os.path.join(DB_ROOT, fullfile)):
                 raise UnProcessableException("Cannot find montage for {} in {}".format(self.subject, fullfile))
-            log('File {} found'.format(file))
+            logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
 
 
@@ -292,7 +291,7 @@ class MatlabEventConversionTask(PipelineTask):
     def __init__(self, protocol, subject, montage, experiment, session,
                  event_label='task', converter_type=None, original_session=None, critical=True, **kwargs):
         super(MatlabEventConversionTask, self).__init__(critical)
-        self.name = '{label} Event Creation for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
+        self.name = '{label} Event Creation: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
         self.subject = subject
@@ -335,7 +334,7 @@ class ImportEventsTask(PipelineTask):
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
                  converter_type=None, parser_type=None, original_session=None, critical=True, **kwargs):
         super(ImportEventsTask, self).__init__(critical)
-        self.name = '{label} Event Import for {subj}: {exp}_{sess}'.format(label=event_label, subj=subject, exp=experiment, sess=session)
+        self.name = '{label} Event Import: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'\d', '', experiment)]
         self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
         self.protocol = protocol
@@ -353,8 +352,8 @@ class ImportEventsTask(PipelineTask):
     def _run(self, files, db_folder):
         try:
             EventCreationTask.run(self, files, db_folder)
-        except Exception:
-            log("Exception occurred creating events! Defaulting to event conversion!")
+        except Exception as e:
+            logger.error("Exception occurred creating events: {}! Defaulting to event conversion!".format(e))
             MatlabEventConversionTask.run(self, files, db_folder)
 
 class CleanDbTask(PipelineTask):
@@ -364,10 +363,10 @@ class CleanDbTask(PipelineTask):
         for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
-                log('Removing {}'.format(root))
+                logger.debug('Removing {}'.format(root))
                 os.rmdir(root)
             elif len(os.listdir(root)) == 0:
-                log('Removing {}'.format(root))
+                logger.debug('Removing {}'.format(root))
                 os.rmdir(root)
 
 class IndexAggregatorTask(PipelineTask):
@@ -450,7 +449,7 @@ class CompareEventsTask(PipelineTask):
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
                  match_field=None, critical=True):
         super(CompareEventsTask, self).__init__(critical)
-        self.name = 'Comparator {}: {}_{}'.format(subject, experiment, session)
+        self.name = 'Comparator {}_{}'.format(experiment, session)
         self.subject = subject
         self.code = code if code else subject
         self.original_session = original_session if not original_session is None else session
@@ -479,7 +478,7 @@ class CompareEventsTask(PipelineTask):
                 common_root=RHINO_ROOT,
                 eliminate_events_with_no_eeg=False,
             )
-        log('Loading matlab events')
+        logger.debug('Loading matlab events')
         mat_events = mat_events_reader.read()
         mat_session = self.original_session + (1 if self.protocol == 'ltp' else 0)
         self.sess_mat_events = mat_events[mat_events.session == mat_session]  # TODO: dependent on protocol
@@ -502,19 +501,19 @@ class CompareEventsTask(PipelineTask):
             raise NotImplementedError('Only r1 and ltp event comparison implemented')
 
         comparator = EventComparator(new_events, self.sess_mat_events, match_field=self.match_field, **comparator_inputs)
-        log('Comparing events...')
+        logger.debug('Comparing events...')
 
         found_bad, error_message = comparator.compare()
 
         if found_bad is True:
-            log(error_message)
+            logger.error(error_message)
             assert False, 'Event comparison failed!'
         else:
-            log('Comparison Success!')
+            logger.debug('Comparison Success!')
 
-        log('Comparing stim events...')
 
         if self.protocol == 'r1':
+            logger.debug('Comparing stim events...')
             major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
             if float(major_version.split('_')[-1]) >= 2:
                 comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
@@ -525,10 +524,10 @@ class CompareEventsTask(PipelineTask):
             errors = stim_comparator.compare()
 
             if errors:
-                log(errors)
+                logger.error(errors)
                 assert False, 'Stim comparison failed!'
             else:
-                log('Stim comparison success!')
+                logger.debug('Stim comparison success!')
 
 
 class UnProcessableException(Exception):
@@ -548,30 +547,30 @@ def change_current(source_folder, *args):
 
     previous_current_source = os.path.basename(os.path.realpath(current_source))
 
-    log('Unlinking current source: {}'.format(os.path.realpath(current_source)))
+    logger.info('Unlinking current source: {}'.format(os.path.realpath(current_source)))
     os.unlink(current_source)
     try:
-        log('Linking current source to {}'.format(source_folder))
+        logger.info('Linking current source to {}'.format(source_folder))
         os.symlink(source_folder, current_source)
     except Exception as e:
-        log('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(e.message))
         os.symlink(previous_current_source, current_source)
         raise
 
     previous_current_processed = os.path.basename(os.path.realpath(current_processed))
     try:
-        log('Unlinking current processed: {}'.format(os.path.realpath(current_processed)))
+        logger.info('Unlinking current processed: {}'.format(os.path.realpath(current_processed)))
         os.unlink(current_processed)
     except Exception as e:
-        log('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(e.message))
         os.symlink(previous_current_source, current_source)
 
     try:
         processed_folder = '{}_processed'.format(source_folder)
-        log('Linking current processed to {}'.format(processed_folder))
+        logger.info('Linking current processed to {}'.format(processed_folder))
         os.symlink(processed_folder, current_processed)
     except Exception as e:
-        log('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(e.message))
         os.symlink(previous_current_source, current_source)
         os.symlink(previous_current_processed, current_processed)
 

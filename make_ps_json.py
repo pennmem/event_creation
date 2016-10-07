@@ -1,4 +1,4 @@
-from loggers import log
+from loggers import logger
 import re
 import os
 from submission.transferer import DATA_ROOT
@@ -21,7 +21,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1'):
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
         subject_no_montage = subject.split('_')[0]
         mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
-        log('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
+        logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
         try:
             mat_events = mat_events_reader.read()
             sessions = np.unique(mat_events['session'])
@@ -43,7 +43,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1'):
 
 
         except AttributeError:
-            log('Failed.')
+            logger.warn("Failed to read events from {}".format(events_file))
 
 from collections import defaultdict
 
