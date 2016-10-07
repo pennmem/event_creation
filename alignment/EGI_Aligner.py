@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from loggers import logger
-from warnings import warn
 from ptsa.data.align import find_needle_in_haystack
 
 class EGI_Aligner:
@@ -70,14 +69,14 @@ class EGI_Aligner:
         # Determine which sync pulse file to use and get the indices of the samples that contain sync pulses
         self.get_ephys_sync()
         if self.pulses is None:
-            warn('No sync pulse file could be found. Unable to align behavioral and EEG data.', Warning)
+            logger.warn('No sync pulse file could be found. Unable to align behavioral and EEG data.')
             return self.events
 
         # Get the behavioral sync data and create eeg.eeglog.up if necessary
         if len(self.behav_files) > 0:
             self.get_behav_sync()
         else:
-            warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.', Warning)
+            logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
         # Remove sync pulses that occurred less than 100 ms after the preceding pulse
@@ -100,10 +99,10 @@ class EGI_Aligner:
                 self.events[i].eegfile = self.basename
             else:
                 oob += 1
-        log('Done.')
+        logger.debug('Done.')
 
         if oob > 0:
-            warn(str(oob) + ' events are out of bounds of the EEG files.', Warning)
+            logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
 
         # Identify all artifacts, and add information about them to the events that occurred during those artifacts
         # self.add_artifacts([(25, 127), (8, 126)])
@@ -117,7 +116,7 @@ class EGI_Aligner:
         extract the indices of the samples that contain sync pulses, then calculate the mstimes of the pulses using
         the sample rate.
         """
-        log('Acquiring EEG sync pulses...')
+        logger.debug('Acquiring EEG sync pulses...')
         if not hasattr(self.pulse_files, '__iter__'):
             self.pulse_files = [self.pulse_files]
         for file_type in ('.D255', '.DI15', '.DIN1'):
@@ -129,7 +128,7 @@ class EGI_Aligner:
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000 / self.sample_rate
                     self.basename = f[:-5]
-                    log('Done.')
+                    logger.debug('Done.')
                     return
 
     def get_behav_sync(self):
@@ -138,16 +137,16 @@ class EGI_Aligner:
         Then set the eeg log file for alignment to be the eeg.eeglog.up file. Also gets the mstimes of the behavioral
         sync pulses.
         """
-        log('Acquiring behavioral sync pulse times...')
+        logger.debug('Acquiring behavioral sync pulse times...')
         if not hasattr(self.pulse_files, '__iter__'):
             self.pulse_files = [self.pulse_files]
         for f in self.behav_files:
             if f.endswith('.up'):
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0])
         if self.behav_ms is None:
-            log('No eeg.eeglog.up file detected. Extracting up pulses from eeg.eeglog...')
+            logger.debug('No eeg.eeglog.up file detected. Extracting up pulses from eeg.eeglog...')
             self.behav_ms = extract_up_pulses(self.behav_files[0])
-        log('Done.')
+        logger.debug('Done.')
 
     def add_artifacts(self, eog_chans):
         """
@@ -156,7 +155,7 @@ class EGI_Aligner:
 
         :param eog_chans: A list of integers and/or tuples denoting which channels should be used for identifying blinks
         """
-        log('Identifying artifacts in the EEG signal...')
+        logger.debug('Identifying artifacts in the EEG signal...')
         chan_basename = self.events.eegfile[0]
         artifact_mask = None
         i = 0
@@ -164,12 +163,12 @@ class EGI_Aligner:
             # Load the eeg data from the files for the EOG cahnnels. If the channel is a binary channel (represented as
             # a tuple, load both and subtract one from the other.
             if isinstance(ch, tuple):
-                log('Identifying artifacts in binary channel ' + str(ch) + '...')
+                logger.debug('Identifying artifacts in binary channel ' + str(ch) + '...')
                 eeg1 = np.fromfile(chan_basename + '.{:03}'.format(ch[0]), 'int8')
                 eeg2 = np.fromfile(chan_basename + '.{:03}'.format(ch[1]), 'int8')
                 eeg = eeg1 - eeg2
             else:
-                log('Identifying artifacts in channel ' + str(ch) + '...')
+                logger.debug('Identifying artifacts in channel ' + str(ch) + '...')
                 eeg = np.fromfile(chan_basename + '.{:03}'.format(ch), 'int8')
 
             # Find the blinks recorded by each EOG channel using find_blinks() with a threshold setting of 100 uV
@@ -177,14 +176,14 @@ class EGI_Aligner:
                 artifact_mask = np.empty((len(eog_chans), len(eeg)))
             artifact_mask[i] = self.find_blinks(eeg, 100)
             i += 1
-            log('Done.')
-        log('Artifact identification complete.')
+            logger.debug('Done.')
+        logger.debug('Artifact identification complete.')
 
         # Get a list of the indices for all samples that contain a blink
         blinks = np.where(np.any((artifact_mask, 0)))
         # TODO: Save blink indices to file
 
-        log('Aligning artifacts with events...')
+        logger.debug('Aligning artifacts with events...')
         # Check for blinks that occurred during each event
         for i in range(len(self.events)):
             # Skip the event if it has no eegfile or no eegoffset, as it will not be possible to align artifacts with it
@@ -213,7 +212,7 @@ class EGI_Aligner:
                 self.events[i].artifactMeanMs = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / self.sample_rate
             else:
                 continue
-        log('Events successfully updated with artifact information.')
+        logger.debug('Events successfully updated with artifact information.')
 
     @staticmethod
     def find_blinks(data, thresh):
