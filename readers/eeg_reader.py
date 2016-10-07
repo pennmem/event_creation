@@ -695,8 +695,10 @@ class EDF_reader(EEG_reader):
 class EGI_reader(EEG_reader):
     """
     Parses the EEG sample data from a .raw.bz2 file. The raw file begins with a header with a series of information
-    such as the version number, start time, and sample rate of the recording. More detailed information on the format of
-    EGI .raw files can be found online at https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
+    such as the version number, start time, and sample rate of the recording. The data samples immediately follow the
+    header. Because the data is in compressed .bz2 format, bytes must be decompressed as the file is read using Ptyhon's
+    built-in BZ2File class. Full information on the format of EGI .raw files can be found online at:
+    https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
 
     DATA FIELDS:
     raw_filename: The path to the .raw file containing the EEG data for the session.
@@ -723,6 +725,28 @@ class EGI_reader(EEG_reader):
         self.data_format = '\'short\''
 
     def read_header(self):
+        """
+        Parses the header information from an EGI file. The header consists of the first 36 + (4 * num_events) bytes of
+        the file. The format of each header is specified in self.header_names: '>l' is a 4-byte big-endian signed long,
+        and '>h' is a 2-byte big-endian signed short. The header fields are as follows (in order):
+
+        Version Number: 2, 4, or 6 depending on whether the data is formatted as shorts, singles, or doubles
+        Year: The start year of the recording
+        Month: The start month of the recording
+        Day: The start day of the recording
+        Hour: The start hour of the recording
+        Minute: The start minute of the recording
+        Second: The start second of the recording
+        Millisecond: The start millisecond of the recording
+        Sample Rate: The sampling rate of the recording, in Hz
+        Number of Channels: The number of electrodes being recorded from
+        Gain: The board gain; can be either 1, 2, 4, or 8
+        Bits: The number of conversion bits
+        Amplifier Range: The range of the amplifier, in uV
+        Number of Samples: The number of samples per channel in the recording
+        Number of Events: The number of event channels, typically the sync pulse channel(s)
+        Event Names: The four-character label for each event (e.g. 'DIN1', 'DI15')
+        """
         with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Read header info; each pair from self.header_names contains the name of the header and the format to be
             # used by struct.unpack(); '>l' unpacks a long, '>h' unpacks a short.
@@ -753,6 +777,12 @@ class EGI_reader(EEG_reader):
             logger.debug('Number of Events = %d' % self.header['num_events'])
 
     def get_data(self):
+        """
+        Parses the data samples from an EGI file. The first data sample begins at index 36 + (4 * num_events), and there
+        are a total of (num_channels + num_events) * num_samples data samples in the file. Each sample is either 2, 4,
+        or 8 bytes long, depending on the version number. Typically, for our data files, it is 4 bytes per sample. All
+        data is signed and big-endian.
+        """
         # Read header info if have not already done so
         if not self.header:
             self.read_header()
@@ -785,6 +815,7 @@ class EGI_reader(EEG_reader):
             # Go to index for the beginning of the EEG samples in the raw file
             data_start_index = 36 + 4 * self.header['num_events']
             raw_file.seek(data_start_index)
+
             # Read samples in blocks of step_size, until all samples have been read
             while total_read < total_samples:
                 samples_left = total_samples - total_read
@@ -795,17 +826,19 @@ class EGI_reader(EEG_reader):
                 total_read += samples_to_read
             logger.debug('%d...Done' % total_read)
 
-            # Organize the data into a matrix with each channel and event on its own row
-            # self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000)). order='F')
-            self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
+        # Organize the data into a matrix with each channel and event on its own row
+        # self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000)). order='F')
+        self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
 
-            if run_highpass:
-                logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-                for i in range(self._data.shape[0]):
-                    self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
-                logger.debug('Done')
+        if run_highpass:
+            # Run a first-order highpass butterworth filter on the EEG signal from each channel
+            logger.debug('Running first-order .1 Hz highpass filter on all channels.')
+            for i in range(self._data.shape[0]):
+                self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
+            logger.debug('Done')
 
-            self._data = self._data / self.amp_gain
+        # Divide the signal by the amplifier gain
+        self._data = self._data / self.amp_gain
 
     def _split_data(self, location, basename):
         """
@@ -818,10 +851,12 @@ class EGI_reader(EEG_reader):
         self.basename = basename
         self.noreref_loc = location
         self.get_data()
+
         # Create directory if needed
         if not os.path.exists(location):
             os.makedirs(location)
 
+        logger.debug('Spltting into %s/%s: ' % (location, basename))
 
         # Write EEG channel files
         for i in range(self.header['num_channels']):
@@ -839,11 +874,12 @@ class EGI_reader(EEG_reader):
             filename = os.path.join(location, ''.join(filename))
             logger.debug(self.header['event_codes'][current_event])
             sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event
+            # Each row of self._data contains all samples for one channel or event, so write each row to its own file
             self._data[i].astype(self.DATA_FORMAT).tofile(filename)
             current_event += 1
 
 
+        # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.amp_gain)
@@ -852,6 +888,47 @@ class EGI_reader(EEG_reader):
         paramfile = os.path.join(location, basename + '.params.txt')
         with open(paramfile, 'w') as f:
             f.write(params)
+        logger.debug('Done.')
+
+    def reref(self, bad_chans, location):
+        """
+        Rereferences the EEG recordings and writes the referenced data to separate files for each channel. Rereferencing
+        is performed by dividing each sample by the average voltage of that sample number across all good channels
+        (excluding event channels).
+
+        :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
+        :param location: A string denoting the directory to which the reref files will be written
+        """
+        # Create directory if needed
+        if not os.path.exists(location):
+            os.makedirs(location)
+
+        logger.debug('Rerefencing data...')
+
+        # Ignore bad channels for the purposes of calculating the averages for rereference
+        good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
+
+        # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
+        means = np.mean(self._data[good_chans-1], axis=0)
+
+        # Rereference the data
+        self._data[good_chans-1] -= means
+
+        # Reverse the gain (even though noreref already did this?)
+        # self._data = (self._data / self.amp_gain).astype('int16')
+        logger.debug('Done.')
+
+        # Write reref files
+        logger.debug('Writing rereferenced channels...')
+        for chan in good_chans:
+            filename = os.path.join(location, self.basename + ('.%03d' % chan))
+            # Write the rereferenced data from each channel to its own file
+            self._data[chan-1].astype(self.DATA_FORMAT).tofile(filename)
+        logger.debug('Done.')
+
+        # Copy the params.txt file from the noreref folder
+        logger.debug('Copying param file...')
+        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
         logger.debug('Done.')
 
     def get_start_time(self):
@@ -879,11 +956,215 @@ class EGI_reader(EEG_reader):
             self.read_header()
         return self.header['num_samples']
 
-    def reref(self, good_chans, location):
+
+class BIO_reader(EEG_reader):
+    """
+    Parses the EEG sample data from a Biosemi .bdf file. The file begins with a header with a series of information
+    written in ASCII such as the version number, start time, and channel count of the recording. This is followed by
+    24-bit binary for each of the EEG data samples. Full information on the format of .bdf files can be found
+    on Biosemi's website at http://www.biosemi.com/faq/file_format.htm
+
+    DATA FIELDS:
+    raw_filename: The path to the .raw file containing the EEG data for the session.
+    basename: The string used to name the channel files once split (typically subj_DDMonYY_HHMM).
+    noreref_loc: The path to the noreref directory.
+    start_datetime: The start time and date of the recording.
+    data: Holds the unpacked and split EEG data.
+    header: A dictionary where the header info from the beginning of the raw file is stored.
+    header_names: A mapping of header names to the format string required for unpacking that header item.
+    gain: The gain factor
+    data_format: A string stating the format in which the output split channel files will be written.
+    sample_rate: The sample rate of the recording
+    """
+    def __init__(self, raw_filename, unused_jacksheet):
+        self.raw_filename = raw_filename
+        self.basename = ''
+        self.noreref_loc = ''
+        self.start_datetime = None
+        self._data = None
+        self.header = {}
+        self.header_names = (('ID2', 7, False), ('subject', 80, False), ('recording', 80, False), ('date', 8, False),
+                             ('time', 8, False), ('num_header_bytes', 8, False), ('sample_format', 44, False),
+                             ('num_records', 8, False), ('record_dur', 8, False), ('num_channels', 4, False),
+                             ('channel_names', 16, True), ('transducer_type', 80, True), ('physical_dims', 8, True),
+                             ('physical_min', 8, True), ('physical_max', 8, True), ('digital_min', 8, True),
+                             ('digital_max', 8, True), ('prefiltering', 80, True), ('samps_per_record', 8, True),
+                             ('reserved', 32, True))
+        self.gain = None
+        self.data_format = '\'short\''
+        self.sample_rate = None
+        self.total_samples = None
+
+    def read_header(self):
         """
-        Rereferences the EEG recordings and writes the referenced data to separate files for each channel
-        :param good_chans: 1-D numpy array containing all channel numbers to be included in the calculation of the reference
-        average.
+        Loads the header information from the file and uses it to calculate the sample rate, gain, and start date/time.
+        All headers except the first are written in ASCII, and do not need to be unpacked. The length of each header is
+        specified in self.header_names, including a boolean which indicates whether or not the header contains an entry
+        for each channel. The headers fields are as follows:
+
+        ID: Always a one-byte '255' followed by seven ASCII characters spelling 'BIOSEMI'
+        Subject ID: The subject's number
+        Recording ID: The session/recording number
+        Date: The start date of the recording, formatted as 'DD.MM.YY'
+        Time: The start time of the recording, formatted as 'HH.MM.SS'
+        Number of header bytes: The length of the header, in bytes. This is also the index of the first data sample.
+        Sample format: Always '24BIT' written in ASCII
+        Number of records: The number of records in the recording
+        Record duration: The length of each record, in seconds (typically 1)
+        Number of channels: The number of channels recorded from
+        Channel names: The name of each channel
+        Transducer types: The type of recording device used for each channel (e.g. 'active electrode')
+        Physical dimensions: The units of eah channel's signal (e.g. uV)
+        Physical min: The minimum possible value of the physical recording
+        Physical max: The maximum possible value of the physical recording
+        Digital min: The minimum possible digital value of a sample
+        Digital max: The maximum possible digital value of a sample
+        Prefiltering: Information about any prefiltering performed on each channel of the signal
+        Samples per record: The number of samples per record for each channel; sample rate = samps_per_rec / record_dur
+        Reserved: Unknown, but does not appear to be used
+        """
+        with open(self.raw_filename, 'rb') as raw_file:
+            # Read header info; each triplet from self.header_names contains the name of the header, its length, and
+            # whether it has a separate entry for each channel
+            self.header['ID1'] = struct.unpack('B', raw_file.read(1))[0]
+            for triplet in self.header_names:
+                # Identify how many ASCII characters need to be read
+                chars_to_read = triplet[1]
+                if triplet[2]:
+                    chars_to_read = chars_to_read * int(self.header['num_channels'])
+
+                # Read the appropriate number of ASCII characters for each field of the header
+                # Split any header fields that contain separate entries for each channel
+                self.header[triplet[0]] = raw_file.read(chars_to_read)
+                self.header[triplet[0]] = self.header[triplet[0]].strip() if not triplet[2] else np.array([self.header[triplet[0]][i:i+triplet[1]].strip() for i in range(0, chars_to_read, triplet[1])])
+
+        # Reformat headers that require it
+        for head in ('date', 'time'):
+            self.header[head] = [int(x) for x in self.header[head].split('.')]
+        for head in ('num_header_bytes', 'num_records', 'record_dur', 'num_channels'):
+            self.header[head] = int(self.header[head])
+        for head in ('physical_min', 'physical_max', 'digital_min', 'digital_max', 'samps_per_record'):
+            self.header[head] = self.header[head].astype(int)
+
+        # Set the start date and time based on the header info
+        self.start_datetime = datetime.datetime(self.header['date'][2], self.header['date'][1],
+                                                self.header['date'][0], self.header['time'][0],
+                                                self.header['time'][1], self.header['time'][2])
+
+        # If different channels have different sample rates, the pipeline currently will not be able to support it
+        if np.max(self.header['samps_per_record']) != np.min(self.header['samps_per_record']):
+            raise('Some channels have different sampling rates from one another. Pipeline does not currently support EEG data with multiple sample rates.')
+
+        # Calculate the sample rate and gain for each channel based on the relevant headers
+        self.sample_rate = self.header['samps_per_record'][0] / self.header['record_dur']
+        self.gain = (self.header['physical_max'] - self.header['physical_min']).astype(float) / \
+                    (self.header['digital_max'] - self.header['digital_min']).astype(float)
+
+        # Log various information about the file
+        logger.debug('EEG File Information:')
+        logger.debug('---------------------')
+        logger.debug('Sample Rate = %d' % self.sample_rate)
+        logger.debug('Start of recording = %d/%d/%d %02d:%02d' % (self.header['date'][1], self.header['date'][0],
+                                                           self.header['date'][2], self.header['time'][0],
+                                                           self.header['time'][1]))
+        logger.debug('Number of Channels and Events = %d' % self.header['num_channels'])
+
+    def get_data(self):
+        """
+        Unpack the binary in the raw data file to get the voltage data from all channels.
+
+        BDF files store data samples as signed 24-bit (3-byte) little-endian binary. Note that Python's struct.unpack()
+        function cannot interpret 3 bytes as a signed integer (requires 4 bytes), so each number needs to be padded with
+        an extra byte. Because the data is signed, padding can be performed by adding an extra byte of \x00 at the least
+        significant end and right-shifting the result by 8 bits. Unfortunately, this is likely to slow down the data
+        reading process.
+        """
+        # Read header info if have not already done so
+        if not self.header:
+            self.read_header()
+
+        # Calculate total number of samples to read by summing the number of samples in all channels
+        self.total_samples = self.header['num_records'] * np.sum(self.header['samps_per_record'])
+
+        # Data will be stored in a matrix with one row for each channel and one column for each sample
+        self._data = np.zeros((self.header['num_channels'], self.header['num_records'] * self.header['samps_per_record'][0]))
+
+        raw = np.zeros((self.total_samples, 1))
+        logger.debug('Loading %d samples...' % self.total_samples)
+        with open(self.raw_filename, 'rb') as raw_file:
+            # Go to index for the beginning of the EEG samples in the raw file
+            data_start_index = self.header['num_header_bytes']
+            raw_file.seek(data_start_index)
+
+            # Create the ranges that j and h will iterate over outside of the nested loop, so we don't end up
+            # unnecessarily creating range(self.header['samps_per_record']) millions of times
+            chan_range = range(self.header['num_channels'])
+            samp_range = range(self.header['samps_per_record'][0])
+
+            # Read samples into self._data
+            for i in range(self.header['num_records']):
+                for j in chan_range:
+                    for h in samp_range:
+                        self._data[j, i * self.header['samps_per_record'][0] + h] = \
+                            struct.unpack('<i', '\x00' + raw_file.read(3))[0] >> 8
+        logger.debug('Done.')
+
+        # Run a first-order highpass butterworth filter on each channel
+        logger.debug('Running first-order .1 Hz highpass filter on all channels.')
+        for i in range(self._data.shape[0]):
+            self._data[i] = butter_filt(self._data[i], .1, self.sample_rate, 'highpass', 1)
+        logger.debug('Done')
+
+        # Convert data samples to integers
+        self._data = self._data.astype(int)
+
+        # If gain needs to be applied, uncomment this code
+        # self._data = np.array([self._data[i] / self.gain[i] for i in range(len(self.gain))], dtype=int)
+
+    def _split_data(self, location, basename):
+        """
+        Splits the data extracted from the binary file into each channel, and writes the data for each into a separate
+        file. Also writes two parameter files containing the sample rate, data format, and amp gain for the session.
+        :param location: A string denoting the directory in which the channel files are to be written
+        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
+        """
+        self.basename = basename
+        self.noreref_loc = location
+        self.get_data()
+
+        # Create directory if needed
+        if not os.path.exists(location):
+            os.makedirs(location)
+
+        logger.debug('Spltting into %s/%s: ' % (location, basename))
+
+        # Write EEG channel files
+        for i in range(self.header['num_channels']):
+            filename = os.path.join(location, basename + ('.' + self.header['channel_names'][i]))
+            logger.debug(i+1)
+            sys.stdout.flush()
+            # Each row of self._data contains all samples for one channel or event
+            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+        logger.debug('Saved.')
+
+        # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
+        logger.debug('Writing param files.')
+        paramfile = os.path.join(location, 'params.txt')
+        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.gain)
+        with open(paramfile, 'w') as f:
+            f.write(params)
+        paramfile = os.path.join(location, basename + '.params.txt')
+        with open(paramfile, 'w') as f:
+            f.write(params)
+        logger.debug('Done.')
+
+    def reref(self, bad_chans, location):
+        """
+        Rereferences the EEG recordings and writes the referenced data to separate files for each channel. Rereferencing
+        is performed by dividing each sample by the average voltage of that sample number across all good channels
+        (excluding event channels).
+
+        :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
         :param location: A string denoting the directory to which the reref files will be written
         """
         # Create directory if needed
@@ -891,10 +1172,17 @@ class EGI_reader(EEG_reader):
             os.makedirs(location)
 
         logger.debug('Rerefencing data...')
-        # Find the average value of each sample across all good channels
+
+        # FIXME: This will not work properly for BDF files, because events and channels are bundled together
+        # Ignore bad channels for the purposes of calculating the averages for rereference
+        good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
+
+        # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
         means = np.mean(self._data[good_chans-1], axis=0)
+
         # Rereference the data
-        self._data -= means
+        self._data[good_chans-1] -= means
+
         # Reverse the gain (even though noreref already did this?)
         # self._data = (self._data / self.amp_gain).astype('int16')
         logger.debug('Done.')
@@ -912,157 +1200,30 @@ class EGI_reader(EEG_reader):
         copy(os.path.join(self.noreref_loc, 'params.txt'), location)
         logger.debug('Done.')
 
-
-class BIO_reader(EEG_reader):
-    """
-    Parses the EEG sample data from a .raw.bz2 file. The raw file begins with a header with a series of information
-    such as the version number, start time, and sample rate of the recording. More detailed information on the format of
-    EGI .raw files can be found online at https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
-
-    DATA FIELDS:
-    raw_filename: The path to the .raw file containing the EEG data for the session.
-    basename: The string used to name the channel files once split (typically subj_DDMonYY_HHMM).
-    noreref_loc: The path to the noreref directory.
-    data: Holds the unpacked and split EEG data.
-    header: A dictionary where the header info from the beginning of the raw file is stored.
-    header_names: A mapping of header names to the format string required for unpacking that header item.
-    amp_gain: The gain factor
-    data_format: A string stating the format in which the output split channel files will be written.
-    """
-    def __init__(self, raw_filename, unused_jacksheet):
-        self.raw_filename = raw_filename
-        self.basename = ''
-        self.noreref_loc = ''
-        self.start_datetime = None
-        self._data = None
-        self.header = {}
-        self.header_names = (('ID', 7), ('subject', 80), ('recording', 80), ('date', 8), ('time', 8),
-                             ('num_header_bytes', 8), ('sample_format', 44), ('num_records', 8), ('record_dur', 8),
-                             ('num_channels', 4), ('channel_names', '16'), ('transducer_type', '80'),
-                             ('physical_dims', '8'), ('physical_min', '8'), ('physical_max', '8'), ('digital_min', '8'),
-                             ('digital_max', '8'), ('prefiltering', '80'), ('samps_per_record', '8'),
-                             ('reserved', '32'))
-        self.amp_gain = 1.
-        self.data_format = '\'short\''
-        self.sample_rate = self.header['samps_per_record'] / self.header['record_dur']
-
-    def read_header(self):
-        with open(self.raw_filename, 'rb') as raw_file:
-            self.header['ID'] = struct.unpack('B', raw_file.read(1))
-            # Read header info; each pair from self.header_names contains the name of the header its length
-            for pair in self.header_names:
-                chars_to_read = pair[1]
-                if isinstance(chars_to_read, str):
-                    # Note that this calculation assumes that the number of channels is read before any header fields
-                    # that depend on it
-                    chars_to_read = int(chars_to_read) * self.header['num_channels']
-                self.header[pair[0]] = raw_file.read(chars_to_read)
-
-            self.header['date'] = self.header['date'].split('.')
-            self.header['time'] = self.header['time'].split('.')
-            self.start_datetime = datetime.datetime(self.header['date'][2], self.header['date'][1],
-                                                    self.header['date'][0], self.header['time'][0],
-                                                    self.header['time'][1], self.header['second'][2])
-
-            # Log various information about the file
-            logger.debug('EEG File Information:')
-            logger.debug('---------------------')
-            logger.debug('Sample Rate = %d' % self.sample_rate)
-            logger.debug('Start of recording = %d/%d/%d %02d:%02d' % (self.header['date'][1], self.header['date'][0],
-                                                               self.header['date'][2], self.header['time'][0],
-                                                               self.header['time'][1]))
-            logger.debug('Number of Channels and Events = %d' % self.header['num_channels'])
-
-    def get_data(self):
-        # Read header info if have not already done so
+    def get_start_time(self):
+        # Read header info if have not already done so, as the header contains the start time info
         if not self.header:
             self.read_header()
+        return self.start_datetime
 
-        # Calculate total number of samples to read
-        total_samples = self.header['num_channels'] * self.header['num_records'] * self.header['samps_per_record']
+    def get_start_time_string(self):
+        return self.get_start_time().strftime(self.STRFTIME)
 
-        # Calculate the gain factor for converting raw EEG data to uV
-        amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
-        amp_fact = 1000.
-        self.amp_gain = calc_gain(amp_info, amp_fact)
+    def get_start_time_ms(self):
+        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
-        raw = np.zeros((total_samples, 1))
-        logger.debug('Loading %d samples...' % total_samples)
-        with open(self.raw_filename, 'rb') as raw_file:
-            # Go to index for the beginning of the EEG samples in the raw file
-            data_start_index = self.header['num_header_bytes']
-            raw_file.seek(data_start_index)
+    def get_sample_rate(self):
+        if not self.header:
+            self.read_header()
+        return self.sample_rate
 
-            # Create the ranges that j and h will iterate over outside of the nested loop, so we don't end up
-            # unnecessarily creating range(self.header['samps_per_record') millions of times
-            chan_range = range(self.header['num_channels'])
-            samp_range = range(self.header['samps_per_record'])
-            # Read samples in blocks of step_size, until all samples have been read
-            for i in range(self.header['num_records']):
-                for j in chan_range:
-                    for h in samp_range:
-                        self._data[j, i * self.header['samps_per_record'] + h] = \
-                            struct.unpack('<i', '\x00' + raw_file.read(3))[0] >> 8
-            logger.debug('Done.')
+    def get_source_file(self):
+        return self.raw_filename
 
-            if run_highpass:
-                log('Running first-order .1 Hz highpass filter on all channels.')
-                for i in range(self._data.shape[0]):
-                    self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
-                log('Done')
-
-            self._data = self._data / self.amp_gain
-
-    def _split_data(self, location, basename):
-        """
-        Splits the data extracted from the raw file into each channel and event, and writes the data for each channel
-        into a separate file. Also writes two parameter files containing the sample rate, data format, and amp gain
-        for the session.
-        :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
-        """
-        self.basename = basename
-        self.noreref_loc = location
-        self.get_data()
-        # Create directory if needed
-        if not os.path.exists(location):
-            os.makedirs(location)
-
-        log('Spltting into %s/%s: ' % (location, basename))
-        sys.stdout.flush()
-
-        # Write EEG channel files
-        for i in range(self.header['num_channels']):
-            j = i+1
-            filename = os.path.join(location, basename + ('.%03d' % j))
-            log(i+1)
-            sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event
-            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
-
-        # Write event channel files
-        current_event = 0
-        for i in range(self.header['num_channels'], self.header['num_channels'] + self.header['num_events']):
-            filename = (basename, '.', self.header['event_codes'][current_event])
-            filename = os.path.join(location, ''.join(filename))
-            log(self.header['event_codes'][current_event])
-            sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event
-            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
-            current_event += 1
-
-        log('Saved.')
-
-        log('Writing param files.')
-        paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.amp_gain)
-        with open(paramfile, 'w') as f:
-            f.write(params)
-        paramfile = os.path.join(location, basename + '.params.txt')
-        with open(paramfile, 'w') as f:
-            f.write(params)
-        log('Done.')
-
+    def get_n_samples(self):
+        if not self.header:
+            self.read_header()
+        return self.total_samples
 
 
 def read_jacksheet(filename):
@@ -1100,7 +1261,7 @@ def calc_gain(amp_info, amp_fact):
     if np.diff(abs(amp_info[0]))[0] == 0 and np.diff(abs(amp_info[1]))[0] == 0:
         return (drange * 1000000./amp_fact) / arange
     else:
-        log('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
+        logger.warn('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
         return 1
 
 
