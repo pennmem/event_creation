@@ -173,6 +173,7 @@ def xtest_import_existing_montages():
     for code in codes:
         try:
             subject = code.split('_')[0]
+            logger.set_subject(subject, 'r1')
             montage = determine_montage_from_code(code, 'r1', allow_new=True, allow_skip=True)
             kwargs = dict(
                 subject=subject,
@@ -181,8 +182,11 @@ def xtest_import_existing_montages():
                 protocol='r1'
             )
         except:
+            logger.error('Could not determine montage from code {}'.format(code))
             continue
+
         yield run_montage_import_pipeline, kwargs, False
+        logger.unset_subject()
 
 
 
@@ -383,6 +387,8 @@ def convert_from_json_file(filename):
                 code = info.get('code', subject)
                 protocol = info.get('protocol', 'r1')
 
+                logger.set_subject(subject, protocol)
+
                 montage_num = montage.split('.')[1]
                 localization = montage.split('.')[0]
                 inputs = dict(
@@ -418,6 +424,7 @@ def convert_from_json_file(filename):
 
                 yield run_convert_import_pipeline, inputs, False, True
 
+                logger.unset_subject()
 
 
 def run_from_json_file(filename):

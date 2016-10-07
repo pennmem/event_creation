@@ -161,7 +161,7 @@ class TransferPipeline(object):
 
         except Exception as e:
             logger.error('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
-                                                                   'initialization', e), 'CRITICAL')
+                                                                   'initialization', e))
 
 
             self.transferer.remove_transferred_files()
