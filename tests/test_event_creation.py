@@ -860,6 +860,10 @@ def ps_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     field1 = StimComparator.get_subfield(event1, field_name1)
     field2 = StimComparator.get_subfield(event2, field_name2)[0]
 
+    if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label') and \
+                    (field1[:-1] + '0' + field1[-1]) == field2:
+        return True
+
     if field_name1 == 'stim_params.amplitude' and field2 * 1000 == field1:
         return True
 
