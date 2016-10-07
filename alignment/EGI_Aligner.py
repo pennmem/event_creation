@@ -106,7 +106,7 @@ class EGI_Aligner:
             warn(str(oob) + ' events are out of bounds of the EEG files.', Warning)
 
         # Identify all artifacts, and add information about them to the events that occurred during those artifacts
-        self.add_artifacts([(25, 127), (8, 126)])
+        # self.add_artifacts([(25, 127), (8, 126)])
         # TODO: Implement eventArtifact() based on the corresponding MATLAB function
         return self.events
 

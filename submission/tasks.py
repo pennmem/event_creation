@@ -119,9 +119,9 @@ class SplitEEGTask(PipelineTask):
                                                                 experiment=self.experiment,
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
-                reader.split_data(os.path.join(self.pipeline.destination, 'eeg.noreref'), split_eeg_filename)
-                bad_chans = {}
-                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'eeg.reref'))
+                reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
+                bad_chans = []
+                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
         else:
             if 'contacts' in files:
                 jacksheet_file = files['contacts']
