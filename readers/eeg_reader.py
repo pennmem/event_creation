@@ -972,7 +972,11 @@ class EGI_reader(EEG_reader):
         copy(os.path.join(self.noreref_loc, 'params.txt'), location)
         logger.debug('Done.')
 
-    def find_bad_chans(self, log, threshold):
+        # Write a bad_chans.txt file in the reref folder
+        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
+
+    @staticmethod
+    def find_bad_chans(log, threshold):
         """
         Reads an artifact log to determine whether there were any bad channels during a session. A channel is considered
         to be bad if it contained an artifact lasting longer than {threshold} milliseconds. Bad channels are excluded

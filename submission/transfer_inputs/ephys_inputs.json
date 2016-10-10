@@ -103,7 +103,7 @@
       "destination" : "raw_eeg/"
     },
     "artifact_log" : "file",
-    "multiple" : true,
+    "multiple" : false,
     "required" : false,
     "origin_directory" : "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
     "origin_file" : "*.log",

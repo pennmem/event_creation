@@ -113,7 +113,7 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
-        if self.protocol == 'ltp':  # LTP studies do not use a jacksheet
+        if self.protocol == 'ltp':
             for raw_eeg in raw_eeg_groups:
                 reader = get_eeg_reader(raw_eeg, None)
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
@@ -121,13 +121,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = np.array([])
-                if 'artifact_log' in files:
-                    for file in files['artifact_log']:
-                        bad_chans = np.concatenate(bad_chans, reader.find_bad_chans(file, threshold=600000))
-                bad_chans = np.unique(np.array(bad_chans))
-                with open(os.path.join(self.pipeline.destination, 'bad_chans.txt'), 'w') as f:
-                    f.writelines(bad_chans)
+                bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000)
+                np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
         else:
             if 'contacts' in files:
