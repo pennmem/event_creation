@@ -236,10 +236,12 @@ class NK_reader(EEG_reader):
         ref_label = label.replace('-REF', '')
         if ref_label in jacksheet_dict:
             return ref_label
-        num_label = re.sub(r'(?<=[^\d])(?=\d+$)', '0', label)
+        num_label = re.sub(r'0(?=[0-9]+$)', '', label)
         if num_label in jacksheet_dict:
             return num_label
-
+        num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
+        if num_ref_label in jacksheet_dict:
+            return num_ref_label
 
     def get_data(self, jacksheet_dict):
         eeg_file = self.raw_filename
@@ -687,13 +689,16 @@ class EDF_reader(EEG_reader):
         ref_label = label.replace('-REF', '')
         if ref_label in self.jacksheet:
             return ref_label
-        num_label = re.sub(r'(?<=[^\d])(?=\d+$)', '0', label)
+        num_label = re.sub(r'0(?=[0-9]+$)', '', label)
         if num_label in self.jacksheet:
             return num_label
-
+        num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
+        if num_ref_label in self.jacksheet:
+            return num_ref_label
 
     def _split_data(self, location, basename):
         sys.stdout.flush()
+        used_jacksheet_labels = []
         for channel, header in self.headers.items():
             if self.jacksheet:
                 label = self.get_matching_jacksheet_label(header['label'])
@@ -701,6 +706,7 @@ class EDF_reader(EEG_reader):
                     logger.debug("skipping channel {}".format(header['label']))
                     continue
                 out_channel = self.jacksheet[label]
+                used_jacksheet_labels.append(label)
             else:
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
@@ -709,6 +715,10 @@ class EDF_reader(EEG_reader):
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
+        if self.jacksheet:
+            for label in self.jacksheet:
+                if label not in used_jacksheet_labels:
+                    log.critical("label {} not split! Potentially missing data!".format(label))
 
 
 class EGI_reader(EEG_reader):
