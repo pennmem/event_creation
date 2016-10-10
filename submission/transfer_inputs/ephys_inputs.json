@@ -39,13 +39,21 @@
         ],
         "destination": "raw_eeg/"
       },
-      "jacksheet": {
+      "contacts": {
         "type": "link",
         "multiple": false,
         "required": true,
         "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/localizations/{localization}/montages/{montage_num}/neuroradiology/current_processed",
         "origin_file": "contacts.json",
         "destination": "contacts.json"
+      },
+      "channel_map": {
+        "type": "file",
+        "multiple": false,
+        "required": false,
+        "origin_directory": "{data_root}/{code}/docs",
+        "origin_file": "channel_map.json",
+        "destination": "channel_map.json"
       },
       "substitute_raw_file_for_header": {
         "type": "file",

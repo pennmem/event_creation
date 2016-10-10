@@ -347,7 +347,7 @@ def clean_db_dir():
             os.rmdir(root)
 this_dir = os.path.realpath(os.path.dirname(__file__))
 
-def xtest_import_all_ps_sessions():
+def test_import_all_ps_sessions():
     for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
         yield test
 

@@ -80,14 +80,39 @@ class EEG_reader:
         return NotImplementedError
 
 
+    def get_matching_jacksheet_dict_label(self, label, jacksheet_dict, channel_map):
+        if label in channel_map:
+            return channel_map[label]
+
+        label = label.replace(' ', '').upper()
+        if label in jacksheet_dict:
+            return label
+
+        ref_label = label.replace('-REF', '')
+        if ref_label in jacksheet_dict:
+            return ref_label
+        num_label = re.sub(r'0(?=[0-9]+$)', '', label)
+        if num_label in jacksheet_dict:
+            return num_label
+        num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
+        if num_ref_label in jacksheet_dict:
+            return num_ref_label
+
+
 class NK_reader(EEG_reader):
 
-    def __init__(self, nk_filename, jacksheet_filename=None):
+    def __init__(self, nk_filename, jacksheet_filename=None, channel_map_filename=None):
         self.raw_filename = nk_filename
         if jacksheet_filename:
             self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
+
+        if channel_map_filename:
+            self.channel_map = json.load(open(channel_map_filename))
+        else:
+            self.channel_map = dict()
+
         self.sample_rate = None
         self.start_datetime = None
         self.num_samples = None
@@ -228,22 +253,7 @@ class NK_reader(EEG_reader):
 
         return {i+1:c[0] for i,c in enumerate(channels)}
 
-
-    def get_matching_jacksheet_dict_label(self, label, jacksheet_dict):
-        label = label.replace(' ', '').upper()
-        if label in jacksheet_dict:
-            return label
-        ref_label = label.replace('-REF', '')
-        if ref_label in jacksheet_dict:
-            return ref_label
-        num_label = re.sub(r'0(?=[0-9]+$)', '', label)
-        if num_label in jacksheet_dict:
-            return num_label
-        num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
-        if num_ref_label in jacksheet_dict:
-            return num_ref_label
-
-    def get_data(self, jacksheet_dict):
+    def get_data(self, jacksheet_dict, channel_map):
         eeg_file = self.raw_filename
         elec_file = os.path.splitext(eeg_file)[0] + '.21E'
 
@@ -389,12 +399,16 @@ class NK_reader(EEG_reader):
 
             data_num_to_21e_index = np.zeros(num_channels) - 1
 
-            channel_mask = np.array([not self.get_matching_jacksheet_dict_label(name, jacksheet_dict) is None
+            channel_mask = np.array([not self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map) is None
                                      for name in names_21e_ordered])
             nums_21e_filtered = nums_21e_ordered[channel_mask]
             names_21e_filtered = names_21e_ordered[channel_mask]
-            jacksheet_filtered = [jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict)]
+            jacksheet_filtered = [jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map)]
                                   for name in names_21e_filtered]
+
+            for e_name, e_num in jacksheet_dict.items():
+                if e_num not in jacksheet_filtered:
+                    logger.critical("skipping electruode {}: {}".format(e_num, e_name))
 
             gain = [-1 for _ in range(num_channels)]
             for i in range(num_channels):
@@ -460,7 +474,7 @@ class NK_reader(EEG_reader):
         if not self._data:
             if not self.jacksheet:
                 raise UnSplittableEEGFileException("Cannot split EEG without jacksheet")
-            self._data = self.get_data(self.jacksheet)
+            self._data = self.get_data(self.jacksheet, self.channel_map)
         return self._data[channel]
 
     def _split_data(self, location, basename):
@@ -468,7 +482,7 @@ class NK_reader(EEG_reader):
             os.makedirs(location)
         if not self.jacksheet:
             raise UnSplittableEEGFileException('Jacksheet not specified')
-        data = self.get_data(self.jacksheet)
+        data = self.get_data(self.jacksheet, self.channel_map)
         if not self.sample_rate:
             raise UnSplittableEEGFileException('Sample rate not determined')
 
@@ -483,8 +497,9 @@ class NK_reader(EEG_reader):
 
 class Multi_NSx_reader(EEG_reader):
 
-    def __init__(self, nsx_filenames, jacksheet_filename=None):
-        self.readers = [NSx_reader(filename, jacksheet_filename, i) for i, filename in enumerate(nsx_filenames)]
+    def __init__(self, nsx_filenames, jacksheet_filename=None, channel_map_filename=None):
+        self.readers = [NSx_reader(filename, jacksheet_filename, i, channel_map_filename)
+                        for i, filename in enumerate(nsx_filenames)]
 
     def get_source_file(self):
         return self.readers[0].get_source_file()
@@ -547,7 +562,7 @@ class NSx_reader(EEG_reader):
     }
 
 
-    def __init__(self, nsx_filename, jacksheet_filename=None,  file_number = 0):
+    def __init__(self, nsx_filename, jacksheet_filename=None,  file_number = 0, channel_map_filename=None):
         self.raw_filename = nsx_filename
         self.lowest_channel = file_number * self.N_CHANNELS
         if jacksheet_filename:
@@ -561,6 +576,11 @@ class NSx_reader(EEG_reader):
             self.nsx_info = self.get_nsx_info(nsx_filename)
         except IOError:
             raise IOError("Could not read %s" % nsx_filename)
+
+        if channel_map_filename:
+            self.channel_map = json.load(open(channel_map_filename))
+        else:
+            self.channel_map = dict()
 
         self._data = None
 
@@ -610,7 +630,7 @@ class NSx_reader(EEG_reader):
         channels = np.array(self.data['elec_ids'])
         for label, channel in self.labels.items():
             recording_channel = channel - self.lowest_channel
-            if recording_channel < 0 or recording_channel > self.data['data'].shape[0]:
+            if recording_channel < 0 or not recording_channel in channels:
                 logger.warn('Not getting channel {} from file {}'.format(channel, self.raw_filename))
                 continue
             filename = os.path.join(location, basename + '.%03d' % channel)
@@ -622,7 +642,8 @@ class NSx_reader(EEG_reader):
 
 class EDF_reader(EEG_reader):
 
-    def __init__(self, edf_filename, jacksheet_filename=None, substitute_raw_file_for_header=None):
+    def __init__(self, edf_filename, jacksheet_filename=None, substitute_raw_file_for_header=None,
+                 channel_map_filename=None):
         self.raw_filename = edf_filename
         if jacksheet_filename:
             self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
@@ -633,6 +654,11 @@ class EDF_reader(EEG_reader):
         except IOError:
             raise
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
+
+        if channel_map_filename:
+            self.channel_map = json.load(open(channel_map_filename))
+        else:
+            self.channel_map = dict()
 
     def get_source_file(self):
         return self.raw_filename
@@ -682,26 +708,13 @@ class EDF_reader(EEG_reader):
     def channel_data(self, channel):
         return self.reader.readSignal(channel)
 
-    def get_matching_jacksheet_label(self, label):
-        label = label.replace(' ', '').upper()
-        if label in self.jacksheet:
-            return label
-        ref_label = label.replace('-REF', '')
-        if ref_label in self.jacksheet:
-            return ref_label
-        num_label = re.sub(r'0(?=[0-9]+$)', '', label)
-        if num_label in self.jacksheet:
-            return num_label
-        num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
-        if num_ref_label in self.jacksheet:
-            return num_ref_label
 
     def _split_data(self, location, basename):
         sys.stdout.flush()
         used_jacksheet_labels = []
         for channel, header in self.headers.items():
             if self.jacksheet:
-                label = self.get_matching_jacksheet_label(header['label'])
+                label = self.get_matching_jacksheet_dict_label(header['label'], self.jacksheet, self.channel_map)
                 if not label:
                     logger.debug("skipping channel {}".format(header['label']))
                     continue
@@ -718,7 +731,7 @@ class EDF_reader(EEG_reader):
         if self.jacksheet:
             for label in self.jacksheet:
                 if label not in used_jacksheet_labels:
-                    log.critical("label {} not split! Potentially missing data!".format(label))
+                    logger.critical("label {} not split! Potentially missing data!".format(label))
 
 
 class EGI_reader(EEG_reader):
