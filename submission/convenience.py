@@ -582,7 +582,7 @@ if __name__ == '__main__':
     if experiment[-1] == '3':
         inputs['match_field'] = 'eegoffset'
 
-    run_full_import_pipeline(inputs)
+    run_full_import_pipeline(inputs, args.force)
     #run_individual_pipline(build_split_pipeline, inputs)
     #run_individual_pipline(build_events_pipeline, inputs)
 
