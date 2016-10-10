@@ -4,6 +4,7 @@ import re
 import json
 import datetime
 import traceback
+import numpy as np
 
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
@@ -120,7 +121,13 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = []
+                bad_chans = np.array([])
+                if 'artifact_log' in files:
+                    for file in files['artifact_log']:
+                        bad_chans = np.concatenate(bad_chans, reader.find_bad_chans(file, threshold=600000))
+                bad_chans = np.unique(np.array(bad_chans))
+                with open(os.path.join(self.pipeline.destination, 'bad_chans.txt'), 'w') as f:
+                    f.writelines(bad_chans)
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
         else:
             if 'contacts' in files:
