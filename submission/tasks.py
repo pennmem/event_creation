@@ -137,13 +137,16 @@ class SplitEEGTask(PipelineTask):
             else:
                 raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
 
+            channel_map = files.get('channel_map')
+
             for raw_eeg in raw_eeg_groups:
                 if 'substitute_raw_file_for_header' in files:
                     reader = get_eeg_reader(raw_eeg, jacksheet_file,
-                                            substitute_raw_file_for_header=files['substitute_raw_file_for_header'])
+                                            substitute_raw_file_for_header=files['substitute_raw_file_for_header'],
+                                            channel_map_filename=channel_map)
                 else:
                     try:
-                        reader = get_eeg_reader(raw_eeg, jacksheet_file)
+                        reader = get_eeg_reader(raw_eeg, jacksheet_file, channel_map_filename=channel_map)
                     except KeyError as k:
                         logger.warn('Cannot split file with extension {}'.format(k))
                         continue

@@ -1,7 +1,7 @@
 import sys
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
-from eeg_reader import EDF_reader, NK_reader, read_jacksheet
+from eeg_reader import EDF_reader, NK_reader, NSx_reader, read_jacksheet
 import re
 import json
 import os
@@ -841,7 +841,8 @@ class EEG_splitter_model():
 
     READER_BY_EXT = {
         '.edf' : EDF_reader,
-        '.eeg' : NK_reader
+        '.eeg' : NK_reader,
+        '.ns2' : NSx_reader
     }
 
     @staticmethod

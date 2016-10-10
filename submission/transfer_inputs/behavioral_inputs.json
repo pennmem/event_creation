@@ -22,7 +22,7 @@
           "destination": "math_events.mat"
         }
       },
-      "jacksheet": {
+      "contacts": {
         "type": "link",
         "multiple": false,
         "required": true,
@@ -65,7 +65,7 @@
       },
       "stim": {
         "type": "group",
-        "jacksheet": {
+        "contacts": {
           "type": "link",
           "multiple": false,
           "required": true,
