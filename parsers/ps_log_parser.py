@@ -299,7 +299,7 @@ class PSHostLogParser(BaseSessionLogParser):
         cleaned_events = events[good_range]
         # Remove NP_POLL
         cleaned_events = cleaned_events[cleaned_events['type'] != 'NP_POLL']
-
+        cleaned_events.sort(order='mstime')
         return cleaned_events
 
     def mark_beginning(self, split_line):

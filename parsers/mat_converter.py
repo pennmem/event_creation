@@ -1107,7 +1107,8 @@ class PSMatConverter(BaseMatConverter):
         stim_off_events.is_stim = 0
         stim_off_events.stim_params.stim_on = 0
 
-        events = np.insert(events, np.where(stim_mask)[0], stim_off_events)
+        events = np.insert(events, np.where(stim_mask)[0]+1, stim_off_events)
+
         return events
 
     def stim_field_conversion(self, mat_event, py_event):
