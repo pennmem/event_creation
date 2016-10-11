@@ -5,18 +5,6 @@ from ast import literal_eval
 
 class LTPFRSessionLogParser(BaseSessionLogParser):
 
-    # TODO: Figure out where EEG related information is to be pulled from.
-    # TODO: Update behavioral_inputs.json to include all the proper log files.
-
-    @classmethod
-    # MAY NOT BE NECESSARY - LEAVING THIS FUNCTION IN PLACE FOR THE MOMENT
-    def empty_stim_params(cls):
-        """
-        Makes a recarray for empty stim params (no stimulation)
-        :return:
-        """
-        return cls.event_from_template(cls._STIM_PARAM_FIELDS)
-
     @classmethod
     def _ltpfr_fields(cls):
         """
@@ -38,21 +26,21 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('recog_resp', -999, 'int16'),
             ('recog_conf', -999, 'int16'),
             ('recog_rt', -999, 'int16'),
-            ('word', '', 'S16'),  # Calling this 'item' breaks things, due to the built-in recarray.item method
+            ('word', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
             ('wordno', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intruded', 0, 'int16'),
             ('finalrecalled', False, 'b1'),
             ('recognized', False, 'b1'),
             ('rectime', -999, 'int32'),
-            # ('final_rectime', -999, 'int32'),  # Not present in .MAT, but could be helpful
+            ('final_rectime', -999, 'int32'),  # Not present in .MAT, but could be helpful
             ('intrusion', -999, 'int16'),
             ('color_r', -999, 'float16'),
             ('color_g', -999, 'float16'),
             ('color_b', -999, 'float16'),
             ('font', '', 'S32'),
             ('case', '', 'S8'),
-            ('rejected', -999, 'int32'),
+            ('rejected', False, 'b1'),
             ('rej_time', -999, 'int32'),
 
             ('artifactMS', -999, 'int32'),
@@ -84,6 +72,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._recog_endtime = 0
         self._mstime_recstart = -999
         self._recog_conf_mstime = -999
+        self._rej_mstime = -999
 
         self._add_fields(*self._ltpfr_fields())
         self._add_type_to_new_event(
@@ -94,7 +83,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             REC_START=self.event_recstart,
             REST=self._event_skip,
             REST_REWET=self.event_default,
-            REJECT=self._event_skip,
+            REJECT=self.get_rej_mstime,
             SESS_END=self._event_skip,
             SESSION_SKIPPED=self._event_skip,
             RECOG_START=self._event_skip,
@@ -112,10 +101,11 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             FFR_START=self.modify_ffr,
             RECOG_START=self.end_recall,
             RECOG_FEEDBACK=self.modify_recog,
+            REJECT=self.modify_rejection
         )
 
 
-    """=====EVENT CREATION====="""
+    """=======EVENT CREATION======="""
     def event_default(self, split_line):
         """
         Override base class's default event to include list, serial position, and stimList
@@ -167,10 +157,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         # Add the ID number of the word to the set of all words that have been presented
         self._presented.add(int(split_line[5]))
         # Use the task type information to determine listtype; listtype is retroactively added on during modify_recall
-        if (self._listtype == 0 and task == 1) or (self._listtype == 1 and task == 0) or self._listtype == 2:
-            self._listtype == 2
-        else:
-            self._listtype = task
+        self._listtype = 2 if ((self._listtype == 0 and task == 1) or (self._listtype == 1 and task == 0) or self._listtype == 2) else task
         return event
 
     def event_distractor(self, split_line):
@@ -199,7 +186,11 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._recog_endtime = int(split_line[0]) - self._mstime_recstart
         return False
 
-    """=====EVENT MODIFIERS====="""
+    def get_rej_mstime(self, split_line):
+        self._rej_mstime = self._mstime_recstart
+        return False
+
+    """=======EVENT MODIFIERS======="""
     def modify_session(self, events):
         """
         Applies session number to all previous events.
@@ -208,7 +199,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return events
 
     def modify_recalls(self, events):
-        # If the FFR recall has already been conducted or recog has begun, just treat REC_START events as default events
+        # If the FFR recall has already been conducted or recog has begun, do not modify recalls when REC_START is read
         if self._is_finished_recall:
             return events
 
@@ -549,9 +540,26 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
 
     def modify_ffr(self, events):
         """
-        When FFR is reached, set a flag to indicate what to do during the following modify_recalls
+        When final free recall is reached, set a flag to indicate that modify_recalls should treat this recall trial as
+        an FFR recall instead of a standard recall.
         """
         self._is_ffr = True
+        return events
+
+    def modify_rejection(self, events):
+        """
+        When a rejection is made, find the event directly preceding the mstime of the rejection. If it is a recall
+        event, modify the event with the relevant rejection info. If the rejection did not follow a recall event,
+        it must have been erroneous, so do nothing.
+        :param events: The list of all prior events
+        :return: The modified event list
+        """
+        i = -1
+        while events[i].mstime > self._rej_mstime:
+            i -= 1
+        if events[i].type == 'REC_WORD' or 'REC_WORD_VV':
+            events[i].rej_time = self._rej_mstime - self._mstime_recstart
+            events[i].rejected = True
         return events
 
     def end_recall(self, events):

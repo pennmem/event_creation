@@ -239,7 +239,7 @@
           "required": false,
           "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/eeg.noreref",
           "origin_file": "*.D*",
-          "destination": "logs/extracted_syncs.txt"
+          "destination": "sync_files/"
         }
     },
     "verbal": {
