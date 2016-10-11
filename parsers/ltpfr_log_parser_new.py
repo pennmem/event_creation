@@ -33,7 +33,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('finalrecalled', False, 'b1'),
             ('recognized', False, 'b1'),
             ('rectime', -999, 'int32'),
-            ('final_rectime', -999, 'int32'),  # Not present in .MAT, but could be helpful
+            #('final_rectime', -999, 'int32'),  # Not present in .MAT, but could be helpful
             ('intrusion', -999, 'int16'),
             ('color_r', -999, 'float16'),
             ('color_g', -999, 'float16'),
@@ -51,8 +51,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('badEventChannel', -999, list)
         )
 
-    def __init__(self, protocol, subject, montage, experiment, files):
-        super(LTPFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, files)
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(LTPFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
         self._wordpool = np.array([x.strip() for x in open(files['wordpool']).readlines()])
         self._recog_ann = []  # During the recog portion, records the lines of the .ann file currently being used
         self._presented = set()
@@ -283,6 +283,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
 
         return events
 
+    '''
     def old_modify_recog(self, events):
         """
         Retroactively adds whether a word was recognized to the original word presentation event.
@@ -380,7 +381,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         events = np.append(events, new_events[1:]).view(np.recarray)
 
         return events
-
+    '''
     def modify_recog(self, events):
         """
         Retroactively adds whether a word was recognized to the original word presentation event.
@@ -517,7 +518,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             events.recognized[pres_mask] = True if int(recog[1]) == 1 else False
 
         # Add new events to the end of the events list
-        events = np.append(events, new_events[1:]).view(np.recarray)
+        for ev in new_events[1:]:
+            events = np.append(events, ev)
 
         return events
 
