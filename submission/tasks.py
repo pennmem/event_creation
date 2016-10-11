@@ -4,6 +4,7 @@ import re
 import json
 import datetime
 import traceback
+import numpy as np
 
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
@@ -112,7 +113,7 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
-        if self.protocol == 'ltp':  # LTP studies do not use a jacksheet
+        if self.protocol == 'ltp':
             for raw_eeg in raw_eeg_groups:
                 reader = get_eeg_reader(raw_eeg, None)
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
@@ -120,7 +121,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = []
+                bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000)
+                np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
         else:
             if 'contacts' in files:

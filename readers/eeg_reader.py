@@ -920,7 +920,6 @@ class EGI_reader(EEG_reader):
             self._data[i].astype(self.DATA_FORMAT).tofile(filename)
             current_event += 1
 
-
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
@@ -972,6 +971,34 @@ class EGI_reader(EEG_reader):
         logger.debug('Copying param file...')
         copy(os.path.join(self.noreref_loc, 'params.txt'), location)
         logger.debug('Done.')
+
+        # Write a bad_chans.txt file in the reref folder
+        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
+
+    @staticmethod
+    def find_bad_chans(log, threshold):
+        """
+        Reads an artifact log to determine whether there were any bad channels during a session. A channel is considered
+        to be bad if it contained an artifact lasting longer than {threshold} milliseconds. Bad channels are excluded
+        from the rereferencing process.
+        :param log: The filepath to the artifact log
+        :param threshold: The minimum number of milliseconds that an artifact must last in order for a channel to be
+        declared "bad"
+        :return: A 1D numpy array containing the numbers of all bad channels
+        """
+        # Read the log
+        with open(log, 'r') as f:
+            text = f.read()
+
+        # Use regex and numpy to find all rows in the file that contain a channel number, and extract the numbers
+        chans = np.array([re.findall(r'[0-9]+', s)[0] for s in re.findall(r'Channel number: [0-9]+', text)])
+        # Find all rows in the file that contain an artifact duration, and extract the durations
+        durs = np.array([int(re.findall(r'[0-9]+', s)[0]) for s in re.findall(r'Artifact\'s duration: [0-9]+', text)])
+
+        # Get the channel numbers for any artifacts that lasted longer than the threshold
+        bad_chans = np.unique(chans[np.where(durs > threshold)])
+
+        return bad_chans
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
