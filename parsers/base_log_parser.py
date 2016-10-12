@@ -302,7 +302,10 @@ class BaseSessionLogParser(object):
         :param index: The index of the stimulation parameter (if 2 stims were applied, call once with 0 and once with 1)
         :param params: Keyword/value pairs setting individual parameters
         """
+
         for param, value in params.items():
+            if param == 'amplitude' and value < 5:
+                value *= 1000 # Put in uA. Ugly fix...
             event.stim_params[index][param] = value
 
         reverse_jacksheet = {v: k for k, v in jacksheet.items()}

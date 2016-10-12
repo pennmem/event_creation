@@ -156,6 +156,8 @@ class FRSessionLogParser(BaseSessionLogParser):
                 self._fr2_stim_params['cathode_label'] = split_line[7]
 
         self._fr2_stim_params['amplitude'] = float(split_line[9])
+        if self._fr2_stim_params < 5:
+            self._fr2_stim_params *= 1000
         self._fr2_stim_params['stim_on'] = True
         return False
 

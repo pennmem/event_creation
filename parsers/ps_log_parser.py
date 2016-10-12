@@ -131,6 +131,8 @@ class PSSessionLogParser(BaseSessionLogParser):
         params['anode_label'] = self._stim_anode_label
         params['cathode_label'] = self._stim_cathode_label
         params['amplitude'] = float(split_line[7])
+        if params['amplitude'] < 10:
+            params['amplitude'] *= 1000
         params['pulse_freq'] = int(split_line[3])
         params['burst_freq'] = int(split_line[4])
         params['n_pulses'] = int(float(split_line[5]) / 1000 * params['pulse_freq'])
@@ -157,6 +159,8 @@ class PSSessionLogParser(BaseSessionLogParser):
         params['anode_label'] = self._stim_anode_label
         params['cathode_label'] = self._stim_cathode_label
         params['amplitude'] = float(split_line[4])
+        if params['amplitude'] < 10:
+            params['amplitude'] *= 1000
         params['pulse_freq'] = int(split_line[3])
         params['n_pulses'] = params['pulse_freq'] *  params['stim_duration'] / 1000
         params['burst_freq'] = 1

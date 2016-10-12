@@ -141,6 +141,7 @@ class System2LogParser:
             if split_item[0] in cls._LOG_TO_FIELD:
                 stim_params[cls._LOG_TO_FIELD[split_item[0]]]= float(split_item[1])
 
+        #stim_params['amplitude'] = stim_params['amplitude']
         stim_params['n_bursts'] = stim_params['n_bursts'] or 1
         stim_params['burst_freq'] = stim_params['burst_freq'] or 1
         stim_params['stim_duration'] = cls.get_duration(stim_params)

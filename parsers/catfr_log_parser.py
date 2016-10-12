@@ -129,6 +129,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
                 self._catfr2_stim_params['cathode_label'] = split_line[7]
 
         self._catfr2_stim_params['amplitude'] = float(split_line[9])
+        if self._catfr2_stim_params < 5:
+            self._catfr2_stim_params['amplitude'] *= 1000
         self._catfr2_stim_params['stim_on'] = True
         return False
 

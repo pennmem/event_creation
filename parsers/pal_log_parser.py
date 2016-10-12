@@ -175,6 +175,8 @@ class PALSessionLogParser(BaseSessionLogParser):
                 self._pal2_stim_params['cathode_label'] = split_line[7]
 
         self._pal2_stim_params['amplitude'] = float(split_line[9])
+        if self._pal2_stim_params['amplitude'] < 5:
+            self._pal2_stim_params['amplitude'] *= 1000
         return False
 
     def event_instruct_video(self, split_line):
