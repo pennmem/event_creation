@@ -916,8 +916,8 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
     if field == 'word' and event1['word'] == '' and event2['word'] == '[]':
         return True
-    # New parser records 'recalled', 'intruded', and recognized as booleans, with a default of 0 instead of -999
-    if field in ('recalled', 'finalrecalled', 'intruded', 'recognized') and event1[field] == 0 and event2[field] == -999:
+    # New parser records 'recalled', 'intruded', 'recognized', and 'rejected' as booleans, with a default of 0 instead of -999
+    if field in ('recalled', 'finalrecalled', 'intruded', 'recognized', 'rejected') and event1[field] == 0 and event2[field] == -999:
         return True
     # New parser fills in 'recalled' and 'intruded' on word recalls; original did not
     if field in ('recalled', 'intruded') and event1['type'] == 'REC_WORD':
@@ -1208,7 +1208,7 @@ TH_COMPARATOR_INPUTS = dict(
 
 LTPFR_COMPARATOR_INPUTS = dict(
     field_switch={'word': 'item', 'wordno': 'itemno'},
-    field_ignore=all_ignore + ('artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
+    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
                                'badEvent', 'badEventChannel'),
     exceptions=ltpfr_comparison_exceptions,
     type_ignore=()

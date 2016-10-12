@@ -40,7 +40,7 @@ class EGI_Aligner:
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events
-        self.basename = ''
+        self.basename = '../'
         # Determine sample rate from the params.txt file
         if 'eeg_params' in files:
             with open(files['eeg_params']) as eeg_params_file:

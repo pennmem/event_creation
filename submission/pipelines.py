@@ -12,6 +12,9 @@ from parsers.base_log_parser import get_version_num
 from parsers.mat_converter import MathMatConverter
 
 from parsers.math_parser import MathLogParser
+from parsers.ltpfr_log_parser_new import LTPFRSessionLogParser
+from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+
 from loggers import logger
 
 import json
@@ -221,10 +224,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
+    elif protocol == 'ltp':
+        if experiment == 'ltpFR':
+            tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
+        elif experiment == 'ltpFR2':
+            tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
+        else:
+            raise Exception('Unknown experiment %s under protocol \'ltp')
     else:
-        tasks = []
-
-    tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
+        raise Exception('Unknown protocol %s' % protocol)
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups,

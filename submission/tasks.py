@@ -19,7 +19,6 @@ from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
 from parsers.th_log_parser import THSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
-from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
 from loggers import logger
@@ -180,7 +179,6 @@ class EventCreationTask(PipelineTask):
         'catFR': CatFRSessionLogParser,
         'math': MathLogParser,
         'PS': PSLogParser,
-        'ltpFR': LTPFR2SessionLogParser,
         'TH': THSessionLogParser
     }
 
