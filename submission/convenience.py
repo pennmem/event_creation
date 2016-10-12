@@ -245,7 +245,7 @@ def run_convert_import_pipeline(kwargs, force_run_ephys, force_run_beh):
     convert_eeg_pipeline.run(force_run_ephys)
     convert_events_pipeline.run(force_run_beh)
 
-def run_full_import_pipeline(kwargs, force_run=False):
+def run_full_import_pipeline(kwargs, force_run_ephys, force_run_beh):
     try:
         split_pipeline = build_split_pipeline(**kwargs)
         events_pipeline = build_events_pipeline(**kwargs)
@@ -279,8 +279,8 @@ def run_full_import_pipeline(kwargs, force_run=False):
     for pipelines in pipeline_order:
         logger.info("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
         try:
-            for pipeline in pipelines:
-                pipeline.run(force_run)
+            pipelines[0].run(force_run_ephys)
+            pipelines[1].run(force_run_beh)
             return
         except Exception as e:
             logger.error("Exception {} encountered while running pipeline {}".format(e, pipelines[0].current_transfer_type()))
@@ -482,7 +482,7 @@ def run_from_json_file(filename):
                 else:
                     inputs['groups'] += ('verbal',)
 
-                yield run_full_import_pipeline, inputs, force
+                yield run_full_import_pipeline, inputs, False, True
 
                 logger.unset_subject()
 

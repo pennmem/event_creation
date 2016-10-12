@@ -247,7 +247,9 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         import_type='build'
     )
     if original_session != session:
-        info['original_session'] = session
+        info['original_session'] = original_session
+    if 'new_experiment' in kwargs and kwargs['new_experiment'] != experiment:
+        info['original_experiment'] = experiment
 
     return TransferPipeline(transferer, *tasks, **info)
 
