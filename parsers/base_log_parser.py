@@ -180,7 +180,8 @@ class BaseSessionLogParser(object):
         :param events: fully parsed events structure
         :return: modified events structure
         """
-        events.sort(order='mstime')
+        order = np.argsort(events['mstime'])
+        events = events[order]
         return events
 
     def read_primary_log(self):
