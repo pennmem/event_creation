@@ -70,6 +70,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
 
         self._recog_starttime = 0
         self._recog_endtime = 0
+        self._recog_pres_mstime = -999
         self._mstime_recstart = -999
         self._recog_conf_mstime = -999
         self._rej_mstime = -999
@@ -78,8 +79,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
             FR_PRES=self.event_fr_pres,
-            SLOW_MSG=self._event_skip,
-            KEY_MSG=self._event_skip,
+            SLOW_MSG=self.event_default,
+            KEY_MSG=self.event_default,
             REC_START=self.event_recstart,
             REST=self._event_skip,
             REST_REWET=self.event_default,
@@ -171,9 +172,9 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return False
 
     def event_recog(self, split_line):
-        # self.update_trial(split_line)  # This line would only be needed if REC_START did not appear before each list
         event = self.event_default(split_line)
-        self._recog_starttime = int(split_line[0]) - self._mstime_recstart
+        self._recog_pres_mstime = int(split_line[0])
+        self._recog_starttime = self._recog_pres_mstime - self._mstime_recstart
         # Determine whether the word is a target or lure
         wordno = int(split_line[5])
         event.type = 'RECOG_TARGET' if wordno in self._presented else 'RECOG_LURE'
@@ -187,7 +188,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return False
 
     def get_rej_mstime(self, split_line):
-        self._rej_mstime = self._mstime_recstart
+        self._rej_mstime = int(split_line[0])
         return False
 
     """=======EVENT MODIFIERS======="""
@@ -227,7 +228,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
-                new_event.type = 'REC_WORD_VV'
+                # new_event.type = 'REC_WORD_VV'
+                continue
             else:
                 new_event.type = 'REC_WORD'
 
@@ -249,17 +251,17 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                 if len(pres_trial) == 1:
                     # Determines how many lists back the recalled word was presented
                     new_event.intrusion = 0 if self._is_ffr else self._trial - pres_trial[0]
-                    # Correct recall if word is from the most recent list
+                    # Retrieve information about which distractors were used during the word's presentation
+                    new_event.distractor = np.unique(events[pres_mask].distractor)
+                    new_event.final_distractor = np.unique(events[pres_mask].final_distractor)
+                    # Retrieve the recalled word's serial position in its list, along with task information
+                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                    new_event.listtype = np.unique(events[pres_mask].listtype)
+                    new_event.task = np.unique(events[pres_mask].task)
+                    new_event.resp = np.unique(events[pres_mask].resp)
+                    new_event.rt = np.unique(events[pres_mask].rt)
+                    # Correct recall, i.e. word is from the most recent list
                     if new_event.intrusion == 0:
-                        # Retrieve the recalled word's serial position in its list, as well as the distractor used
-                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
-                        new_event.distractor = np.unique(events[pres_mask].distractor)
-                        new_event.final_distractor = np.unique(events[pres_mask].final_distractor)
-                        new_event.listtype = np.unique(events[pres_mask].listtype)
-                        new_event.task = np.unique(events[pres_mask].task)
-                        new_event.resp = np.unique(events[pres_mask].resp)
-                        new_event.rt = np.unique(events[pres_mask].rt)
-
                         # Retroactively log on the word pres event that the word was recalled, and when it was recalled
                         if self._is_ffr:
                             if not any(events.finalrecalled[pres_mask]):
@@ -275,6 +277,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                                 new_event.recalled = True
                     else:
                         events.intruded[pres_mask] = new_event.intrusion
+                        new_event.distractor = 0
+                        new_event.final_distractor = 0
                 else:  # XLI
                     new_event.intrusion = -1
 
@@ -391,15 +395,14 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
 
         is_target = True if events[-1].type == 'RECOG_TARGET' else False
+        was_recognized = False
         word = events[-1].word
         wordno = events[-1].wordno
         new_events = []
         current_block = []
         recog = ['', '']
         conf = ['', '']
-
-        resp_event = self._empty_event
-        conf_event = self._empty_event
+        recog_rt = -999
 
         # Ignore any responses and vocalizations that occur before the presentation of the word
         while len(self._recog_ann) > 0 and int(self._recog_ann[0][0]) < self._recog_starttime:
@@ -414,79 +417,110 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         # will be treated as RECOG_RESP_VV events (in cases where the participant changes their answer)
         i = len(current_block) - 1
         while i >= 0:
+            event = self._empty_event
+            rectime = int(round(float(current_block[i][0])))
             resp = int(current_block[i][1])
+
+            # Set timing information
+            event.msoffset = 20
+            event.rectime = rectime
+            event.mstime = self._mstime_recstart + rectime
+            event.trial = self._trial
             # If the top of the block is reached before finding a confidence response, then there is either no
             # confidence response or no recognition response
             if i == 0:
-                raise Exception('Recognition or confidence response not found for word ' + word)
+                raise Exception('Confidence response not found for word ' + word)
             # If the current line is a confidence response, create the RECOG_CONF event and stop searching
             elif resp in range(3, 8):
                 conf = current_block[i]
-                conf_event.type = 'RECOG_CONF'
-                conf_event.msoffset = 20
-                conf_event.rectime = int(round(float(conf[0])))
-                conf_event.mstime = self._mstime_recstart + conf_event.rectime
-                new_events = [conf_event] + new_events
+                event.type = 'RECOG_CONF'
+                new_events = [event] + new_events
                 i -= 1
                 break
             # If the current line is a vocalization, create a RECOG_RESP_VV event
             elif resp == -1:
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
+                event.type = 'RECOG_RESP_VV'
             elif resp in (1, 2):
                 raise Exception('Recogntion response found after confidence response for word ' + word)
             else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+                raise Exception('Invalid integer response %d found during recognition of word %s' % (resp, word))
+            # Add the event to new_events
+            new_events = [event] + new_events
+            i -= 1
 
         # Continue searching up the current response block for the last recognition response and use it as the
         # RECOG_RESP event. All earlier recog responses will be treated as RECOG_RESP_VV events.
         while i >= 0:
+            event = self._empty_event
+            rectime = int(round(float(current_block[i][0])))
             resp = int(current_block[i][1])
+
+            # Set timing information
+            event.msoffset = 20
+            event.rectime = rectime
+            event.mstime = self._mstime_recstart + rectime
+            event.trial = self._trial
             # Create a RECOG_RESP event when the recognition response is found and stop searching
             if resp in (1, 2):
                 recog = current_block[i]
-                resp_event.type = 'RECOG_RESP'
-                resp_event.msoffset = 20
-                resp_event.rectime = int(round(float(recog[0])))
-                resp_event.mstime = self._mstime_recstart + resp_event.rectime
-                new_events = [resp_event] + new_events
+                # Calculate recog_rt as the response rectime + mstime(recstart) - mstime(presentation)
+                recog_rt = event.mstime - self._recog_pres_mstime
+                event.type = 'RECOG_RESP'
+                if resp == 1:
+                    was_recognized = True
+                new_events = [event] + new_events
                 i -= 1
                 break
             # If the current line is a vocalization or (erroneous) confidence response, create a RECOG_RESP_VV event
             elif resp == -1 or resp in range(3, 8):
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
+                event.type = 'RECOG_RESP_VV'
+                if resp != -1:
+                    event.recog_conf = resp - 2
             else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+                raise Exception('Invalid integer response %d found during recognition of word %s' % (resp, word))
+            # Add the event to new_events
+            new_events = [event] + new_events
+            i -= 1
+
+        if recog_rt == -999:
+            raise Exception('Recognition response not found for word ' + word)
 
         # Treat all responses and vocalizations before the RECOG_RESP event as RECOG_RESP_VV events
         while i >= 0:
+            event = self._empty_event
+            rectime = int(round(float(current_block[i][0])))
             resp = int(current_block[i][1])
-            if resp == -1 or resp in range(1, 8):
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
+
+            # Set timing information
+            event.msoffset = 20
+            event.rectime = rectime
+            event.mstime = self._mstime_recstart + rectime
+            event.trial = self._trial
+            if resp == -1 or resp in (1, 2):
+                event.type = 'RECOG_RESP_VV'
+                if resp != -1:
+                    event.recog_resp = 1 if resp == 1 else 0
+                    # The original presentation of a word gets marked as recognized even if the participant changed their
+                    # recognition response from yes to no
+                    if resp == 1:
+                        was_recognized = True
+            elif resp in range(3, 8):
+                event.type = 'RECOG_RESP_VV'
+                if resp != -1:
+                    event.recog_conf = resp - 2
             else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+                raise Exception('Invalid integer response %d found during recognition of word %s' % (resp, word))
+            new_events = [event] + new_events
+            i -= 1
 
         events[-1].rectime = int(round(float(recog[0])))
         new_events = [events[-1]] + new_events
 
-        # Calculate recog_rt as the response rectime - mstime(pres) + mstime(recstart)
-        recog_rt = int(recog[0]) - resp_event.mstime + self._mstime_recstart
         for ev in new_events:
-            if int(recog[1]) == 1 and ev.type != 'RECOG_RESP_VV':
-                ev.recog_resp = True
-            ev.recog_rt = recog_rt
-            ev.recog_conf = int(conf[1]) - 2
+            if ev.type != 'RECOG_RESP_VV':
+                ev.recog_rt = recog_rt
+                ev.recog_conf = int(conf[1]) - 2
+                ev.recog_resp = 1 if int(recog[1]) == 1 else 0
             ev.word = word
             ev.wordno = wordno
 
@@ -512,10 +546,10 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                 ev.task = task
                 ev.resp = resp
                 ev.rt = rt
-                ev.trial = self._trial
 
-            # Log in the word presentation event whether the word was recognized
-            events.recognized[pres_mask] = True if int(recog[1]) == 1 else False
+            # Log in the word presentation event whether the word was recognized, even if the participant changed their
+            # answer to no after already having said yes.
+            events.recognized[pres_mask] = True if was_recognized else False
 
         # Add new events to the end of the events list
         for ev in new_events[1:]:
@@ -559,7 +593,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         i = -1
         while events[i].mstime > self._rej_mstime:
             i -= 1
-        if events[i].type == 'REC_WORD' or 'REC_WORD_VV':
+        if events[i].type in ('REC_WORD', 'REC_WORD_VV'):
             events[i].rej_time = self._rej_mstime - self._mstime_recstart
             events[i].rejected = True
         return events
