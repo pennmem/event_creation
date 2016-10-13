@@ -928,8 +928,8 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # Original .mat files only have the first four decimal places of the font color
     if field in ('color_r', 'color_g', 'color_b') and abs(event2[field] - event1[field]) <= .001:
         return True
-    # NaNs in the .mat file's wordno field are interpreted as 0 rather than -999
-    if field == 'wordno' and event1['wordno'] == -999 and event2['wordno'] == 0:
+    # NaNs in certain .mat fields are interpreted as 0 rather than -999
+    if field in ('wordno', 'trial') and event1[field] == -999 and event2[field] == 0:
         return True
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
