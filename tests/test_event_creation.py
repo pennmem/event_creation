@@ -928,9 +928,6 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # Original .mat files only have the first four decimal places of the font color
     if field in ('color_r', 'color_g', 'color_b') and abs(event2[field] - event1[field]) <= .001:
         return True
-    # NaNs in certain .mat fields are interpreted as 0 rather than -999
-    if field in ('wordno', 'trial') and event1[field] == -999 and event2[field] == 0:
-        return True
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
     if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
@@ -938,6 +935,9 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
     if field == 'eegfile' and event1[field] != '' and event2[field] != '':
+        return True
+    # .mat files are having NaNs loaded as random integers for wordno and trial fields
+    if field in ('wordno', 'trial') and event1[field] == -999:
         return True
     return False
 

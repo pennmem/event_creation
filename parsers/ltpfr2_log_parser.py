@@ -143,7 +143,7 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             # If XLI
             if recall[1] == -1:
                 new_event.intrusion = -1
-            else:  # Correct recall or PLI or XLI from latter list
+            else:  # Correct recall or PLI or XLI from later list
                 # Determines which list the recalled word was from (gives [] if from a future list)
                 pres_mask = self.find_presentation(new_event.wordno, events)
                 pres_trial = np.unique(events[pres_mask].trial)
@@ -160,12 +160,12 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
                     if new_event.intrusion == 0:
                         new_event.recalled = True
                         # Retroactively log on the word pres event that the word was recalled, and when it was recalled
-                        if not any(events.recalled[pres_mask]):
+                        if not any(events[pres_mask].recalled):
                             events.recalled[pres_mask] = True
                             events.rectime[pres_mask] = new_event.rectime
                     else:
                         events.intruded[pres_mask] = new_event.intrusion
-                else:  # XLI
+                else:  # XLI from later list
                     new_event.intrusion = -1
 
             # Add recall event to events array
