@@ -206,6 +206,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     :return: (success (t/f), attempted pipelines)
     """
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
+    logger.set_label('Session Importer')
 
     ephys_importers = []
     events_importers = []
@@ -246,6 +247,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 
 def run_montage_import(kwargs, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
+    logger.set_label('Montage Importer')
 
     importer = Importer(Importer.MONTAGE, **kwargs)
     return attempt_importers([importer], force)
@@ -338,35 +340,59 @@ def session_inputs_from_json(filename):
 IMPORTER_SORT_KEY = lambda imp: [imp.__dict__[o] for o in
                                  ('subject', 'initialized', 'errored', '_should_transfer', 'transferred', 'processed')]
 
+
 def import_sessions_from_json(filename, do_import, do_convert, force_events=False, force_eeg=False):
     successes = []
     failures = []
-    for inputs in session_inputs_from_json(filename):
-        success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
-        if success:
-            successes.extend(importers)
-        else:
-            failures.extend(importers)
-    return successes, failures
+    interrupted = False
+    try:
+        for inputs in session_inputs_from_json(filename):
+            success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
+            if success:
+                successes.extend(importers)
+            else:
+                failures.extend(importers)
+    except Exception as e:
+        logger.error("Catastrophic failure importing montages: message {}".format(e))
+        traceback.print_exc()
+    except KeyboardInterrupt:
+        logger.error("Keyboard interrupt. Exiting")
+        traceback.print_exc()
+        interrupted = True
+    return successes, failures, interrupted
 
 
 def import_montages_from_json(filename, force=False):
     successes = []
     failures = []
-    for inputs in montage_inputs_from_json(filename):
-        success, importers = run_montage_import(inputs, force)
-        if success:
-            successes.extend(importers)
-        else:
-            failures.extend(importers)
-    return successes, failures
+    interrupted = False
+    try:
+        for inputs in montage_inputs_from_json(filename):
+            success, importers = run_montage_import(inputs, force)
+            if success:
+                successes.extend(importers)
+            else:
+                failures.extend(importers)
+    except Exception as e:
+        logger.error("Catastrophic failure importing montages: message {}".format(e))
+        traceback.print_exc()
+    except KeyboardInterrupt:
+        logger.error("Keyboard interrupt. Exiting")
+        traceback.print_exc()
+        interrupted = True
+    return successes, failures, interrupted
 
 def run_json_import(filename, do_import, do_convert, force_events=False, force_eeg=False, force_montage=False,
                     log_file='json_import.log'):
-    montage_successes, montage_failures = import_montages_from_json(filename, force_montage)
-    successes, failures = import_sessions_from_json(filename, do_import, do_convert, force_events, force_eeg)
-    sorted_failures = sorted(failures + montage_failures, key=IMPORTER_SORT_KEY)
-    sorted_successes = sorted(successes + montage_successes, key=IMPORTER_SORT_KEY)
+    montage_successes, montage_failures, interrupted = import_montages_from_json(filename, force_montage)
+    if not interrupted:
+        successes, failures, _ = import_sessions_from_json(filename, do_import, do_convert, force_events, force_eeg)
+        sorted_failures = sorted(failures + montage_failures, key=IMPORTER_SORT_KEY)
+        sorted_successes = sorted(successes + montage_successes, key=IMPORTER_SORT_KEY)
+    else:
+        sorted_failures = sorted(montage_failures, key=IMPORTER_SORT_KEY)
+        sorted_successes = sorted(montage_successes, key=IMPORTER_SORT_KEY)
+
     with open(log_file, 'w') as output:
         output.write("Successful imports: {}\n".format(len(sorted_successes)))
         output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
@@ -376,6 +402,8 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
         output.write("\n###### SUCCESSES #####\n")
         for success in sorted_successes:
             output.write('{}\n'.format(success.describe()))
+
+    return sorted_failures
 
 def prompt_for_session_inputs(**opts):
     code = raw_input('Enter subject code: ')
@@ -546,9 +574,15 @@ if __name__ == '__main__':
         i=1
         while os.path.exists(import_log + '.log'):
             import_log = 'json_import' + str(i)
+            i+=1
         import_log = import_log + '.log'
-        run_json_import(args.json_file, attempt_import, attempt_convert,
-                        args.force_events, args.force_eeg, args.force_montage, import_log)
+        failures = run_json_import(args.json_file, attempt_import, attempt_convert,
+                                   args.force_events, args.force_eeg, args.force_montage, import_log)
+        if failures:
+            print('\n******************\nSummary of failures\n******************\n')
+            print('\n\n'.join([failure.describe() for failure in failures]))
+        else:
+            print('No failures.')
         print('Log created: {}. Exiting'.format(import_log))
         exit(0)
 

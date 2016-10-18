@@ -5,6 +5,7 @@ from transferer import DB_ROOT, UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
                       build_convert_eeg_pipeline, build_import_montage_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
+from loggers import logger
 
 class Importer(object):
 
@@ -133,6 +134,12 @@ class Importer(object):
             self.pipeline.run(force)
             self.processed = True
             self.transferred = True
+        except KeyboardInterrupt as e:
+            logger.error("Keyboard interrupt! Rolling back transfer")
+            self.pipeline.transferer.remove_transferred_files()
+            logger.info("Transfer rolled back. Aborting.")
+            self.set_error('processing', e)
+            raise
         except UnTransferrableException as e:
             self.set_error('transfer', e)
         except Exception as e:
