@@ -86,23 +86,28 @@ class EGI_Aligner:
 
         # Calculate the eeg offset for each event using PTSA's alignment system
         logger.debug('Calculating EEG offsets...')
-        eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
-                                                     window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
-        logger.debug('Done.')
+        try:
+            eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
+                                                         window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESHOLD)
+            logger.debug('Done.')
 
-        # Add eeg offset and eeg file information to the events
-        logger.debug('Adding EEG file and offset information to events structure...')
-        oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
-        for i in range(self.events.shape[0]):
-            if 0 <= eeg_offsets[i] <= self.num_samples:
-                self.events[i].eegoffset = eeg_offsets[i]
-                self.events[i].eegfile = self.basename
-            else:
-                oob += 1
-        logger.debug('Done.')
+            # Add eeg offset and eeg file information to the events
+            logger.debug('Adding EEG file and offset information to events structure...')
+            oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
+            for i in range(self.events.shape[0]):
+                if 0 <= eeg_offsets[i] <= self.num_samples:
+                    self.events[i].eegoffset = eeg_offsets[i]
+                    self.events[i].eegfile = self.basename
+                else:
+                    oob += 1
+            logger.debug('Done.')
 
-        if oob > 0:
-            logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+            if oob > 0:
+                logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+
+        except ValueError as e:
+            logger.warn(e)
+            logger.warn('Unable to align events with EEG data!')
 
         # Identify all artifacts, and add information about them to the events that occurred during those artifacts
         # self.add_artifacts([(25, 127), (8, 126)])
