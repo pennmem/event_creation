@@ -330,8 +330,8 @@ class FRMatConverter(BaseMatConverter):
     # These fields appear in the final record array
     _FR_FIELD_CONVERSION = {
         'serialpos': 'serialpos',
-        'item': 'word',
-        'itemno': 'wordno',
+        'item': 'item_name',
+        'itemno': 'item_num',
         'recalled': 'recalled',
         'rectime': 'rectime',
         'intrusion': 'intrusion',
@@ -409,31 +409,31 @@ class FRMatConverter(BaseMatConverter):
             if event.type == 'PRACTICE_WORD':
                 event.serialpos = serialpos
                 serialpos += 1
-                event.wordno = -1
+                event.item_num = -1
             if event.type == 'REC_WORD_VV':
                 event.intrusion = -1
                 event.list = current_list
                 event.msoffset = 20
-                event.wordno = -1
+                event.item_num = -1
             if event.type == 'REC_WORD':
                 event.msoffset = 20
             if event.type == 'REC_START':
                 event.list = current_list
                 event.msoffset = 1
             if event.type == 'WORD_OFF':
-                event.word = current_word
+                event.item_name = current_word
             if event.type == 'REC_WORD' and event.intrusion == 0:
                 event.recalled = True
 
-            if (event.type in ('REC_WORD', 'WORD_OFF') and (event.wordno in (-1, -999))):
-                this_word_events = events[events.word == event.word]
-                wordnos = np.unique(this_word_events.wordno)
+            if (event.type in ('REC_WORD', 'WORD_OFF') and (event.item_num in (-1, -999))):
+                this_word_events = events[events.item_name == event.item_name]
+                wordnos = np.unique(this_word_events.item_num)
                 wordnos = wordnos[np.logical_and(wordnos != -1, wordnos != -999)]
                 if len(wordnos) > 0:
-                    event.wordno = wordnos[0]
+                    event.item_num = wordnos[0]
 
             if event.type == 'PRACTICE_WORD_OFF':
-                event.word = current_word
+                event.item_name = current_word
 
             if event.type == 'WORD_OFF':
                 event.serialpos = current_serialpos
@@ -442,8 +442,8 @@ class FRMatConverter(BaseMatConverter):
             if event.list != -999:
                 current_list = event.list
 
-            if event.word != 'X':
-                current_word = event.word
+            if event.item_name != 'X':
+                current_word = event.item_name
 
             if event.serialpos > 0:
                 current_serialpos = event.serialpos
@@ -686,8 +686,8 @@ class CatFRMatConverter(BaseMatConverter):
     _CATFR_FIELD_CONVERSION = {
         'list': 'list',
         'serialpos': 'serialpos',
-        'item': 'word',
-        'itemno': 'wordno',
+        'item': 'item_name',
+        'itemno': 'item_num',
         'recalled': 'recalled',
         'rectime': 'rectime',
         'intrusion': 'intrusion',
@@ -736,22 +736,22 @@ class CatFRMatConverter(BaseMatConverter):
         last_stim_duration = 0
         last_event = None
         for event in events:
-            event.word = event.word.upper()
+            event.item_name = event.item_name.upper()
 
             if event.type == 'REC_WORD':
-                pres_mask = np.logical_and(events.word == event.word, events.type == 'WORD')
+                pres_mask = np.logical_and(events.item_name == event.item_name, events.type == 'WORD')
                 if np.any(pres_mask) and np.any(events[pres_mask].list == event.list):
                     pres_event = events[pres_mask]
                     event.serialpos = pres_event.serialpos
                     events.recalled[pres_mask] = True
                     event.recalled = True
-                    event.wordno = events[pres_mask].wordno
+                    event.item_num = events[pres_mask].item_num
                 elif np.any(pres_mask) and event.list > events[pres_mask].list:
                     event.intrusion = event.list - events[pres_mask].list
-                    event.wordno = events[pres_mask].wordno
+                    event.item_num = events[pres_mask].item_num
 
             if event.type == 'REC_WORD_VV':
-                event.wordno = -1
+                event.item_num = -1
                 event.intrusion = -1
 
             if event.type  == 'STIM_ON':
@@ -1290,7 +1290,7 @@ def exceptions(new_event, old_event, field):
     if field == 'is_stim' and new_event.type == 'DISTRACT_START':
         return True
 
-    if new_event.type == 'PRACTICE_WORD' and field == 'word':
+    if new_event.type == 'PRACTICE_WORD' and field == 'item_name':
         return True
 
     if field == 'exp_version' and new_event['experiment'] == 'PAL1':

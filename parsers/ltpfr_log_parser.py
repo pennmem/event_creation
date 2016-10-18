@@ -26,8 +26,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('word', 'X', 'S16'),
-            ('wordno', -999, 'int16'),
+            ('item_name', 'X', 'S16'),
+            ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('rectime', -999, 'int16'),
             ('intrusion', -999, 'int16'),
@@ -103,12 +103,12 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def apply_word(self, event):
-        event.word = self._word
+        event.item_name = self._word
         if (self._wordpool == self._word).any():
-            wordno = np.where(self._wordpool == self._word)
-            event.wordno = wordno[0] + 1
+            item_num = np.where(self._wordpool == self._word)
+            event.item_num = item_num[0] + 1
         else:
-            event.wordno = -1
+            event.item_num = -1
         return event
 
     def event_practice_word(self, split_line):
@@ -158,8 +158,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             new_event.rectime = float(recall[0])
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.msoffset = 20
-            new_event.word = word
-            new_event.wordno = recall[1]
+            new_event.item_name = word
+            new_event.item_num = recall[1]
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
@@ -193,4 +193,4 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.word == word, events.type == 'WORD')
+        return np.logical_and(events.item_name == word, events.type == 'WORD')

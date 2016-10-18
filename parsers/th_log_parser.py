@@ -78,6 +78,7 @@ class THSessionLogParser(BaseSessionLogParser):
         self._confidence = -999
         self._distErr = -999
         self._normErr = -999
+        self._recalled = False
 
         # self._version = ''
         # kind of hacky, 'type' is the second entry in the header
@@ -140,6 +141,7 @@ class THSessionLogParser(BaseSessionLogParser):
         event.confidence = self._confidence
         event.distErr = self._distErr
         event.normErr = self._normErr
+        event.recalled = self._recalled
         return event
 
     def event_header(self, split_line):
@@ -185,7 +187,7 @@ class THSessionLogParser(BaseSessionLogParser):
         ind = self._log_header.index('navStartLocationX')
         self._navStartLocationX = float(split_line[ind])
 
-        ind = self._log_header.index('navStartLocationX')
+        ind = self._log_header.index('navStartLocationY')
         self._navStartLocationY = float(split_line[ind])
 
         ind = self._log_header.index('recStartLocationX')
@@ -227,7 +229,11 @@ class THSessionLogParser(BaseSessionLogParser):
             rand_y = np.random.uniform(318.0, 399.3, 100000)
             possible_errors = np.sqrt((rand_x - xy_resp[0]) ** 2 + (rand_y - xy_resp[1]) ** 2)
             self._normErr = np.mean(possible_errors < self._distErr)
+
+            # label recalled True if the distance error is less than the radius
+            self._recalled = self._distErr < THSessionLogParser.TH_RADIUS_SIZE
         else:
+            self._recalled = False
             self._distErr = -999
             self._normErr = -999
 
@@ -239,8 +245,9 @@ class THSessionLogParser(BaseSessionLogParser):
         No current way to know this ahead of time."""
 
         pres_events = (events['trial'] == self._trial) & (events['type'] == 'CHEST') & (events['item_name'] != '')
+        pres_events_inc_empty = (events['trial'] == self._trial) & (events['type'] == 'CHEST')
         listLength = np.sum(pres_events)
-        for ind in np.where(pres_events)[0]:
+        for ind in np.where(pres_events_inc_empty)[0]:
             events[ind].listLength = listLength
         events[-1].listLength = listLength
         return events

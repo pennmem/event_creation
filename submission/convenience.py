@@ -7,14 +7,16 @@ import sys
 import argparse
 import collections
 import traceback
-
+from collections import defaultdict
 
 from pipelines import build_events_pipeline, build_split_pipeline,\
                       build_convert_eeg_pipeline, build_convert_events_pipeline,\
                       build_import_montage_pipeline, MATLAB_CONVERSION_TYPE, SOURCE_IMPORT_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
-from transferer import DB_ROOT, DATA_ROOT, UnTransferrableException
+from transferer import UnTransferrableException
 from loggers import logger
+from automation import Importer
+from config import DATA_ROOT, RHINO_ROOT, DB_ROOT
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -27,8 +29,6 @@ except:
 
 class UnknownMontageException(Exception):
     pass
-
-
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(DB_ROOT, 'protocols', protocol, 'montages', code, 'info.json')
@@ -58,139 +58,13 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
                 ref_montage, code))
         elif round((new_montage_num % 1) * 10) < montage_code:
             if allow_skip:
-                logger.warn('Skipping montages from {} to {}'.format(new_montage_num, montage_code))
+                logger.warn('Skipping montages for {} from {} to {}'.format(code, new_montage_num, montage_code))
                 return '%d.%d' % (int(new_montage_num), montage_code)
             else:
                 raise Exception('Montage creation error: montages {} to {} do not exist'.format((new_montage_num%1)*10,
                                                                                                 montage_code))
 
         return '%1.1f' % (new_montage_num)
-
-
-def get_all_codes():
-    subjects = set()
-    for json_filename in ('ps_sessions.json', 'verbal_sessions.json', 'yc_sessions.json'):
-        json_dict = json.load(open(os.path.join(this_dir, json_filename)))
-        for s, subject in json_dict.items():
-            for exp in subject.values():
-                for session in exp.values():
-                    subjects.add(session['code'] if 'code' in session else s)
-    return list(subjects)
-
-def get_previous_subjects(subject):
-    prev_subjects = []
-    while '_' in subject:
-        split_subj = subject.split('_')
-        num = int(split_subj[1])
-        if num == 1:
-            subject = split_subj[0]
-        else:
-            subject = '{}_{}'.format(split_subj[0], num-1)
-        prev_subjects.append(subject)
-    return prev_subjects
-
-def build_data_export_database():
-    nested_dict = lambda: collections.defaultdict(nested_dict)
-    subjects_for_export = [x.strip() for x in open('subjects_for_export.txt').readlines() if len(x.strip()) > 0 ]
-    subjects = nested_dict()
-    for experiment in ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2'):
-        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
-        for subject, sessions in subject_sessions:
-            if not subject[:6] in subjects_for_export:
-                continue
-            previous_subjects = get_previous_subjects(subject)
-            max_previous_sessions = 0
-            for previous_subject in previous_subjects:
-                if previous_subject in subjects and experiment in subjects[previous_subject]:
-                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
-                    max_session = max(previous_sessions)
-                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
-            for i, session in enumerate(sessions):
-                session_dict = {
-                    'original_session': session,
-                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
-                    'code': subject
-                }
-                subject_without_montage = subject.split('_')[0]
-                print 'adding', subject, experiment, i+max_previous_sessions
-                subjects[subject_without_montage][experiment][i + max_previous_sessions] = session_dict
-            #print(json.dumps(subjects, indent=2, sort_keys=True))
-    json.dump(subjects, open('export_sessions.json', 'w'), indent=2, sort_keys=True)
-
-def build_verbal_import_database():
-    nested_dict = lambda: collections.defaultdict(nested_dict)
-    subjects = nested_dict()
-    for experiment in EXPERIMENTS:
-        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
-        for subject, sessions in subject_sessions:
-            previous_subjects = get_previous_subjects(subject)
-            max_previous_sessions = 0
-            for previous_subject in previous_subjects:
-                if previous_subject in subjects and experiment in subjects[previous_subject]:
-                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
-                    max_session = max(previous_sessions)
-                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
-            for session in sessions:
-                session_dict = {
-                    'original_session': session,
-                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
-                    'code': subject
-                }
-                subject_without_montage = subject.split('_')[0]
-                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
-            print(json.dumps(subjects, indent=2, sort_keys=True))
-    json.dump(subjects, open('verbal_sessions.json', 'w'), indent=2, sort_keys=True)
-
-def build_YC_import_database():
-    nested_dict = lambda: collections.defaultdict(nested_dict)
-    subjects = nested_dict()
-    for experiment in ('YC1', 'YC2'):
-        subject_sessions = get_subject_sessions_by_experiment(experiment, include_montage_changes=True)
-        for subject, sessions in subject_sessions:
-            previous_subjects = get_previous_subjects(subject)
-            max_previous_sessions = 0
-            for previous_subject in previous_subjects:
-                if previous_subject in subjects and experiment in subjects[previous_subject]:
-                    previous_sessions = [int(s) for s in subjects[previous_subject][experiment].keys()]
-                    max_session = max(previous_sessions)
-                    max_previous_sessions = max(max_session, max_previous_sessions) + 1
-            for session in sessions:
-                session_dict = {
-                    'original_session': session,
-                    'montage': determine_montage_from_code(subject, allow_new=True, allow_skip=True),
-                    'code': subject
-                }
-                subject_without_montage = subject.split('_')[0]
-                subjects[subject_without_montage][experiment][session + max_previous_sessions] = session_dict
-            print(json.dumps(subjects, indent=2, sort_keys=True))
-    json.dump(subjects, open('yc_sessions.json', 'w'), indent=2, sort_keys=True)
-
-def run_montage_import_pipeline(kwargs, force_run=False):
-    pipeline = build_import_montage_pipeline(**kwargs)
-    pipeline.run(force_run)
-
-def test_import_existing_montages():
-    codes = get_all_codes()
-    for code in codes:
-        try:
-            subject = code.split('_')[0]
-            logger.set_subject(subject, 'r1')
-            montage = determine_montage_from_code(code, 'r1', allow_new=True, allow_skip=True)
-            kwargs = dict(
-                subject=subject,
-                montage=montage,
-                code=code,
-                protocol='r1'
-            )
-        except:
-            logger.error('Could not determine montage from code {}'.format(code))
-            continue
-
-        yield run_montage_import_pipeline, kwargs, False
-        logger.unset_subject()
-
-
-
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
     if re.match('catFR[0-4]', experiment):
@@ -200,178 +74,255 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
     events_dir = os.path.join(DATA_ROOT, '..', 'events', ram_exp)
     events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
                           key=lambda f: f.split('_')[:-1])
+    seen_experiments = defaultdict(list)
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
+        subject_no_montage = subject.split('_')[0]
         if '_' in subject and not include_montage_changes:
             continue
         mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
         logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
         try:
             mat_events = mat_events_reader.read()
-            yield (subject, np.unique(mat_events['session']))
+            sessions = np.unique(mat_events['session'])
+            version_str = mat_events[-5]['expVersion'] if 'expVersion' in mat_events.dtype.names else '0'
+            version = -1
+            try:
+                version = float(version_str.split('_')[-1])
+            except:
+                try:
+                    version = float(version_str.split('v')[-1])
+                except:
+                    pass
+
+            for i, session in enumerate(sessions):
+                if 'experiment' in mat_events.dtype.names:
+                    experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
+                else:
+                    experiments = [experiment]
+                for this_experiment in experiments:
+                    n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
+                    yield subject_no_montage, subject, n_sessions, session, this_experiment, version
         except AttributeError:
+            traceback.print_exc()
             logger.error('Could not get session from {}'.format(events_file))
 
 
-def get_first_unused_session(subject, experiment, protocol='r1'):
-    sessions_dir = os.path.join(DB_ROOT,
-                               'protocols', protocol,
-                               'subjects', subject,
-                               'experiments', experiment,
-                               'sessions')
-    if not os.path.exists(sessions_dir):
-        return 0
-    session_folders = os.listdir(sessions_dir)
-    session_folders_with_behavioral = [folder for folder in session_folders
-                                       if os.path.isdir(os.path.join(sessions_dir, folder)) and
-                                       'behavioral' in os.listdir(os.path.join(sessions_dir, folder))]
-    session_folders_with_current = [folder for folder in session_folders_with_behavioral
-                                    if 'current_processed' in os.listdir(os.path.join(sessions_dir, folder, 'behavioral'))]
-    session_numbers = [int(sess) for sess in session_folders_with_current if sess.isdigit()]
-    if session_numbers:
-        return max(session_numbers) + 1
-    else:
-        return 0
+def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=None, included_subjects=None,
+                         protocol='r1', include_montage_changes=True, **extra_items):
+    nested_dict = lambda: collections.defaultdict(nested_dict)
+    subjects = nested_dict()
+    excluded_experiments = excluded_experiments or []
+    for experiment in orig_experiments:
+        logger.info("Building json DB for experiment {}".format(experiment))
+        subject_sessions = get_subject_sessions_by_experiment(experiment, protocol, include_montage_changes)
+        for subject, code, session, orig_session, new_experiment, version in subject_sessions:
+            if (not included_subjects is None) and (not code in included_subjects):
+                continue
+            if excluded_experiments and new_experiment in excluded_experiments:
+                continue
+            session_dict = {
+                'original_session': orig_session,
+                'montage': determine_montage_from_code(code, allow_new=True, allow_skip=True),
+                'code': code
+            }
+            if (new_experiment != experiment):
+                session_dict['original_experiment'] = experiment
+            if (version >= 2):
+                session_dict['system_2'] = True
+            elif version > 0:
+                session_dict['system_1'] = True
+            session_dict.update(extra_items)
+            subjects[subject][experiment][session] = session_dict
+    json.dump(subjects, open(out_file, 'w'), indent=2, sort_keys=True)
+
+
+def build_sharing_import_database():
+    subjects_for_export = [x.strip() for x in open('subjects_for_export.txt').readlines() if len(x.strip()) > 0 ]
+    experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2')
+    build_json_import_db('export_sessions.json', experiments, [], subjects_for_export, 'r1', True)
+
+def build_verbal_import_database():
+    experiments = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
+    build_json_import_db('verbal_sessions.json', experiments)
+
+def build_YC_import_database():
+    experiments = ('YC1', 'YC2')
+    build_json_import_db('yc_sessions.json', experiments)
+
+def build_TH_import_database():
+    experiments = ('TH1', 'TH3')
+    build_json_import_db('th_sessions.json', experiments)
+
+RAM_EXPERIMENTS = ('FR1', 'FR2', 'FR3',
+                   'YC1', 'YC2', 'YC3',
+                   'PAL1', 'PAL2', 'PAL3',
+                   'catFR1', 'catFR2', 'catFR3',
+                   'TH1', 'TH3',
+                   'PS')
+
+def build_ram_import_database():
+    build_json_import_db('r1_sessions.json', RAM_EXPERIMENTS, ('PS0',))
+    pass
+
+
+IMPORT_DB_BUILDERS = {
+    'sharing': build_sharing_import_database,
+    'ram': build_ram_import_database,
+}
 
 
 def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
     pipeline = pipeline_fn(**kwargs)
     pipeline.run(force_run)
 
-def run_convert_import_pipeline(kwargs, force_run_ephys, force_run_beh):
-    convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
-    convert_events_pipeline = build_convert_events_pipeline(**kwargs)
 
-    convert_eeg_pipeline.run(force_run_ephys)
-    convert_events_pipeline.run(force_run_beh)
+def attempt_importers(importers, force):
+    success = False
+    i=0
+    for i, importer in enumerate(importers):
+        logger.info("Attempting {}".format(importer.label))
+        if importer.should_transfer or force:
+            importer.run(force)
 
-def run_full_import_pipeline(kwargs, force_run_ephys, force_run_beh):
-    try:
-        split_pipeline = build_split_pipeline(**kwargs)
-        events_pipeline = build_events_pipeline(**kwargs)
-        build = True
-    except Exception as e:
-        logger.warn('Could not make build pipeline: {}'.format(e))
-        build = False
+        if not importer.errored:
+            logger.info("{} succeded".format(importer.label))
+            success = True
+            break
+        logger.warn("{} failed".format(importer.label))
+    if not success:
+        descriptions = [importer.describe_errors() for importer in importers]
+        logger.error("All importers failed. Errors: {}".format(', '.join(descriptions)))
+    return success, importers[:i+1]
 
-    try:
-        convert_eeg_pipeline = build_convert_eeg_pipeline(**kwargs)
-        convert_events_pipeline = build_convert_events_pipeline(**kwargs)
-        convert = True
-    except Exception as e:
-        logger.warn('Could not make convert pipeline: {}'.format(e))
-        if not build:
-            raise
-        convert = False
 
-    if build and convert:
-        if split_pipeline.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-            pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),
-                              (split_pipeline, events_pipeline))
-        else:
-            pipeline_order = ((split_pipeline, events_pipeline),
-                              (convert_eeg_pipeline, convert_events_pipeline))
-    elif build:
-        pipeline_order = ((split_pipeline, events_pipeline),)
+def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
+    """
+    :param kwargs:
+    :param do_import:
+    :param do_convert:
+    :param force_events:
+    :param force_eeg:
+    :return: (success (t/f), attempted pipelines)
+    """
+    logger.set_subject(kwargs['subject'], kwargs['protocol'])
+
+    ephys_importers = []
+    events_importers = []
+
+    if do_import:
+        ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
+        events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
+        if ephys_builder.initialized:
+            ephys_importers.append(ephys_builder)
+        if events_builder.initialized:
+            events_importers.append(events_builder)
+
+    if do_convert:
+        ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
+        events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
+        if ephys_converter.initialized:
+            if ephys_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+                ephys_importers = [ephys_converter] + ephys_importers
+            else:
+                ephys_importers.append(ephys_converter)
+
+        if events_converter.initialized:
+            if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+                events_importers = [events_converter] + events_importers
+            else:
+                events_importers.append(events_converter)
+
+    ephys_success, attempted_ephys = attempt_importers(ephys_importers, force_eeg)
+
+    if ephys_success:
+        events_success, attempted_events = attempt_importers(events_importers, force_events)
+        logger.unset_subject()
+        return events_success and ephys_success, attempted_ephys + attempted_events
     else:
-        pipeline_order = ((convert_eeg_pipeline, convert_events_pipeline),)
-
-    for pipelines in pipeline_order:
-        logger.info("Attempting pipeline {}".format(pipelines[0].current_transfer_type()))
-        try:
-            pipelines[0].run(force_run_ephys)
-            pipelines[1].run(force_run_beh)
-            return
-        except Exception as e:
-            logger.error("Exception {} encountered while running pipeline {}".format(e, pipelines[0].current_transfer_type()))
-            traceback.print_exc()
-
-    raise UnTransferrableException("All pipelines failed!")
-
-def check_subject_sessions(code, experiment, sessions, protocol='r1'):
-    bad_sessions = json.load(open(BAD_EXPERIMENTS_FILE))
-    subject = re.sub(r'_.*', '', code)
-    montage = determine_montage_from_code(code, allow_new=True, allow_skip=True)
-    test_inputs = dict(
-        subject = subject,
-        montage = montage,
-        experiment = experiment,
-        force = False,
-        do_compare = True,
-        code = code
-    )
-    sessions = sorted(sessions)
-    for session in sessions:
-        if subject in bad_sessions and \
-                        experiment in bad_sessions[subject] and \
-                        str(session) in bad_sessions[subject][experiment]:
-            logger.debug('SKIPPING {} {}_{}: {}'.format(subject, experiment, session,
-                                               bad_sessions[subject][experiment][str(session)]))
-            continue
-
-        test_inputs['original_session'] = session
-        if '_' in code:
-            test_inputs['session'] = get_first_unused_session(subject, experiment, protocol)
-        else:
-            test_inputs['session'] = session
-
-        if test_inputs['session'] != test_inputs['original_session']:
-            logger.debug('Warning: {subj} {exp}_{orig_sess} -> {code} {exp}_{sess}'.format(subj=subject,
-                                                                                  code=code,
-                                                                                  sess=session,
-                                                                                  exp=experiment,
-                                                                                  orig_sess=test_inputs['session']))
-
-        yield run_full_import_pipeline, test_inputs, test_inputs['force']
+        logger.unset_subject()
+        return ephys_success, attempted_ephys
 
 
-def check_experiment(experiment):
-    experiment_sessions = get_subject_sessions_by_experiment(experiment)
-    for subject, sessions in experiment_sessions:
-        for test in check_subject_sessions(subject, experiment, sessions):
-            yield test
+def run_montage_import(kwargs, force=False):
+    logger.set_subject(kwargs['subject'], kwargs['protocol'])
 
-BAD_EXPERIMENTS_FILE = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'unrecoverable_sessions.json')
-
-EXPERIMENTS = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
+    importer = Importer(Importer.MONTAGE, **kwargs)
+    return attempt_importers([importer], force)
 
 
-def clean_db_dir():
-    for root, dirs, files in os.walk(DB_ROOT, False):
-        if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
-            os.remove(os.path.join(root, 'log.txt'))
-            logger.debug('Removing %s'%root)
-            os.rmdir(root)
-        elif len(os.listdir(root)) == 0:
-            logger.debug('Removing %s'%root)
-            os.rmdir(root)
 this_dir = os.path.realpath(os.path.dirname(__file__))
 
-def test_import_all_ps_sessions():
-    for test in run_from_json_file(os.path.join(this_dir, 'ps_sessions.json')):
-        yield test
-
-def test_import_all_verbal_sessions():
-    for test in run_from_json_file(os.path.join(this_dir, 'verbal_sessions.json')):
-        yield test
-
-def xtest_import_all_yc_sessions():
-    for test in convert_from_json_file(os.path.join(this_dir, 'yc_sessions.json')):
-        yield test
 
 
-def xtest_import_sharing_database():
-    for test in run_from_json_file(os.path.join(this_dir, 'export_sessions.json')):
-        yield test
+def build_session_inputs(subject, new_experiment, session, info):
+    experiment = info.get('original_experiment', new_experiment)
+    original_session = info.get('original_session', session)
+    is_sys1 = info.get('system_1', False)
+    is_sys2 = info.get('system_2', False)
+    montage = info.get('montage', '0.0')
+    code = info.get('code', subject)
+    protocol = info.get('protocol', 'r1')
+    attempt_import = info.get('attempt_import', True)
+    attempt_conversion = info.get('attempt_conversion', True)
 
-def xtest_all_experiments():
-    logger.add_log_files(os.path.join(DB_ROOT, 'protocols', 'log.txt'))
-    for experiment in EXPERIMENTS:
-        for test in check_experiment(experiment):
-            yield test
+    montage_num = montage.split('.')[1]
+    localization = montage.split('.')[0]
+
+    inputs = dict(
+        protocol=protocol,
+        subject=subject,
+        montage=montage,
+        montage_num=montage_num,
+        localization=localization,
+        experiment=experiment,
+        new_experiment=new_experiment,
+        code=code,
+        session=session,
+        original_session=original_session,
+        groups=(protocol,),
+        attempt_conversion=attempt_conversion,
+        attempt_import=attempt_import
+    )
+
+    if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
+        inputs['groups'] += ('system_2')
+    elif is_sys1:
+        inputs['groups'] += ('system_1',)
+
+    if experiment.startswith('PS') or experiment.startswith('TH') or experiment.startswith('YC'):
+        inputs['do_math'] = False
+
+    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):
+        inputs['groups'] += ('verbal', )
+
+    return inputs
 
 
-def convert_from_json_file(filename):
+def montage_inputs_from_json(filename):
+    subjects = json.load(open(filename))
+    sorted_subjects = sorted(subjects.keys())
+    completed_codes = set()
+    for subject in sorted_subjects:
+        experiments = subjects[subject]
+        for new_experiment in experiments:
+            sessions = experiments[new_experiment]
+            for session in sessions:
+                info = sessions[session]
+                code = info.get('code', subject)
+                if code in completed_codes:
+                    continue
+                inputs = dict(
+                    subject=subject,
+                    code=code,
+                    montage=info.get('montage', '0.0'),
+                    protocol='r1'
+                )
+                completed_codes.add(code)
+                yield inputs
+
+
+def session_inputs_from_json(filename):
     subjects = json.load(open(filename))
     sorted_subjects = sorted(subjects.keys())
     for subject in sorted_subjects:
@@ -380,172 +331,84 @@ def convert_from_json_file(filename):
             sessions = experiments[new_experiment]
             for session in sessions:
                 info = sessions[session]
-                experiment = info.get('original_experiment', new_experiment)
-                original_session = info.get('original_session', session)
-                is_sys1 = info.get('system_1', False)
-                is_sys2 = info.get('system_2', False)
-                montage = info.get('montage', '0.0')
-                force = info.get('force', False)
-                code = info.get('code', subject)
-                protocol = info.get('protocol', 'r1')
-
-                logger.set_subject(subject, protocol)
-
-                montage_num = montage.split('.')[1]
-                localization = montage.split('.')[0]
-                inputs = dict(
-                    protocol=protocol,
-                    subject = subject,
-                    montage = montage,
-                    montage_num = montage_num,
-                    localization=localization,
-                    experiment = experiment,
-                    new_experiment = new_experiment,
-                    force = force,
-                    do_compare = True,
-                    code=code,
-                    session=session,
-                    original_session=original_session,
-                    groups = (protocol,)
-                )
+                inputs = build_session_inputs(subject, new_experiment, session, info)
+                yield inputs
 
 
+IMPORTER_SORT_KEY = lambda imp: [imp.__dict__[o] for o in
+                                 ('subject', 'initialized', 'errored', '_should_transfer', 'transferred', 'processed')]
 
-                raw_substitute = info.get('raw_substitute', False)
-                if raw_substitute:
-                    inputs['substitute_raw_folder'] = raw_substitute
-                if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3'):
-                    inputs['groups'] += ('system_2',)
-                else:
-                    inputs['groups'] += ('system_1',)
-
-                if 'PS' in experiment or 'TH' in experiment or 'YC' in experiment:
-                    inputs['do_math'] = False
-                else:
-                    inputs['groups'] += ('verbal',)
-
-                yield run_convert_import_pipeline, inputs, False, False
-
-                logger.unset_subject()
+def import_sessions_from_json(filename, do_import, do_convert, force_events=False, force_eeg=False):
+    successes = []
+    failures = []
+    for inputs in session_inputs_from_json(filename):
+        success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
+        if success:
+            successes.extend(importers)
+        else:
+            failures.extend(importers)
+    return successes, failures
 
 
-def run_from_json_file(filename):
-    subjects = json.load(open(filename))
-    sorted_subjects = sorted(subjects.keys())
-    for subject in sorted_subjects:
-        experiments = subjects[subject]
-        for new_experiment in experiments:
-            sessions = experiments[new_experiment]
-            for session in sessions:
-                info = sessions[session]
-                experiment = info.get('original_experiment', new_experiment)
-                original_session = info.get('original_session', session)
-                is_sys1 = info.get('system_1', False)
-                is_sys2 = info.get('system_2', False)
-                montage = info.get('montage', '0.0')
-                force = info.get('force', False)
-                code = info.get('code', subject)
-                protocol = info.get('protocol', 'r1')
+def import_montages_from_json(filename, force=False):
+    successes = []
+    failures = []
+    for inputs in montage_inputs_from_json(filename):
+        success, importers = run_montage_import(inputs, force)
+        if success:
+            successes.extend(importers)
+        else:
+            failures.extend(importers)
+    return successes, failures
 
-                logger.set_subject(subject, protocol)
+def run_json_import(filename, do_import, do_convert, force_events=False, force_eeg=False, force_montage=False,
+                    log_file='json_import.log'):
+    montage_successes, montage_failures = import_montages_from_json(filename, force_montage)
+    successes, failures = import_sessions_from_json(filename, do_import, do_convert, force_events, force_eeg)
+    sorted_failures = sorted(failures + montage_failures, key=IMPORTER_SORT_KEY)
+    sorted_successes = sorted(successes + montage_successes, key=IMPORTER_SORT_KEY)
+    with open(log_file, 'w') as output:
+        output.write("Successful imports: {}\n".format(len(sorted_successes)))
+        output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
+        output.write("###### FAILURES #####\n")
+        for failure in sorted_failures:
+            output.write('{}\n'.format(failure.describe()))
+        output.write("\n###### SUCCESSES #####\n")
+        for success in sorted_successes:
+            output.write('{}\n'.format(success.describe()))
 
-                montage_num = montage.split('.')[1]
-                localization = montage.split('.')[0]
-                inputs = dict(
-                    protocol=protocol,
-                    subject = subject,
-                    montage = montage,
-                    montage_num = montage_num,
-                    localization=localization,
-                    experiment = experiment,
-                    new_experiment = new_experiment,
-                    force = force,
-                    do_compare = True,
-                    code=code,
-                    session=session,
-                    original_session=original_session,
-                    groups = (protocol,)
-                )
-
-
-
-                raw_substitute = info.get('raw_substitute', False)
-                if raw_substitute:
-                    inputs['substitute_raw_folder'] = raw_substitute
-                if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3'):
-                    inputs['groups'] += ('system_2',)
-                else:
-                    inputs['groups'] += ('system_1',)
-
-                if 'PS' in experiment or 'TH' in experiment or 'YC' in experiment:
-                    inputs['do_math'] = False
-                else:
-                    inputs['groups'] += ('verbal',)
-
-                yield run_full_import_pipeline, inputs, False, True
-
-                logger.unset_subject()
-
-
-
-
-if __name__ == '__main__':
-    if '--clean' in sys.argv:
-        clean_task = CleanDbTask()
-        clean_task.run()
-        exit(0)
-    if '--aggregate' in sys.argv:
-        aggregate_task = IndexAggregatorTask()
-        aggregate_task.run()
-        exit(0)
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--from-file', dest='from_file', default=False,
-                        help='process from file')
-    parser.add_argument('--substitute-raw-for-header', dest='raw_header', action='store_true', default=False,
-                        help='Signals input for raw folder with substitute header')
-    parser.add_argument('--change-experiment', dest='new_exp', action='store_true', default=False,
-                        help='Singals new experiment differs from old')
-    parser.add_argument('--change-session', dest='new_session', action='store_true', default=False,
-                        help='Signals new session number different than old')
-    parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
-                        help='Signals system 2 session')
-    parser.add_argument('--sys1', dest='sys1', action='store_true', default=False,
-                        help='Signals system 1 session')
-    parser.add_argument('--force', dest='force', action='store_true', default=False,
-                        help='Force creation even if no changes')
-    args = parser.parse_args()
-    if args.from_file:
-        for test in run_from_json_file(args.from_file):
-            test[0](*test[1:])
-        sys.exit(0)
-
+def prompt_for_session_inputs(**opts):
     code = raw_input('Enter subject code: ')
-    subject = re.sub('_.*', '', code)
+    subject = re.sub(r'_.*', '', code)
     original_experiment = raw_input('Enter original experiment: ')
-    original_session = int(raw_input('Enter original session number: '))
+    original_session = raw_input('Enter original session number: ')
 
     if subject != code:
-        montage = raw_input('Enter montage #: ')
+        montage = raw_input('Enter montage as #.#: ')
         montage_num = montage.split('.')[1]
         localization = montage.split('.')[0]
     else:
         montage = '0.0'
-        session = original_session
         montage_num = 0
         localization = 0
 
-    if args.new_session:
+    if opts.get('change_session', False) or subject != code or original_experiment.startswith('PS'):
         session = int(raw_input('Enter new session number: '))
     else:
         session = original_session
 
-    if args.new_exp:
-        experiment = raw_input('Enter new experiment name: ')
+    if opts.get('change_experiment', False) or original_experiment.startswith('PS'):
+        experiment = raw_input('Enter new experiment: ')
     else:
         experiment = original_experiment
 
+    protocol = 'ltp' if experiment.startswith('ltp') else \
+               'r1' if subject.startswith('R') else None
+
+    attempt_conversion = opts.get('convert', False)
+
     inputs = dict(
-        protocol='ltp' if experiment.startswith('ltp') else 'r1',
+        protocol=protocol,
         subject=subject,
         montage=montage,
         montage_num=montage_num,
@@ -557,32 +420,163 @@ if __name__ == '__main__':
         code=code,
         session=session,
         original_session=original_session,
-        groups=tuple()
+        groups=(protocol,),
+        attempt_import=not attempt_conversion,
+        attempt_conversion=attempt_conversion
     )
 
-    logger.set_subject(subject, 'ltp' if experiment.startswith('ltp') else 'r1')
-
-    inputs['groups'] += (inputs['protocol'],)
-
-    if args.raw_header:
-        header_substitute = raw_input('Enter raw folder containing substitute for header: ')
-        inputs['substitute_raw_folder'] = header_substitute
-    if args.sys2:
+    if opts.get('sys2', False):
         inputs['groups'] += ('system_2',)
-    else:
+    elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
-    if args.force:
-        inputs['force'] = True
 
-    if 'PS' in experiment or 'TH' in experiment:
+    if experiment.startswith('PS') or experiment.startswith('TH'):
         inputs['do_math'] = False
-    else:
+
+    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):
         inputs['groups'] += ('verbal',)
 
-    if experiment[-1] == '3':
-        inputs['match_field'] = 'eegoffset'
+    return inputs
 
-    #run_full_import_pipeline(inputs, args.force)
-    #run_individual_pipline(build_split_pipeline, inputs)
-    run_individual_pipline(build_events_pipeline, inputs)
+
+def prompt_for_montage_inputs():
+    code = raw_input('Enter original subject code (including _#): ')
+    subject = re.sub(r'_.*', '', code)
+
+    montage = raw_input('Enter montage as #.#: ')
+
+    inputs = dict(
+        subject=subject,
+        montage=montage,
+        code=code,
+        protocol='r1'
+    )
+
+    return inputs
+
+def session_exists(protocol, subject, experiment, session):
+    session_dir = os.path.join(DB_ROOT, 'protocols', protocol,
+                                 'subjects', subject,
+                                 'experiments', experiment,
+                                 'sessions', session)
+    behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
+    eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
+
+    return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
+
+def montage_exists(protocol, subject, montage):
+    montage_num = montage.split('.')[1]
+    localization = montage.split('.')[0]
+    montage_dir = os.path.join(DB_ROOT, 'protocols', protocol,
+                               'subjects', subject,
+                               'localizations', localization,
+                               'montages', montage_num)
+    neurorad_current = os.path.join(montage_dir, 'neuroradiology', 'current_processed')
+
+    return os.path.exists(neurorad_current)
+
+def confirm(prompt):
+    while True:
+        resp = raw_input(prompt)
+        if resp.lower() in ('y','n', 'yes', 'no'):
+            return resp.lower() == 'y' or resp.lower() == 'yes'
+        print('Please enter y or n')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--montage-only', dest='montage_only', action='store_true', default=False,
+                        help='Imports a localization or montage instead of importing events')
+    parser.add_argument('--json', dest='json_file', default=False,
+                        help='Imports all sessions from the specified JSON file')
+    parser.add_argument('--change-experiment', dest='new_exp', action='store_true', default=False,
+                        help='Signals that the name of the experiment changes on import. '
+                             'Defaults to true for PS* experiments')
+    parser.add_argument('--change-session', dest='new_session', action='store_true', default=False,
+                        help='Signals that the session number changes on import. Defaults to true '
+                             'for PS* experiments or subjects with montage changes')
+    parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
+                        help='Forces system 2 processing if it cannot be determined automatically')
+    parser.add_argument('--sys1', dest='sys1', action='store_true', default=False,
+                        help='Signals system 1 processing if it cannot be determined automatically')
+    parser.add_argument('--allow-convert', dest='allow_convert', action='store_true', default=False,
+                        help='Attempt to convert events from matlab if standard events creation fails')
+    parser.add_argument('--force-convert', dest='force_convert', action='store_true', default=False,
+                        help='ONLY attempt conversion of events from matlab, skipping standard import')
+    parser.add_argument('--force-events', dest='force_events', action='store_true', default=False,
+                        help='Force events creation even if no changes have occurred')
+    parser.add_argument('--force-eeg', dest='force_eeg', action='store_true', default=False,
+                        help='Force eeg splitting even if no changes have occurred')
+    parser.add_argument('--force_montage', dest='force_montage', action='store_true', default=False,
+                        help='Force montage creation even if no changes have occurred')
+    parser.add_argument('--clean-only', dest='clean_db', action='store_true', default=False,
+                        help='ONLY clean the database, removing empty folders.')
+    parser.add_argument('--aggregate-only', dest='aggregate', action='store_true', default=False,
+                        help='ONLY aggregate index files')
+    parser.add_argument('--build-db', dest='db_name', default=False,
+                        help='ONLY build a database for import. \rOptions are [ram, sharing]')
+    args = parser.parse_args()
+
+    if args.clean_db:
+        print('Cleaning database and ignoring other arguments')
+        clean_task = CleanDbTask()
+        clean_task.run()
+        print('Database cleaned. Exiting.')
+        exit(0)
+
+    if args.aggregate:
+        print('Aggregating index files and ignoring other arguments')
+        aggregate_task = IndexAggregatorTask()
+        aggregate_task.run()
+        print('Indexes aggregated. Exiting.')
+        exit(0)
+
+    if args.db_name:
+        db_builder = IMPORT_DB_BUILDERS[args.db_name]
+        print('Building import database: {}'.format(args.db_name))
+        db_builder()
+        print('DB built. Exiting.')
+        exit(0)
+
+    attempt_convert = args.allow_convert or args.force_convert
+    attempt_import = not args.force_convert
+
+    if args.json_file:
+        print('Running from JSON file: {}'.format(args.json_file))
+        import_log = 'json_import'
+        i=1
+        while os.path.exists(import_log + '.log'):
+            import_log = 'json_import' + str(i)
+        import_log = import_log + '.log'
+        run_json_import(args.json_file, attempt_import, attempt_convert,
+                        args.force_events, args.force_eeg, args.force_montage, import_log)
+        print('Log created: {}. Exiting'.format(import_log))
+        exit(0)
+
+    if args.montage_only:
+        inputs = prompt_for_montage_inputs()
+
+        if montage_exists(inputs['protocol'], inputs['subject'], inputs['montage']):
+            if not confirm('{subject}, montage {montage} already exists. Continue and overwrite? '.format(**inputs)):
+                print('Import aborted! Exiting.')
+                exit(0)
+        print('Importing montage')
+        success, importers = run_montage_import(inputs, args.force_montage)
+        print('Success:' if success else 'Failed:')
+        print('\n'.join([importer.describe() for importer in importers]))
+        exit(0)
+
+
+
+    inputs = prompt_for_session_inputs(**vars(args))
+
+    if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
+        if not confirm('{subject} {new_experiment} session {session} already exists. '
+                       'Continue and overwrite? '.format(**inputs)):
+            print('Import aborted! Exiting.')
+            exit(0)
+    print('Importing session')
+    success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events, args.force_eeg)
+    print('Success:' if success else "Failed:")
+    print('\n'.join([importer.describe() for importer in importers]))
+    exit(0)
 

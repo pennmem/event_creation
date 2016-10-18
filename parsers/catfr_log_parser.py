@@ -17,8 +17,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('word', 'X', 'S16'),
-            ('wordno', -999, 'int16'),
+            ('item_name', 'X', 'S16'),
+            ('item_num', -999, 'int16'),
             ('recalled', False, 'int16'),
             ('rectime', -999, 'int32'),
             ('exp_version', -1, 'S16'),
@@ -182,26 +182,26 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         return event
 
     def apply_word(self, event):
-        event.word = self._word.upper()
+        event.item_name = self._word.upper()
         self._word = self._word.upper()
         if (self._wordpool == self._word).any():
             wordno = np.where(self._wordpool == self._word)
-            event.wordno = wordno[0] + 1
+            event.item_num = wordno[0] + 1
         else:
-            event.wordno = -1
+            event.item_num = -1
         return event
 
     def event_practice_word(self, split_line):
         self._word = strip_accents(split_line[3])
         event = self.event_default(split_line)
         event.serialpos = self._serialpos
-        event.word = self._word
+        event.item_name = self._word
 
         return event
 
     def event_practice_word_off(self, split_line):
         event = self.event_default(split_line)
-        event.word = self._word
+        event.item_name = self._word
         return event
 
     def event_trial(self, split_line):
@@ -247,8 +247,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             new_event.rectime = float(recall[0])
             new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
-            new_event.word = word
-            new_event.wordno = recall[1]
+            new_event.item_name = word
+            new_event.item_num = recall[1]
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
@@ -282,6 +282,6 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        return np.logical_and(np.logical_or(events.word == word,
-                                            events.word == word),
+        return np.logical_and(np.logical_or(events.item_name == word,
+                                            events.item_name == word),
                               events.type == 'WORD')

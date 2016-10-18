@@ -108,6 +108,14 @@
           "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
           "origin_file": "{code}Log.txt",
           "destination": "logs/session_log.txt"
+        },
+        "eeg_log": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "eeg.eeglog.up",
+          "destination": "logs/eeg.eeglog"
         }
       },
       "verbal": {
