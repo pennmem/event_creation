@@ -120,7 +120,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000)
+
+                bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000) if 'artifact_log' in files else np.array([])
                 np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
         else:
