@@ -286,7 +286,7 @@ def build_session_inputs(subject, new_experiment, session, info):
     )
 
     if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
-        inputs['groups'] += ('system_2')
+        inputs['groups'] += ('system_2',)
     elif is_sys1:
         inputs['groups'] += ('system_1',)
 
