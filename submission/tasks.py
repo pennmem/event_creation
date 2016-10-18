@@ -455,7 +455,7 @@ class CompareEventsTask(PipelineTask):
         self.name = 'Comparator {}_{}'.format(experiment, session)
         self.subject = subject
         self.code = code if code else subject
-        self.original_session = original_session if not original_session is None else session
+        self.original_session = int(original_session if not original_session is None else session)
         self.montage = montage
         self.experiment = experiment
         self.session = session
@@ -518,12 +518,14 @@ class CompareEventsTask(PipelineTask):
 
         if self.protocol == 'r1':
             logger.debug('Comparing stim events...')
-            major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
-            if float(major_version.split('_')[-1]) >= 2:
+            try:
+                major_version = '.'.join(new_events[-1].exp_version.split('.')[:1])
+                if float(major_version.split('_')[-1]) >= 2:
+                    comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
+                else:
+                    comparator_inputs = SYS1_STIM_COMPARISON_INPUTS[self.experiment]
+            except ValueError:
                 comparator_inputs = SYS2_STIM_COMPARISON_INPUTS[self.experiment]
-            else:
-                comparator_inputs = SYS1_STIM_COMPARISON_INPUTS[self.experiment]
-
             stim_comparator = StimComparator(new_events, self.sess_mat_events, **comparator_inputs)
             errors = stim_comparator.compare()
 

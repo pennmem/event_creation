@@ -26,8 +26,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('recog_resp', -999, 'int16'),
             ('recog_conf', -999, 'int16'),
             ('recog_rt', -999, 'int16'),
-            ('word', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
-            ('wordno', -999, 'int16'),
+            ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
+            ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intruded', 0, 'int16'),
             ('finalrecalled', False, 'b1'),
@@ -141,8 +141,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._serialpos += 1
         event = self.event_default(split_line)
         event.type = 'WORD'
-        event.word = split_line[4]
-        event.wordno = int(split_line[5])
+        event.item_name = split_line[4]
+        event.item_num = int(split_line[5])
         task = int(split_line[6])
         event.task = task
         event.resp = int(split_line[7])
@@ -178,8 +178,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         wordno = int(split_line[5])
         event.type = 'RECOG_TARGET' if wordno in self._presented else 'RECOG_LURE'
         # Fill in information available in split_line
-        event.word = split_line[4]
-        event.wordno = wordno
+        event.item_name = split_line[4]
+        event.item_num = wordno
         return event
 
     def recog_end(self, split_line):
@@ -222,8 +222,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             #    new_event.final_rectime = new_event.rectime  # For FFR recalls, count as both rectime and final_rectime
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.msoffset = 20  # Check why offset is 20 and whether this is true for FFR, too
-            new_event.word = word
-            new_event.wordno = int(recall[1])
+            new_event.item_name = word
+            new_event.item_num = int(recall[1])
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':

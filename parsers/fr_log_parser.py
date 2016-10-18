@@ -16,8 +16,8 @@ class FRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('word', 'X', 'S64'),
-            ('wordno', -999, 'int16'),
+            ('item_name', 'X', 'S64'),
+            ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('rectime', -999, 'int16'),
             ('intrusion', -999, 'int16'),
@@ -97,7 +97,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def persist_fields_during_stim(event):
         if event['type'] == 'WORD':
-            return ('list', 'serialpos', 'word', 'wordno', 'recalled',
+            return ('list', 'serialpos', 'item_name', 'item_num', 'recalled',
                     'intrusion', 'stim_list', 'subject', 'session', 'eegfile',
                     'rectime')
         else:
@@ -176,12 +176,12 @@ class FRSessionLogParser(BaseSessionLogParser):
         return event
 
     def apply_word(self, event):
-        event.word = self._word
+        event.item_name = self._word
         if (self._wordpool == self._word).any():
             wordno = np.where(self._wordpool == self._word)
-            event.wordno = wordno[0] + 1
+            event.item_num = wordno[0] + 1
         else:
-            event.wordno = -1
+            event.item_num = -1
         return event
 
     def event_practice_word(self, split_line):
@@ -234,8 +234,8 @@ class FRSessionLogParser(BaseSessionLogParser):
             new_event.rectime = float(recall[0])
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.msoffset = 20
-            new_event.word = word
-            new_event.wordno = recall[1]
+            new_event.item_name = word
+            new_event.item_num = recall[1]
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
@@ -270,5 +270,5 @@ class FRSessionLogParser(BaseSessionLogParser):
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.word == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
+        return np.logical_and(events.item_name == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
 

@@ -51,18 +51,24 @@ class Importer(object):
             self.transferer = None
             self.initialized = False
 
+    def previous_transfer_type(self):
+        if self.pipeline:
+            return self.pipeline.previous_transfer_type()
+        else:
+            return None
+
     def describe(self):
         label = self.label
-        label += ':: ' + ', '.join([k + ': ' + str(v) for k, v in self.kwargs.items()])
+        label += ':: ' + '\n\t\t' + '\n\t\t'.join([k + ': ' + str(v) for k, v in self.kwargs.items()])
         statuses = [label]
-        initialization_status = 'Initialization status: '
+        initialization_status = '\tInitialization status: '
         if self.initialized:
             initialization_status += "success"
         else:
             initialization_status += "failure"
         statuses.append(initialization_status)
 
-        transfer_status = 'Transfer status: '
+        transfer_status = '\tTransfer status: '
         if self.should_transfer:
             if self.errors['transfer']:
                 transfer_status += 'necessary, failed'
@@ -77,7 +83,7 @@ class Importer(object):
         statuses.append(transfer_status)
 
         if self.transferred:
-            processed_status = 'Processed status: '
+            processed_status = '\tProcessed status: '
             if self.errors['processing']:
                 processed_status += 'necessary, failed'
             elif not self.processed:
@@ -95,13 +101,13 @@ class Importer(object):
     def describe_errors(self):
         errors = []
         if self.errors['init']:
-            errors.append('Initialization error: {}'.format(self.errors['init']))
+            errors.append('\tInitialization error: {}'.format(self.errors['init']))
         if self.errors['check']:
-            errors.append('Checksum calculation error: {}'.format(self.errors['check']))
+            errors.append('\tChecksum calculation error: {}'.format(self.errors['check']))
         if self.errors['transfer']:
-            errors.append('Transfer error: {}'.format(self.errors['transfer']))
+            errors.append('\tTransfer error: {}'.format(self.errors['transfer']))
         if self.errors['processing']:
-            errors.append('Processing error: {}'.format(self.errors['processing']))
+            errors.append('\tProcessing error: {}'.format(self.errors['processing']))
         return '\n'.join(errors)
 
     def set_error(self, error_type, error):
@@ -122,9 +128,9 @@ class Importer(object):
             self._should_transfer = False
         return self._should_transfer
 
-    def run(self):
+    def run(self, force=False):
         try:
-            self.pipeline.run()
+            self.pipeline.run(force)
             self.processed = True
             self.transferred = True
         except UnTransferrableException as e:

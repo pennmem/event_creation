@@ -146,7 +146,7 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # Word Number is still not filled in for practice events, but is now -1 (like intrusions) rather than -999
-    if field == 'wordno' and event1['list'] == -1 and event2['wordno'] == -999:
+    if field == 'item_num' and event1['list'] == -1 and event2['item_num'] == -999:
         return True
 
     # Serial position was not properly recorded for practice list in old events
@@ -154,11 +154,11 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # Word during word_off was not recorded for practice lists in old events
-    if field == 'word' and event1['type'] == 'PRACTICE_WORD_OFF' and event1['list'] == -1:
+    if field == 'item_name' and event1['type'] == 'PRACTICE_WORD_OFF' and event1['list'] == -1:
         return True
 
     # Word, word number, serial position, rectime, and recalled were not marked for old word_off events
-    if (field in ['word', 'wordno', 'serialpos', 'rectime', 'recalled']) and event1['type'] == 'WORD_OFF':
+    if (field in ['item_name', 'item_num', 'serialpos', 'rectime', 'recalled']) and event1['type'] == 'WORD_OFF':
         return True
 
     # msoffset was recorded as -999 in old events for REC_START
@@ -167,7 +167,7 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
 
     # In old vocalization events, wordno, intrusion, msoffset, and mstime were -999
     # In new vocalization events, wordno and intrusion are -1, and msoffset and mstime are accurate
-    if field in ('wordno', 'intrusion', 'msoffset', 'mstime') and event1['type'] == 'REC_WORD_VV':
+    if field in ('item_num', 'intrusion', 'msoffset', 'mstime') and event1['type'] == 'REC_WORD_VV':
         return True
 
     # In old Recall events, expVersion, serial position, recalled, and msoffset were -999 for REC_word events
@@ -176,7 +176,7 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # In old recall events, wordNo was not set for recalls that were XLIs but still in the wordpool
-    if field == 'wordno' and event1['type'] == 'REC_WORD' and event1['intrusion'] == -1 and event2['intrusion'] == -1:
+    if field == 'item_num' and event1['type'] == 'REC_WORD' and event1['intrusion'] == -1 and event2['intrusion'] == -1:
         return True
 
     # STIM events had an msoffset of 0, now have an msoffset of -1 to signify that offset is unknown
@@ -189,7 +189,7 @@ def event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # During old stim events, word, word number, and serial position did not propagate through stim events
-    if field in ('wordno', 'word', 'serialpos') and event1['type'] == 'STIM_ON':
+    if field in ('item_num', 'item_name', 'serialpos') and event1['type'] == 'STIM_ON':
         return True
 
     # Stimulation events that occurred before the start of the session were not recorded in old events
@@ -213,21 +213,21 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # For some reason practice words weren't recorded in early FR1 events
-    if field == 'word' and event1['type'] == 'PRACTICE_WORD' and event2['word'] == 'X':
+    if field == 'item_name' and event1['type'] == 'PRACTICE_WORD' and event2['item_name'] == 'X':
         return True
 
-    if field in ('wordno', 'intrusion') and event1['subject'] == 'R1039M' and event1['word'] == 'RELOJ':
+    if field in ('item_num', 'intrusion') and event1['subject'] == 'R1039M' and event1['item_name'] == 'RELOJ':
         return True
 
 
-    if field in ('rectime', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1052E':
+    if field in ('rectime', 'recalled', 'item_num', 'item_name', 'intrusion') and event1['subject'] == 'R1052E':
         return True
 
     if field is None and event2 and event2['subject'] == 'R1042M' and event2['type'] == 'REC_WORD' and \
-                    event2['word'] in ("'I'M", "'I", "'NOT"):
+                    event2['item_name'] in ("'I'M", "'I", "'NOT"):
         return True
 
-    if not field is None and event1['word'] in ('TOE', 'SINK', 'ROSE'):
+    if not field is None and event1['item_name'] in ('TOE', 'SINK', 'ROSE'):
         return True
 
     if field == 'subject' and event1['subject'] == 'R1055J' and event2['subject'] == 'TJ086':
@@ -248,7 +248,7 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'eegfile' and event1['subject'] == 'R1106M' and event1['eegfile'] == 'R1106M_FR1_1_14Nov15_1805':
         return True
 
-    if field in ('wordno', 'intrusion') and event1['word'] == 'RELOJ' and event1['subject'] == 'R1134T':
+    if field in ('item_num', 'intrusion') and event1['item_name'] == 'RELOJ' and event1['subject'] == 'R1134T':
         return True
 
     # R1156N Session 3 had a specific problem where it assigned an eegfile past the end of the recording
@@ -267,7 +267,7 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # Bizarre annotations in R1176M
-    if field is None and event2 and event2['type'] == 'REC_WORD' and event2['word'] == "'I" and \
+    if field is None and event2 and event2['type'] == 'REC_WORD' and event2['item_name'] == "'I" and \
             event2['subject'] == 'R1176M':
         return True
 
@@ -275,16 +275,16 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['type'] == 'REC_WORD' and event2['subject'] == 'R1177M':
         return True
 
-    if field == 'word' and event1['subject'] in ('R1060M', 'R1111M', 'R1130M', 'R1198M') and ' ' in event1['word']:
+    if field == 'item_name' and event1['subject'] in ('R1060M', 'R1111M', 'R1130M', 'R1198M') and ' ' in event1['item_name']:
         return True
 
-    if field is None and event2 and "'" in event2['word']:
+    if field is None and event2 and "'" in event2['item_name']:
         return True
 
     if field is None and event1 and event1['type'] in ('PRACTICE_DISTRACT_START', 'PRACTICE_DISTRACT_END', 'PRACTICE_ORIENT'):
         return True
 
-    if field is 'word' and ' ' in event1['word'] and event1['subject'] == 'R1214M':
+    if field is 'item_name' and ' ' in event1['item_name'] and event1['subject'] == 'R1214M':
         return True
 
     if field is None and event2 and event2['type'] in ('REC_WORD', 'REC_WORD_VV') and event2['subject'] == 'R1052E_1':
@@ -292,7 +292,7 @@ def fr1_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event1 and event1['type'] in ('REC_WORD', 'REC_WORD_VV') and event1['subject'] == 'R1052E':
         return True
 
-    if field in ('rectime', 'word', 'recalled', 'wordno', 'word', 'intrusion') and event1['subject'] == 'R1083J':
+    if field in ('rectime', 'item_name', 'recalled', 'item_num', 'intrusion') and event1['subject'] == 'R1083J':
         return True
 
     if field is None and event1 and event1['type'] in ('REC_WORD', 'REC_WORD_VV') and event1['subject'] == 'R1083J':
@@ -316,7 +316,7 @@ def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
 
     # For some reason practice words weren't recorded in early FR1 events
-    if field == 'word' and event1['type'] == 'PRACTICE_WORD' and event2['word'] == 'X':
+    if field == 'item_name' and event1['type'] == 'PRACTICE_WORD' and event2['item_name'] == 'X':
         return True
 
     # DISTRACT_START Was never marked as is_stim even through it sometimes overlapped with stim
@@ -338,17 +338,17 @@ def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
 
     # Weirdness in R1031M's annotations
     if field is None and event2 and event2['subject'] == 'R1031M' and event2['type'] == 'REC_WORD' and \
-                    event2['word'] in ("'CCCC....'", "'DID"):
+                    event2['item_name'] in ("'CCCC....'", "'DID"):
         return True
 
     # Weirdness in R1042M's annotations
     if field is None and event2 and event2['subject'] == 'R1042M' and event2['type'] == 'REC_WORD' and \
-                    event2['word'] == "'STH":
+                    event2['item_name'] == "'STH":
         return True
 
     # Weirdness in R1069M's annotations
     if field is None and event2 and event2['subject'] == 'R1069M' and event2['type'] == 'REC_WORD' and \
-                    event2['word'] == "'OH,":
+                    event2['item_name'] == "'OH,":
         return True
 
     # More weirdness in R1177M's annotations
@@ -359,7 +359,7 @@ def fr2_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['subject'] == 'R1184M' and event2['type'] == 'REC_WORD':
         return True
 
-    if field == 'word' and event1['subject'] in ('R1028M') and ' ' in event1['word']:
+    if field == 'item_name' and event1['subject'] in ('R1028M') and ' ' in event1['item_name']:
         return True
 
     return False
@@ -608,20 +608,20 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if event_comparison_exceptions(event1, event2, field, parent_field):
         return True
 
-    if field == 'word' and event1['word'].upper() == event2['word'][0].upper():
+    if field == 'item_name' and event1['item_name'].upper() == event2['item_name'][0].upper():
         return True
 
     if field == 'is_stim' and event1['is_stim'] == False and event2['is_stim'] == -999:
         return True
 
     if  field in ('recalled', 'rectime', 'intrusion', 'category', 'category_num') and event1['subject'] == 'R1016M' \
-            and event1['word'] in ('PLIERS',):
+            and event1['item_name'] in ('PLIERS',):
         return True
 
-    if field == 'category_num' and event1['subject'] == 'R1066P' and event1['word'] in ('OCEAN', 'CLOUD'):
+    if field == 'category_num' and event1['subject'] == 'R1066P' and event1['item_name'] in ('OCEAN', 'CLOUD'):
         return True
 
-    if field == 'word' and event1['type'] == 'PRACTICE_WORD' and event2['word'] == 'X':
+    if field == 'item_name' and event1['type'] == 'PRACTICE_WORD' and event2['item_name'] == 'X':
         return True
 
     if field == 'stim_list' and event1['type'] in ('COUNTDOWN_END', 'ORIENT', 'STIM_ON',
@@ -629,17 +629,17 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
                     event2['stim_list'] == -999:
         return True
 
-    if field in ('wordno', 'intrusion') and event2[field] == -1 and event1['subject'] == 'R1004D':
+    if field in ('item_num', 'intrusion') and event2[field] == -1 and event1['subject'] == 'R1004D':
         return True
 
 
-    if field in ('rectime', 'recalled') and event1['subject'] == 'R1026D' and event1['word'] == 'BLOCKS':
+    if field in ('rectime', 'recalled') and event1['subject'] == 'R1026D' and event1['item_name'] == 'BLOCKS':
         return True
-    if field is None and (event1 and event1['word'] == 'BLOCKS') or (event2 and event2['word'] == 'LOCKS'):
+    if field is None and (event1 and event1['item_name'] == 'BLOCKS') or (event2 and event2['item_name'] == 'LOCKS'):
         return True
 
-    if field in ('rectime', 'recalled', 'category', 'wordno', 'intrusion', 'categoryNum') and\
-                event1['subject'] == 'R1066P' and event1['word'] in ('CLOUD','OCEAN'):
+    if field in ('rectime', 'recalled', 'category', 'item_num', 'intrusion', 'categoryNum') and\
+                event1['subject'] == 'R1066P' and event1['item_name'] in ('CLOUD','OCEAN'):
         return True
 
     if field == 'rectime' and event1['subject'] == 'R1105E':
@@ -650,7 +650,7 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['subject'] == 'R1105E' and event2['type'] in ('REC_WORD', 'REC_WORD_VV'):
         return True
 
-    if field is None and event2 and event2['word'] == "'THERE" and event2['subject'] == 'R1176M':
+    if field is None and event2 and event2['item_name'] == "'THERE" and event2['subject'] == 'R1176M':
         return True
 
 
@@ -661,16 +661,16 @@ def catfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field is None and event2 and event2['subject'] == 'R1189M' and event2['type'] in ('REC_WORD', 'REC_WORD_VV'):
         return True
 
-    if field in ('rectime', 'recalled', 'category', 'categoryNum', 'intrusion') and event1['word'] in ('APPLE','STOVE'):
+    if field in ('rectime', 'recalled', 'category', 'categoryNum', 'intrusion') and event1['item_name'] in ('APPLE','STOVE'):
         return True
 
-    if field is None and event2 and event2['word'] in ("'I", "'NOTHING,"):
+    if field is None and event2 and event2['item_name'] in ("'I", "'NOTHING,"):
         return True
 
-    if field == 'word' and event1['subject'] == 'R1039M' and event1['type'] == 'REC_WORD' and '"' in event2['word'][0]:
+    if field == 'item_name' and event1['subject'] == 'R1039M' and event1['type'] == 'REC_WORD' and '"' in event2['item_name'][0]:
         return True
 
-    if field == 'word' and event1['type'] == 'REC_WORD' and (' ' in event1['word'] or ' ' in event2['word']):
+    if field == 'item_name' and event1['type'] == 'REC_WORD' and (' ' in event1['item_name'] or ' ' in event2['item_name']):
         return True
 
     if field == 'RT' and event1['subject'] in ('R1060M', 'R1087M', 'R1090C', 'R1091N', 'R1106M', 'R1149N',
@@ -822,6 +822,18 @@ def ps_event_exceptions(event1, event2, field, parent_field=None):
 
     return False
 
+def th_event_comparison_exceptions(event1, event2, field, parent_field=None):
+    if event_comparison_exceptions(event1, event2, field, parent_field):
+        return True
+    if field in ('isRecFromNearSide', 'isRecFromStartSide') and event1[field] == 0 and event2[field] == -999:
+        return True
+    if field == 'item_name' and len(event1['item_name']) == 0 and len(event2['item_name'][0]) == 0:
+        return True
+    if field == None and event2 and event2['type'] == 'SESS_START':
+        return True
+    return False
+
+
 def ps_sys2_event_exceptions(event1, event2, field, parent_field=None):
     if ps_event_exceptions(event1, event2, field, parent_field):
         return True
@@ -909,12 +921,15 @@ def ps_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
 
     return False
 
+def th_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
+    return False
+
 def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # New parser retroactively logs 'rectime' on the presentation events for subsequently recalled words; old did not
     if field == 'rectime' and event2['rectime'] == -999:
         return True
     # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
-    if field == 'word' and event1['word'] == '' and event2['word'] == '[]':
+    if field == 'item_name' and event1['item_name'] == '' and event2['item_name'] == '[]':
         return True
     # New parser records 'recalled', 'intruded', 'recognized', and 'rejected' as booleans, with a default of 0 instead of -999
     if field in ('recalled', 'finalrecalled', 'intruded', 'recognized', 'rejected') and event1[field] == 0 and event2[field] == -999:
@@ -928,7 +943,7 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # Original .mat files only have the first four decimal places of the font color
     if field in ('color_r', 'color_g', 'color_b') and abs(event2[field] - event1[field]) <= .001:
         return True
-    if field == 'wordno' and event1['type'] == 'REC_START' and event1['wordno'] == -999 and event2['wordno'] == 0:
+    if field == 'item_num' and event1['type'] == 'REC_START' and event1['item_num'] == -999 and event2['item_num'] == 0:
         return True
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
@@ -946,7 +961,7 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'rectime' and event2['rectime'] == -999 and event1['type'] == 'WORD':
         return True
     # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
-    if field == 'word' and event1['word'] == '' and event2['word'] == '[]':
+    if field == 'item_name' and event1['item_name'] == '' and event2['item_name'] == '[]':
         return True
     # New parser records 'recalled' and 'intruded' as booleans, with a default of 0 instead of -999
     if field in ('recalled', 'intruded') and event1[field] == 0 and event2[field] == -999:
@@ -960,7 +975,7 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
     # New parser gives REC_START events a begin_distractor value of -999 instead of 0
     if field == 'begin_distractor' and event1['begin_distractor'] == -999 and event2['begin_distractor'] == 0:
         return True
-    if field == 'wordno' and event1['wordno'] == -999 and event2['wordno'] == 0:
+    if field == 'item_num' and event1['item_num'] == -999 and event2['item_num'] == 0:
         return True
     if field == 'serialpos' and event1['serialpos'] == -999 and event2['serialpos'] == 0:
         return True
@@ -1069,10 +1084,25 @@ PS_SYS2_STIM_COMPARISON = dict(
 )
 
 
+TH_STIM_COMPARISON = dict(
+    fields_to_compare = {
+        'stim_params.anode_number': 'stimParams.elec1',
+        'stim_params.cathode_number': 'stimParams.elec2',
+        'stim_params.amplitude': 'stimParams.amplitude',
+        'stim_params.burst_freq': 'stimParams.burstFreq',
+        'stim_params.n_bursts': 'stimParams.nBursts',
+        'stim_params.pulse_freq': 'stimParams.pulseFreq',
+        'stim_params.n_pulses': 'stimParams.nPulses',
+        'stim_params.pulse_width': 'stimParams.pulseWidth'
+    },
+    exceptions=th_stim_comparison_exceptions,
+)
+
+
 all_ignore = ('exp_version', 'expVersion', 'montage', 'stim_params', 'stimParams', 'session', 'experiment', 'protocol')
 
 FR1_SYS2_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno', 'stim_list': 'stimList', 'is_stim': 'isStim'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno', 'stim_list': 'stimList', 'is_stim': 'isStim'},
     field_ignore=all_ignore,
     exceptions = fr1_comparison_exceptions,
     type_ignore=('INSTRUCT_START','INSTRUCT_END',
@@ -1080,7 +1110,7 @@ FR1_SYS2_COMPARATOR_INPUTS = dict(
                  'SESSION_SKIPPED', 'INSTRUCT_VIDEO', 'STIM_OFF', 'B', 'E')
 )
 FR3_SYS2_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno', 'stim_list': 'stimList', 'is_stim': 'isStim'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno', 'stim_list': 'stimList', 'is_stim': 'isStim'},
     field_ignore=all_ignore,
     exceptions = fr3_comparison_exceptions,
     type_ignore=('INSTRUCT_START','INSTRUCT_END',
@@ -1114,7 +1144,7 @@ PS_SYS2_COMPARATOR_INPUTS = dict(
 
 
 FR1_SYS1_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno',  'stim_list': 'stimList', 'is_stim': 'isStim'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno',  'stim_list': 'stimList', 'is_stim': 'isStim'},
     field_ignore= all_ignore + (
                   'stimAnode', 'stimAnodeTag',
                   'stimCathode', 'stimCathodeTag',
@@ -1127,7 +1157,7 @@ FR1_SYS1_COMPARATOR_INPUTS = dict(
 )
 
 FR2_SYS1_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno','stim_list': 'stimList', 'is_stim': 'isStim'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno','stim_list': 'stimList', 'is_stim': 'isStim'},
     field_ignore=all_ignore + (
                   'stimAnode', 'stimAnodeTag',
                   'stimCathode', 'stimCathodeTag',
@@ -1189,7 +1219,7 @@ PAL2_COMPARATOR_INPUTS = dict(
 )
 
 CATFR_SYS1_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno', 'stim_list': 'stimList',
+    field_switch={'item_name': 'item', 'item_num': 'itemno', 'stim_list': 'stimList',
                   'category_num': 'categoryNum', 'is_stim': 'isStim'},
     field_ignore=all_ignore + ('stimAnode', 'stimAnodeTag',
                   'stimCathode', 'stimCathodeTag', 'stimAmp'),
@@ -1202,12 +1232,12 @@ CATFR_SYS1_COMPARATOR_INPUTS = dict(
 TH_COMPARATOR_INPUTS = dict(
     field_switch = {'is_stim': 'isStim', 'item_name': 'item'},
     field_ignore = all_ignore + ('stim_list', 'normErr', 'pathInfo'),
-    exceptions = event_comparison_exceptions,
+    exceptions = th_event_comparison_exceptions,
     type_ignore = ()
 )
 
 LTPFR_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno'},
     field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
                                'badEvent', 'badEventChannel'),
     exceptions=ltpfr_comparison_exceptions,
@@ -1215,7 +1245,7 @@ LTPFR_COMPARATOR_INPUTS = dict(
 )
 
 LTPFR2_COMPARATOR_INPUTS = dict(
-    field_switch={'word': 'item', 'wordno': 'itemno'},
+    field_switch={'item_name': 'item', 'item_num': 'itemno'},
     field_ignore=all_ignore + ('artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
                                'badEvent', 'badEventChannel'),
     exceptions=ltpfr2_comparison_exceptions,
@@ -1257,7 +1287,9 @@ SYS1_STIM_COMPARISON_INPUTS = dict(
     PAL1=PAL_STIM_COMPARISON,
     PAL2=PAL_STIM_COMPARISON,
     PAL3=PAL3_STIM_COMPARISON,
-    PS=PS_SYS1_STIM_COMPARISON
+    PS=PS_SYS1_STIM_COMPARISON,
+    TH1=TH_STIM_COMPARISON,
+    TH3=TH_STIM_COMPARISON
 )
 
 SYS2_STIM_COMPARISON_INPUTS = dict(
@@ -1269,5 +1301,7 @@ SYS2_STIM_COMPARISON_INPUTS = dict(
     PAL1=PAL_STIM_COMPARISON,
     PAL2=PAL_STIM_COMPARISON,
     PAL3=PAL3_STIM_COMPARISON,
-    PS=PS_SYS2_STIM_COMPARISON
+    PS=PS_SYS2_STIM_COMPARISON,
+    TH1=TH_STIM_COMPARISON,
+    TH3=TH_STIM_COMPARISON
 )

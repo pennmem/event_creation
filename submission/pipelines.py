@@ -21,6 +21,7 @@ import json
 import shutil
 import os
 import re
+import traceback
 
 GROUPS = {
     'FR': ('verbal', 'stim'),
@@ -36,7 +37,7 @@ SOURCE_IMPORT_TYPE = 'IMPORT'
 def determine_groups(protocol, subject, experiment, session, group_dict, *args, **kwargs):
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
-    groups = tuple()
+    groups = (protocol,)
     if exp_type in GROUPS:
         groups += GROUPS[exp_type]
     groups += (exp_type, experiment)
@@ -46,7 +47,23 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
 
     if protocol == 'r1':
         source_file_info = Transferer.load_groups(group_dict, groups)
-        if 'session_log' in source_file_info:
+        if experiment.startswith('TH'):
+            if 'eeg_log' in source_file_info:
+                eeg_log_info = source_file_info['eeg_log']
+                eeg_log_file = Transferer.get_origin_files(eeg_log_info,
+                                                           protocol=protocol,
+                                                           subject=subject,
+                                                           code=subject,
+                                                           experiment=experiment,
+                                                           original_session=session,
+                                                           data_root=DATA_ROOT)[0]
+                if len(open(eeg_log_file).read().strip()) == 0:
+                    groups += ('system_2',)
+                else:
+                    groups += ('system_1',)
+            else:
+                groups += ('system_2',)
+        elif 'session_log' in source_file_info:
             session_log_info = source_file_info['session_log']
             session_log_file = Transferer.get_origin_files(session_log_info,
                                                            protocol=protocol,
@@ -163,9 +180,9 @@ class TransferPipeline(object):
             os.symlink(self.processed_label, self.current_dir)
 
         except Exception as e:
-            logger.error('Task {} failed with message {}, \nRolling back transfer'.format(pipeline_task.name if pipeline_task else
+            logger.error('Task {} failed with message {}, Rolling back transfer'.format(pipeline_task.name if pipeline_task else
                                                                    'initialization', e))
-
+            traceback.print_exc()
 
             self.transferer.remove_transferred_files()
             logger.debug('Transfer pipeline errored: {}'.format(e.message))
