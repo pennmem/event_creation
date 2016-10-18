@@ -356,7 +356,10 @@ class BaseSessionLogParser(object):
             return events
 
     # Used to find relevant lines in .ann files
-    MATCHING_ANN_REGEX = r'\d+\.\d+\s+-?\d+\s+(([A-Z]+)|(<>))'
+    # Note from Jesse Pazdera: I added '[???]' to the accepted strings that can appear in the third column in order to
+    # resolve a conflict that arose in a strange case where an annotation file had this listed as the word, and the
+    # MATLAB-generated events structure counted the [???] as an XLI word recall (ltpFR->LTP123->session_18->ffr.ann)
+    MATCHING_ANN_REGEX = r'\d+(\.\d+)?\s+-?\d+\s+(([A-Z]+)|(<>)|(\[\?\?\?\]))'
 
     def _parse_ann_file(self, ann_id):
         """

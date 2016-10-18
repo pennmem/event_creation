@@ -943,8 +943,11 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # Original .mat files only have the first four decimal places of the font color
     if field in ('color_r', 'color_g', 'color_b') and abs(event2[field] - event1[field]) <= .001:
         return True
+<<<<<<< HEAD
     if field == 'item_num' and event1['type'] == 'REC_START' and event1['item_num'] == -999 and event2['item_num'] == 0:
         return True
+=======
+>>>>>>> 97795ce5562ac74709890bd77877ce4031e95408
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
     if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
@@ -952,6 +955,9 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
     if field == 'eegfile' and event1[field] != '' and event2[field] != '':
+        return True
+    # .mat files are having NaNs loaded as random integers for wordno and trial fields
+    if field in ('wordno', 'trial') and event1[field] == -999:
         return True
     return False
 
@@ -972,14 +978,16 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
     # New parser considers beginning distractors to be part of the trial they precede, rather than the previous trial
     if field == 'trial' and (event1['trial'] == event2['trial'] + 1 or (event1['trial'] == 1 and event2['trial'] == -999)) and event1['type'] == 'DISTRACTOR':
         return True
+<<<<<<< HEAD
     # New parser gives REC_START events a begin_distractor value of -999 instead of 0
     if field == 'begin_distractor' and event1['begin_distractor'] == -999 and event2['begin_distractor'] == 0:
         return True
     if field == 'item_num' and event1['item_num'] == -999 and event2['item_num'] == 0:
+=======
+    if field == 'wordno' and event1['wordno'] == -999 and event2['wordno'] == 0:
+>>>>>>> 97795ce5562ac74709890bd77877ce4031e95408
         return True
     if field == 'serialpos' and event1['serialpos'] == -999 and event2['serialpos'] == 0:
-        return True
-    if field == 'final_distractor' and event1[field] == -999 and event2[field] == 0:
         return True
     if field == 'final_distractor' and event1[field] == -999 and event1['type'] == 'REC_START':
         return True
