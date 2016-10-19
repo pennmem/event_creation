@@ -412,8 +412,12 @@ def find_sync_file(subject, experiment, session):
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
-    else:
-        raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
+    # Now look for the exp_# anywhere in the basename
+    sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}*.sync.txt'.format(exp=experiment, sess=session))
+    sync_files = glob.glob(sync_pattern)
+    if len(sync_files) == 1:
+        return noreref_dir, sync_files[0]
+    raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
 
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),

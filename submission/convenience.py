@@ -617,6 +617,6 @@ if __name__ == '__main__':
     print('Importing session')
     success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events, args.force_eeg)
     print('Success:' if success else "Failed:")
-    print('\n'.join([importer.describe() for importer in importers]))
+    print(importers.describe())
     exit(0)
 

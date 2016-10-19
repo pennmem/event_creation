@@ -81,7 +81,7 @@ class System1Aligner:
         :return: list of the mstimes at which the sync pulses were sent.
         """
         split_lines = [line.split() for line in open(self.task_pulse_file).readlines()]
-        times = [float(line[0]) for line in split_lines if line[2]=='CHANNEL_0_UP']
+        times = [float(line[0]) for line in split_lines if line[2] in ('CHANNEL_0_UP', 'ON')]
         return times
 
     def get_eeg_pulses(self):
