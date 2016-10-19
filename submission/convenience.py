@@ -338,9 +338,8 @@ def session_inputs_from_json(filename):
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
-
-IMPORTER_SORT_KEY = lambda imp: [imp.__dict__[o] for o in
-                                 ('subject', 'initialized', 'errored', '_should_transfer', 'transferred', 'processed')]
+def importer_sort_key(importer):
+    return (importer.subject, importer.kwargs['session'] if 'session' in importer.kwargs else -1, importer.label)
 
 
 def import_sessions_from_json(filename, do_import, do_convert, force_events=False, force_eeg=False):
@@ -389,21 +388,21 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
     montage_successes, montage_failures, interrupted = import_montages_from_json(filename, force_montage)
     if not interrupted:
         successes, failures, _ = import_sessions_from_json(filename, do_import, do_convert, force_events, force_eeg)
-        sorted_failures = sorted(failures + montage_failures, key=IMPORTER_SORT_KEY)
-        sorted_successes = sorted(successes + montage_successes, key=IMPORTER_SORT_KEY)
+        sorted_failures = sorted(failures + montage_failures, key=importer_sort_key)
+        sorted_successes = sorted(successes + montage_successes, key=importer_sort_key)
     else:
-        sorted_failures = sorted(montage_failures, key=IMPORTER_SORT_KEY)
-        sorted_successes = sorted(montage_successes, key=IMPORTER_SORT_KEY)
+        sorted_failures = sorted(montage_failures, key=importer_sort_key)
+        sorted_successes = sorted(montage_successes, key=importer_sort_key)
 
     with files.open_with_perms(log_file, 'w') as output:
         output.write("Successful imports: {}\n".format(len(sorted_successes)))
         output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
         output.write("###### FAILURES #####\n")
         for failure in sorted_failures:
-            output.write('{}\n'.format(failure.describe()))
+            output.write('{}\n\n'.format(failure.describe()))
         output.write("\n###### SUCCESSES #####\n")
         for success in sorted_successes:
-            output.write('{}\n'.format(success.describe()))
+            output.write('{}\n\n'.format(success.describe()))
 
     return sorted_failures
 
