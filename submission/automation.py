@@ -1,6 +1,7 @@
 import json
 import os
 import copy
+from collections import defaultdict
 from transferer import DB_ROOT, UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
                       build_convert_eeg_pipeline, build_import_montage_pipeline
@@ -12,10 +13,35 @@ class ImporterCollection(object):
 
     def __init__(self, importers):
         self.importers = importers
+        self.label = ','.join([importer.label for importer in self.importers])
+        self.kwargs = defaultdict(set)
+        for importer in importers:
+            for kwarg_key, kwarg_value in importer.kwargs.items():
+                self.kwargs[kwarg_key].add(kwarg_value)
 
     def describe(self):
-        labels = [importer.label for importer in self.importers]
-        
+        label = self.label
+        label += ':: ' + '\n\t\t'
+        label += '\n\t\t'.join([k + ': ' + ', '.join(v) for k, v in self.kwargs.items()])
+        statuses = [label]
+
+        initialization_statuses = '\tInitialization statuses: '
+        initialization_statuses += ', '.join([i.describe_initialization() for  i in self.importers])
+        statuses.append(initialization_statuses)
+
+        transfer_statuses = '\tTransfer statuses: '
+        transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
+        statuses.append(transfer_statuses)
+
+        error_status = '\tErrors:\n'
+        for importer in self.importers:
+            if importer.errored:
+                error_status += importer.label + ':' + importer.describe_errors()
+
+        statuses.append(error_status)
+
+        return '\n'.join(statuses)
+
 
 class Importer(object):
 
@@ -69,39 +95,52 @@ class Importer(object):
         else:
             return None
 
+    def describe_initialization(self):
+        if self.initialized:
+            status = "success"
+        else:
+            status = "failure"
+        return status
+
+    def describe_transfer(self):
+        if self.should_transfer:
+            if self.errors['transfer']:
+                status = 'necessary + failed'
+            elif not self.transferred:
+                status = 'necessary + incomplete'
+            else:
+                status = 'complete'
+        elif self.errors['check']:
+            status = 'failed to compute checksum'
+        else:
+            status = 'not necessary'
+        return status
+
+    def describe_processing(self):
+        if self.transferred:
+            if self.errors['processing']:
+                processed_status = 'necessary + failed'
+            elif not self.processed:
+                processed_status = 'necessary + incomplete'
+            else:
+                processed_status = 'complete'
+        else:
+            processed_status = 'not attempted'
+        return processed_status
+
     def describe(self):
         label = self.label
         label += ':: ' + '\n\t\t' + '\n\t\t'.join([k + ': ' + str(v) for k, v in self.kwargs.items()])
         statuses = [label]
-        initialization_status = '\tInitialization status: '
-        if self.initialized:
-            initialization_status += "success"
-        else:
-            initialization_status += "failure"
+        initialization_status = '\tInitialization status: ' + self.describe_initialization()
+
         statuses.append(initialization_status)
 
-        transfer_status = '\tTransfer status: '
-        if self.should_transfer:
-            if self.errors['transfer']:
-                transfer_status += 'necessary, failed'
-            elif not self.transferred:
-                transfer_status += 'necessary, incomplete'
-            else:
-                transfer_status += 'complete'
-        elif self.errors['check']:
-            transfer_status += 'failed to compute checksum'
-        else:
-            transfer_status += 'not necessary'
+        transfer_status = '\tTransfer status: ' + self.describe_transfer()
         statuses.append(transfer_status)
 
         if self.transferred:
-            processed_status = '\tProcessed status: '
-            if self.errors['processing']:
-                processed_status += 'necessary, failed'
-            elif not self.processed:
-                processed_status += 'necessary, incomplete'
-            else:
-                processed_status += 'complete'
+            processed_status = '\tProcessed status: ' + self.describe_processing()
             statuses.append(processed_status)
 
         if self.errored:

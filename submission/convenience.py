@@ -16,7 +16,7 @@ from pipelines import build_events_pipeline, build_split_pipeline,\
 from tasks import CleanDbTask, IndexAggregatorTask
 from transferer import UnTransferrableException
 from loggers import logger
-from automation import Importer
+from automation import Importer, ImporterCollection
 from config import DATA_ROOT, RHINO_ROOT, DB_ROOT
 
 try:
@@ -241,10 +241,10 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     if ephys_success:
         events_success, attempted_events = attempt_importers(events_importers, force_events)
         logger.unset_subject()
-        return events_success and ephys_success, attempted_ephys + attempted_events
+        return events_success and ephys_success, ImporterCollection(attempted_ephys + attempted_events)
     else:
         logger.unset_subject()
-        return ephys_success, attempted_ephys
+        return ephys_success, ImporterCollection(attempted_ephys)
 
 
 def run_montage_import(kwargs, force=False):
@@ -252,7 +252,7 @@ def run_montage_import(kwargs, force=False):
     logger.set_label('Montage Importer')
 
     importer = Importer(Importer.MONTAGE, **kwargs)
-    return attempt_importers([importer], force)
+    return ImporterCollection([attempt_importers([importer], force)])
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -353,9 +353,9 @@ def import_sessions_from_json(filename, do_import, do_convert, force_events=Fals
         for inputs in session_inputs_from_json(filename):
             success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
             if success:
-                successes.extend(importers)
+                successes.append(importers)
             else:
-                failures.extend(importers)
+                failures.append(importers)
     except Exception as e:
         logger.error("Catastrophic failure importing montages: message {}".format(e))
         traceback.print_exc()
@@ -374,9 +374,9 @@ def import_montages_from_json(filename, force=False):
         for inputs in montage_inputs_from_json(filename):
             success, importers = run_montage_import(inputs, force)
             if success:
-                successes.extend(importers)
+                successes.append(importers)
             else:
-                failures.extend(importers)
+                failures.append(importers)
     except Exception as e:
         logger.error("Catastrophic failure importing montages: message {}".format(e))
         traceback.print_exc()
