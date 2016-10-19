@@ -358,8 +358,13 @@ class System2TaskAligner(object):
         :param nsx_file: path to nsx file (extension used to determine sample rate)
         :return: Array of samples
         """
-        ext = os.path.splitext(nsx_file)[1]
-        return np.array(np_tics) / (float(NSx_reader.TIC_RATE) / float(NSx_reader.SAMPLE_RATES[ext]))
+        if nsx_file == 'N/A':
+            logger.warn("Guessing at sample rate of 1000")
+            sample_rate = 1000
+        else:
+            ext = os.path.splitext(nsx_file)[1]
+            sample_rate = float(NSx_reader.SAMPLE_RATES[ext])
+        return np.array(np_tics) / (float(NSx_reader.TIC_RATE) / sample_rate)
 
     def get_task_host_coefficient(self, host_log_file, plot_save_dir=None):
         """
