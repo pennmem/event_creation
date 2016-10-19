@@ -36,7 +36,7 @@ class ImporterCollection(object):
         error_status = '\tErrors:\n'
         for importer in self.importers:
             if importer.errored:
-                error_status += importer.label + ':' + importer.describe_errors()
+                error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
 
         statuses.append(error_status)
 
