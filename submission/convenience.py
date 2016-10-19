@@ -252,7 +252,8 @@ def run_montage_import(kwargs, force=False):
     logger.set_label('Montage Importer')
 
     importer = Importer(Importer.MONTAGE, **kwargs)
-    return ImporterCollection([attempt_importers([importer], force)])
+    success, importers = attempt_importers([importer], force)
+    return success, ImporterCollection(importers)
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
