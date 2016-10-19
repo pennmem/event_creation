@@ -339,7 +339,10 @@ def session_inputs_from_json(filename):
                 yield inputs
 
 def importer_sort_key(importer):
-    return (importer.subject, importer.kwargs['session'] if 'session' in importer.kwargs else -1, importer.label)
+    return (importer.subject,
+            importer.kwargs['experiment'] if 'experiment' in importer.kwargs else '',
+            importer.kwargs['session'] if 'session' in importer.kwargs else -1,
+            importer.label)
 
 
 def import_sessions_from_json(filename, do_import, do_convert, force_events=False, force_eeg=False):

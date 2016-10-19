@@ -8,6 +8,15 @@ from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
 import traceback
 
+class ImporterCollection(object):
+
+    def __init__(self, importers):
+        self.importers = importers
+
+    def describe(self):
+        labels = [importer.label for importer in self.importers]
+        
+
 class Importer(object):
 
     MONTAGE = 1
