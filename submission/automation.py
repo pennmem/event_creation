@@ -22,7 +22,7 @@ class ImporterCollection(object):
     def describe(self):
         label = self.label
         label += ':: ' + '\n\t\t'
-        label += '\n\t\t'.join([k + ': ' + ', '.join(v) for k, v in self.kwargs.items()])
+        label += '\n\t\t'.join([k + ': ' + ', '.join([str(v_o) for v_o in v]) for k, v in self.kwargs.items()])
         statuses = [label]
 
         initialization_statuses = '\tInitialization statuses: '

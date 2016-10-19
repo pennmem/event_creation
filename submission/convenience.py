@@ -194,7 +194,7 @@ def attempt_importers(importers, force):
         logger.warn("{} failed".format(importer.label))
     if not success:
         descriptions = [importer.describe_errors() for importer in importers]
-        logger.error("All importers failed. Errors: {}".format(', '.join(descriptions)))
+        logger.error("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
     return success, importers[:i+1]
 
 
