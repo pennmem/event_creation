@@ -2,6 +2,7 @@ from __future__ import print_function
 import logging
 import os
 import logging.handlers
+import files
 from submission.config import DB_ROOT
 
 # TODO: REPLACE WITH PYTHON LOGGING MODULE
@@ -47,7 +48,7 @@ class Logger(object):
 
         # Creates a new log file every 30 days
         if not os.path.exists(os.path.join(DB_ROOT, 'protocols')):
-            os.makedirs(os.path.join(DB_ROOT, 'protocols'))
+            files.makedirs(os.path.join(DB_ROOT, 'protocols'))
 
         self.master_file_handler = logging.handlers.TimedRotatingFileHandler(
             os.path.join(DB_ROOT, 'protocols', 'log.txt'), 'D', 30)
@@ -68,7 +69,7 @@ class Logger(object):
                                 'subjects', self.subject,
                                 'log.txt')
         if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename))
+            files.makedirs(os.path.dirname(filename))
         self.subject_handler = logging.FileHandler(filename)
         self.subject_handler.setLevel(logging.DEBUG)
         self.subject_handler.setFormatter(self.formatter)

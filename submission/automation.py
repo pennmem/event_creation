@@ -6,6 +6,7 @@ from pipelines import build_events_pipeline, build_split_pipeline, build_convert
                       build_convert_eeg_pipeline, build_import_montage_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
+import traceback
 
 class Importer(object):
 
@@ -42,6 +43,7 @@ class Importer(object):
         self.errored = False
         self.processed = False
         self.transferred = False
+        self.traceback = None
         try:
             self.pipeline = self.PIPELINE_BUILDERS[type](*args, **kwargs)
             self.transferer = self.pipeline.transferer
@@ -109,11 +111,14 @@ class Importer(object):
             errors.append('\tTransfer error: {}'.format(self.errors['transfer']))
         if self.errors['processing']:
             errors.append('\tProcessing error: {}'.format(self.errors['processing']))
+        if self.traceback:
+            errors.append('\tTraceback:\n{}'.format(self.traceback))
         return '\n'.join(errors)
 
     def set_error(self, error_type, error):
         self.errors[error_type] = error
         self.errored = True
+        self.traceback = traceback.format_exc()
 
     @property
     def should_transfer(self):

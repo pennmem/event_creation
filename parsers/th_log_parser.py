@@ -3,6 +3,7 @@ from system2_log_parser import System2LogParser
 from viewers.view_recarray import strip_accents
 import numpy as np
 import os
+import files
 
 
 class THSessionLogParser(BaseSessionLogParser):
@@ -491,6 +492,7 @@ class THSessionLogParser(BaseSessionLogParser):
         # close files
         in_file.close()
         out_file.close()
+        os.chmod(out_file_path, 0644)
         playerPathsFile.close()
 
         # save out total score

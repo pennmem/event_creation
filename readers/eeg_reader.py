@@ -13,6 +13,7 @@ import struct
 import datetime
 import sys
 import bz2
+import files
 from loggers import logger
 from scipy.signal import butter, filtfilt
 from shutil import copy
@@ -64,13 +65,13 @@ class EEG_reader:
             'data_format': self.DATA_FORMAT
         }
 
-        with open(os.path.join(location, 'sources.json'), 'w') as source_file:
+        with files.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
             json.dump(sources, source_file, indent=2, sort_keys=True)
 
     def split_data(self, location, basename):
         noreref_location = os.path.join(location, 'noreref')
         if not os.path.exists(noreref_location):
-            os.makedirs(noreref_location)
+            files.makedirs(noreref_location)
         logger.info("Splitting data into {}/{}".format(location, basename))
         self._split_data(noreref_location, basename)
         self.write_sources(location, basename)
@@ -479,7 +480,7 @@ class NK_reader(EEG_reader):
 
     def _split_data(self, location, basename):
         if not os.path.exists(location):
-            os.makedirs(location)
+            files.makedirs(location)
         if not self.jacksheet:
             raise UnSplittableEEGFileException('Jacksheet not specified')
         data = self.get_data(self.jacksheet, self.channel_map)
@@ -544,7 +545,7 @@ class Multi_NSx_reader(EEG_reader):
                  }
             })
 
-        with open(os.path.join(location, 'sources.json'), 'w') as source_file:
+        with files.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
             json.dump(sources, source_file, indent=2, sort_keys=True)
 
     def _split_data(self, location, basename):
@@ -896,7 +897,7 @@ class EGI_reader(EEG_reader):
 
         # Create directory if needed
         if not os.path.exists(location):
-            os.makedirs(location)
+            files.makedirs(location)
 
         logger.debug('Spltting into %s/%s: ' % (location, basename))
 
@@ -924,10 +925,10 @@ class EGI_reader(EEG_reader):
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.amp_gain)
-        with open(paramfile, 'w') as f:
+        with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
-        with open(paramfile, 'w') as f:
+        with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         logger.debug('Done.')
 
@@ -942,7 +943,7 @@ class EGI_reader(EEG_reader):
         """
         # Create directory if needed
         if not os.path.exists(location):
-            os.makedirs(location)
+            files.makedirs(location)
 
         logger.debug('Rerefencing data...')
 
@@ -1203,7 +1204,7 @@ class BIO_reader(EEG_reader):
 
         # Create directory if needed
         if not os.path.exists(location):
-            os.makedirs(location)
+            files.makedirs(location)
 
         logger.debug('Spltting into %s/%s: ' % (location, basename))
 
@@ -1220,10 +1221,10 @@ class BIO_reader(EEG_reader):
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.gain)
-        with open(paramfile, 'w') as f:
+        with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
-        with open(paramfile, 'w') as f:
+        with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         logger.debug('Done.')
 
@@ -1238,7 +1239,7 @@ class BIO_reader(EEG_reader):
         """
         # Create directory if needed
         if not os.path.exists(location):
-            os.makedirs(location)
+            files.makedirs(location)
 
         logger.debug('Rerefencing data...')
 

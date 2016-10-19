@@ -7,6 +7,7 @@ import sys
 import argparse
 import collections
 import traceback
+import files
 from collections import defaultdict
 
 from pipelines import build_events_pipeline, build_split_pipeline,\
@@ -134,7 +135,8 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                 session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][experiment][session] = session_dict
-    json.dump(subjects, open(out_file, 'w'), indent=2, sort_keys=True)
+    with files.open_with_perms(out_file, 'w') as f:
+        json.dump(subjects, f, indent=2, sort_keys=True)
 
 
 def build_sharing_import_database():
@@ -393,7 +395,7 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
         sorted_failures = sorted(montage_failures, key=IMPORTER_SORT_KEY)
         sorted_successes = sorted(montage_successes, key=IMPORTER_SORT_KEY)
 
-    with open(log_file, 'w') as output:
+    with files.open_with_perms(log_file, 'w') as output:
         output.write("Successful imports: {}\n".format(len(sorted_successes)))
         output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
         output.write("###### FAILURES #####\n")
@@ -542,6 +544,7 @@ if __name__ == '__main__':
                         help='ONLY aggregate index files')
     parser.add_argument('--build-db', dest='db_name', default=False,
                         help='ONLY build a database for import. \rOptions are [ram, sharing]')
+
     args = parser.parse_args()
 
     if args.clean_db:

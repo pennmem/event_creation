@@ -12,10 +12,11 @@ from parsers.base_log_parser import get_version_num
 from parsers.mat_converter import MathMatConverter
 
 from parsers.math_parser import MathLogParser
-from parsers.ltpfr_log_parser_new import LTPFRSessionLogParser
+#from parsers.ltpfr_log_parser_new import LTPFRSessionLogParser
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 
 from loggers import logger
+import files
 
 import json
 import shutil
@@ -93,7 +94,7 @@ class TransferPipeline(object):
         self.destination = os.path.join(self.destination_root, self.processed_label)
         self.current_dir = os.path.join(self.destination_root, self.CURRENT_PROCESSED_DIRNAME)
         if not os.path.exists(self.destination):
-            os.makedirs(self.destination)
+            files.makedirs(self.destination)
         for task in self.pipeline_tasks:
             task.set_pipeline(self)
         self.log_filenames = [
@@ -131,12 +132,12 @@ class TransferPipeline(object):
         if len(self.output_info) > 0:
             index['info'] = self.output_info
         if len(index) > 0:
-            json.dump(index, open(os.path.join(self.current_dir, self.INDEX_FILE), 'w'),
-                      indent=2, sort_keys=True)
+            with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
+                json.dump(index, f, indent=2, sort_keys=True)
 
     def run(self, force=False):
         if not os.path.exists(self.destination):
-            os.makedirs(self.destination)
+            files.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
 
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))

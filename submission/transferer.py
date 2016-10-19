@@ -7,7 +7,7 @@ import hashlib
 
 
 from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
-
+import files
 from loggers import logger
 
 
@@ -103,11 +103,11 @@ class Transferer(object):
 
     def write_index_file(self):
         index = self.build_transferred_index()
-        with open(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
+        with files.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
 
     def write_transfer_type(self):
-        with open(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
+        with files.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
             type_file.write(self.transfer_type)
 
     def previous_transfer_type(self):
@@ -253,7 +253,7 @@ class Transferer(object):
 
     def _transfer_files(self):
         if not os.path.exists(self.destination_root):
-            os.makedirs(self.destination_root)
+            files.makedirs(self.destination_root)
 
         logger.info('Transferring into {}'.format(self.destination_root))
 
@@ -272,7 +272,7 @@ class Transferer(object):
 
             destination_path = self.get_destination_path(info)
             if not os.path.exists(destination_path):
-                os.makedirs(destination_path)
+                files.makedirs(destination_path)
 
             this_files_transferred = []
 
@@ -287,7 +287,7 @@ class Transferer(object):
 
                 if info['type'] == 'file':
                     if not os.path.exists(os.path.dirname(destination_file)):
-                        os.makedirs(os.path.dirname(destination_file))
+                        files.makedirs(os.path.dirname(destination_file))
                     shutil.copyfile(origin_file, destination_file)
                     logger.debug('Copied file {} to {}'.format(origin_file, destination_file))
                 elif info['type'] == 'directory':

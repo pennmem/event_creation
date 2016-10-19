@@ -16,6 +16,8 @@ from ptsa.data.readers.BaseEventReader import BaseEventReader
 from submission.config import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
 from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
+import files
+from files import open_with_perms
 
 class BaseMatConverter(object):
     """
@@ -256,7 +258,7 @@ class MatlabEEGExtractor(object):
         info = {}
         noreref = os.path.join(destination, 'noreref')
         if not os.path.exists(noreref):
-            os.makedirs(noreref)
+            files.makedirs(noreref)
 
         # For each unique eeg location:
         for eeg_location in eeg_locations:
@@ -275,6 +277,7 @@ class MatlabEEGExtractor(object):
                         data = data.astype(params['data_format'])
                         out_file = os.path.join(noreref, os.path.basename(eeg_filename))
                         data.tofile(out_file)
+                        os.chmod(out_file, 0446)
                         n_samples = len(data)
 
             # Fill out the new parameters
@@ -293,7 +296,7 @@ class MatlabEEGExtractor(object):
             }
 
         # Output the parameters file
-        with open(os.path.join(destination, 'sources.json'), 'w') as source_file:
+        with open_with_perms(os.path.join(destination, 'sources.json'), 'w') as source_file:
             json.dump(info, source_file, indent=2, sort_keys=True)
 
 
@@ -1221,7 +1224,8 @@ def test_fr_mat_converter():
         py_events = converter.convert()
 
         from viewers.view_recarray import to_json, from_json
-        to_json(py_events, open('test_{}_events.json'.format(subject), 'w'))
+        with open_with_perms('test_{}_events.json'.format(subject), 'w') as f:
+            to_json(py_events, f)
 
         new_events = from_json('test_{}_events.json'.format(subject))
         DB_ROOT = old_db_root

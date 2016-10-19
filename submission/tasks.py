@@ -6,6 +6,7 @@ import datetime
 import traceback
 import numpy as np
 
+import files
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
 from alignment.system2 import System2Aligner
@@ -46,7 +47,7 @@ class PipelineTask(object):
         self.pipeline = pipeline
 
     def create_file(self, filename, contents, label, index_file=True):
-        with open(os.path.join(self.pipeline.destination, filename), 'w') as f:
+        with files.open_with_perms(os.path.join(self.pipeline.destination, filename), 'w') as f:
             f.write(contents)
         if index_file:
             self.pipeline.register_output(filename, label)
@@ -442,8 +443,8 @@ class IndexAggregatorTask(PipelineTask):
     def run(self, *_):
         for protocol in self.PROTOCOLS:
             index = self.build_index(protocol)
-            json.dump(index, open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w'),
-                      sort_keys=True, indent=2)
+            with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w') as f:
+                json.dump(index, f, sort_keys=True, indent=2)
 
 
 

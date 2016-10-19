@@ -3,6 +3,7 @@ from system2_log_parser import System2LogParser
 import numpy as np
 import re
 import json
+from files import open_with_perms
 
 
 def PSLogParser(protocol, subject, montage, experiment, session,  files):
