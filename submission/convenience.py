@@ -104,7 +104,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
                 for this_experiment in experiments:
                     n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
                     yield subject_no_montage, subject, n_sessions, session, this_experiment, version
-                    seen_experiments[subject_no_montage].add(this_experiment)
+                    seen_experiments[subject_no_montage].append(this_experiment)
         except AttributeError:
             traceback.print_exc()
             logger.error('Could not get session from {}'.format(events_file))
