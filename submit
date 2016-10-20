@@ -1,2 +1,22 @@
 #!/usr/bin/env bash
+USR=`logname`
+
+if [[ $USER != "RAM_maint" ]]; then
+    while true; do
+        echo "This script is meant to be run from RAM_maint not $USR"
+        read -p "Are you sure you want to continue? " yn
+        case $yn in 
+            [Nn]* ) exit;;
+            [Yy]* ) break;;
+            * ) echo "Please answer y/n";;
+        esac
+    done
+fi
+
+
+#USER_HOME=`eval echo ~$USR`
+#XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
+#xauth add $XAUTH_LINE
+source ~/.bashrc
+source activate event_creation
 python -m submission.convenience "$@"
