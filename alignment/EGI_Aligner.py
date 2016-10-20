@@ -32,15 +32,18 @@ class EGI_Aligner:
         sample_rate: The sample rate of the EEG recording (typically 500).
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        self.pulse_files = files['sync_pulses'] if 'sync_pulses' in files else []
-        self.eeg_dir = os.path.dirname(self.pulse_files[0]) if self.pulse_files else ''
+        self.eeg_dir = os.path.expanduser('/Volumes/db_root/')
+        self.pulse_files = []
+        for file in os.listdir(self.eeg_dir):
+            if file.endswith('.D*'):
+                self.pulse_files.append(file)
         self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events
-        self.basename = '../'
+        self.basename = os.path.splitext(self.pulse_files[0])[0]
         # Determine sample rate from the params.txt file
         if 'eeg_params' in files:
             with open(files['eeg_params']) as eeg_params_file:
@@ -128,7 +131,7 @@ class EGI_Aligner:
             for f in self.pulse_files:
                 if f.endswith(file_type):
                     pulse_sync_file = f
-                    eeg_samples = np.fromfile(pulse_sync_file, 'int8')
+                    eeg_samples = np.fromfile(os.path.join(self.eeg_dir, pulse_sync_file), 'int8')
                     self.num_samples = len(eeg_samples)
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000 / self.sample_rate
@@ -186,7 +189,7 @@ class EGI_Aligner:
 
         # Get a list of the indices for all samples that contain a blink
         blinks = np.where(np.any((artifact_mask, 0)))
-        # TODO: Save blink indices to file
+        # TODO: May want to save blink indices to file
 
         logger.debug('Aligning artifacts with events...')
         # Check for blinks that occurred during each event
