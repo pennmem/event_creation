@@ -17,8 +17,8 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             ('final_distractor', -999, 'int16'),
             ('begin_math_correct', -999, 'int16'),
             ('final_math_correct', -999, 'int16'),
-            ('word', '', 'S16'),
-            ('wordno', -999, 'int16'),
+            ('item_name', '', 'S16'),
+            ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intruded', 0, 'int16'),
             ('rectime', -999, 'int32'),
@@ -89,8 +89,8 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
         event.serialpos = self._serialpos
         event.begin_distractor = self._distractor
         event.begin_math_correct = self._math_correct
-        event.word = split_line[4]
-        event.wordno = int(split_line[5])
+        event.item_name = split_line[4]
+        event.item_num = int(split_line[5])
         return event
 
     def event_distractor(self, split_line):
@@ -122,7 +122,7 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
 
-        # Get list of recalls from the .ann file for the current list; each recall is (rectime, wordno, word)
+        # Get list of recalls from the .ann file for the current list; each recall is (rectime, item_num, item_name)
         ann_outputs = self._parse_ann_file(str(self._trial - 1))
 
         for recall in ann_outputs:
@@ -136,8 +136,8 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.msoffset = 20
-            new_event.word = word
-            new_event.wordno = int(recall[1])
+            new_event.item_name = word
+            new_event.item_num = int(recall[1])
             new_event.type = 'REC_WORD'
 
             # If XLI
@@ -145,7 +145,7 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
                 new_event.intrusion = -1
             else:  # Correct recall or PLI or XLI from later list
                 # Determines which list the recalled word was from (gives [] if from a future list)
-                pres_mask = self.find_presentation(new_event.wordno, events)
+                pres_mask = self.find_presentation(new_event.item_num, events)
                 pres_trial = np.unique(events[pres_mask].trial)
 
                 # Correct recall or PLI
@@ -198,6 +198,6 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             self._trial = current_trial
 
     @staticmethod
-    def find_presentation(wordno, events):
+    def find_presentation(item_num, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.wordno == wordno, events.type == 'WORD')
+        return np.logical_and(events.item_num == item_num, events.type == 'WORD')

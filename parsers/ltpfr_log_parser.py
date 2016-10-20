@@ -175,11 +175,11 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         event = self.event_default(split_line)
         self._recog_starttime = int(split_line[0]) - self._mstime_recstart
         # Determine whether the word is a target or lure
-        wordno = int(split_line[5])
-        event.type = 'RECOG_TARGET' if wordno in self._presented else 'RECOG_LURE'
+        item_num = int(split_line[5])
+        event.type = 'RECOG_TARGET' if item_num in self._presented else 'RECOG_LURE'
         # Fill in information available in split_line
         event.item_name = split_line[4]
-        event.item_num = wordno
+        event.item_num = item_num
         return event
 
     def recog_end(self, split_line):
@@ -210,7 +210,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         if self._is_ffr:
             events[-1].type = 'REC_START'
 
-        # Get list of recalls from the .ann file for the current list; each recall is (rectime, wordno, word)
+        # Get list of recalls from the .ann file for the current list; each recall is (rectime, item_num, item_name)
         ann_outputs = self._parse_ann_file('ffr') if self._is_ffr else self._parse_ann_file(str(self._trial - 1))
         for recall in ann_outputs:
             word = recall[-1]
@@ -243,7 +243,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                 new_event.intrusion = -1
             else:  # Correct recall or PLI or XLI from latter list
                 # Determines which list the recalled word was from (gives [] if from a future list)
-                pres_mask = self.find_presentation(new_event.wordno, events)
+                pres_mask = self.find_presentation(new_event.item_num, events)
                 pres_trial = np.unique(events[pres_mask].trial)
                 # Correct recall or PLI
                 if len(pres_trial) == 1:
@@ -292,8 +292,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
 
         is_target = True if events[-1].type == 'RECOG_TARGET' else False
-        word = events[-1].word
-        wordno = events[-1].wordno
+        word = events[-1].item_name
+        item_num = events[-1].item_num
         new_events = []
         current_block = []
         recog = ['', '']
@@ -388,12 +388,12 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                 ev.recog_resp = True
             ev.recog_rt = recog_rt
             ev.recog_conf = int(conf[1]) - 2
-            ev.word = word
-            ev.wordno = wordno
+            ev.item_name = word
+            ev.item_num = item_num
 
         # For targets, extract appropriate info from the original word presentation event
         if is_target:
-            pres_mask = self.find_presentation(wordno, events)
+            pres_mask = self.find_presentation(item_num, events)
             studytrial = np.unique(events[pres_mask].trial)
             listtype = np.unique(events[pres_mask].listtype)
             serialpos = np.unique(events[pres_mask].serialpos)
@@ -498,6 +498,6 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return [(int(round(float(line[0]))), int(round(float(line[1])))) for line in split_lines]
 
     @staticmethod
-    def find_presentation(wordno, events):
+    def find_presentation(item_num, events):
         events = events.view(np.recarray)
-        return np.logical_and(events.wordno == wordno, events.type == 'WORD')
+        return np.logical_and(events.item_num == item_num, events.type == 'WORD')

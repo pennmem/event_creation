@@ -10,8 +10,9 @@ class EGI_Aligner:
     """
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESHOLD = 10  # This many milliseconds may differ between sync pulse times during matching
+    NOREREF_DIR = '/Volumes/db_root/protocols/{}/subjects/{}/experiments/{}/sessions/{}/ephys/current_processed/noreref'
 
-    def __init__(self, events, files):
+    def __init__(self, events, files, behav_dir):
         """
         Constructor for the EGI aligner.
 
@@ -32,18 +33,18 @@ class EGI_Aligner:
         sample_rate: The sample rate of the EEG recording (typically 500).
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        self.eeg_dir = os.path.expanduser('/Volumes/db_root/')
+        self.eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys','current_processed', 'noreref')
         self.pulse_files = []
-        for file in os.listdir(self.eeg_dir):
-            if file.endswith('.D*'):
-                self.pulse_files.append(file)
+        for f in os.listdir(self.eeg_dir):
+            if f.endswith(('.DIN1', '.DI15', '.D255')):
+                self.pulse_files.append(f)
         self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events
-        self.basename = os.path.splitext(self.pulse_files[0])[0]
+        self.basename = os.path.splitext(self.pulse_files[0])[0] if len(self.pulse_files) > 0 else ''
         # Determine sample rate from the params.txt file
         if 'eeg_params' in files:
             with open(files['eeg_params']) as eeg_params_file:
@@ -305,7 +306,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # Determine which ephys sync pulses correspond to the beginning behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
         s_ind = find_needle_in_haystack(np.diff(ephys_ms[i:i + window]), np.diff(behav_ms), thresh_ms)
-        if not s_ind is None:
+        if s_ind is not None:
             start_ephys_vals = ephys_ms[i:i + window]
             start_behav_vals = behav_ms[s_ind:s_ind + window]
             break
@@ -315,7 +316,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # Determine which ephys sync pulses correspond with the ending behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
         e_ind = find_needle_in_haystack(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
-        if not e_ind is None:
+        if e_ind is not None:
             e_ind = len(behav_ms) - e_ind - window
             i = len(ephys_ms) - i - window
             end_ephys_vals = ephys_ms[i:i + window]
