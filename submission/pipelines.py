@@ -12,7 +12,7 @@ from parsers.base_log_parser import get_version_num
 from parsers.mat_converter import MathMatConverter
 
 from parsers.math_parser import MathLogParser
-#from parsers.ltpfr_log_parser_new import LTPFRSessionLogParser
+from parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 
 from loggers import logger
