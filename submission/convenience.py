@@ -104,7 +104,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
                 for this_experiment in experiments:
                     n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
                     yield subject_no_montage, subject, n_sessions, session, this_experiment, version
-                    seen_experiments[subject_no_montage].add(this_experiment)
+                    seen_experiments[subject_no_montage].append(this_experiment)
         except AttributeError:
             traceback.print_exc()
             logger.error('Could not get session from {}'.format(events_file))
@@ -590,6 +590,7 @@ if __name__ == '__main__':
             print('\n\n'.join([failure.describe() for failure in failures]))
         else:
             print('No failures.')
+        IndexAggregatorTask().run()
         print('Log created: {}. Exiting'.format(import_log))
         exit(0)
 
@@ -617,7 +618,10 @@ if __name__ == '__main__':
             exit(0)
     print('Importing session')
     success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events, args.force_eeg)
+    if success:
+        IndexAggregatorTask().run()
     print('Success:' if success else "Failed:")
     print(importers.describe())
+
     exit(0)
 
