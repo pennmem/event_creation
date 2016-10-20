@@ -3,6 +3,8 @@ import numpy as np
 import os
 from collections import defaultdict
 from config import RHINO_ROOT
+from json_cleaner import clean_dump
+import json
 
 class Contact(object):
 
@@ -15,6 +17,19 @@ class Contact(object):
         self.grid_group = None
         self.jack_num = None
         self.grid_loc = None
+    
+def leads_to_dict(leads):
+    out_dict = {}
+    for lead_name, contacts in leads.items():
+        for contact in contacts.values():
+            contact_dict = {}
+            contact_dict['type'] = contact.type
+            contact_dict['grid_size'] = contact.grid_size
+            contact_dict['grid_group'] = contact.grid_group
+            contact_dict['grid_loc'] = contact.grid_loc
+            contact_dict['coordinates'] = contact.coords
+            out_dict[contact.name] = contact_dict
+    return out_dict
 
 def read_mother(mother_file):
     leads = defaultdict(lambda: defaultdict(Contact))
@@ -124,4 +139,8 @@ def file_locations(subject):
     return files
 
 if __name__ == '__main__':
-    build_leads(default_file_locations('R1009W'))
+    import sys
+    leads = build_leads(file_locations(sys.argv[1]))
+    leads_as_dict = leads_to_dict(leads)
+    clean_dump(leads_as_dict, open(sys.argv[2],'w'), indent=2, sort_keys=True)
+
