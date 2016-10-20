@@ -590,6 +590,7 @@ if __name__ == '__main__':
             print('\n\n'.join([failure.describe() for failure in failures]))
         else:
             print('No failures.')
+        IndexAggregatorTask().run()
         print('Log created: {}. Exiting'.format(import_log))
         exit(0)
 
@@ -617,7 +618,10 @@ if __name__ == '__main__':
             exit(0)
     print('Importing session')
     success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events, args.force_eeg)
+    if success:
+        IndexAggregatorTask().run()
     print('Success:' if success else "Failed:")
     print(importers.describe())
+
     exit(0)
 

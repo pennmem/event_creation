@@ -265,7 +265,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
 
-    tasks.append(IndexAggregatorTask())
+    # Have to wait to aggregate index until after submission
+    #tasks.append(IndexAggregatorTask())
 
     info = dict(
         localization=localization,
@@ -314,7 +315,8 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
-    tasks.append(IndexAggregatorTask())
+    # Have to wait to aggregate index until after submission
+    #tasks.append(IndexAggregatorTask())
 
     info = dict(
         localization=localization,
