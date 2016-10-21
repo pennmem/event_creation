@@ -492,7 +492,7 @@ class EventComparator:
                     found_bad = True
                     bad_events1 = np.append(bad_events1, event1)
                     for mismatch in mismatches:
-                        err_msg += 'mismatch: %d %s\n' % (i, mismatch);
+                        err_msg += 'mismatch: %d %s\n' % (i, mismatch)
 
             # Mark that these events have been seen
             mask2[this_mask2] = False
