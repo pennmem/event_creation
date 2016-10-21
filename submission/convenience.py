@@ -3,18 +3,14 @@ import os
 import json
 import glob
 import numpy as np
-import sys
 import argparse
 import collections
 import traceback
 import files
 from collections import defaultdict
 
-from pipelines import build_events_pipeline, build_split_pipeline,\
-                      build_convert_eeg_pipeline, build_convert_events_pipeline,\
-                      build_import_montage_pipeline, MATLAB_CONVERSION_TYPE, SOURCE_IMPORT_TYPE
+from pipelines import  MATLAB_CONVERSION_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
-from transferer import UnTransferrableException
 from loggers import logger
 from automation import Importer, ImporterCollection
 from config import DATA_ROOT, RHINO_ROOT, DB_ROOT
@@ -135,7 +131,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
             elif version > 0:
                 session_dict['system_1'] = True
             session_dict.update(extra_items)
-            subjects[subject][experiment][session] = session_dict
+            subjects[subject][new_experiment][session] = session_dict
     with files.open_with_perms(out_file, 'w') as f:
         json.dump(subjects, f, indent=2, sort_keys=True)
 
