@@ -10,8 +10,9 @@ class EGI_Aligner:
     """
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESHOLD = 10  # This many milliseconds may differ between sync pulse times during matching
+    NOREREF_DIR = '/Volumes/db_root/protocols/{}/subjects/{}/experiments/{}/sessions/{}/ephys/current_processed/noreref'
 
-    def __init__(self, events, files):
+    def __init__(self, events, files, behav_dir):
         """
         Constructor for the EGI aligner.
 
@@ -32,15 +33,18 @@ class EGI_Aligner:
         sample_rate: The sample rate of the EEG recording (typically 500).
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        self.pulse_files = files['sync_pulses'] if 'sync_pulses' in files else []
-        self.eeg_dir = os.path.dirname(self.pulse_files[0]) if self.pulse_files else ''
+        self.eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys','current_processed', 'noreref')
+        self.pulse_files = []
+        for f in os.listdir(self.eeg_dir):
+            if f.endswith(('.DIN1', '.DI15', '.D255')):
+                self.pulse_files.append(f)
         self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events
-        self.basename = '../'
+        self.basename = os.path.splitext(self.pulse_files[0])[0] if len(self.pulse_files) > 0 else ''
         # Determine sample rate from the params.txt file
         if 'eeg_params' in files:
             with open(files['eeg_params']) as eeg_params_file:
@@ -128,7 +132,7 @@ class EGI_Aligner:
             for f in self.pulse_files:
                 if f.endswith(file_type):
                     pulse_sync_file = f
-                    eeg_samples = np.fromfile(pulse_sync_file, 'int8')
+                    eeg_samples = np.fromfile(os.path.join(self.eeg_dir, pulse_sync_file), 'int8')
                     self.num_samples = len(eeg_samples)
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000 / self.sample_rate
@@ -186,7 +190,7 @@ class EGI_Aligner:
 
         # Get a list of the indices for all samples that contain a blink
         blinks = np.where(np.any((artifact_mask, 0)))
-        # TODO: Save blink indices to file
+        # TODO: May want to save blink indices to file
 
         logger.debug('Aligning artifacts with events...')
         # Check for blinks that occurred during each event
@@ -302,7 +306,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # Determine which ephys sync pulses correspond to the beginning behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
         s_ind = find_needle_in_haystack(np.diff(ephys_ms[i:i + window]), np.diff(behav_ms), thresh_ms)
-        if not s_ind is None:
+        if s_ind is not None:
             start_ephys_vals = ephys_ms[i:i + window]
             start_behav_vals = behav_ms[s_ind:s_ind + window]
             break
@@ -312,7 +316,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # Determine which ephys sync pulses correspond with the ending behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
         e_ind = find_needle_in_haystack(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
-        if not e_ind is None:
+        if e_ind is not None:
             e_ind = len(behav_ms) - e_ind - window
             i = len(ephys_ms) - i - window
             end_ephys_vals = ephys_ms[i:i + window]

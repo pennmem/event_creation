@@ -899,8 +899,6 @@ class EGI_reader(EEG_reader):
         if not os.path.exists(location):
             files.makedirs(location)
 
-        logger.debug('Spltting into %s/%s: ' % (location, basename))
-
         # Write EEG channel files
         for i in range(self.header['num_channels']):
             j = i+1
@@ -1205,8 +1203,6 @@ class BIO_reader(EEG_reader):
         # Create directory if needed
         if not os.path.exists(location):
             files.makedirs(location)
-
-        logger.debug('Spltting into %s/%s: ' % (location, basename))
 
         # Write EEG channel files
         for i in range(self.header['num_channels']):

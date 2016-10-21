@@ -954,7 +954,7 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
     if field == 'eegfile' and event1[field] != '' and event2[field] != '':
         return True
     # .mat files are having NaNs loaded as random integers for wordno and trial fields
-    if field in ('wordno', 'trial') and event1[field] == -999:
+    if field in ('item_num', 'trial') and event1[field] == -999:
         return True
     return False
 

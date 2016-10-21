@@ -213,7 +213,7 @@ class EventCreationTask(PipelineTask):
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
             events = aligner.align('SESS_START')
         elif self.protocol == 'ltp':
-            aligner = EGI_Aligner(unaligned_events, files)
+            aligner = EGI_Aligner(unaligned_events, files, db_folder)
             events = aligner.align()
         else:
             aligner = System1Aligner(unaligned_events, files)
