@@ -518,10 +518,10 @@ if __name__ == '__main__':
                         help='Imports a localization or montage instead of importing events')
     parser.add_argument('--json', dest='json_file', default=False,
                         help='Imports all sessions from the specified JSON file')
-    parser.add_argument('--change-experiment', dest='new_exp', action='store_true', default=False,
+    parser.add_argument('--change-experiment', dest='change_experiment', action='store_true', default=False,
                         help='Signals that the name of the experiment changes on import. '
                              'Defaults to true for PS* experiments')
-    parser.add_argument('--change-session', dest='new_session', action='store_true', default=False,
+    parser.add_argument('--change-session', dest='change_session', action='store_true', default=False,
                         help='Signals that the session number changes on import. Defaults to true '
                              'for PS* experiments or subjects with montage changes')
     parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
