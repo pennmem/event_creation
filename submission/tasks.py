@@ -380,12 +380,12 @@ class CleanDbTask(PipelineTask):
                 if re.match(cls.SOURCE_REGEX, dir):
                     processed_dir = '{}_processed'.format(dir)
                     if not processed_dir in dirs:
-                        logger.warn("Removing {} in {}".format(root, dir))
+                        logger.warn("Removing {} in {}".format(dir, root))
                         os.rmdir(dir)
                 if re.match(cls.PROCESSED_REGEX, dir):
                     source_dir = dir.replace('_processed', '')
                     if not source_dir in dirs:
-                        logger.warn("Removing {} in {}".format(root, dir))
+                        logger.warn("Removing {} in {}".format(dir, root))
                         os.rmdir(dir)
 
 class IndexAggregatorTask(PipelineTask):
