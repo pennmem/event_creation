@@ -10,7 +10,7 @@ import files
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
 from alignment.system2 import System2Aligner
-from alignment.EGI_Aligner import EGI_Aligner
+from alignment.LTPAligner import LTPAligner
 from readers.eeg_reader import get_eeg_reader
 from viewers.view_recarray import to_json, from_json
 from parsers.fr_log_parser import FRSessionLogParser
@@ -213,7 +213,7 @@ class EventCreationTask(PipelineTask):
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
             events = aligner.align('SESS_START')
         elif self.protocol == 'ltp':
-            aligner = EGI_Aligner(unaligned_events, files, db_folder)
+            aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
         else:
             aligner = System1Aligner(unaligned_events, files)
