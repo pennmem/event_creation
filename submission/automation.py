@@ -177,7 +177,9 @@ class Importer(object):
 
     def check(self):
         try:
-            self._should_transfer = self.transferer.check_checksums()
+            processed_exists = os.path.exists(os.path.join(self.transferer.destination_root, 'current_processed'))
+            checksum_fail = self.transferer.check_checksums()
+            self._should_transfer = checksum_fail or not processed_exists
         except Exception as e:
             self.set_error('check', e)
             self._should_transfer = False
