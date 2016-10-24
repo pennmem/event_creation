@@ -33,12 +33,13 @@ class ImporterCollection(object):
         transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
         statuses.append(transfer_statuses)
 
-        error_status = '\tErrors:\n'
-        for importer in self.importers:
-            if importer.errored:
-                error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
+        if any([importer.errored for importer in self.importers]):
+            error_status = '\tErrors:\n'
+            for importer in self.importers:
+                if importer.errored:
+                    error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
 
-        statuses.append(error_status)
+            statuses.append(error_status)
 
         return '\n'.join(statuses)
 
