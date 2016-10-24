@@ -32,6 +32,14 @@
       }
     },
     "transfer": {
+      "session_log": {
+        "type": "file",
+        "multiple": false,
+        "required": false,
+        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+        "origin_file": "session.log",
+        "destination": "logs/session.log"
+      },
       "type": "group",
       "system_1": {
         "type": "group",

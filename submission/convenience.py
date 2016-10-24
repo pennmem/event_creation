@@ -488,7 +488,7 @@ def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(DB_ROOT, 'protocols', protocol,
                                  'subjects', subject,
                                  'experiments', experiment,
-                                 'sessions', session)
+                                 'sessions', str(session))
     behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
 
