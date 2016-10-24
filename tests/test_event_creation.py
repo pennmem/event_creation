@@ -1239,7 +1239,7 @@ TH_SYS2_COMPARATOR_INPUTS = dict(
 
 TH_SYS1_COMPARATOR_INPUTS = dict(
     field_switch = {'item_name': 'item'},
-    field_ignore = all_ignore + ('stim_list', 'is_stim', 'normErr', 'pathInfo', 'stimList'),
+    field_ignore = all_ignore + ('stim_list', 'is_stim', 'isStim', 'normErr', 'pathInfo', 'stimList'),
     exceptions = th_event_comparison_exceptions,
     type_ignore = ()
 )
