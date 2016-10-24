@@ -5,6 +5,7 @@ import json
 import datetime
 import traceback
 import numpy as np
+import shutil
 
 import files
 from parsers.pal_log_parser import PALSessionLogParser
@@ -376,17 +377,23 @@ class CleanDbTask(PipelineTask):
             elif len(os.listdir(root)) == 0:
                 logger.debug('Removing {}'.format(root))
                 os.rmdir(root)
+        for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
             for dir in dirs:
+                if not os.path.exists(os.path.join(root, dir)):
+                    # Directory may have already been deleted
+                    logger.warn("Path {} {} already deleted?".format(root, dir))
+                    pdb.set_trace()
+                    continue
                 if re.match(cls.SOURCE_REGEX, dir):
                     processed_dir = '{}_processed'.format(dir)
                     if not processed_dir in dirs:
                         logger.warn("Removing {} in {}".format(dir, root))
-                        os.rmdir(dir)
+                        shutil.rmtree(os.path.join(root, dir))
                 if re.match(cls.PROCESSED_REGEX, dir):
                     source_dir = dir.replace('_processed', '')
                     if not source_dir in dirs:
                         logger.warn("Removing {} in {}".format(dir, root))
-                        os.rmdir(dir)
+                        shutil.rmtree(os.path.join(root, dir))
 
 class IndexAggregatorTask(PipelineTask):
 
