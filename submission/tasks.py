@@ -363,8 +363,11 @@ class ImportEventsTask(PipelineTask):
 
 class CleanDbTask(PipelineTask):
 
-    @staticmethod
-    def run(*_):
+    SOURCE_REGEX = '^\d{8}\.\d{6}$'
+    PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
+
+    @classmethod
+    def run(cls, *_):
         for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
@@ -373,6 +376,17 @@ class CleanDbTask(PipelineTask):
             elif len(os.listdir(root)) == 0:
                 logger.debug('Removing {}'.format(root))
                 os.rmdir(root)
+            for dir in dirs:
+                if re.match(cls.SOURCE_REGEX, dir):
+                    processed_dir = '{}_processed'.format(dir)
+                    if not processed_dir in dirs:
+                        logger.warn("Removing {} in {}".format(root, dir))
+                        os.rmdir(dir)
+                if re.match(cls.PROCESSED_REGEX, dir):
+                    source_dir = dir.replace('_processed', '')
+                    if not source_dir in dirs:
+                        logger.warn("Removing {} in {}".format(root, dir))
+                        os.rmdir(dir)
 
 class IndexAggregatorTask(PipelineTask):
 
@@ -477,9 +491,15 @@ class CompareEventsTask(PipelineTask):
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
+
+        mat_file = self.get_matlab_event_file()
+        if not os.path.exists(mat_file):
+            logger.warn("Could not find existing MATLAB file. Not executing comparison!")
+            return
+
         mat_events_reader = \
             BaseEventReader(
-                filename=os.path.join(self.get_matlab_event_file()),
+                filename=mat_file,
                 common_root=RHINO_ROOT,
                 eliminate_events_with_no_eeg=False,
             )

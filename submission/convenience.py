@@ -536,10 +536,10 @@ if __name__ == '__main__':
                         help='Force events creation even if no changes have occurred')
     parser.add_argument('--force-eeg', dest='force_eeg', action='store_true', default=False,
                         help='Force eeg splitting even if no changes have occurred')
-    parser.add_argument('--force_montage', dest='force_montage', action='store_true', default=False,
+    parser.add_argument('--force-montage', dest='force_montage', action='store_true', default=False,
                         help='Force montage creation even if no changes have occurred')
     parser.add_argument('--clean-only', dest='clean_db', action='store_true', default=False,
-                        help='ONLY clean the database, removing empty folders.')
+                        help='ONLY clean the database, removing empty folders and folders without processed equivalent')
     parser.add_argument('--aggregate-only', dest='aggregate', action='store_true', default=False,
                         help='ONLY aggregate index files')
     parser.add_argument('--build-db', dest='db_name', default=False,
