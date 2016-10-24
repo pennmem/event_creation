@@ -29,11 +29,11 @@ class EGI_Aligner:
         behav_ms: The mstimes of the sync pulses sent by the behavioral computer.
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
-        basename: The path to the session directory.
+        basename: The basename of a participant's split EEG files (without the .### extension).
         sample_rate: The sample rate of the EEG recording (typically 500).
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        self.eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys','current_processed', 'noreref')
+        self.eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed', 'noreref')
         self.pulse_files = []
         for f in os.listdir(self.eeg_dir):
             if f.endswith(('.DIN1', '.DI15', '.D255')):
@@ -114,7 +114,7 @@ class EGI_Aligner:
             logger.warn('Unable to align events with EEG data!')
 
         # Identify all artifacts, and add information about them to the events that occurred during those artifacts
-        # self.add_artifacts([(25, 127), (8, 126)])
+        self.add_artifacts([(25, 127), (8, 126)])
         # TODO: Implement eventArtifact() based on the corresponding MATLAB function
         return self.events
 
@@ -132,7 +132,7 @@ class EGI_Aligner:
             for f in self.pulse_files:
                 if f.endswith(file_type):
                     pulse_sync_file = f
-                    eeg_samples = np.fromfile(os.path.join(self.eeg_dir, pulse_sync_file), 'int8')
+                    eeg_samples = np.fromfile(os.path.join(self.eeg_dir, pulse_sync_file), 'int16')
                     self.num_samples = len(eeg_samples)
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000 / self.sample_rate
@@ -165,7 +165,7 @@ class EGI_Aligner:
         :param eog_chans: A list of integers and/or tuples denoting which channels should be used for identifying blinks
         """
         logger.debug('Identifying artifacts in the EEG signal...')
-        chan_basename = self.events.eegfile[0]
+        eeg_path = os.path.join(self.eeg_dir, self.basename)
         artifact_mask = None
         i = 0
         for ch in eog_chans:
@@ -173,12 +173,12 @@ class EGI_Aligner:
             # a tuple, load both and subtract one from the other.
             if isinstance(ch, tuple):
                 logger.debug('Identifying artifacts in binary channel ' + str(ch) + '...')
-                eeg1 = np.fromfile(chan_basename + '.{:03}'.format(ch[0]), 'int8')
-                eeg2 = np.fromfile(chan_basename + '.{:03}'.format(ch[1]), 'int8')
+                eeg1 = np.fromfile(eeg_path + '.{:03}'.format(ch[0]), 'int16')
+                eeg2 = np.fromfile(eeg_path + '.{:03}'.format(ch[1]), 'int16')
                 eeg = eeg1 - eeg2
             else:
                 logger.debug('Identifying artifacts in channel ' + str(ch) + '...')
-                eeg = np.fromfile(chan_basename + '.{:03}'.format(ch), 'int8')
+                eeg = np.fromfile(eeg_path + '.{:03}'.format(ch), 'int16')
 
             # Find the blinks recorded by each EOG channel using find_blinks() with a threshold setting of 100 uV
             if artifact_mask is None:
@@ -189,8 +189,8 @@ class EGI_Aligner:
         logger.debug('Artifact identification complete.')
 
         # Get a list of the indices for all samples that contain a blink
-        blinks = np.where(np.any((artifact_mask, 0)))
-        # TODO: May want to save blink indices to file
+        blinks = np.where(np.any(artifact_mask, 0))[0]
+        # TODO: May need to save blink indices to file
 
         logger.debug('Aligning artifacts with events...')
         # Check for blinks that occurred during each event
@@ -199,14 +199,14 @@ class EGI_Aligner:
             if self.events[i].eegfile == '' or self.events[i].eegoffset < 0:
                 continue
 
-            # If possible, use the next event as the upper bound for aligning artifacts with the current event
-            # If not possible, look for artifacts occurring up to 1600 ms after the event onset
-            if self.events[i+1].eegoffset <= 0 or i == len(self.events)-1:
+            # If on the last event or next event has no eegdata, look for artifacts occurring up to 1600 ms after the event onset
+            if i == len(self.events) - 1 or self.events[i+1].eegoffset <= 0 :
                 # FIXME: In original MATLAB, there is no handling for the final event's length. May want to introduce it here.
                 ev_len = 1600 * self.sample_rate / 1000  # Placeholder - considers the 1600 ms following event onset
-                ev_blink = blinks[np.where(self.events[i].eegoffset <= blinks <= self.events[i].eegoffset + ev_len)]
+                ev_blink = blinks[np.where(np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
+            # Otherwise, use the next event as the upper bound for aligning artifacts with the current event
             else:
-                ev_blink = blinks[np.where(self.events[i].eegoffset <= blinks < self.events[i+1].eegoffset)]
+                ev_blink = blinks[np.where(np.logical_and(self.events[i].eegoffset <= blinks, blinks < self.events[i+1].eegoffset))[0]]
                 ev_len = self.events[i+1].eegoffset - self.events[i].eegoffset
 
             # Calculate and add artifact info to the current event, if any artifacts were present
@@ -218,7 +218,7 @@ class EGI_Aligner:
                 # Calculate the porportion of samples during the event that have artifacts in them
                 self.events[i].artifactFrac = float(len(ev_blink)) / ev_len
                 # Calculate the average number of milliseconds after the event that artifacts occurred
-                self.events[i].artifactMeanMs = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / self.sample_rate
+                self.events[i].artifactMeanMS = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / self.sample_rate
             else:
                 continue
         logger.debug('Events successfully updated with artifact information.')
@@ -254,7 +254,7 @@ class EGI_Aligner:
         slow = np.empty(num_samples)
 
         # Calculate starting "fast" and "slow" averages
-        start_mean = np.mean[data[0:10]]
+        start_mean = np.mean(data[0:10])
         fast[0] = b * (data[0] - start_mean)
         slow[0] = c * start_mean + d * data[0]
 
