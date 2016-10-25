@@ -12,10 +12,7 @@ I think that's all, but I may be forgetting a depedency.
 
 After installation (if not on rhino) set the path to mounted rhino in config.py
 
-To view coordinate snapping:
-
-    python test_snap_coordinates.py <subject> 
-
+NOTE: cannot use "~" expansion. Provide the full path (e.g. /Users/iped/rhino not ~/rhino if in home folder)
 
 There are four main files in this repo (so far):
 
