@@ -61,6 +61,12 @@ class LTPAligner:
             self.sample_rate = -999
             self.gain = 1
 
+    '''
+    ===============================================================
+    ====== ALIGNMENT ==============================================
+    ===============================================================
+    '''
+
     def align(self):
         """
         Aligns the times at which sync pulses were sent by the behavioral computer with the times at which they were
@@ -121,9 +127,10 @@ class LTPAligner:
             logger.warn(e)
             logger.warn('Unable to align events with EEG data!')
 
-        # Identify all artifacts, and add information about them to the events that occurred during those artifacts
-        self.add_artifacts(self.EOG_CHANS)
-        # TODO: Implement eventArtifact() based on the corresponding MATLAB function
+        # Identify blinks and other artifacts, and add information about them to the events that occurred during those
+        # artifacts
+        self.process_eog(self.EOG_CHANS)
+        self.find_bad_events(num_chans=129, duration=3200, offset=-200, buff=1000, filtfreq=(58, 62))
         # eventArtifact(events, 3200, -200, 1000, [58 62])
         return self.events
 
@@ -163,10 +170,31 @@ class LTPAligner:
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0])
         if self.behav_ms is None:
             logger.debug('No eeg.eeglog.up file detected. Extracting up pulses from eeg.eeglog...')
-            self.behav_ms = extract_up_pulses(self.behav_files[0])
+            self.behav_ms = self.extract_up_pulses(self.behav_files[0])
         logger.debug('Done.')
 
-    def add_artifacts(self, eog_chans):
+    @staticmethod
+    def extract_up_pulses(eeg_log):
+        """
+        Extracts all up pulses from an eeg.eeglog file and writes them to an eeg.eeglog.up file.
+        :param eeg_log: The filepath for the eeg.eeglog file.
+        :return: Numpy array containing the mstimes for the up pulses
+        """
+        # Load data from the eeg.eeglog file and get all rows for up pulses
+        data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
+        up_pulses = data[data[:, 2] == 'UP']
+        # Save the up pulses to eeg.eeglog.up
+        np.savetxt(eeg_log + '.up', up_pulses, fmt='%s %s %s')
+        # Return the mstimes from all up pulses
+        return up_pulses[:, 0].astype(int)
+
+    '''
+    ===============================================================
+    ====== BLINK DETECTION ========================================
+    ===============================================================
+    '''
+
+    def process_eog(self, eog_chans):
         """
         Locates blinks/artifacts in the EOG channels, then identifies which artifacts occurred during which events and
         adds this info to the existing events structure.
@@ -276,20 +304,17 @@ class LTPAligner:
 
         return abs(fast) >= thresh
 
+    def find_bad_events(self, num_chans, duration, offset, buff, filtfreq):
+        bad_events = np.zeros((len(self.events), num_chans), dtype=bool)
 
-def extract_up_pulses(eeg_log):
-    """
-    Extracts all up pulses from an eeg.eeglog file and writes them to an eeg.eeglog.up file.
-    :param eeg_log: The filepath for the eeg.eeglog file.
-    :return: Numpy array containing the mstimes for the up pulses
-    """
-    # Load data from the eeg.eeglog file and get all rows for up pulses
-    data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
-    up_pulses = data[data[:, 2] == 'UP']
-    # Save the up pulses to eeg.eeglog.up
-    np.savetxt(eeg_log + '.up', up_pulses, fmt='%s %s %s')
-    # Return the mstimes from all up pulses
-    return up_pulses[:, 0].astype(int)
+        pass
+
+
+'''
+===============================================================
+====== ALIGNMENT HELPERS ======================================
+===============================================================
+'''
 
 
 def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_ms=10):
