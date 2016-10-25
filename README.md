@@ -3,6 +3,7 @@
 To install dependencies:
 
 Install anaconda or miniconda (https://www.continuum.io/downloads)
+
     conda install scipy
     conda install mayavi
     pip install nibabel
