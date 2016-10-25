@@ -31,10 +31,10 @@ There are four main files in this repo (so far):
 * mri\_info.py
  * Defines one function (mri\_info.py) that is a wrapper to call the freesurfer mri\_info function
  * Use with:
-    
+    ``` 
     >>> from mri_info import get_transform
     >>> get_transform('/path/to/surface.mgz', 'vox2ras')`
-
+    ```
  * View sample output with: `python mri_info.py`
 * json\_cleaner.py
  * Used in the output of vox\_mother\_converter to output json on a single line. 
