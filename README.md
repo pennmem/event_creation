@@ -33,6 +33,7 @@ There are four main files in this repo (so far):
  * Use with:
     ``` 
     >>> from mri_info import get_transform
+
     >>> get_transform('/path/to/surface.mgz', 'vox2ras')`
     ```
  * View sample output with: `python mri_info.py`
