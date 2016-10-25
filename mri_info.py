@@ -1,7 +1,7 @@
 """
 Simple wrapper for freesurfer's mri_info function that returns a numpy matrix
 """
-
+import os
 import subprocess
 import numpy as np
 
@@ -15,10 +15,10 @@ def get_transform(file, transform_type):
     :return: numpy array of transform matrix
     """
 
-    output = subprocess.check_output(['mri_info', file, '--{}'.format(type)])
+    output = subprocess.check_output(['mri_info', file, '--{}'.format(transform_type)])
     num_output = [[float(x) for x in line.split()] for line in output.split('\n') if len(line)>0]
     return np.array(num_output)
 
 if __name__ == '__main__':
     from config import RHINO_ROOT
-    print mri_info(os.path.join(RHINO_ROOT, 'data/eeg/freesurfer/subjects/R1001P/mri/orig.mgz'), 'vox2ras')
+    print get_transform(os.path.join(RHINO_ROOT, 'data/eeg/freesurfer/subjects/R1001P/mri/orig.mgz'), 'vox2ras')
