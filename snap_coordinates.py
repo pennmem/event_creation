@@ -1,16 +1,20 @@
+"""
+Library to handle snapping coordinates to an mri surface
+(defaults to pial surface, but customizable)
+"""
 import os
 from config import RHINO_ROOT
 import numpy as np
 import nibabel as nib
 from scipy import spatial
 
-def load_contacts(filename):
-    return json.load(open(filename))
-
-def get_contact_coordinates(contacts):
-    return np.array([contact['coordinates'] for contact in contacts])
-
 def get_raw_coordinates(filename):
+    """
+    Gets coordinates from a "RAW_coords" file
+    Meant to be used with the RAW_coords_indivSurf file
+    to get the coordinates corresponding to the individual surface
+    :return: numpy array of coordinates
+    """
     contents = [l.split() for l in open(filename).readlines()]
     coords = [(float(line[1]), float(line[2]), float(line[3])) for line in contents]
     return np.array(coords)
