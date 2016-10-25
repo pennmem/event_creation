@@ -56,8 +56,10 @@ class LTPAligner:
             with open(files['eeg_params']) as eeg_params_file:
                 params_text = [line.split() for line in eeg_params_file.readlines()]
             self.sample_rate = int(params_text[0][1])
+            self.gain = float(params_text[2][1])
         else:
             self.sample_rate = -999
+            self.gain = 1
 
     def align(self):
         """
@@ -180,12 +182,12 @@ class LTPAligner:
             ch = eog_chans[i]
             if isinstance(ch, tuple):
                 logger.debug('Identifying artifacts in binary channel ' + str(ch) + '...')
-                eeg1 = np.fromfile(eeg_path + '.{:03}'.format(ch[0]), 'int16')
-                eeg2 = np.fromfile(eeg_path + '.{:03}'.format(ch[1]), 'int16')
+                eeg1 = np.fromfile(eeg_path + '.{:03}'.format(ch[0]), 'int16') * self.gain
+                eeg2 = np.fromfile(eeg_path + '.{:03}'.format(ch[1]), 'int16') * self.gain
                 eeg = eeg1 - eeg2
             else:
                 logger.debug('Identifying artifacts in channel ' + str(ch) + '...')
-                eeg = np.fromfile(eeg_path + '.{:03}'.format(ch), 'int16')
+                eeg = np.fromfile(eeg_path + '.{:03}'.format(ch), 'int16') * self.gain
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
             # have the same number of samples
