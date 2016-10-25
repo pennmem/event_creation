@@ -1,6 +1,7 @@
 from base_log_parser import BaseSessionLogParser
 import numpy as np
 from ast import literal_eval
+from loggers import logger
 
 
 class LTPFRSessionLogParser(BaseSessionLogParser):
@@ -25,7 +26,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('rt', -999, 'int16'),
             ('recog_resp', -999, 'int16'),
             ('recog_conf', -999, 'int16'),
-            ('recog_rt', -999, 'int16'),
+            ('recog_rt', -999, 'int32'),
             ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
@@ -70,6 +71,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
 
         self._recog_starttime = 0
         self._recog_endtime = 0
+        self._recog_pres_mstime = -999
         self._mstime_recstart = -999
         self._recog_conf_mstime = -999
         self._rej_mstime = -999
@@ -78,8 +80,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
             FR_PRES=self.event_fr_pres,
-            SLOW_MSG=self._event_skip,
-            KEY_MSG=self._event_skip,
+            SLOW_MSG=self.event_default,
+            KEY_MSG=self.event_default,
             REC_START=self.event_recstart,
             REST=self._event_skip,
             REST_REWET=self.event_default,
@@ -171,9 +173,9 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return False
 
     def event_recog(self, split_line):
-        # self.update_trial(split_line)  # This line would only be needed if REC_START did not appear before each list
         event = self.event_default(split_line)
-        self._recog_starttime = int(split_line[0]) - self._mstime_recstart
+        self._recog_pres_mstime = int(split_line[0])
+        self._recog_starttime = self._recog_pres_mstime - self._mstime_recstart
         # Determine whether the word is a target or lure
         item_num = int(split_line[5])
         event.type = 'RECOG_TARGET' if item_num in self._presented else 'RECOG_LURE'
@@ -187,7 +189,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         return False
 
     def get_rej_mstime(self, split_line):
-        self._rej_mstime = self._mstime_recstart
+        self._rej_mstime = int(split_line[0])
         return False
 
     """=======EVENT MODIFIERS======="""
@@ -203,33 +205,31 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         if self._is_finished_recall:
             return events
 
-        events = self.modify_final_distractor_and_listtype(self._trial, events).view(np.recarray)
+        if not self._is_ffr:
+            events = self.modify_final_distractor_and_listtype(self._trial, events).view(np.recarray)
 
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         if self._is_ffr:
             events[-1].type = 'REC_START'
+            events[-1].trial = -999
 
         # Get list of recalls from the .ann file for the current list; each recall is (rectime, item_num, item_name)
         ann_outputs = self._parse_ann_file('ffr') if self._is_ffr else self._parse_ann_file(str(self._trial - 1))
         for recall in ann_outputs:
-            word = recall[-1]
+            item_name = recall[-1]
+            # Skip vocalizations during free recall
+            if item_name == '<>' or item_name == 'V' or item_name == '!':
+                continue
             new_event = self._empty_event
             new_event.trial = -999 if self._is_ffr else self._trial
             new_event.session = self._session
             new_event.rectime = int(round(float(recall[0])))
-            # if self._is_ffr:
-            #    new_event.final_rectime = new_event.rectime  # For FFR recalls, count as both rectime and final_rectime
             new_event.mstime = rec_start_time + new_event.rectime
-            new_event.msoffset = 20  # Check why offset is 20 and whether this is true for FFR, too
-            new_event.item_name = word
+            new_event.msoffset = 20
+            new_event.item_name = item_name
             new_event.item_num = int(recall[1])
-
-            # If vocalization
-            if word == '<>' or word == 'V' or word == '!':
-                new_event.type = 'REC_WORD_VV'
-            else:
-                new_event.type = 'REC_WORD'
+            new_event.type = 'REC_WORD'
 
             # Add FFR to the type if part of the FFR recall
             if self._is_ffr:
@@ -248,34 +248,29 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                 # Correct recall or PLI
                 if len(pres_trial) == 1:
                     # Determines how many lists back the recalled word was presented
-                    new_event.intrusion = 0 if self._is_ffr else self._trial - pres_trial[0]
-                    # Correct recall if word is from the most recent list
+                    new_event.intrusion = -999 if self._is_ffr else self._trial - pres_trial[0]
+                    # Retrieve information about which distractors were used during the word's presentation
+                    new_event.distractor = np.unique(events[pres_mask].distractor)
+                    new_event.final_distractor = np.unique(events[pres_mask].final_distractor)
+                    # Retrieve the recalled word's serial position in its list, along with task information
+                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                    new_event.listtype = np.unique(events[pres_mask].listtype)
+                    new_event.task = np.unique(events[pres_mask].task)
+                    new_event.resp = np.unique(events[pres_mask].resp)
+                    new_event.rt = np.unique(events[pres_mask].rt)
+                    # Correct recall, i.e. word is from the most recent list
                     if new_event.intrusion == 0:
-                        # Retrieve the recalled word's serial position in its list, as well as the distractor used
-                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
-                        new_event.distractor = np.unique(events[pres_mask].distractor)
-                        new_event.final_distractor = np.unique(events[pres_mask].final_distractor)
-                        new_event.listtype = np.unique(events[pres_mask].listtype)
-                        new_event.task = np.unique(events[pres_mask].task)
-                        new_event.resp = np.unique(events[pres_mask].resp)
-                        new_event.rt = np.unique(events[pres_mask].rt)
-
+                        new_event.recalled = True
                         # Retroactively log on the word pres event that the word was recalled, and when it was recalled
-                        if self._is_ffr:
-                            if not any(events.finalrecalled[pres_mask]):
-                                # For FFR recalls, set studytrial equal to the trial number of the original presentation
-                                new_event.studytrial = np.unique(events[pres_mask].trial)
-                                events.finalrecalled[pres_mask] = True
-                                # events.final_rectime[pres_mask] = new_event.rectime
-                                new_event.finalrecalled = True
-                        else:
-                            if not any(events.recalled[pres_mask]):
-                                events.recalled[pres_mask] = True
-                                events.rectime[pres_mask] = new_event.rectime
-                                new_event.recalled = True
+                        if not any(events[pres_mask].recalled):
+                            events.recalled[pres_mask] = True
+                            events.rectime[pres_mask] = new_event.rectime
+                    elif self._is_ffr:
+                        new_event.studytrial = pres_trial
+                        events.finalrecalled[pres_mask] = True
                     else:
                         events.intruded[pres_mask] = new_event.intrusion
-                else:  # XLI
+                else:  # XLI from later list
                     new_event.intrusion = -1
 
             # Add recall event to events array
@@ -292,15 +287,13 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
 
         is_target = True if events[-1].type == 'RECOG_TARGET' else False
-        word = events[-1].item_name
+        was_recognized = False
+        item_name = events[-1].item_name
         item_num = events[-1].item_num
         new_events = []
         current_block = []
-        recog = ['', '']
-        conf = ['', '']
-
-        resp_event = self._empty_event
-        conf_event = self._empty_event
+        r_ind = None
+        c_ind = None
 
         # Ignore any responses and vocalizations that occur before the presentation of the word
         while len(self._recog_ann) > 0 and int(self._recog_ann[0][0]) < self._recog_starttime:
@@ -311,84 +304,54 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             current_block.append(self._recog_ann[0])
             self._recog_ann = self._recog_ann[1:]
 
-        # Find the last conf response in the block and use it as the RECOG_CONF event; all earlier conf responses
-        # will be treated as RECOG_RESP_VV events (in cases where the participant changes their answer)
-        i = len(current_block) - 1
-        while i >= 0:
-            resp = int(current_block[i][1])
-            # If the top of the block is reached before finding a confidence response, then there is either no
-            # confidence response or no recognition response
-            if i == 0:
-                raise Exception('Recognition or confidence response not found for word ' + word)
-            # If the current line is a confidence response, create the RECOG_CONF event and stop searching
-            elif resp in range(3, 8):
-                conf = current_block[i]
-                conf_event.type = 'RECOG_CONF'
-                conf_event.msoffset = 20
-                conf_event.rectime = int(round(float(conf[0])))
-                conf_event.mstime = self._mstime_recstart + conf_event.rectime
-                new_events = [conf_event] + new_events
-                i -= 1
-                break
-            # If the current line is a vocalization, create a RECOG_RESP_VV event
-            elif resp == -1:
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
-            elif resp in (1, 2):
-                raise Exception('Recogntion response found after confidence response for word ' + word)
+        for i in range(len(current_block)):
+            line = current_block[i]
+            event = self._empty_event
+            event.type = 'RECOG_RESP_VV'
+            rectime = line[0]
+            resp = line[2]
+            event.msoffset = 20
+            event.rectime = rectime
+            event.mstime = self._mstime_recstart + rectime
+            event.trial = self._trial
+
+            if resp == 'Y':
+                event.recog_resp = 1
+                r_ind = len(new_events)
+                was_recognized = True
+            elif resp == 'N':
+                event.recog_resp = 0
+                r_ind = len(new_events)
             else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+                try:
+                    event.recog_conf = int(resp)
+                    c_ind = len(new_events)
+                except ValueError:
+                    continue
 
-        # Continue searching up the current response block for the last recognition response and use it as the
-        # RECOG_RESP event. All earlier recog responses will be treated as RECOG_RESP_VV events.
-        while i >= 0:
-            resp = int(current_block[i][1])
-            # Create a RECOG_RESP event when the recognition response is found and stop searching
-            if resp in (1, 2):
-                recog = current_block[i]
-                resp_event.type = 'RECOG_RESP'
-                resp_event.msoffset = 20
-                resp_event.rectime = int(round(float(recog[0])))
-                resp_event.mstime = self._mstime_recstart + resp_event.rectime
-                new_events = [resp_event] + new_events
-                i -= 1
-                break
-            # If the current line is a vocalization or (erroneous) confidence response, create a RECOG_RESP_VV event
-            elif resp == -1 or resp in range(3, 8):
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
-            else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+            new_events.append(event)
 
-        # Treat all responses and vocalizations before the RECOG_RESP event as RECOG_RESP_VV events
-        while i >= 0:
-            resp = int(current_block[i][1])
-            if resp == -1 or resp in range(1, 8):
-                recog_vv = self._empty_event
-                recog_vv.type = 'RECOG_RESP_VV'
-                recog_vv.msoffset = 20
-                new_events = [recog_vv] + new_events
-                i -= 1
-            else:
-                raise Exception('Invalid integer response found during recognition of word ' + word)
+        # Mark final recog response and confidence judgment and take those responses as the participant's final answers
+        if r_ind is not None:
+            new_events[r_ind].type = 'RECOG_RESP'
+            rectime = events[r_ind].rectime
+            resp = new_events[r_ind].recog_resp
+            rt = new_events[r_ind].mstime - self._recog_pres_mstime
+            events[-1].rectime = rectime
+            events[-1].recog_resp = resp
+            events[-1].recog_rt = rt
+        if c_ind is not None:
+            new_events[c_ind].type = 'RECOG_CONF'
+            conf = new_events[c_ind].recog_conf
+            events[-1].recog_conf = conf
+            # Fill in confidence info on the recog event and recog info on the confidence event
+            if r_ind is not None:
+                events[r_ind].recog_conf = conf
+                events[c_ind].recog_resp = resp
+                events[c_ind].rt = rt
 
-        events[-1].rectime = int(round(float(recog[0])))
-        new_events = [events[-1]] + new_events
-
-        # Calculate recog_rt as the response rectime - mstime(pres) + mstime(recstart)
-        recog_rt = int(recog[0]) - resp_event.mstime + self._mstime_recstart
         for ev in new_events:
-            if int(recog[1]) == 1 and ev.type != 'RECOG_RESP_VV':
-                ev.recog_resp = True
-            ev.recog_rt = recog_rt
-            ev.recog_conf = int(conf[1]) - 2
-            ev.item_name = word
+            ev.item_name = item_name
             ev.item_num = item_num
 
         # For targets, extract appropriate info from the original word presentation event
@@ -402,24 +365,26 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             rt = np.unique(events[pres_mask].rt)
             recalled = np.unique(events[pres_mask].recalled)
             intruded = np.unique(events[pres_mask].intruded)
+            final_recalled = np.unique(events[pres_mask].finalrecalled)
 
             # Fill in this information for the recog events
             events[-1].recalled = recalled
             events[-1].intruded = intruded
-            for ev in new_events:
+            events[-1].finalrecalled = final_recalled
+            for ev in [events[-1]] + new_events:
                 ev.studytrial = studytrial
                 ev.listtype = listtype
                 ev.serialpos = serialpos
                 ev.task = task
                 ev.resp = resp
                 ev.rt = rt
-                ev.trial = self._trial
 
-            # Log in the word presentation event whether the word was recognized
-            events.recognized[pres_mask] = True if int(recog[1]) == 1 else False
+            # Log in the word presentation event whether the word was recognized, even if the participant changed their
+            # answer to no after already having said yes.
+            events.recognized[pres_mask] = True if was_recognized else False
 
         # Add new events to the end of the events list
-        for ev in new_events[1:]:
+        for ev in new_events:
             events = np.append(events, ev)
 
         return events
@@ -460,7 +425,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         i = -1
         while events[i].mstime > self._rej_mstime:
             i -= 1
-        if events[i].type == 'REC_WORD' or 'REC_WORD_VV':
+        if events[i].type in ('REC_WORD', 'REC_WORD_VV'):
             events[i].rej_time = self._rej_mstime - self._mstime_recstart
             events[i].rejected = True
         return events
@@ -494,8 +459,10 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         lines = open(ann_file, 'r').readlines()
         data_lines = [line for line in lines if line[0] != '#']  # May need to add regex line-matcher if problems arise
         split_lines = [line.split() for line in data_lines if len(line.split()) == 3]
-        # line[0] is rectime, line[1] is either the recog_resp or 2 greater than the recog_conf, line[2] is redundant
-        return [(int(round(float(line[0]))), int(round(float(line[1])))) for line in split_lines]
+        # line[0] is rectime; line[1] is either the recog_resp, 2 greater than the recog_conf, or -1 for vocalizations
+        # line[2] is redundant except in the case where the participant gives a confidence judgment outside of the range
+        # 1 through 5. In such a case, the invalid confidence judgment will be taken as the subject's conf response.
+        return [(int(round(float(line[0]))), int(line[1]), line[2]) for line in split_lines]
 
     @staticmethod
     def find_presentation(item_num, events):
