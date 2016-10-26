@@ -2,7 +2,7 @@
 
 To install dependencies:
 
-Install anaconda or miniconda (https://www.continuum.io/downloads)
+Install miniconda for python2.7 (https://www.continuum.io/downloads)
 
     conda install scipy
     conda install mayavi
