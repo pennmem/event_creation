@@ -49,7 +49,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('artifactFrac', -999, 'float16'),
             ('artifactMeanMS', -999, 'float16'),
             ('badEvent', False, 'b1'),
-            ('badEventChannel', [], list)
+            ('badEventChannel', '', list)
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
