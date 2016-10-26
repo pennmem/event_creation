@@ -244,6 +244,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks = [MontageLinkerTask(protocol, subject, montage)]
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
     elif protocol == 'ltp':
+        do_math = False
+        do_compare = False
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
         elif experiment == 'ltpFR2':
