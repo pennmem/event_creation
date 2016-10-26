@@ -2,6 +2,7 @@ import os
 import numpy as np
 from loggers import logger
 from ptsa.data.align import find_needle_in_haystack
+from helpers.butter_filt import butter_filt
 
 class LTPAligner:
     """
@@ -127,11 +128,17 @@ class LTPAligner:
             logger.warn(e)
             logger.warn('Unable to align events with EEG data!')
 
+        """ ARTIFACT DETECTION """
+        logger.debug('Searching for blinks in EOG channels...')
         # Identify blinks and other artifacts, and add information about them to the events that occurred during those
         # artifacts
         self.process_eog(self.EOG_CHANS)
-        self.find_bad_events(num_chans=129, duration=3200, offset=-200, buff=1000, filtfreq=(58, 62))
-        # eventArtifact(events, 3200, -200, 1000, [58 62])
+        logger.debug('Searching for bad events...')
+        # Do not look for additional artifacts in these channels. Includes EOG channels and several peripheral sites
+        # that often have poor signals
+        ignore_chans = np.array([25, 8, 127, 126, 14, 21, 107, 56, 49, 113, 99, 63, 1, 32, 44, 114, 17])
+        self.find_bad_events(129, ignore_chans, duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
+
         return self.events
 
     def get_ephys_sync(self):
@@ -201,20 +208,21 @@ class LTPAligner:
 
         :param eog_chans: A list of integers and/or tuples denoting which channels should be used for identifying blinks
         """
-        logger.debug('Identifying artifacts in the EEG signal...')
+        logger.debug('Identifying blinks in the EOG channels...')
+        # Use rereferenced data
         eeg_path = os.path.join(self.reref_dir, self.basename)
+        # Load and scan the eeg data from each EOG channel. If the channel is a binary channel (represented as a tuple),
+        # load both sub-channels and subtract one from the other before searching for blinks.
         artifact_mask = None
         for i in range(len(eog_chans)):
-            # Load the eeg data from the files for the EOG cahnnels. If the channel is a binary channel (represented as
-            # a tuple, load both and subtract one from the other.
             ch = eog_chans[i]
             if isinstance(ch, tuple):
-                logger.debug('Identifying artifacts in binary channel ' + str(ch) + '...')
+                logger.debug('Identifying blinks in binary channel ' + str(ch) + '...')
                 eeg1 = np.fromfile(eeg_path + '.{:03}'.format(ch[0]), 'int16') * self.gain
                 eeg2 = np.fromfile(eeg_path + '.{:03}'.format(ch[1]), 'int16') * self.gain
                 eeg = eeg1 - eeg2
             else:
-                logger.debug('Identifying artifacts in channel ' + str(ch) + '...')
+                logger.debug('Identifying blinks in channel ' + str(ch) + '...')
                 eeg = np.fromfile(eeg_path + '.{:03}'.format(ch), 'int16') * self.gain
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
@@ -222,16 +230,15 @@ class LTPAligner:
             if artifact_mask is None:
                 artifact_mask = np.empty((len(eog_chans), len(eeg)))
 
-            # Find the blinks recorded by each EOG
+            # Find the blinks recorded by each EOG channel
             artifact_mask[i] = self.find_blinks(eeg, self.BLINK_THRESH)
             logger.debug('Done.')
-        logger.debug('Artifact identification complete.')
+        logger.debug('Blink identification complete.')
 
         # Get a list of the indices for all samples that contain a blink
         blinks = np.where(np.any(artifact_mask, 0))[0]
-        # TODO: May want to save blink indices to file
 
-        logger.debug('Aligning artifacts with events...')
+        logger.debug('Aligning blinks with events...')
         # Check for blinks that occurred during each event
         for i in range(len(self.events)):
             # Skip the event if it has no eegfile or no eegoffset, as it will not be possible to align artifacts with it
@@ -241,7 +248,7 @@ class LTPAligner:
             # If on the last event or next event has no eegdata, look for artifacts occurring up to 1600 ms after the event onset
             if i == len(self.events) - 1 or self.events[i+1].eegoffset <= 0 :
                 # FIXME: In original MATLAB, there is no handling for the final event's length. May want to introduce it here.
-                ev_len = 1600 * self.sample_rate / 1000  # Placeholder - considers the 1600 ms following event onset
+                ev_len = 2000 * self.sample_rate / 1000  # Placeholder - considers the 2 seconds following event onset
                 ev_blink = blinks[np.where(np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
             # Otherwise, use the next event as the upper bound for aligning artifacts with the current event
             else:
@@ -304,10 +311,92 @@ class LTPAligner:
 
         return abs(fast) >= thresh
 
-    def find_bad_events(self, num_chans, duration, offset, buff, filtfreq):
-        bad_events = np.zeros((len(self.events), num_chans), dtype=bool)
+    def find_bad_events(self, num_chans, ignore_chans, duration, offset, buff, filtfreq):
+        """
+        Determines which channels contain artifacts on each word presentation event. This is done by finding the mean
+        and standard deviation of the voltage across all channels and events, and then labeling samples that are more
+        than 4 standard deviations above or below the mean as bad samples. Any channel that contains at least one bad
+        sample during a given event will be marked on the event as a bad channel. Any event with one or more bad
+        channels is marked as a bad event.
 
-        pass
+        :param num_chans: The total number of EEG channels.
+        :param ignore_chans: A numpy array of channels that should not be searched for artifacts.
+        :param duration: How many milliseconds of EEG data will be loaded for each event.
+        :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
+        positive, is the number of samples the skip immdiately after the word presentation.
+        :param buff: The number of samples before {offset} that should also be included.
+        :param filtfreq: The frequencies on which to filter when lodaing EEG data.
+
+        data: A channels x events x samples matrix of EEG data.
+        bad_evchans: A channels x events matrix
+        bad_events: Each pres event has a row of booleans denoting whether each channel is bad (1 == bad, 0 == good)
+        """
+        # Get the indices of all word presentation events with eeg data
+        pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
+        # Get a list of the channels to search for artifacts
+        chans = np.array(range(1, num_chans + 1))
+        chans = np.setdiff1d(chans, ignore_chans)
+        # Calculate the number of samples to read from each event based on the duration in ms
+        ev_length = int(duration * self.sample_rate / 1000)
+
+        # Create a channels x events x samples matrix containing the samples from each channel during each event
+        logger.debug('Loading reref data for word presentation events...')
+        data = np.zeros((len(chans), len(pres_ev_ind), ev_length))
+        for i in range(len(chans)):
+            c = chans[i]
+            data[i] = self.get_event_eeg(c, self.events[pres_ev_ind], ev_length, offset, buff, filtfreq)
+        logger.debug('Done.')
+
+        # Calculate mean and standard deviation across all samples from all presentation events
+        avg = data.mean()
+        stddev = data.std()
+
+        # Set artifact threshold to 4 standard deviations away from the mean
+        pos_thresh = avg + 4 * stddev
+        neg_thresh = avg - 4 * stddev
+
+        # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
+        logger.debug('Finding artifacts during word presentations...')
+        data = np.logical_or(data > pos_thresh, data < neg_thresh)
+
+        # Get matrix of channels x events where entries are True if one or more bad samples occur on a channel during
+        # an event
+        bad_evchans = np.any(data, 2)
+        # Get an array of booleans denoting whether each event is bad
+        bad_events = np.any(bad_evchans, 0)
+        # Mark each bad event with a list of the channels containing bad samples during the event
+        logger.debug('Logging badEventChannel info...')
+        for i in np.where(bad_events)[0]:
+            self.events[i].badEvent = True
+            self.events[i].badEventChannel = np.where(bad_evchans[:, i])
+
+    def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
+        """
+        Loads the eeg data from a single channel for each event. For each event in events, gets {ev_length} samples
+        from channel {chan}, beginning with the sample defined by the event's eegoffset field. Runs a first-order,
+        bandstop Butterworth filter on the data from each event upon loading.
+
+        :param chan: The channel from which data will be loaded.
+        :param events: The list of events whose data will be loaded.
+        :param ev_length: The integer number of samples to load for each event.
+        :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
+        positive, is the number of samples the skip immdiately after the word presentation.
+        :param buff: The number of samples before {offset} that should also be included.
+        :param filtfreq:
+        :return: A matrix where each row is the array of data samples for one event.
+        """
+        data = np.zeros((len(events), ev_length))
+        # Calculate the index of the first byte for each event's starting sample (16-bit data == 2 bytes per sample)
+        byte_offsets = (offset - buff + events.eegoffset) * 2
+        # Load each event's data from its reref file, while filtering the data from each event
+        for i in range(len(events)):
+            with open(os.path.join(self.reref_dir, events[i].eegfile) + '.{:03}'.format(chan), 'rb') as f:
+                f.seek(byte_offsets[i])
+                data[i] = np.fromfile(f, 'int16', ev_length)
+                data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
+        # Multiply all data by the gain
+        data *= self.gain
+        return data
 
 
 '''
