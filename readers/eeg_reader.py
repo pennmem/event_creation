@@ -946,7 +946,8 @@ class EGI_reader(EEG_reader):
         logger.debug('Rerefencing data...')
 
         # Ignore bad channels for the purposes of calculating the averages for rereference
-        good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
+        all_chans = np.array(range(1, self.header['num_channels']+1))
+        good_chans = np.setdiff1d(all_chans, np.array(bad_chans))
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
         means = np.mean(self._data[good_chans-1], axis=0)
@@ -960,7 +961,7 @@ class EGI_reader(EEG_reader):
 
         # Write reref files
         logger.debug('Writing rereferenced channels...')
-        for chan in good_chans:
+        for chan in all_chans:
             filename = os.path.join(location, self.basename + ('.%03d' % chan))
             # Write the rereferenced data from each channel to its own file
             self._data[chan-1].astype(self.DATA_FORMAT).tofile(filename)
