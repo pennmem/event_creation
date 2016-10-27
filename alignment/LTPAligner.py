@@ -50,7 +50,7 @@ class LTPAligner:
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
-        self.events = events
+        self.events = events.view(np.recarray)
         self.basename = os.path.splitext(self.pulse_files[0])[0] if len(self.pulse_files) > 0 else ''
         # Determine sample rate from the params.txt file
         if 'eeg_params' in files:
@@ -136,7 +136,7 @@ class LTPAligner:
         logger.debug('Searching for bad events...')
         # Do not look for additional artifacts in these channels. Includes EOG channels and several peripheral sites
         # that often have poor signals
-        ignore_chans = np.array([25, 8, 127, 126, 14, 21, 107, 56, 49, 113, 99, 63, 1, 32, 44, 114, 17])
+        ignore_chans = np.array([1, 8, 14, 17, 21, 25, 32, 44, 49, 56, 63, 99, 107, 113, 114, 126, 127])
         self.find_bad_events(129, ignore_chans, duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
 
         return self.events
@@ -245,10 +245,10 @@ class LTPAligner:
             if self.events[i].eegfile == '' or self.events[i].eegoffset < 0:
                 continue
 
-            # If on the last event or next event has no eegdata, look for artifacts occurring up to 1600 ms after the event onset
+            # If on the last event or next event has no eegdata, look for artifacts occurring up to 3000 ms after the event onset
             if i == len(self.events) - 1 or self.events[i+1].eegoffset <= 0 :
                 # FIXME: In original MATLAB, there is no handling for the final event's length. May want to introduce it here.
-                ev_len = 2000 * self.sample_rate / 1000  # Placeholder - considers the 2 seconds following event onset
+                ev_len = 3000 * self.sample_rate / 1000  # Placeholder - considers the 3 seconds following event onset
                 ev_blink = blinks[np.where(np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
             # Otherwise, use the next event as the upper bound for aligning artifacts with the current event
             else:
@@ -331,29 +331,36 @@ class LTPAligner:
         bad_evchans: A channels x events matrix
         bad_events: Each pres event has a row of booleans denoting whether each channel is bad (1 == bad, 0 == good)
         """
-        # Get the indices of all word presentation events with eeg data
-        pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
         # Get a list of the channels to search for artifacts
-        chans = np.array(range(1, num_chans + 1))
-        chans = np.setdiff1d(chans, ignore_chans)
+        all_chans = np.array(range(1, num_chans + 1))
         # Calculate the number of samples to read from each event based on the duration in ms
         ev_length = int(duration * self.sample_rate / 1000)
 
+        has_eeg = np.where(self.events.eegfile != '')[0]
         # Create a channels x events x samples matrix containing the samples from each channel during each event
         logger.debug('Loading reref data for word presentation events...')
-        data = np.zeros((len(chans), len(pres_ev_ind), ev_length))
-        for i in range(len(chans)):
-            c = chans[i]
-            data[i] = self.get_event_eeg(c, self.events[pres_ev_ind], ev_length, offset, buff, filtfreq)
+        data = np.zeros((num_chans, len(has_eeg), ev_length))
+        for i in all_chans:
+            data[i-1] = self.get_event_eeg(i, self.events[has_eeg], ev_length, offset, buff, filtfreq)
         logger.debug('Done.')
 
-        # Calculate mean and standard deviation across all samples from all presentation events
-        avg = data.mean()
-        stddev = data.std()
+        # Get the indices of all word presentation events with eeg data
+        pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
+        chans_to_use = np.setdiff1d(all_chans, ignore_chans) - 1
+
+        # Calculate mean and standard deviation across all samples in non-ignored channels from all presentation events
+        data_to_use = data[np.ix_(chans_to_use, pres_ev_ind,)]
+        avg = data_to_use.mean()
+        stddev = data_to_use.std()
 
         # Set artifact threshold to 4 standard deviations away from the mean
         pos_thresh = avg + 4 * stddev
         neg_thresh = avg - 4 * stddev
+
+        print avg
+        print stddev
+        print pos_thresh
+        print neg_thresh
 
         # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
         logger.debug('Finding artifacts during word presentations...')
@@ -361,14 +368,14 @@ class LTPAligner:
 
         # Get matrix of channels x events where entries are True if one or more bad samples occur on a channel during
         # an event
-        bad_evchans = np.any(data, 2)
+        bad_evchans = data.any(2)
         # Get an array of booleans denoting whether each event is bad
-        bad_events = np.any(bad_evchans, 0)
+        bad_events = bad_evchans.any(0)
         # Mark each bad event with a list of the channels containing bad samples during the event
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
             self.events[i].badEvent = True
-            self.events[i].badEventChannel = np.where(bad_evchans[:, i])
+            self.events[i].badEventChannel = np.where(bad_evchans[:, i])[0] + 1
 
     def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
         """
@@ -391,9 +398,10 @@ class LTPAligner:
         # Load each event's data from its reref file, while filtering the data from each event
         for i in range(len(events)):
             with open(os.path.join(self.reref_dir, events[i].eegfile) + '.{:03}'.format(chan), 'rb') as f:
+            # with open('/Users/jessepazdera/rhino_mount/data5/eeg/scalp/ltp/ltpFR/LTP222_02/session_4/eeg/eeg.reref/LTP222_02_24Oct16_1341' + '.{:03}'.format(chan), 'rb') as f:
                 f.seek(byte_offsets[i])
                 data[i] = np.fromfile(f, 'int16', ev_length)
-                data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
+            data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
         # Multiply all data by the gain
         data *= self.gain
         return data

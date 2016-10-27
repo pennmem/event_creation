@@ -23,7 +23,7 @@ def butter_filt(data, freq_range, sample_rate=256, filt_type='bandstop', order=4
     freq_range = np.array([[freq_range]]) if isinstance(freq_range, (int, float)) else np.array(freq_range)
     freq_range = freq_range / nyq
     # Get the Butterworth values and run the filter for zero phase distortion
-    for i in range(np.size(freq_range), 0):
+    for i in range(np.shape(freq_range)[0]):
         Bb, Ab = butter(order, freq_range[i, :], btype=filt_type)
         data = filtfilt(Bb, Ab, data, padlen=3)  # PADLEN MUST BE SET TO 3 TO MATCH MATLAB IMPLEMENTATION
     return data
