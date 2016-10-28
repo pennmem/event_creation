@@ -137,7 +137,7 @@ class LTPAligner:
         # Do not look for additional artifacts in these channels. Includes EOG channels and several peripheral sites
         # that often have poor signals
         ignore_chans = np.array([1, 8, 14, 17, 21, 25, 32, 44, 49, 56, 63, 99, 107, 113, 114, 126, 127])
-        self.find_bad_events(129, ignore_chans, duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
+        self.find_bad_events(129, ignore_chans, duration=3200, offset=-100, buff=500, filtfreq=[[58, 62]])
 
         return self.events
 
