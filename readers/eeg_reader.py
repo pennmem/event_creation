@@ -870,7 +870,6 @@ class EGI_reader(EEG_reader):
             logger.debug('%d...Done' % total_read)
 
         # Organize the data into a matrix with each channel and event on its own row
-        # self._data = np.reshape(raw, (self.header['num_channels'] + self.header['num_events'], 1000)). order='F')
         self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
 
         if run_highpass:
@@ -882,6 +881,10 @@ class EGI_reader(EEG_reader):
 
         # Divide the signal by the amplifier gain
         self._data = self._data / self.amp_gain
+
+        # Clip to within bounds of selected data format
+        bounds = np.iinfo(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
 
     def _split_data(self, location, basename):
         """
@@ -906,7 +909,7 @@ class EGI_reader(EEG_reader):
             logger.debug(str(i+1))
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event
-            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+            self._data[i].tofile(filename)
 
         # Write event channel files
         current_event = 0
@@ -916,7 +919,7 @@ class EGI_reader(EEG_reader):
             logger.debug(self.header['event_codes'][current_event])
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event, so write each row to its own file
-            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+            self._data[i].tofile(filename)
             current_event += 1
 
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
@@ -953,10 +956,12 @@ class EGI_reader(EEG_reader):
         means = np.mean(self._data[good_chans-1], axis=0)
 
         # Rereference the data
-        self._data[good_chans-1] -= means
+        self._data = (self._data - means)
 
-        # Reverse the gain (even though noreref already did this?)
-        # self._data = (self._data / self.amp_gain).astype('int16')
+        # Clip to within bounds of selected data format
+        bounds = np.iinfo(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+
         logger.debug('Done.')
 
         # Write reref files
@@ -964,7 +969,7 @@ class EGI_reader(EEG_reader):
         for chan in all_chans:
             filename = os.path.join(location, self.basename + ('.%03d' % chan))
             # Write the rereferenced data from each channel to its own file
-            self._data[chan-1].astype(self.DATA_FORMAT).tofile(filename)
+            self._data[chan-1].tofile(filename)
         logger.debug('Done.')
 
         # Copy the params.txt file from the noreref folder
