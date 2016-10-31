@@ -435,7 +435,8 @@ def prompt_for_session_inputs(**opts):
     protocol = 'ltp' if experiment.startswith('ltp') else \
                'r1' if subject.startswith('R') else None
 
-    attempt_conversion = opts.get('convert', False)
+    attempt_conversion = opts.get('allow_convert', False)
+    attempt_import = not opts.get('force_convert', False)
 
     inputs = dict(
         protocol=protocol,
@@ -451,7 +452,7 @@ def prompt_for_session_inputs(**opts):
         session=session,
         original_session=original_session,
         groups=(protocol,),
-        attempt_import=not attempt_conversion,
+        attempt_import=attempt_import,
         attempt_conversion=attempt_conversion
     )
 
@@ -474,6 +475,16 @@ def prompt_for_montage_inputs():
     subject = re.sub(r'_.*', '', code)
 
     montage = raw_input('Enter montage as #.#: ')
+
+    montage_num = montage.split(".")[1]
+    subject = code.split("_")[1]
+
+    if (subject if subject != "" else "0") != montage_num:
+        print "WARNING: subject code does not match montage number!"
+        confirmed = confirm("Are you sure you want to continue? ")
+        if not confirmed:
+            return False
+
 
     inputs = dict(
         subject=subject,
@@ -592,7 +603,8 @@ if __name__ == '__main__':
 
     if args.montage_only:
         inputs = prompt_for_montage_inputs()
-
+        if inputs == False:
+            exit(0)
         if montage_exists(inputs['protocol'], inputs['subject'], inputs['montage']):
             if not confirm('{subject}, montage {montage} already exists. Continue and overwrite? '.format(**inputs)):
                 print('Import aborted! Exiting.')
