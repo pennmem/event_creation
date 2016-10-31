@@ -400,7 +400,6 @@ class CleanDbTask(PipelineTask):
                 if not os.path.exists(os.path.join(root, dir)):
                     # Directory may have already been deleted
                     logger.warn("Path {} {} already deleted?".format(root, dir))
-                    pdb.set_trace()
                     continue
                 if re.match(cls.SOURCE_REGEX, dir):
                     processed_dir = '{}_processed'.format(dir)
