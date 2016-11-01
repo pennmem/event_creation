@@ -477,10 +477,11 @@ def prompt_for_montage_inputs():
     montage = raw_input('Enter montage as #.#: ')
 
     montage_num = montage.split(".")[1]
-    subject = code.split("_")[1]
+    subject_split = code.split("_")
+    subject_montage = subject_split[1] if len(subject_split)>1 else "0"
 
-    if (subject if subject != "" else "0") != montage_num:
-        print "WARNING: subject code does not match montage number!"
+    if ( subject_montage ) != montage_num:
+        print "WARNING: subject code {} does not match montage number {} !".format(subject_montage, montage_num)
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
             return False
@@ -610,9 +611,9 @@ if __name__ == '__main__':
                 print('Import aborted! Exiting.')
                 exit(0)
         print('Importing montage')
-        success, importers = run_montage_import(inputs, args.force_montage)
+        success, importer = run_montage_import(inputs, args.force_montage)
         print('Success:' if success else 'Failed:')
-        print('\n'.join([importer.describe() for importer in importers]))
+        print(importer.describe())
         exit(0)
 
 
