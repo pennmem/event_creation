@@ -956,7 +956,7 @@ class EGI_reader(EEG_reader):
         means = np.mean(self._data[good_chans-1], axis=0)
 
         # Rereference the data
-        self._data -= means
+        self._data = self._data - means
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
