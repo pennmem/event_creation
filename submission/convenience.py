@@ -437,6 +437,7 @@ def prompt_for_session_inputs(**opts):
 
     attempt_conversion = opts.get('allow_convert', False)
     attempt_import = not opts.get('force_convert', False)
+    do_compare = opts.get('do_compare', False)
 
     inputs = dict(
         protocol=protocol,
@@ -447,7 +448,7 @@ def prompt_for_session_inputs(**opts):
         experiment=original_experiment,
         new_experiment=experiment,
         force=False,
-        do_compare=True,
+        do_compare=do_compare,
         code=code,
         session=session,
         original_session=original_session,
@@ -477,10 +478,11 @@ def prompt_for_montage_inputs():
     montage = raw_input('Enter montage as #.#: ')
 
     montage_num = montage.split(".")[1]
-    subject = code.split("_")[1]
+    subject_split = code.split("_")
+    subject_montage = subject_split[1] if len(subject_split)>1 else "0"
 
-    if (subject if subject != "" else "0") != montage_num:
-        print "WARNING: subject code does not match montage number!"
+    if ( subject_montage ) != montage_num:
+        print "WARNING: subject code {} does not match montage number {} !".format(subject_montage, montage_num)
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
             return False
@@ -527,8 +529,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--montage-only', dest='montage_only', action='store_true', default=False,
                         help='Imports a localization or montage instead of importing events')
-    parser.add_argument('--json', dest='json_file', default=False,
-                        help='Imports all sessions from the specified JSON file')
     parser.add_argument('--change-experiment', dest='change_experiment', action='store_true', default=False,
                         help='Signals that the name of the experiment changes on import. '
                              'Defaults to true for PS* experiments')
@@ -553,6 +553,10 @@ if __name__ == '__main__':
                         help='ONLY clean the database, removing empty folders and folders without processed equivalent')
     parser.add_argument('--aggregate-only', dest='aggregate', action='store_true', default=False,
                         help='ONLY aggregate index files')
+    parser.add_argument('--do-compare', dest='do_compare', action='store_true', default=False,
+                        help='Compare created JSON events to MATLAB events, and fail import if they do not match')
+    parser.add_argument('--json', dest='json_file', default=False,
+                        help='Imports all sessions from the specified JSON file')
     parser.add_argument('--build-db', dest='db_name', default=False,
                         help='ONLY build a database for import. \rOptions are [ram, sharing]')
 
@@ -610,9 +614,9 @@ if __name__ == '__main__':
                 print('Import aborted! Exiting.')
                 exit(0)
         print('Importing montage')
-        success, importers = run_montage_import(inputs, args.force_montage)
+        success, importer = run_montage_import(inputs, args.force_montage)
         print('Success:' if success else 'Failed:')
-        print('\n'.join([importer.describe() for importer in importers]))
+        print(importer.describe())
         exit(0)
 
 
@@ -625,7 +629,8 @@ if __name__ == '__main__':
             print('Import aborted! Exiting.')
             exit(0)
     print('Importing session')
-    success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events, args.force_eeg)
+    success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events,
+                                            args.force_eeg)
     if success:
         IndexAggregatorTask().run()
     print('Success:' if success else "Failed:")
