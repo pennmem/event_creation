@@ -863,14 +863,16 @@ class EGI_reader(EEG_reader):
             while total_read < total_samples:
                 samples_left = total_samples - total_read
                 samples_to_read = samples_left if samples_left < step_size else step_size
-                unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read)+fmt[1], raw_file.read(samples_to_read * bytes_per_sample))
+                unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read)+fmt[1],
+                                                 raw_file.read(samples_to_read * bytes_per_sample))
                 samples_array = np.array(unpacked_samples)
                 raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
                 total_read += samples_to_read
             logger.debug('%d...Done' % total_read)
 
         # Organize the data into a matrix with each channel and event on its own row
-        self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']), order='F')
+        self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']),
+                                 order='F')
 
         if run_highpass:
             # Run a first-order highpass butterworth filter on the EEG signal from each channel
@@ -925,7 +927,8 @@ class EGI_reader(EEG_reader):
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.amp_gain)
+        params = 'samplerate ' + str(self.header['sample_rate']) + '\ndataformat ' + self.data_format + '\ngain ' + \
+                 str(self.amp_gain) + '\nsystem EGI'
         with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
@@ -1031,7 +1034,7 @@ class EGI_reader(EEG_reader):
         return self.header['num_samples']
 
 
-class BIO_reader(EEG_reader):
+class BDF_reader(EEG_reader):
     """
     Parses the EEG sample data from a Biosemi .bdf file. The file begins with a header with a series of information
     written in ASCII such as the version number, start time, and channel count of the recording. This is followed by
@@ -1110,7 +1113,8 @@ class BIO_reader(EEG_reader):
                 # Read the appropriate number of ASCII characters for each field of the header
                 # Split any header fields that contain separate entries for each channel
                 self.header[triplet[0]] = raw_file.read(chars_to_read)
-                self.header[triplet[0]] = self.header[triplet[0]].strip() if not triplet[2] else np.array([self.header[triplet[0]][i:i+triplet[1]].strip() for i in range(0, chars_to_read, triplet[1])])
+                self.header[triplet[0]] = self.header[triplet[0]].strip() if not triplet[2] else \
+                    np.array([self.header[triplet[0]][i:i+triplet[1]].strip() for i in range(0, chars_to_read, triplet[1])])
 
         # Reformat headers that require it
         for head in ('date', 'time'):
@@ -1127,7 +1131,8 @@ class BIO_reader(EEG_reader):
 
         # If different channels have different sample rates, the pipeline currently will not be able to support it
         if np.max(self.header['samps_per_record']) != np.min(self.header['samps_per_record']):
-            raise('Some channels have different sampling rates from one another. Pipeline does not currently support EEG data with multiple sample rates.')
+            raise('Some channels have different sampling rates from one another. Pipeline does not currently support '
+                  'EEG data with multiple sample rates.')
 
         # Calculate the sample rate and gain for each channel based on the relevant headers
         self.sample_rate = self.header['samps_per_record'][0] / self.header['record_dur']
@@ -1161,7 +1166,8 @@ class BIO_reader(EEG_reader):
         self.total_samples = self.header['num_records'] * np.sum(self.header['samps_per_record'])
 
         # Data will be stored in a matrix with one row for each channel and one column for each sample
-        self._data = np.zeros((self.header['num_channels'], self.header['num_records'] * self.header['samps_per_record'][0]))
+        self._data = np.zeros((self.header['num_channels'], self.header['num_records'] *
+                               self.header['samps_per_record'][0]))
 
         raw = np.zeros((self.total_samples, 1))
         logger.debug('Loading %d samples...' % self.total_samples)
@@ -1222,7 +1228,8 @@ class BIO_reader(EEG_reader):
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + str(self.gain)
+        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + \
+                 str(self.gain) + '\nsystem Biosemi'
         with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
@@ -1245,8 +1252,9 @@ class BIO_reader(EEG_reader):
 
         logger.debug('Rerefencing data...')
 
-        # FIXME: This will not work properly for BDF files, because events and channels are bundled together
-        # Ignore bad channels for the purposes of calculating the averages for rereference
+        # FIXME: This will not work properly for BDF files, because events and channels are bundled together. Biosemi
+        # FIXME: channels also have a different naming scheme than EGI channels.
+        # Ignore bad channels and the sync channel for the purposes of calculating the averages for rereference
         good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
@@ -1255,8 +1263,6 @@ class BIO_reader(EEG_reader):
         # Rereference the data
         self._data[good_chans-1] -= means
 
-        # Reverse the gain (even though noreref already did this?)
-        # self._data = (self._data / self.amp_gain).astype('int16')
         logger.debug('Done.')
 
         # Write reref files
@@ -1342,7 +1348,7 @@ READERS = {
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
     '.bz2': EGI_reader,
-    '.bdf': BIO_reader
+    '.bdf': BDF_reader
 }
 
 

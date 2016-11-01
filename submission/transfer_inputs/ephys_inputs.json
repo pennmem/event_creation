@@ -97,9 +97,12 @@
     "raw_eeg" : {
       "type" : "file",
       "multiple" : true,
-      "required" : true,
+      "required" : false,
       "origin_directory" : "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
-      "origin_file" : "*.raw.bz2",
+      "origin_file" : [
+        "*.raw.bz2",
+        "*.bdf"
+      ],
       "destination" : "raw_eeg/"
     },
     "artifact_log" : "file",
