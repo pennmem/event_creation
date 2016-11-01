@@ -1195,12 +1195,6 @@ class BDF_reader(EEG_reader):
             self._data[i] = butter_filt(self._data[i], .1, self.sample_rate, 'highpass', 1)
         logger.debug('Done')
 
-        # Convert data samples to integers
-        self._data = self._data.astype(int)
-
-        # If gain needs to be applied, uncomment this code
-        # self._data = np.array([self._data[i] / self.gain[i] for i in range(len(self.gain))], dtype=int)
-
     def _split_data(self, location, basename):
         """
         Splits the data extracted from the binary file into each channel, and writes the data for each into a separate
@@ -1216,13 +1210,17 @@ class BDF_reader(EEG_reader):
         if not os.path.exists(location):
             files.makedirs(location)
 
+        # Clip to within bounds of selected data format
+        bounds = np.iinfo(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+
         # Write EEG channel files
         for i in range(self.header['num_channels']):
             filename = os.path.join(location, basename + ('.' + self.header['channel_names'][i]))
             logger.debug(i+1)
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event
-            self._data[i].astype(self.DATA_FORMAT).tofile(filename)
+            self._data[i].tofile(filename)
         logger.debug('Saved.')
 
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
@@ -1252,25 +1250,28 @@ class BDF_reader(EEG_reader):
 
         logger.debug('Rerefencing data...')
 
-        # FIXME: This will not work properly for BDF files, because events and channels are bundled together. Biosemi
-        # FIXME: channels also have a different naming scheme than EGI channels.
         # Ignore bad channels and the sync channel for the purposes of calculating the averages for rereference
-        good_chans = np.setdiff1d(np.array(range(1, self.header['num_channels']+1)), np.array(bad_chans))
+        bad_chans += ['sync']
+        good_chans = np.where([chan not in bad_chans for chan in self.header['channel_names']])[0]
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
-        means = np.mean(self._data[good_chans-1], axis=0)
+        means = np.mean(self._data[good_chans], axis=0)
 
         # Rereference the data
-        self._data[good_chans-1] -= means
+        self._data = self._data - means
+
+        # Clip to within bounds of selected data format
+        bounds = np.iinfo(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
 
         logger.debug('Done.')
 
         # Write reref files
         logger.debug('Writing rereferenced channels...')
-        for chan in good_chans:
-            filename = os.path.join(location, self.basename + ('.%03d' % chan))
+        for i in range(self.header['num_channels']):
+            filename = os.path.join(location, self.basename + '.' + self.header['channel_names'][i])
             # Write the rereferenced data from each channel to its own file
-            self._data[chan-1].astype(self.DATA_FORMAT).tofile(filename)
+            self._data[i].tofile(filename)
         logger.debug('Done.')
 
         # Copy the params.txt file from the noreref folder
@@ -1322,7 +1323,7 @@ def read_text_jacksheet(filename):
 def read_json_jacksheet(filename):
     json_load = json.load(open(filename))
     contacts = json_load.values()[0]['contacts']
-    jacksheet = {int(v['channel']): k for k,v in contacts.items()}
+    jacksheet = {int(v['channel']): k for k, v in contacts.items()}
     return jacksheet
 
 
