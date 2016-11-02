@@ -178,13 +178,13 @@ class Transferer(object):
             if info['required'] and not origin_files:
                 logger.error("Could not locate file {} in {}".format(name,
                                                                      info['origin_directory'].format(**self.kwargs)))
-                return name
+                return name, info['origin_directory'].format(**self.kwargs)
 
             if (not info['multiple']) and len(origin_files) > 1:
                 logger.error("multiple = {}, but {} files found".format(info['multiple'],
                                                                         len(origin_files)))
-                return name
-        return False
+                return name, info['origin_directory'].format(**self.kwargs)
+        return False, None
 
     def check_checksums(self):
         old_index = self.load_previous_index()
