@@ -215,21 +215,20 @@ class EventCreationTask(PipelineTask):
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
             events = aligner.align('SESS_START')
         elif self.protocol == 'ltp':
-            ltp_sys = 'egi'
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
             num_chans = 0
             eog_chans = []
             weak_chans = []
             # EGI parameters for artifact detection
-            if ltp_sys == 'egi':
+            if aligner.system == 'EGI':
                 num_chans = 129
                 eog_chans = [('025', '127'), ('008', '126')]
                 weak_chans = ['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063', '099', '107',
                               '113', '114', '126', '127']
             # Biosemi parameters for artifact detection
-            elif ltp_sys == 'bio':
-                num_chans = 128
+            elif aligner.system == 'Biosemi':
+                num_chans = 128  # FIXME: 128 does not include EOG and possibly others
                 eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8']
             artifact_detector = ArtifactDetector(events, aligner.basename, aligner.reref_dir, aligner.sample_rate,
                                                  aligner.gain, num_chans, eog_chans, weak_chans)
