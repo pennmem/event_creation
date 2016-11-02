@@ -196,7 +196,7 @@ class Transferer(object):
             origin_files = self.get_origin_files(info, **self.kwargs)
 
             if info['required'] and not origin_files:
-                raise UnTransferrableException("Could not locate file {}".format(name))
+                raise UnTransferrableException("Could not locate file {} in {}".format(name, info['origin_directory']))
 
             if (not info['multiple']) and len(origin_files) > 1:
                 raise UnTransferrableException("multiple = {}, but {} files found".format(info['multiple'],
