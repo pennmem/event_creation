@@ -1,55 +1,52 @@
 import os
+import glob
 import numpy as np
 from loggers import logger
 from helpers.butter_filt import butter_filt
 
 
 class ArtifactDetector:
-    EOG_CHANS = [(25, 127), (8, 126)]
-    BLINK_THRESH = 100
 
-    def __init__(self, events, basename, reref_dir, sample_rate, gain, num_chans, eog_chans, weak_chans):
-        """
+    def __init__(self, events, system, basename, reref_dir, sample_rate, gain):
 
-        :param events:
-        :param num_chans:
-        :param eog_chans:
-        :param weak_chans:
-        :param aligner_info:
-
-        DATA FIELDS:
-        events: The events structure for the current experimental session.
-        num_chans: The total number of EEG data channels.
-        eog_chans: A list of channel names and tuples of names for singular and binary EOG channels, respectively. EOG
-        channels are searched for artifacts caused by blinks.
-        weak_chans: A list of the names of channels that often have a poor signal due to the electrodes becoming flipped
-        up during testing. This was an issue with EGI caps, but should not be a problem with Biosemi caps. Weak channels
-        will not be used when calculating the mean and standard deviation voltage values during find_bad_evnets,
-        excluding them as likely outliers.
-        reref_dir:
-        sample_rate:
-        gain:
-        """
         self.events = events
         self.basename = basename
         self.reref_dir = reref_dir
         self.sample_rate = sample_rate
         self.gain = gain
-        self.num_chans = num_chans
-        self.eog_chans = eog_chans
-        self.weak_chans = np.array(weak_chans)
+        self.known_sys = True
+
+        if system == 'EGI':
+            self.num_chans = 129
+            self.eog_chans = [('025', '127'), ('008', '126')]
+            self.weak_chans = np.array(['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063',
+                                        '099', '107', '113', '114', '126', '127'])
+            self.blink_thresh = 100
+        elif system == 'Biosemi':
+            self.num_chans = 137
+            self.eog_chans = [('EXG1', 'EXG2'), ('EXG3', 'EXG4'), ('EXG5', 'EXG6'), ('EXG7', 'EXG8')]
+            self.weak_chans = np.array([])
+            self.blink_thresh = 100
+        else:
+            logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % self.system)
+            self.known_sys = False
 
     def run(self):
-        self.process_eog()
-        self.find_bad_events(duration=3200, offset=-100, buff=500, filtfreq=[[58, 62]])
+        """
+        Runs blink detection on the EOG channels and artifact detection on the EEG data from all events. Currently
+        supports EGI and Biosemi data.
+
+        :return: The events structure updated with artifact and blink info.
+        """
+        if self.known_sys:
+            self.process_eog()
+            self.find_bad_events(duration=3200, offset=-100, buff=500, filtfreq=[[58, 62]])
         return self.events
 
     def process_eog(self):
         """
         Locates blinks/artifacts in the EOG channels, then identifies which artifacts occurred during which events and
         adds this info to the existing events structure.
-
-        :param eog_chans: A list of integers and/or tuples denoting which channels should be used for identifying blinks
         """
         logger.debug('Identifying blinks in the EOG channels...')
         # Use rereferenced data
@@ -74,7 +71,7 @@ class ArtifactDetector:
                 artifact_mask = np.empty((len(self.eog_chans), len(eeg)))
 
             # Find the blinks recorded by each EOG channel
-            artifact_mask[i] = self.find_blinks(eeg, self.BLINK_THRESH)
+            artifact_mask[i] = self.find_blinks(eeg, self.blink_thresh)
             logger.debug('Done.')
         logger.debug('Blink identification complete.')
 
@@ -166,8 +163,6 @@ class ArtifactDetector:
         sample during a given event will be marked on the event as a bad channel. Any event with one or more bad
         channels is marked as a bad event.
 
-        :param num_chans: The total number of EEG channels.
-        :param weak_chans: A numpy array of channels that should not be searched for artifacts.
         :param duration: How many milliseconds of EEG data will be loaded for each event.
         :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
         positive, is the number of samples the skip immdiately after the word presentation.
@@ -175,25 +170,26 @@ class ArtifactDetector:
         :param filtfreq: The frequencies on which to filter when lodaing EEG data.
 
         data: A channels x events x samples matrix of EEG data.
-        bad_evchans: A channels x events matrix
-        bad_events: Each pres event has a row of booleans denoting whether each channel is bad (1 == bad, 0 == good)
+        bad_evchans: A channels x events matrix denoting which channels are bad on each event
+        bad_events: An array denoting whether each event has at least one bad channel (1 == bad, 0 == good)
         """
-        # Get a list of the channels to search for artifacts
-        all_chans = np.array(range(1, self.num_chans + 1))
+        # Get a list of the channels to search for artifacts. Look for all reref files that begin with the basename,
+        # then get their extension (minus the preceding period)
+        all_chans = np.array([os.path.splitext(f)[1][1:] for f in glob.glob(os.path.join(self.reref_dir, self.basename + '.*'))])
         # Calculate the number of samples to read from each event based on the duration in ms
         ev_length = int(duration * self.sample_rate / 1000)
 
         has_eeg = np.where(self.events.eegfile != '')[0]
-        # Create a channels x events x samples matrix containing the samples from each channel during each event
+        # Create a channels x events_with_eeg x samples matrix containing the samples from each channel during each event
         logger.debug('Loading reref data for word presentation events...')
-        data = np.zeros((self.num_chans, len(self.events), ev_length))
-        for i in all_chans:
-            data[i - 1] = self.get_event_eeg(i, self.events[has_eeg], ev_length, offset, buff, filtfreq)
+        data = np.zeros((self.num_chans, len(has_eeg), ev_length))
+        for i in range(len(all_chans)):
+            data[i] = self.get_event_eeg(all_chans[i], self.events[has_eeg], ev_length, offset, buff, filtfreq)
         logger.debug('Done.')
 
         # Get the indices of all word presentation events with eeg data
         pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
-        chans_to_use = np.setdiff1d(all_chans, self.weak_chans) - 1
+        chans_to_use = np.where(np.array([(chan not in self.weak_chans) for chan in all_chans]))[0]
 
         # Calculate mean and standard deviation across all samples in non-weak channels from all presentation events
         data_to_use = data[np.ix_(chans_to_use, pres_ev_ind, )]
@@ -221,8 +217,8 @@ class ArtifactDetector:
         # Mark each bad event with a list of the channels containing bad samples during the event
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
-            self.events[i].badEvent = True
-            self.events[i].badEventChannel = np.where(bad_evchans[:, i])[0] + 1
+            self.events[has_eeg[i]].badEvent = True
+            self.events[has_eeg[i]].badEventChannel = all_chans[np.where(bad_evchans[:, i])[0]]
 
     def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
         """
@@ -247,10 +243,7 @@ class ArtifactDetector:
         byte_offsets = (offset - buff + events.eegoffset) * 2
         # Load each event's data from its reref file, while filtering the data from each event
         for i in range(len(events)):
-            if events[i].eegfile == '':
-                continue
-            # FIXME: File names do not currently support the Biosemi style channel labeling
-            with open(os.path.join(self.reref_dir, events[i].eegfile) + '.{:03}'.format(chan), 'rb') as f:
+            with open(os.path.join(self.reref_dir, events[i].eegfile) + '.' + str(chan), 'rb') as f:
                 f.seek(byte_offsets[i])
                 data[i] = np.fromfile(f, 'int16', len_with_buffer)
             data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)

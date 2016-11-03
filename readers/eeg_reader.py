@@ -1119,6 +1119,7 @@ class BDF_reader(EEG_reader):
         # Reformat headers that require it
         for head in ('date', 'time'):
             self.header[head] = [int(x) for x in self.header[head].split('.')]
+        self.header['date'][2] += 2000  # convert year from two digits to four... will need to be changed in 2100
         for head in ('num_header_bytes', 'num_records', 'record_dur', 'num_channels'):
             self.header[head] = int(self.header[head])
         for head in ('physical_min', 'physical_max', 'digital_min', 'digital_max', 'samps_per_record'):
@@ -1177,7 +1178,7 @@ class BDF_reader(EEG_reader):
             raw_file.seek(data_start_index)
 
             # Create the ranges that j and h will iterate over outside of the nested loop, so we don't end up
-            # unnecessarily creating range(self.header['samps_per_record']) millions of times
+            # creating range(self.header['samps_per_record']) millions of times
             chan_range = range(self.header['num_channels'])
             samp_range = range(self.header['samps_per_record'][0])
 
@@ -1199,6 +1200,7 @@ class BDF_reader(EEG_reader):
         """
         Splits the data extracted from the binary file into each channel, and writes the data for each into a separate
         file. Also writes two parameter files containing the sample rate, data format, and amp gain for the session.
+
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
         """
@@ -1227,7 +1229,7 @@ class BDF_reader(EEG_reader):
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + \
-                 str(self.gain) + '\nsystem Biosemi'
+                 str(self.gain[0]) + '\nsystem Biosemi'
         with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
@@ -1241,7 +1243,7 @@ class BDF_reader(EEG_reader):
         is performed by dividing each sample by the average voltage of that sample number across all good channels
         (excluding event channels).
 
-        :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
+        :param bad_chans: A list containing all channel numbers to be excluded from rereferencing
         :param location: A string denoting the directory to which the reref files will be written
         """
         # Create directory if needed
@@ -1251,8 +1253,8 @@ class BDF_reader(EEG_reader):
         logger.debug('Rerefencing data...')
 
         # Ignore bad channels and the sync channel for the purposes of calculating the averages for rereference
-        bad_chans += ['sync']
-        good_chans = np.where([chan not in bad_chans for chan in self.header['channel_names']])[0]
+        # bad_chans += ['sync']
+        good_chans = np.where(np.array([(chan not in bad_chans) for chan in self.header['channel_names']]))[0]
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
         means = np.mean(self._data[good_chans], axis=0)

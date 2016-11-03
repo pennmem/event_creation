@@ -41,7 +41,7 @@ class LTPAligner:
         self.reref_dir = os.path.join(os.path.dirname(self.noreref_dir), 'reref')
         self.pulse_files = []
         for f in os.listdir(self.noreref_dir):
-            if f.endswith(('.DIN1', '.DI15', '.D255')):
+            if f.endswith(('.Status', '.DIN1', '.DI15', '.D255')):
                 self.pulse_files.append(f)
         self.num_samples = -999
         self.pulses = None
@@ -51,8 +51,10 @@ class LTPAligner:
         self.events = events.view(np.recarray)
         self.basename = os.path.splitext(self.pulse_files[0])[0] if len(self.pulse_files) > 0 else ''
         # Determine sample rate from the params.txt file
-        if 'eeg_params' in files:
-            with open(files['eeg_params']) as eeg_params_file:
+
+        eeg_params = os.path.join(self.reref_dir, 'params.txt')
+        if os.path.isfile(eeg_params):
+            with open(eeg_params) as eeg_params_file:
                 params_text = [line.split() for line in eeg_params_file.readlines()]
             self.sample_rate = int(params_text[0][1])
             self.gain = float(params_text[2][1])
@@ -131,15 +133,16 @@ class LTPAligner:
         logger.debug('Acquiring EEG sync pulses...')
         if not hasattr(self.pulse_files, '__iter__'):
             self.pulse_files = [self.pulse_files]
-        for file_type in ('.D255', '.DI15', '.DIN1'):
+        for file_type in ('.Status', '.D255', '.DI15', '.DIN1'):
             for f in self.pulse_files:
                 if f.endswith(file_type):
                     pulse_sync_file = f
                     eeg_samples = np.fromfile(os.path.join(self.noreref_dir, pulse_sync_file), 'int16')
                     self.num_samples = len(eeg_samples)
                     self.pulses = np.where(eeg_samples > 0)[0]
-                    self.ephys_ms = self.pulses * 1000 / self.sample_rate
-                    self.basename = f[:-5]
+                    self.ephys_ms = self.pulses * 1000. / self.sample_rate
+                    self.ephys_ms = self.ephys_ms.astype(int)
+                    self.basename = os.path.splitext(os.path.basename(f))[0]
                     logger.debug('Done.')
                     return
 
@@ -150,8 +153,8 @@ class LTPAligner:
         sync pulses.
         """
         logger.debug('Acquiring behavioral sync pulse times...')
-        if not hasattr(self.pulse_files, '__iter__'):
-            self.pulse_files = [self.pulse_files]
+        if not hasattr(self.behav_files, '__iter__'):
+            self.behav_files = [self.behav_files]
         for f in self.behav_files:
             if f.endswith('.up'):
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0])
@@ -169,7 +172,7 @@ class LTPAligner:
         """
         # Load data from the eeg.eeglog file and get all rows for up pulses
         data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
-        up_pulses = data[data[:, 2] == 'UP']
+        up_pulses = data[np.logical_or(data[:, 2] == 'CHANNEL_0_UP', data[:, 2] == 'UP')]
         # Save the up pulses to eeg.eeglog.up
         np.savetxt(eeg_log + '.up', up_pulses, fmt='%s %s %s')
         # Return the mstimes from all up pulses
