@@ -141,11 +141,12 @@ class TransferPipeline(object):
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
 
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))
-        missing_files = self.transferer.missing_required_files()
+        missing_files, expected_dir = self.transferer.missing_required_files()
         if missing_files:
             logger.error("Missing file {}. Deleting processed folder {}".format(missing_files, self.destination))
             shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}'.format(missing_files))
+            raise UnTransferrableException('Missing file {}. '
+                                           'Expected in {}'.format(missing_files, expected_dir))
 
         should_transfer = self.transferer.check_checksums()
         if should_transfer != True:

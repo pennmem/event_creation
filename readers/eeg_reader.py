@@ -264,32 +264,32 @@ class NK_reader(EEG_reader):
             f.seek(deviceBlockLen)
 
             # Reading EEG1 control block
-            _ = f.read(1) # block ID
-            device_type = self.char_(f, 16) # Device type
+            _ = f.read(1)  # block ID
+            device_type = self.char_(f, 16)  # Device type
             new_format = device_type[:9] == 'EEG-1200A'
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
                 raise UnSplittableEEGFileException('%s EEG2 Control blocks detected' % number_of_blocks)
             block_address = self.int32(f)
-            _ = f.read(16) # EEG control block name
+            _ = f.read(16)  # EEG control block name
 
             # Reading EEG2 Control block
             f.seek(block_address, 0)
-            _ = f.read(1) # Block ID
-            _ = f.read(16) # Data format
+            _ = f.read(1)  # Block ID
+            _ = f.read(16)  # Data format
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
                 raise UnSplittableEEGFileException('%d waveform blocks detected' % number_of_blocks)
             block_address = self.int32(f)
-            _ = f.read(16) # Name of waveform block
+            _ = f.read(16)  # Name of waveform block
 
             # Reading waveform block
             f.seek(block_address, 0)
-            _ = f.read(1) # Block ID
-            _ = f.read(16) # Data format
-            _ = f.read(1) # Data type
-            L = self.uint8(f) # Byte length of one data
-            M = self.uint8(f) # Mark/event flag
+            _ = f.read(1)  # Block ID
+            _ = f.read(16)  # Data format
+            _ = f.read(1)  # Data type
+            L = self.uint8(f)  # Byte length of one data
+            M = self.uint8(f)  # Mark/event flag
 
             T_year = self.uint8(f)
             T_month = self.uint8(f)
@@ -319,7 +319,7 @@ class NK_reader(EEG_reader):
                 raise UnSplittableEEGFileException('Unknown sample rate')
 
             num_100_ms_blocks = self.uint32(f)
-            logger.debug('Length of session: %2.2f hours\n' % (num_100_ms_blocks/10./3600.))
+            logger.debug('Length of session: %2.2f hours\n' % (num_100_ms_blocks / 10. / 3600.))
             num_samples = actual_sample_rate * num_100_ms_blocks / 10.
             self.num_samples = num_samples
             ad_off = self.int16(f)
@@ -358,26 +358,25 @@ class NK_reader(EEG_reader):
                 M = self.uint8(f)  # Mark/event flag
 
                 #  Now things get a little different with the new header
-                _ = self.char_(f, 20)  #  Start time string
-                actual_sample_rate = self.uint32(f)  #  Data interval (sample rate)
+                _ = self.char_(f, 20)  # Start time string
+                actual_sample_rate = self.uint32(f)  # Data interval (sample rate)
                 self.sample_rate = actual_sample_rate
-                num_100_ms_blocks = self.uint64(f)  #  Length of session
+                num_100_ms_blocks = self.uint64(f)  # Length of session
 
                 num_samples = actual_sample_rate * num_100_ms_blocks / 10
                 self.num_samples = num_samples
-                ad_off = self.int16(f)  #  AD offset at 0V
-                ad_val = self.uint16(f)  #  ACD val for 1 division
-                bit_len = self.uint16(f)  #  Bit length of one sample
-                com_flag = self.uint16(f)  #  Data compression
-                reserve_l = self.uint16(f)  #  Reserve length
-                _ = self.char_(f, reserve_l)  #  Reserve data
+                ad_off = self.int16(f)  # AD offset at 0V
+                ad_val = self.uint16(f)  # ACD val for 1 division
+                bit_len = self.uint16(f)  # Bit length of one sample
+                com_flag = self.uint16(f)  # Data compression
+                reserve_l = self.uint16(f)  # Reserve length
+                _ = self.char_(f, reserve_l)  # Reserve data
 
-                num_channels = self.uint32(f) # Number of RAW recordings
-
+                num_channels = self.uint32(f)  # Number of RAW recordings
 
             lines = [line.strip() for line in open(elec_file).readlines()]
             end_range = lines.index('[SD_DEF]')
-            split_lines = [line.split('=') for line in lines[:end_range] if '=' in line ]
+            split_lines = [line.split('=') for line in lines[:end_range] if '=' in line]
             nums_21e, names_21e = zip(*split_lines[:end_range])
             nums_21e = [int(n) for n in nums_21e]
 
@@ -400,12 +399,14 @@ class NK_reader(EEG_reader):
 
             data_num_to_21e_index = np.zeros(num_channels) - 1
 
-            channel_mask = np.array([not self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map) is None
-                                     for name in names_21e_ordered])
+            channel_mask = np.array(
+                [not self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map) is None
+                 for name in names_21e_ordered])
             nums_21e_filtered = nums_21e_ordered[channel_mask]
             names_21e_filtered = names_21e_ordered[channel_mask]
-            jacksheet_filtered = [jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map)]
-                                  for name in names_21e_filtered]
+            jacksheet_filtered = [
+                jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map)]
+                for name in names_21e_filtered]
 
             for e_name, e_num in jacksheet_dict.items():
                 if e_num not in jacksheet_filtered:
@@ -454,21 +455,22 @@ class NK_reader(EEG_reader):
             data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples))
             if len(data) / (num_channels + 1) != num_samples:
                 num_samples = len(data) / (num_channels + 1)
-                logger.warn('Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
+                logger.warn(
+                    'Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
                                                                                                      num_samples))
                 self.num_samples = num_samples
             data = data.reshape((int(num_samples), int(num_channels + 1))).T
-            #data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
-            logger.debug( 'Done.')
+            # data = np.array(self.uint16(f, int((num_channels + 1) * num_samples))).reshape((int(num_samples), int(num_channels + 1))).T
+            logger.debug('Done.')
 
             # Filter only for relevant channels
             data_num_mask = np.array(data_num_to_21e_index != -1)
-            data = data[np.append(data_num_mask,False), :]
+            data = data[np.append(data_num_mask, False), :]
             data_num_to_21e_index = data_num_to_21e_index[data_num_mask]
 
             # Remove offset
             data = data + ad_off
-            data_dict = {jacksheet_filtered[int(data_num_to_21e_index[i])]: data[i,:] for i in range(data.shape[0])}
+            data_dict = {jacksheet_filtered[int(data_num_to_21e_index[i])]: data[i, :] for i in range(data.shape[0])}
             return data_dict
 
     def channel_data(self, channel):
@@ -604,7 +606,7 @@ class NSx_reader(EEG_reader):
     @property
     def data(self):
         if not self._data:
-            self._data = self.nsx_info['reader'].getdata()
+            self._data = self.nsx_info['data'] # I apologize for this.
         return self._data
 
     def channel_data(self, channel):
@@ -616,27 +618,43 @@ class NSx_reader(EEG_reader):
         reader = NsxFile(nsx_file)
         _, extension = os.path.splitext(nsx_file)
         data = reader.getdata()
+        headers = data['data_headers']
+        pre_data_points = headers[0]['NumDataPoints']
+
+        # Have to get the data starting at a sample after the last segment starts
+        # or reader fills it with all zeros. Because blackrock.
+        data_actual = reader.getdata(start_time_s = float(pre_data_points+1)/data['samp_per_s'])
+
+        data['data'][:,pre_data_points+1:] = data_actual['data']
+
         start_time = reader.basic_header['TimeOrigin']
         total_data_points = sum([header['NumDataPoints'] for header in data['data_headers']])
+        used_data_points = total_data_points - pre_data_points
         sample_rate = NSx_reader.SAMPLE_RATES[extension]
-        length_ms = total_data_points / float(sample_rate) * 1000.
+        length_ms = used_data_points / float(sample_rate) * 1000.
         return {'filename': nsx_file,
                 'start_time': start_time,
                 'length_ms': length_ms,
-                'n_samples': total_data_points,
+                'n_samples': used_data_points,
                 'sample_rate': sample_rate,
-                'reader': reader}
+                'reader': reader,
+                'data': data}
 
     def _split_data(self, location, basename):
         channels = np.array(self.data['elec_ids'])
+        buffer_size = self.data['data_headers'][-1]['Timestamp'] / (self.TIC_RATE / self.get_sample_rate())
         for label, channel in self.labels.items():
             recording_channel = channel - self.lowest_channel
             if recording_channel < 0 or not recording_channel in channels:
-                logger.warn('Not getting channel {} from file {}'.format(channel, self.raw_filename))
+                logger.debug('Not getting channel {} from file {}'.format(channel, self.raw_filename))
                 continue
             filename = os.path.join(location, basename + '.%03d' % channel)
             logger.debug('%s: %s' % (label, channel))
-            data = self.data['data'][channels==channel, :].astype(self.DATA_FORMAT)
+            data = self.data['data'][channels==recording_channel, :].astype(self.DATA_FORMAT)
+            if len(data) == 0:
+                raise UnSplittableEEGFileException("EEG File {} contains no data "
+                                                   "for channel {}".format(self.raw_filename, recording_channel))
+            data = np.concatenate((np.ones((1, buffer_size), self.DATA_FORMAT) * data[0,0], data), 1)
             data.tofile(filename)
             sys.stdout.flush()
 
