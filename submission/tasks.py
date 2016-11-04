@@ -127,6 +127,11 @@ class SplitEEGTask(PipelineTask):
                 bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000) if 'artifact_log' in files else np.array([])
                 np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
+
+            # Detect EGI channel files
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+            # Detect Biosemi channel files
+            num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         else:
             if 'contacts' in files:
                 jacksheet_file = files['contacts']
@@ -154,9 +159,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(self.pipeline.destination, split_eeg_filename)
-        # FIXME: num_split_files cannot detect Biosemi-style channel names
-        num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
-        # num_split_files = True
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+
         if num_split_files == 0:
             raise UnProcessableException(
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
