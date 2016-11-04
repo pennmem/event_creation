@@ -2,7 +2,6 @@ import os
 import glob
 import re
 import json
-import datetime
 import traceback
 import numpy as np
 import shutil
@@ -620,7 +619,7 @@ def change_current(source_folder, *args):
         os.symlink(previous_current_processed, current_processed)
 
 def xtest_change_current():
-    from convenience import build_split_pipeline
+    from submission.pipelines import build_split_pipeline
     import time
     subject, montage, experiment, session, protocol = 'R1001P', '0.0', 'FR1', 0, 'r1',
     pipeline_1 = build_split_pipeline(subject, montage, experiment, session)
