@@ -619,11 +619,16 @@ class NSx_reader(EEG_reader):
         _, extension = os.path.splitext(nsx_file)
         data = reader.getdata()
         headers = data['data_headers']
-        pre_data_points = headers[0]['NumDataPoints']
 
-        # Have to get the data starting at a sample after the last segment starts
-        # or reader fills it with all zeros. Because blackrock.
-        data_actual = reader.getdata(start_time_s = float(pre_data_points+1)/data['samp_per_s'])
+        if len(headers) > 1:
+            pre_data_points = headers[0]['NumDataPoints']
+
+            # Have to get the data starting at a sample after the last segment starts
+            # or reader fills it with all zeros. Because blackrock.
+            data_actual = reader.getdata(start_time_s = float(pre_data_points+1)/data['samp_per_s'])
+        else:
+            pre_data_points = -1
+            data_actual = data
 
         data['data'][:,pre_data_points+1:] = data_actual['data']
 
