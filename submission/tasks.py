@@ -2,7 +2,6 @@ import os
 import glob
 import re
 import json
-import datetime
 import traceback
 import numpy as np
 import shutil
@@ -127,6 +126,11 @@ class SplitEEGTask(PipelineTask):
                 bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000) if 'artifact_log' in files else np.array([])
                 np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
+
+            # Detect EGI channel files
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+            # Detect Biosemi channel files
+            num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         else:
             if 'contacts' in files:
                 jacksheet_file = files['contacts']
@@ -154,7 +158,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(self.pipeline.destination, split_eeg_filename)
-        num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+
         if num_split_files == 0:
             raise UnProcessableException(
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
@@ -217,21 +222,8 @@ class EventCreationTask(PipelineTask):
         elif self.protocol == 'ltp':
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
-            num_chans = 0
-            eog_chans = []
-            weak_chans = []
-            # EGI parameters for artifact detection
-            if aligner.system == 'EGI':
-                num_chans = 129
-                eog_chans = [('025', '127'), ('008', '126')]
-                weak_chans = ['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063', '099', '107',
-                              '113', '114', '126', '127']
-            # Biosemi parameters for artifact detection
-            elif aligner.system == 'Biosemi':
-                num_chans = 128  # FIXME: 128 does not include EOG and possibly others
-                eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8']
-            artifact_detector = ArtifactDetector(events, aligner.basename, aligner.reref_dir, aligner.sample_rate,
-                                                 aligner.gain, num_chans, eog_chans, weak_chans)
+            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.reref_dir,
+                                                 aligner.sample_rate, aligner.gain)
             events = artifact_detector.run()
         else:
             aligner = System1Aligner(unaligned_events, files)
@@ -627,7 +619,7 @@ def change_current(source_folder, *args):
         os.symlink(previous_current_processed, current_processed)
 
 def xtest_change_current():
-    from convenience import build_split_pipeline
+    from submission.pipelines import build_split_pipeline
     import time
     subject, montage, experiment, session, protocol = 'R1001P', '0.0', 'FR1', 0, 'r1',
     pipeline_1 = build_split_pipeline(subject, montage, experiment, session)

@@ -246,6 +246,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
+            do_math = False
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
         elif experiment == 'ltpFR2':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
@@ -267,7 +268,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     montage_num = montage.split('.')[1]
 
     # Have to wait to aggregate index until after submission
-    #tasks.append(IndexAggregatorTask())
+    # tasks.append(IndexAggregatorTask())
 
     info = dict(
         localization=localization,
