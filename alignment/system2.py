@@ -191,6 +191,8 @@ class System2TaskAligner(object):
         best_index = np.argmin(errors)
 
         if errors[best_index] == 'NaN':
+            logger.debug("nsx file lengths: {}".format([nsx_file['n_samples'] * float(nsx_file['sample_rate'] / 1000) for nsx_file in self.all_nsx_info]))
+            logger.debug("host time start differences: {}".format([x for x in diff_np_starts]))
             raise UnAlignableEEGException('Could not find recording long enough to match events')
 
         if len(self.host_time_np_starts) > 1:
@@ -327,7 +329,7 @@ class System2TaskAligner(object):
             coefficients.append(cls.get_fit(host_time, np_time))
             cls.plot_fit(host_time, np_time, coefficients[-1], plot_save_dir, 'host_np')
             host_starts.append(cls.apply_coefficients_backwards(0, coefficients[-1]))
-            host_ends.append(host_times[-1])
+            host_ends.append(host_time[-1])
         return coefficients, host_starts, host_ends
 
     @classmethod
