@@ -527,6 +527,8 @@ def confirm(prompt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', dest='log_debug', action='store_true', default=False,
+                        help='Prints debug information to the screen during execution')
     parser.add_argument('--montage-only', dest='montage_only', action='store_true', default=False,
                         help='Imports a localization or montage instead of importing events')
     parser.add_argument('--change-experiment', dest='change_experiment', action='store_true', default=False,
@@ -561,6 +563,9 @@ if __name__ == '__main__':
                         help='ONLY build a database for import. \rOptions are [ram, sharing]')
 
     args = parser.parse_args()
+
+    if args.log_debug:
+        logger.set_stdout_level(0)
 
     if args.clean_db:
         print('Cleaning database and ignoring other arguments')
