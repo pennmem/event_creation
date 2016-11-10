@@ -640,6 +640,7 @@ if __name__ == '__main__':
     success, importers = run_session_import(inputs, attempt_import, attempt_convert, args.force_events,
                                             args.force_eeg)
     if success:
+        print("Aggregating indexes. This may take a moment...")
         IndexAggregatorTask().run()
     print('Success:' if success else "Failed:")
     print(importers.describe())
