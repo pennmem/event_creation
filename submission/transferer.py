@@ -149,6 +149,7 @@ class Transferer(object):
             origin_directory = info['origin_directory'].format(**kwargs)
         except:
             if info['required']:
+                logger.error("Could not determine all keys for {} when formatting {}".format(info['destination'], info['origin_directory']))
                 raise
             else:
                 return []
@@ -413,7 +414,7 @@ def find_sync_file(subject, experiment, session):
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
     # Now look for the exp_# anywhere in the basename
-    sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}*.sync.txt'.format(exp=experiment, sess=session))
+    sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}_*.sync.txt'.format(exp=experiment, sess=session))
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
@@ -483,7 +484,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
         except UnTransferrableException:
-            logger.warn("Could not find syncs! Will likely fail soon!")
+            logger.warn("******* Could not find syncs! Will likely fail soon!")
 
     if not new_experiment:
         new_experiment = experiment

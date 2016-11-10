@@ -20,6 +20,9 @@ class ImporterCollection(object):
                 self.kwargs[kwarg_key].add(kwarg_value)
 
     def describe(self):
+        if len(self.importers) == 0:
+            return 'No appropriate importers found!'
+
         label = self.label
         label += ':: ' + '\n\t\t'
         label += '\n\t\t'.join([k + ': ' + ', '.join([str(v_o) for v_o in v]) for k, v in self.kwargs.items()])
