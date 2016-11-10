@@ -298,6 +298,9 @@ def build_session_inputs(subject, new_experiment, session, info):
     if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):
         inputs['groups'] += ('verbal', )
 
+    if experiment.endswith("3"):
+        inputs['groups'] +=  ('stim', )
+
     return inputs
 
 

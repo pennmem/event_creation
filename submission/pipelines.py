@@ -78,7 +78,8 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
                 groups += ('system_2',)
             else:
                 groups += ('system_1',)
-
+        if experiment.endswith("3"):
+            groups += ("stim", )
     return groups
 
 class TransferPipeline(object):

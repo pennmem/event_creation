@@ -827,9 +827,12 @@ def th_event_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     if field in ('isRecFromNearSide', 'isRecFromStartSide') and event1[field] == 0 and event2[field] == -999:
         return True
-    if field == 'item_name' and len(event1['item_name']) == 0 and len(event2['item_name'][0]) == 0:
+    if field == 'item_name' and len(event1['item_name']) == 0 and \
+            (np.isnan(event2['item_name'][0]) or len(event2['item_name'][0]) == 0):
         return True
     if field == None and event2 and event2['type'] == 'SESS_START':
+        return True
+    if field and event1['type'] in ('STIM_ON', 'STIM_OFF'):
         return True
     return False
 
@@ -922,6 +925,12 @@ def ps_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     return False
 
 def th_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
+    field1 = StimComparator.get_subfield(event1, field_name1)
+    field2 = StimComparator.get_subfield(event2, field_name2)
+
+    if field1 == 0 and np.isnan(field2[0]):
+        return True
+
     return False
 
 def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
@@ -1234,7 +1243,8 @@ TH_SYS2_COMPARATOR_INPUTS = dict(
     field_switch = {'is_stim': 'isStim', 'item_name': 'item'},
     field_ignore = all_ignore + ('stim_list', 'normErr', 'pathInfo', 'stimList'),
     exceptions = th_event_comparison_exceptions,
-    type_ignore = ()
+    type_ignore = (),
+    type_switch={'STIM_ON': ('STIM',)}
 )
 
 TH_SYS1_COMPARATOR_INPUTS = dict(
@@ -1267,7 +1277,8 @@ SYS2_COMPARATOR_INPUTS = dict(
     catFR1=CATFR_SYS1_COMPARATOR_INPUTS,
     PAL3=PAL3_COMPARATOR_INPUTS,
     PS=PS_SYS2_COMPARATOR_INPUTS,
-    TH1=TH_SYS2_COMPARATOR_INPUTS
+    TH1=TH_SYS2_COMPARATOR_INPUTS,
+    TH3=TH_SYS2_COMPARATOR_INPUTS
 )
 
 SYS1_COMPARATOR_INPUTS = dict(

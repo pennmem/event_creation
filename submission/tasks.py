@@ -218,7 +218,11 @@ class EventCreationTask(PipelineTask):
             aligner = System2Aligner(unaligned_events, files, db_folder)
             if self.event_label != 'math':
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
-            events = aligner.align('SESS_START')
+            if self.experiment.startswith("TH"):
+                start_type = "CHEST"
+            else:
+                start_type = "SESS_START"
+            events = aligner.align(start_type)
         elif self.protocol == 'ltp':
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
@@ -531,7 +535,7 @@ class CompareEventsTask(PipelineTask):
                 major_version_num = float(major_version.split('_')[-1])
             except:
                 major_version_num = 0
-            if major_version_num >= 2:
+            if major_version_num >= 2 or ((not self.experiment.startswith("PS")) and self.experiment.endswith("3")):
                 comparator_inputs = SYS2_COMPARATOR_INPUTS[self.experiment]
             else:
                 comparator_inputs = SYS1_COMPARATOR_INPUTS[self.experiment]
