@@ -18,13 +18,13 @@ class ArtifactDetector:
 
         if system == 'EGI':
             self.num_chans = 129
-            self.eog_chans = [('025', '127'), ('008', '126')]
+            self.eog_chans = [('025', '127'), ('008', '126')]  # 127 is left, 126 is right
             self.weak_chans = np.array(['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063',
                                         '099', '107', '113', '114', '126', '127'])
             self.blink_thresh = 100
         elif system == 'Biosemi':
             self.num_chans = 137
-            self.eog_chans = [('EXG1', 'EXG2'), ('EXG3', 'EXG4'), ('EXG5', 'EXG6'), ('EXG7', 'EXG8')]
+            self.eog_chans = [('C30', 'EXG1'), ('C8', 'EXG2')]  # EXG1 is left, EXG2 is right
             self.weak_chans = np.array([])
             self.blink_thresh = 100
         else:
