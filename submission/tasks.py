@@ -434,6 +434,12 @@ class IndexAggregatorTask(PipelineTask):
 
     @classmethod
     def build_single_file_index(cls, index_path, d):
+        """
+        Adds to the current index "d" with the information at "index_path"
+        :param index_path: Path to the index file (in subject folder) to be aggregated
+        :param d: dictionary to be appended to
+        :return:
+        """
         index = json.load(open(index_path))
         info_list = cls.list_from_index_path(index_path)
 
@@ -479,7 +485,19 @@ class IndexAggregatorTask(PipelineTask):
             with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w') as f:
                 json.dump(index, f, sort_keys=True, indent=2)
 
+    def run_single_subject(self, subject, protocol):
+        index_file = open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'r')
+        try:
+            index = json.load(index_file)
+        except:
+            index = {}
+        subject_dir = os.path.join(self.PROTOCOLS_DIR, protocol, 'subjects', subject)
+        subj_index_files = self.find_index_files(subject_dir)
+        for subj_index_file in subj_index_files:
+            self.build_single_file_index(subj_index_file, index)
 
+        with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
+            json.dump(index, f, sort_keys=True, indent=2)
 
 class CompareEventsTask(PipelineTask):
 
