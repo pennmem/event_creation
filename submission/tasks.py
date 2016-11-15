@@ -486,8 +486,8 @@ class IndexAggregatorTask(PipelineTask):
                 json.dump(index, f, sort_keys=True, indent=2)
 
     def run_single_subject(self, subject, protocol):
-        index_file = open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'r')
         try:
+            index_file = open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'r')
             index = json.load(index_file)
         except:
             index = {}
