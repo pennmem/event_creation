@@ -716,7 +716,11 @@ def verbal_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     if event1['type'] != 'STIM_ON' and (field2_is_nan or field2 == '[]'):
         return True
 
+
     if not event1['is_stim'] and ((not event2['isStim']) or event2['isStim'] == -999) and not field1:
+        return True
+
+    if field_name1 == 'stim_params.amplitude' and field1 and field1/1000 == field2:
         return True
 
     if field_name1 in ('stim_params.anode_label', 'stim_params.cathode_label') and field1.upper() == field2.upper():

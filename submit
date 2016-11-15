@@ -13,6 +13,17 @@ if [[ $USER != "RAM_maint" ]]; then
     done
 fi
 
+if [[ ${HOSTNAME:0:4} != "node" ]]; then
+    while true; do
+        echo "This script is best run from a node not the headnode (use qlogin)"
+        read -p "Are you sure you want to continue? " yn
+        case $yn in
+            [Nn]* ) exit;;
+            [Yy]* ) break;;
+            * ) echo "Please answer y/n";;
+        esac
+    done
+fi
 
 #USER_HOME=`eval echo ~$USR`
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
