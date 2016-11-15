@@ -1123,7 +1123,7 @@ class BDF_reader(EEG_reader):
         Samples per record: The number of samples per record for each channel; sample rate = samps_per_rec / record_dur
         Reserved: Unknown, but does not appear to be used
         """
-        with open(self.raw_filename, 'rb') as raw_file:
+        with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Read header info; each triplet from self.header_names contains the name of the header, its length, and
             # whether it has a separate entry for each channel
             self.header['ID1'] = struct.unpack('B', raw_file.read(1))[0]
@@ -1195,22 +1195,27 @@ class BDF_reader(EEG_reader):
 
         raw = np.zeros((self.total_samples, 1))
         logger.debug('Loading %d samples...' % self.total_samples)
-        with open(self.raw_filename, 'rb') as raw_file:
+        with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Go to index for the beginning of the EEG samples in the raw file
             data_start_index = self.header['num_header_bytes']
             raw_file.seek(data_start_index)
 
             # Create the ranges that j and h will iterate over outside of the nested loop, so we don't end up
             # creating range(self.header['samps_per_record']) millions of times
-            chan_range = range(self.header['num_channels'])
+            chan_range = range(self.header['num_channels']-1)  # List all non-sync channels
             samp_range = range(self.header['samps_per_record'][0])
 
             # Read samples into self._data
             for i in range(self.header['num_records']):
+                c = (i-1) * self.header['samps_per_record'][0]
                 for j in chan_range:
                     for h in samp_range:
-                        self._data[j, i * self.header['samps_per_record'][0] + h] = \
-                            struct.unpack('<i', '\x00' + raw_file.read(3))[0] >> 8
+                        # Unpack cannot read int24, so each sample must be read and padded independently
+                        self._data[j, c + h] = struct.unpack('<i', '\x00' + raw_file.read(3))[0] >> 8
+                # Read the sync pulse channel separately, as it is big-endian
+                for h in samp_range:
+                    self._data[-1, c + h] = struct.unpack('>i', raw_file.read(3) + '\x00')[0] >> 8
+
         logger.debug('Done.')
 
         # Run a first-order highpass butterworth filter on each channel
