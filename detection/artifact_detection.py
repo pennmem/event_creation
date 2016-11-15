@@ -23,7 +23,7 @@ class ArtifactDetector:
                                         '099', '107', '113', '114', '126', '127'])
             self.blink_thresh = 100
         elif system == 'Biosemi':
-            self.num_chans = 137
+            self.num_chans = 130
             self.eog_chans = [('C30', 'EXG1'), ('C8', 'EXG2')]  # EXG1 is left, EXG2 is right
             self.weak_chans = np.array([])
             self.blink_thresh = 100
@@ -182,7 +182,7 @@ class ArtifactDetector:
         has_eeg = np.where(self.events.eegfile != '')[0]
         # Create a channels x events_with_eeg x samples matrix containing the samples from each channel during each event
         logger.debug('Loading reref data for word presentation events...')
-        data = np.zeros((self.num_chans, len(has_eeg), ev_length))
+        data = np.zeros((len(all_chans), len(has_eeg), ev_length))
         for i in range(len(all_chans)):
             data[i] = self.get_event_eeg(all_chans[i], self.events[has_eeg], ev_length, offset, buff, filtfreq)
         logger.debug('Done.')

@@ -1082,6 +1082,7 @@ class BDF_reader(EEG_reader):
         self.noreref_loc = ''
         self.start_datetime = None
         self._data = None
+        self.sync = None
         self.header = {}
         self.header_names = (('ID2', 7, False), ('subject', 80, False), ('recording', 80, False), ('date', 8, False),
                              ('time', 8, False), ('num_header_bytes', 8, False), ('sample_format', 44, False),
@@ -1222,6 +1223,7 @@ class BDF_reader(EEG_reader):
         logger.debug('Running first-order .1 Hz highpass filter on all channels.')
         for i in range(self._data.shape[0]):
             self._data[i] = butter_filt(self._data[i], .1, self.sample_rate, 'highpass', 1)
+
         logger.debug('Done')
 
     def _split_data(self, location, basename):
@@ -1244,13 +1246,25 @@ class BDF_reader(EEG_reader):
         bounds = np.iinfo(self.DATA_FORMAT)
         self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
 
+        self.sync = self._data[-1] / np.max(self._data[-1])  # Clean up and separate sync pulse channel
+        self._data = self._data[:-7]  # Drop EXG3 through EXG 8 and the sync channel from self._data
+        self.header['channel_names'] = self.header['channel_names'][:-7]
+
         # Write EEG channel files
-        for i in range(self.header['num_channels']):
+        for i in range(self._data.shape[0]):
             filename = os.path.join(location, basename + ('.' + self.header['channel_names'][i]))
             logger.debug(i+1)
             sys.stdout.flush()
             # Each row of self._data contains all samples for one channel or event
             self._data[i].tofile(filename)
+
+        # Write sync pulse channel file
+        filename = os.path.join(location, basename + '.Status')
+        logger.debug(i + 1)
+        sys.stdout.flush()
+        # Each row of self._data contains all samples for one channel or event
+        self.sync.tofile(filename)
+
         logger.debug('Saved.')
 
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
@@ -1281,7 +1295,6 @@ class BDF_reader(EEG_reader):
         logger.debug('Rerefencing data...')
 
         # Ignore bad channels and the sync channel for the purposes of calculating the averages for rereference
-        # bad_chans += ['sync']
         good_chans = np.where(np.array([(chan not in bad_chans) for chan in self.header['channel_names']]))[0]
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
@@ -1298,7 +1311,7 @@ class BDF_reader(EEG_reader):
 
         # Write reref files
         logger.debug('Writing rereferenced channels...')
-        for i in range(self.header['num_channels']):
+        for i in range(self._data.shape[0]):
             filename = os.path.join(location, self.basename + '.' + self.header['channel_names'][i])
             # Write the rereferenced data from each channel to its own file
             self._data[i].tofile(filename)
@@ -1378,7 +1391,7 @@ READERS = {
     '.edf': EDF_reader,
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
-    '.bz2': EGI_reader,
+    '.raw': EGI_reader,
     '.bdf': BDF_reader
 }
 
@@ -1387,4 +1400,7 @@ def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):
     if isinstance(raw_filename, list):
         return Multi_NSx_reader(raw_filename, jacksheet_filename)
     else:
-        return READERS[os.path.splitext(raw_filename)[1].lower()](raw_filename, jacksheet_filename, **kwargs)
+        file_type = os.path.splitext(raw_filename)[1].lower()
+        # If the data file is compressed, get the extension before the .bz2
+        file_type = os.path.splitext(os.path.splitext(raw_filename)[0])[1].lower() if file_type == '.bz2' else file_type
+        return READERS[file_type](raw_filename, jacksheet_filename, **kwargs)
