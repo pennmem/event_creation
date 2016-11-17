@@ -213,21 +213,23 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
         events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
-        if ephys_builder.initialized:
+        if ephys_builder.initialized or not do_convert: # Attempt the importer even if it failed if it's the only option
             ephys_importers.append(ephys_builder)
-        if events_builder.initialized:
+        else:
+            logger.warn("Could not initialize ephys builder")
+        if events_builder.initialized or not do_convert:
             events_importers.append(events_builder)
 
     if do_convert:
         ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
         events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
-        if ephys_converter.initialized:
+        if ephys_converter.initialized or not do_import:
             if ephys_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
                 ephys_importers = [ephys_converter] + ephys_importers
             else:
                 ephys_importers.append(ephys_converter)
 
-        if events_converter.initialized:
+        if events_converter.initialized or not do_import:
             if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
                 events_importers = [events_converter] + events_importers
             else:
@@ -287,7 +289,7 @@ def build_session_inputs(subject, new_experiment, session, info):
         attempt_import=attempt_import
     )
 
-    if is_sys2 or experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
+    if is_sys2 or new_experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
         inputs['groups'] += ('system_2',)
     elif is_sys1:
         inputs['groups'] += ('system_1',)
@@ -413,7 +415,8 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
 def prompt_for_session_inputs(**opts):
     code = raw_input('Enter subject code: ')
     subject = re.sub(r'_.*', '', code)
-    original_experiment = raw_input('Enter original experiment: ')
+
+    experiment = raw_input('Enter experiment name: ')
     original_session = raw_input('Enter original session number: ')
 
     if subject != code:
@@ -425,15 +428,20 @@ def prompt_for_session_inputs(**opts):
         montage_num = 0
         localization = 0
 
-    if opts.get('change_session', False) or subject != code or original_experiment.startswith('PS'):
+    if opts.get('change_session', False) or subject != code or \
+            (experiment.startswith('PS') and not experiment.endswith('2.1')):
         session = int(raw_input('Enter new session number: '))
     else:
         session = original_session
 
-    if opts.get('change_experiment', False) or original_experiment.startswith('PS'):
-        experiment = raw_input('Enter new experiment: ')
+    if opts.get('change_experiment', False):
+        original_experiment = raw_input('Enter original experiment: ')
+    elif experiment == 'PS2.1':
+        original_experiment = 'PS21'
+    elif experiment.startswith('PS'):
+        original_experiment = 'PS'
     else:
-        experiment = original_experiment
+        original_experiment = experiment
 
     protocol = 'ltp' if experiment.startswith('ltp') else \
                'r1' if subject.startswith('R') else None
@@ -441,6 +449,14 @@ def prompt_for_session_inputs(**opts):
     attempt_conversion = opts.get('allow_convert', False)
     attempt_import = not opts.get('force_convert', False)
     do_compare = opts.get('do_compare', False)
+
+    if original_experiment.startswith('PS'):
+        ram_experiment = 'RAM_PS'
+    else:
+        if original_experiment.startswith('catFR'):
+            ram_experiment = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+        else:
+            ram_experiment = 'RAM_{}'.format(experiment)
 
     inputs = dict(
         protocol=protocol,
@@ -450,6 +466,7 @@ def prompt_for_session_inputs(**opts):
         localization=localization,
         experiment=original_experiment,
         new_experiment=experiment,
+        ram_experiment=ram_experiment,
         force=False,
         do_compare=do_compare,
         code=code,
@@ -460,7 +477,7 @@ def prompt_for_session_inputs(**opts):
         attempt_conversion=attempt_conversion
     )
 
-    if opts.get('sys2', False):
+    if opts.get('sys2', False) or experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
         inputs['groups'] += ('system_2',)
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
