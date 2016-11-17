@@ -273,6 +273,14 @@ def build_session_inputs(subject, new_experiment, session, info):
     montage_num = montage.split('.')[1]
     localization = montage.split('.')[0]
 
+    if experiment.startswith('PS'):
+        ram_experiment = 'RAM_PS'
+    else:
+        if experiment.startswith('catFR'):
+            ram_experiment = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+        else:
+            ram_experiment = 'RAM_{}'.format(experiment)
+
     inputs = dict(
         protocol=protocol,
         subject=subject,
@@ -281,6 +289,7 @@ def build_session_inputs(subject, new_experiment, session, info):
         localization=localization,
         experiment=experiment,
         new_experiment=new_experiment,
+        ram_experiment=ram_experiment,
         code=code,
         session=session,
         original_session=original_session,
