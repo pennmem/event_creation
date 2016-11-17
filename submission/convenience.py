@@ -125,7 +125,10 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                 'code': code
             }
             if (new_experiment != experiment):
-                session_dict['original_experiment'] = experiment
+                if new_experiment == 'PS2.1':
+                    session_dict['original_experiment'] = 'PS21'
+                else:
+                    session_dict['original_experiment'] = experiment
             if (version >= 2):
                 session_dict['system_2'] = True
             elif version > 0:
