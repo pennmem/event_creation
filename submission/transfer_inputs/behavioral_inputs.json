@@ -7,7 +7,7 @@
         "type": "file",
         "multiple": false,
         "required": true,
-        "origin_directory": "{events_root}/RAM_{experiment}",
+        "origin_directory": "{events_root}/{ram_experiment}",
         "origin_file": "{code}_events.mat",
         "destination": "original_events.mat"
       },
