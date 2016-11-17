@@ -69,7 +69,7 @@ class BaseMatConverter(object):
         # Get the matlab events for this specific session
         event_reader = BaseEventReader(filename=str(files[events_type]), common_root=DB_ROOT)
         mat_events = event_reader.read()
-        sess_events = mat_events[mat_events.session == original_session]
+        sess_events = mat_events[mat_events.session == int(original_session)]
         self._mat_events = sess_events
 
         if include_stim_params:
