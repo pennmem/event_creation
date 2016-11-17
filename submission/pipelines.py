@@ -46,7 +46,7 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
     groups += tuple(args)
 
 
-    if protocol == 'r1':
+    if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups:
         source_file_info = Transferer.load_groups(group_dict, groups)
         if experiment.startswith('TH'):
             if 'eeg_log' in source_file_info:
@@ -66,18 +66,22 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
                 groups += ('system_2',)
         elif 'session_log' in source_file_info:
             session_log_info = source_file_info['session_log']
-            session_log_file = Transferer.get_origin_files(session_log_info,
+            session_log_files = Transferer.get_origin_files(session_log_info,
                                                            protocol=protocol,
                                                            subject=subject,
                                                            code=subject,
                                                            experiment=experiment,
                                                            original_session=session,
-                                                           data_root=DATA_ROOT)[0]
-            version = get_version_num(session_log_file)
-            if version >= 2:
-                groups += ('system_2',)
+                                                           data_root=DATA_ROOT)
+            if len(session_log_files) < 1:
+                logger.warn("Could not find session log file! Assuming system_1 ")
+                groups += ('system_1', )
             else:
-                groups += ('system_1',)
+                version = get_version_num(session_log_files[0])
+                if version >= 2:
+                    groups += ('system_2',)
+                else:
+                    groups += ('system_1',)
         if experiment.endswith("3"):
             groups += ("stim", )
     return groups
@@ -236,8 +240,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
 
-    groups +=  determine_groups(protocol, code, experiment, original_session,
-                                json.load(open(TRANSFER_INPUTS['behavioral'])), 'transfer')
+    groups =  determine_groups(protocol, code, experiment, original_session,
+                               json.load(open(TRANSFER_INPUTS['behavioral'])), 'transfer', *groups)
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
                                              code=code, **kwargs)
