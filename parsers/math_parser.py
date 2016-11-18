@@ -8,7 +8,6 @@ class MathLogParser(BaseSessionLogParser):
 
     _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
 
-
     @classmethod
     def _math_fields(cls):
         """
@@ -24,6 +23,28 @@ class MathLogParser(BaseSessionLogParser):
             ('rectime', -999, 'int32'),
         )
 
+    @classmethod
+    def _math_fields_ltp(cls):
+        """
+        Returns the template for a new FR field
+        Has to be a method because of call to empty_stim_params, unfortunately
+        :return:
+        """
+        return (
+            ('list', -999, 'int16'),
+            ('test', -999, 'int16', 3),
+            ('answer', -999, 'int16'),
+            ('iscorrect', -999, 'int16'),
+            ('rectime', -999, 'int32'),
+
+            ('artifactMS', -999, 'int32'),
+            ('artifactNum', -999, 'int32'),
+            ('artifactFrac', -999, 'float16'),
+            ('artifactMeanMS', -999, 'float16'),
+            ('badEvent', False, 'b1'),
+            ('badEventChannel', '', list)
+        )
+
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(MathLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                             primary_log='math_log')
@@ -32,7 +53,7 @@ class MathLogParser(BaseSessionLogParser):
         self._answer = ''
         self._iscorrect = ''
         self._rectime = -999
-        self._add_fields(*self._math_fields())
+        self._add_fields(*self._math_fields_ltp()) if protocol == 'ltp' else self._add_fields(*self._math_fields())
         self._add_type_to_new_event(
             START=self.event_start,
             STOP=self.event_default,
