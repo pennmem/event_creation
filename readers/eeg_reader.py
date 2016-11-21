@@ -788,7 +788,7 @@ class EGI_reader(EEG_reader):
                              ('num_channels', '>h'), ('gain', '>h'), ('bits', '>h'), ('amp_range', '>h'),
                              ('num_samples', '>l'), ('num_events', '>h'))
         self.amp_gain = 1.
-        self.data_format = '\'short\''
+        self.data_format = 'int16'
 
     def read_header(self):
         """
@@ -1095,7 +1095,7 @@ class BDF_reader(EEG_reader):
                              ('digital_max', 8, True), ('prefiltering', 80, True), ('samps_per_record', 8, True),
                              ('reserved', 32, True))
         self.gain = None
-        self.data_format = '\'short\''
+        self.data_format = 'int16'
         self.sample_rate = None
         self.total_samples = None
 
@@ -1250,11 +1250,11 @@ class BDF_reader(EEG_reader):
         self._data = self._data.clip(bounds.min, bounds.max)
 
         self.sync = self._data[-1] / np.max(self._data[-1])  # Clean up and separate sync pulse channel
-        self._data = self._data[:-7]  # Drop EXG3 through EXG 8 and the sync channel from self._data
-        self.header['channel_names'] = self.header['channel_names'][:-7]
+        self._data = self._data[:-5]  # Drop EXG5 through EXG 8 and the sync channel from self._data
+        self.header['channel_names'] = self.header['channel_names'][:-5]
 
-        self.sync = np.around(self.sync).astype(self.data_format)
-        self._data = np.around(self._data).astype(self.data_format)
+        self.sync = np.around(self.sync).astype(self.DATA_FORMAT)
+        self._data = np.around(self._data).astype(self.DATA_FORMAT)
 
         # Write EEG channel files
         for i in range(self._data.shape[0]):
@@ -1276,7 +1276,7 @@ class BDF_reader(EEG_reader):
         # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.data_format + '\ngain ' + \
+        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.DATA_FORMAT + '\ngain ' + \
                  str(self.gain[0]) + '\nsystem Biosemi'
         with files.open_with_perms(paramfile, 'w') as f:
             f.write(params)
