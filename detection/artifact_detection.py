@@ -23,8 +23,8 @@ class ArtifactDetector:
                                         '099', '107', '113', '114', '126', '127'])
             self.blink_thresh = 100
         elif system == 'Biosemi':
-            self.num_chans = 130
-            self.eog_chans = [('C30', 'EXG1'), ('C8', 'EXG2')]  # EXG1 is left, EXG2 is right
+            self.num_chans = 132
+            self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
             self.weak_chans = np.array([])
             self.blink_thresh = 100
         else:
