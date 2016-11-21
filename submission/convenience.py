@@ -14,6 +14,7 @@ from tasks import CleanDbTask, IndexAggregatorTask
 from loggers import logger
 from automation import Importer, ImporterCollection
 from config import DATA_ROOT, RHINO_ROOT, DB_ROOT
+from ptsa.data.readers.IndexReader import JsonIndexReader
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -424,25 +425,79 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
 
     return sorted_failures
 
+def get_code_montage(code, protocol='r1'):
+    r1 = JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
+    try:
+        localization_num = r1.get_value('localization', subject_alias=code)
+        montage_num = r1.get_value('montage', subject_alias=code)
+        return '{}.{}'.format(localization_num, montage_num)
+    except ValueError:
+        return None
+
+def show_imported_sessions(subject, experiment, protocol='r1'):
+    r1 = JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
+    sessions = r1.sessions(subject=subject, experiment=experiment)
+    print '| Existing {} sessions for {}'.format(experiment, subject)
+    if not sessions:
+        print 'None'
+    for session in sessions:
+        code = r1.get_value('subject_alias', subject=subject, experiment=experiment, session=session)
+        try:
+            orig_sess = r1.get_value('original_session', subject=subject, experiment=experiment, session=session)
+        except ValueError:
+            orig_sess = session
+        print '|- {sess}: ({code}, {exp}_{orig_sess})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess)
+
+ORIG_INDEXES = {
+    'r1': JsonIndexReader(os.path.join(DB_ROOT, 'protocols', 'r1.json')),
+    'ltp': JsonIndexReader(os.path.join(DB_ROOT, 'protocols', 'ltp.json'))
+}
+
+def get_next_orig_session(code, experiment, protocol='r1'):
+    index = ORIG_INDEXES[protocol]
+    orig_sessions = list(index.aggregate_values('original_session', subject_alias=code, experiment=experiment))
+    if orig_sessions:
+        return max(orig_sessions) + 1
+    else:
+        return 0
+
+
+def get_next_new_session(subject, experiment, protocol='r1'):
+    index = ORIG_INDEXES[protocol]
+    sessions = index.sessions(subject=subject, experiment=experiment)
+    if len(sessions) > 0:
+        return max([int(s) for s in sessions]) + 1
+    else:
+        return 0
+
 def prompt_for_session_inputs(**opts):
     code = raw_input('Enter subject code: ')
     subject = re.sub(r'_.*', '', code)
 
     experiment = raw_input('Enter experiment name: ')
-    original_session = raw_input('Enter original session number: ')
 
-    if subject != code:
-        montage = raw_input('Enter montage as #.#: ')
-        montage_num = montage.split('.')[1]
-        localization = montage.split('.')[0]
-    else:
-        montage = '0.0'
-        montage_num = 0
-        localization = 0
+
+    protocol = 'ltp' if experiment.startswith('ltp') else \
+               'r1' if subject.startswith('R') else None
+
+    montage = get_code_montage(code, protocol)
+
+    if not montage:
+        montage = raw_input('Montage for this subject not found in database. Enter montage as #.#: ')
+
+    montage_num = montage.split('.')[1]
+    localization = montage.split('.')[0]
+
+    show_imported_sessions(subject, experiment, protocol)
+
+    suggested_session = get_next_orig_session(code, experiment, protocol)
+
+    original_session = raw_input('Enter original session number (suggested: {}): '.format(suggested_session))
 
     if opts.get('change_session', False) or subject != code or \
             (experiment.startswith('PS') and not experiment.endswith('2.1')):
-        session = int(raw_input('Enter new session number: '))
+        suggested_session = get_next_new_session(subject, experiment, protocol)
+        session = int(raw_input('Enter new session number (suggested: {}): '.format(suggested_session)))
     else:
         session = original_session
 
@@ -455,8 +510,6 @@ def prompt_for_session_inputs(**opts):
     else:
         original_experiment = experiment
 
-    protocol = 'ltp' if experiment.startswith('ltp') else \
-               'r1' if subject.startswith('R') else None
 
     attempt_conversion = opts.get('allow_convert', False)
     attempt_import = not opts.get('force_convert', False)
