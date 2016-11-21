@@ -459,7 +459,7 @@ def get_next_orig_session(code, experiment, protocol='r1'):
     index = ORIG_INDEXES[protocol]
     orig_sessions = list(index.aggregate_values('original_session', subject_alias=code, experiment=experiment))
     if orig_sessions:
-        return max(orig_sessions) + 1
+        return max([int(s) for s in orig_sessions]) + 1
     else:
         return 0
 
