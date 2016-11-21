@@ -313,7 +313,7 @@ def build_session_inputs(subject, new_experiment, session, info):
         inputs['groups'] += ('verbal', )
 
     if experiment.endswith("3"):
-        inputs['groups'] +=  ('stim', )
+        inputs['groups'] += ('stim', )
 
     return inputs
 
@@ -335,7 +335,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='r1'
+                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 )
                 completed_codes.add(code)
                 yield inputs
@@ -350,6 +350,7 @@ def session_inputs_from_json(filename):
             sessions = experiments[new_experiment]
             for session in sessions:
                 info = sessions[session]
+                info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
@@ -387,11 +388,12 @@ def import_montages_from_json(filename, force=False):
     interrupted = False
     try:
         for inputs in montage_inputs_from_json(filename):
-            success, importers = run_montage_import(inputs, force)
-            if success:
-                successes.append(importers)
-            else:
-                failures.append(importers)
+            if inputs['protocol'] != 'ltp':  # Skip montage import for LTP participants
+                success, importers = run_montage_import(inputs, force)
+                if success:
+                    successes.append(importers)
+                else:
+                    failures.append(importers)
     except Exception as e:
         logger.error("Catastrophic failure importing montages: message {}".format(e))
         traceback.print_exc()
@@ -455,7 +457,7 @@ def prompt_for_session_inputs(**opts):
     else:
         original_experiment = experiment
 
-    protocol = 'ltp' if experiment.startswith('ltp') else \
+    protocol = 'ltp' if subject.startswith('LTP') else \
                'r1' if subject.startswith('R') else None
 
     attempt_conversion = opts.get('allow_convert', False)
