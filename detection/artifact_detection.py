@@ -200,11 +200,6 @@ class ArtifactDetector:
         pos_thresh = avg + 4 * stddev
         neg_thresh = avg - 4 * stddev
 
-        print avg
-        print stddev
-        print pos_thresh
-        print neg_thresh
-
         # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
         logger.debug('Finding artifacts during word presentations...')
         data = np.logical_or(data > pos_thresh, data < neg_thresh)

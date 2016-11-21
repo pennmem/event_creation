@@ -909,7 +909,10 @@ class EGI_reader(EEG_reader):
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
-        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max)
+        for i in range(self.header['num_events']):
+            self._data[-1*i] = self._data[-1*i] / np.max(self._data[-1*i])
+        self._data = np.around(self._data).astype(self.DATA_FORMAT)
 
     def _split_data(self, location, basename):
         """
@@ -986,7 +989,7 @@ class EGI_reader(EEG_reader):
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
-        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+        self._data = np.around(self._data.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
 
         logger.debug('Done.')
 
@@ -1244,11 +1247,14 @@ class BDF_reader(EEG_reader):
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
-        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+        self._data = self._data.clip(bounds.min, bounds.max)
 
         self.sync = self._data[-1] / np.max(self._data[-1])  # Clean up and separate sync pulse channel
         self._data = self._data[:-7]  # Drop EXG3 through EXG 8 and the sync channel from self._data
         self.header['channel_names'] = self.header['channel_names'][:-7]
+
+        self.sync = np.around(self.sync).astype(self.data_format)
+        self._data = np.around(self._data).astype(self.data_format)
 
         # Write EEG channel files
         for i in range(self._data.shape[0]):
@@ -1305,7 +1311,7 @@ class BDF_reader(EEG_reader):
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
-        self._data = self._data.clip(bounds.min, bounds.max).astype(self.DATA_FORMAT)
+        self._data = np.around(self._data.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
 
         logger.debug('Done.')
 
