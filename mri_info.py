@@ -1,5 +1,10 @@
 """
 Simple wrapper for freesurfer's mri_info function that returns a numpy matrix
+
+Run:
+    python mri_info.py <in_file> <transformtype>
+to generate transformation matrices given a freesurfer orig.mgz file
+
 """
 import os
 import subprocess
@@ -17,8 +22,14 @@ def get_transform(file, transform_type):
 
     output = subprocess.check_output(['mri_info', file, '--{}'.format(transform_type)])
     num_output = [[float(x) for x in line.split()] for line in output.split('\n') if len(line)>0]
-    return np.array(num_output)
+    return np.matrix(num_output)
 
 if __name__ == '__main__':
     from config import RHINO_ROOT
+    import sys
+    infile = sys.argv[1]
+    transformtype = sys.argv[2]
+    print get_transform(infile, transformtype)
+    """
     print get_transform(os.path.join(RHINO_ROOT, 'data/eeg/freesurfer/subjects/R1001P/mri/orig.mgz'), 'vox2ras')
+    """
