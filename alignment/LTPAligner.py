@@ -91,11 +91,6 @@ class LTPAligner:
             logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
-        # Remove sync pulses that occurred less than 100 ms after the preceding pulse
-        mask = np.where(np.diff(self.ephys_ms) < 100)[0] + 1
-        self.ephys_ms = np.delete(self.ephys_ms, mask)
-        self.pulses = np.delete(self.pulses, mask)
-
         # Calculate the eeg offset for each event using PTSA's alignment system
         logger.debug('Calculating EEG offsets...')
         try:
@@ -142,6 +137,13 @@ class LTPAligner:
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000. / self.sample_rate
                     self.ephys_ms = self.ephys_ms.astype(int)
+
+                    # Remove sync pulse samples that occurred less than 100 ms after the preceding pulse sample.
+                    # This ensures that only the first sample of each pulse is counted. (Pulses last several samples)
+                    mask = np.where(np.diff(self.ephys_ms) < 100)[0] + 1
+                    self.ephys_ms = np.delete(self.ephys_ms, mask)
+                    self.pulses = np.delete(self.pulses, mask)
+
                     self.basename = os.path.splitext(os.path.basename(f))[0]
                     logger.debug('Done.')
                     return
@@ -181,9 +183,16 @@ class LTPAligner:
 
 def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_ms=10):
     """
-    Slightly modified version of the times_to_offsets_old function in PTSA's alignment systems. Runs a regression on the
-    behavioral and ephys sync pulse times in order to calculate which EEG sample number corresponds to each task event's
-    mstime.
+    Slightly modified version of the times_to_offsets_old function in PTSA's alignment systems. Aligns the sync pulses
+    sent by the behavioral computer with those received by the ephys computer in order to find the start and end window
+    of the experiment. It then runs a regression on the behavioral and ephys sync pulse times within the starting and
+    ending windows in order to calculate which EEG sample number corresponds to each task event's mstime.
+
+    Alignment example: Suppose the behavioral computer sent the first sync pulse, then another 920 ms later, then
+    another 892 ms after that, followed by another sync pulse 1011 ms later. In order to identify which sync pulses
+    received by the ephys computer correspond to those sent by the behavioral computer, we would look for a set of 4
+    pulses in the ephys computer's data that approximately follows the same 920 ms, 892 ms, 1011 ms pattern of spacing.
+    We would then take this set of pulses as our start window. (Assuming our window parameter was 4, rather than 100)
 
     :param behav_ms: The mstimes for all sync pulses sent by the behavioral computer.
     :param ephys_ms: The mstimes for all sync pulses received by the ephys computer.
@@ -233,7 +242,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     eeg_start_ms = round((1-c)/m)
 
     # Use the regression to convert task event mstimes to EEG offsets
-    offsets = np.int64(np.round((m*ev_ms + c)*samplerate/1000.))
-    eeg_start = np.round(eeg_start_ms*samplerate/1000.)
+    offsets = np.round((m*ev_ms + c)*samplerate/1000.).astype(int)
+    # eeg_start = np.round(eeg_start_ms*samplerate/1000.)
 
     return offsets, s_ind, e_ind
