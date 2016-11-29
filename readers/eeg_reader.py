@@ -767,7 +767,7 @@ class EGI_reader(EEG_reader):
     https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
 
     DATA FIELDS:
-    raw_filename: The path to the .raw file containing the EEG data for the session.
+    raw_filename: The path to the .raw.bz2 file containing the EEG data for the session.
     basename: The string used to name the channel files once split (typically subj_DDMonYY_HHMM).
     noreref_loc: The path to the noreref directory.
     data: Holds the unpacked and split EEG data.
@@ -861,16 +861,15 @@ class EGI_reader(EEG_reader):
         if not fmt:
             raise Exception('Unknown EGI format %d' % self.header['version'])
 
-        # A highpass filter is run for "version 4" data
-        run_highpass = True if self.header['version'] == 4 else False
-
         # Calculate total number of samples to read
         total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
 
         # Calculate the gain factor for converting raw EEG data to uV
-        amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
-        amp_fact = 1000.
-        self.amp_gain = calc_gain(amp_info, amp_fact)
+        # amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
+        # amp_fact = 1000.
+        # self.amp_gain = calc_gain(amp_info, amp_fact)
+
+        self.amp_gain = .0762963  # Gain is always this value for EGI - no need to calculate it
 
         # Limit the number of samples that are copied at once, to reduce memory usage
         step_size = 1000000
@@ -886,7 +885,7 @@ class EGI_reader(EEG_reader):
             while total_read < total_samples:
                 samples_left = total_samples - total_read
                 samples_to_read = samples_left if samples_left < step_size else step_size
-                unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read)+fmt[1],
+                unpacked_samples = struct.unpack(fmt[0] + str(samples_to_read) + fmt[1],
                                                  raw_file.read(samples_to_read * bytes_per_sample))
                 samples_array = np.array(unpacked_samples)
                 raw[total_read:total_read+samples_to_read] = np.reshape(samples_array, (samples_to_read, 1))
@@ -897,12 +896,11 @@ class EGI_reader(EEG_reader):
         self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']),
                                  order='F')
 
-        if run_highpass:
-            # Run a first-order highpass butterworth filter on the EEG signal from each channel
-            logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-            for i in range(self._data.shape[0]):
-                self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
-            logger.debug('Done')
+        # Run a first-order highpass butterworth filter on the EEG signal from each channel
+        logger.debug('Running first-order .1 Hz highpass filter on all channels.')
+        for i in range(self._data.shape[0]):
+            self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
+        logger.debug('Done')
 
         # Divide the signal by the amplifier gain
         self._data = self._data / self.amp_gain
