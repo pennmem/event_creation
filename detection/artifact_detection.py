@@ -27,6 +27,7 @@ class ArtifactDetector:
             self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
             self.weak_chans = np.array([])
             self.blink_thresh = 100
+            self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
             logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % self.system)
             self.known_sys = False
@@ -88,7 +89,6 @@ class ArtifactDetector:
             # If on the last event or next event has no eegdata, look for artifacts occurring up to 3000 ms after the
             # event onset
             if i == len(self.events) - 1 or self.events[i + 1].eegoffset <= 0:
-                # FIXME: In original MATLAB, there is no handling for the final event's length. May want to introduce it here.
                 ev_len = 3000 * self.sample_rate / 1000  # Placeholder - considers the 3 seconds following event onset
                 ev_blink = blinks[np.where(
                     np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
@@ -180,7 +180,7 @@ class ArtifactDetector:
         ev_length = int(duration * self.sample_rate / 1000)
 
         has_eeg = np.where(self.events.eegfile != '')[0]
-        # Create a channels x events_with_eeg x samples matrix containing the samples from each channel during each event
+        # Create a channels x events_with_eeg x samples matrix containing the samps from each channel during each event
         logger.debug('Loading reref data for word presentation events...')
         data = np.zeros((len(all_chans), len(has_eeg), ev_length))
         for i in range(len(all_chans)):
