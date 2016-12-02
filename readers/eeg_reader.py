@@ -1141,14 +1141,27 @@ class BDF_reader(EEG_reader):
                 self.header[triplet[0]] = self.header[triplet[0]].strip() if not triplet[2] else \
                     np.array([self.header[triplet[0]][i:i+triplet[1]].strip() for i in range(0, chars_to_read, triplet[1])])
 
-        # Reformat headers that require it
-        for head in ('date', 'time'):
-            self.header[head] = [int(x) for x in self.header[head].split('.')]
-        self.header['date'][2] += 2000  # convert year from two digits to four... will need to be changed in 2100
-        for head in ('num_header_bytes', 'num_records', 'record_dur', 'num_channels'):
-            self.header[head] = int(self.header[head])
-        for head in ('physical_min', 'physical_max', 'digital_min', 'digital_max', 'samps_per_record'):
-            self.header[head] = self.header[head].astype(int)
+            # Reformat headers that require it
+            for head in ('date', 'time'):
+                self.header[head] = [int(x) for x in self.header[head].split('.')]
+            self.header['date'][2] += 2000  # convert year from two digits to four... will need to be changed in 2100
+            for head in ('num_header_bytes', 'num_records', 'record_dur', 'num_channels'):
+                self.header[head] = int(self.header[head])
+            for head in ('physical_min', 'physical_max', 'digital_min', 'digital_max', 'samps_per_record'):
+                self.header[head] = self.header[head].astype(int)
+
+            # If the header is corrupted, it may not indicate the number of records in the recording. In this case,
+            if self.header['num_records'] == -1:
+                raw_file.seek(0, 2)
+                num_bytes = raw_file.tell()
+                num_data_bytes = num_bytes - self.header['num_header_bytes']
+                total_samples = num_data_bytes / 3.
+                samps_per_chan = total_samples / self.header['num_channels']
+                self.header['num_records'] = samps_per_chan / self.header['samps_per_record'][0]
+                if self.header['num_records'] != int(self.header['num_records']):
+                    logger.error('Unable to determine the number of records in the data file!')
+                else:
+                    self.header['num_records'] = int(self.header['num_records'])
 
         # Set the start date and time based on the header info
         self.start_datetime = datetime.datetime(self.header['date'][2], self.header['date'][1],

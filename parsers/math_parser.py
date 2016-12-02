@@ -26,9 +26,7 @@ class MathLogParser(BaseSessionLogParser):
     @classmethod
     def _math_fields_ltp(cls):
         """
-        Returns the template for a new FR field
-        Has to be a method because of call to empty_stim_params, unfortunately
-        :return:
+        Used instead of _math_fields for LTP experiments.
         """
         return (
             ('list', -999, 'int16'),
