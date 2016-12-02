@@ -25,7 +25,7 @@ class ArtifactDetector:
         elif system == 'Biosemi':
             self.num_chans = 132
             self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
-            self.weak_chans = np.array([])
+            self.weak_chans = np.array(['EXG1', 'EXG2', 'EXG3', 'EXG4'])
             self.blink_thresh = 100
             self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
