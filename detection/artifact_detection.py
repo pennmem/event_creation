@@ -224,7 +224,8 @@ class ArtifactDetector:
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
             self.events[has_eeg[i]].badEvent = True
-            self.events[has_eeg[i]].badEventChannel = all_chans[np.where(bad_evchans[:, i])[0]]
+            badEventChannel = all_chans[np.where(bad_evchans[:, i])[0]]
+            self.events[has_eeg[i]].badEventChannel = np.append(badEventChannel, np.array(['' for x in range(132 - len(badEventChannel))]))
 
     def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
         """

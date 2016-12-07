@@ -1,5 +1,5 @@
 {
-  "r1" : {
+  "r1": {
     "type": "group",
     "conversion": {
       "type": "group",
@@ -91,25 +91,26 @@
       }
     }
   },
-
-  "ltp" : {
+  "ltp": {
     "type": "group",
-    "raw_eeg" : {
-      "type" : "file",
-      "multiple" : true,
-      "required" : false,
-      "origin_directory" : "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
-      "origin_file" : [
+    "raw_eeg": {
+      "type": "file",
+      "multiple": true,
+      "required": true,
+      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
+      "origin_file": [
         "*.raw.bz2",
         "*.bdf.bz2"
       ],
-      "destination" : "raw_eeg/"
+      "destination": "raw_eeg/"
     },
-    "artifact_log" : "file",
-    "multiple" : false,
-    "required" : false,
-    "origin_directory" : "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
-    "origin_file" : "*.log",
-    "destination" : "logs/"
+    "artifact_log": {
+      "type": "file",
+      "multiple": true,
+      "required": false,
+      "origin_directory": "{data_root}/scalp/ltp/{experiment}/{code}/session_{original_session}/eeg/",
+      "origin_file": "*.log",
+      "destination": "logs/"
+    }
   }
 }

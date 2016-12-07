@@ -34,7 +34,6 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('finalrecalled', False, 'b1'),
             ('recognized', False, 'b1'),
             ('rectime', -999, 'int32'),
-            #('final_rectime', -999, 'int32'),  # Not present in .MAT, but could be helpful
             ('intrusion', -999, 'int16'),
             ('color_r', -999, 'float16'),
             ('color_g', -999, 'float16'),
@@ -49,7 +48,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('artifactFrac', -999, 'float16'),
             ('artifactMeanMS', -999, 'float16'),
             ('badEvent', False, 'b1'),
-            ('badEventChannel', '', list)
+            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
+                                                # all badEventChannel entries must be length 132
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
