@@ -6,9 +6,20 @@ from helpers.butter_filt import butter_filt
 
 
 class ArtifactDetector:
+    """
+    Runs scripts for blink and artifact detection. Parameters differ depending on whether the session was conducted
+    using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
+    """
 
     def __init__(self, events, system, basename, reref_dir, sample_rate, gain):
-
+        """
+        :param events: The events structure (a recarray) for the session
+        :param system: A string denoting whether the session used EGI or Biosemi
+        :param basename: The string basename of the EEG channel files
+        :param reref_dir: The path to the directory containing rereferenced EEG data for the session
+        :param sample_rate: The integer sample rate of the recording (EGI = 500, Biosemi = 512)
+        :param gain: The amplifier gain (a float, EGI = .0762963)
+        """
         self.events = events
         self.basename = basename
         self.reref_dir = reref_dir
@@ -26,7 +37,7 @@ class ArtifactDetector:
             self.num_chans = 132
             self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
             self.weak_chans = np.array(['EXG1', 'EXG2', 'EXG3', 'EXG4'])
-            self.blink_thresh = 100
+            self.blink_thresh = 1500
             self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
             logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % self.system)
@@ -34,8 +45,8 @@ class ArtifactDetector:
 
     def run(self):
         """
-        Runs blink detection on the EOG channels and artifact detection on the EEG data from all events. Currently
-        supports EGI and Biosemi data.
+        Runs blink detection on the EOG channels, then artifact detection on the EEG data from all channels during all
+        events. Currently supports EGI and Biosemi data.
 
         :return: The events structure updated with artifact and blink info.
         """
@@ -46,14 +57,16 @@ class ArtifactDetector:
 
     def process_eog(self):
         """
-        Locates blinks/artifacts in the EOG channels, then identifies which artifacts occurred during which events and
-        adds this info to the existing events structure.
+        Locates blinks/artifacts in the EOG channels using find_blinks(), then identifies which artifacts occurred
+        during which events and adds this info to the existing events structure. Fills the artifactMS, artifactNum,
+        artifactFrac, and artifactMeanMS fields of the structure. Blinks are attached to an event if they occurred after
+        the onset of that event and before the onset of the next event. If no onset can be determined for the next
+        event, any blinks occurring up to 3 seconds after the event onset are attached to the event.
         """
         logger.debug('Identifying blinks in the EOG channels...')
-        # Use rereferenced data
         eeg_path = os.path.join(self.reref_dir, self.basename)
-        # Load and scan the eeg data from each EOG channel. If the channel is a binary channel (represented as a tuple),
-        # load both sub-channels and subtract one from the other before searching for blinks.
+        # Load and scan the rereferenced eeg data from each EOG channel. If the channel is a binary channel
+        # (represented as a tuple), load both sub-channels and subtract one from the other before searching for blinks.
         artifact_mask = None
         for i in range(len(self.eog_chans)):
             ch = self.eog_chans[i]
@@ -67,20 +80,21 @@ class ArtifactDetector:
                 eeg = np.fromfile(eeg_path + '.' + ch, 'int16') * self.gain
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
-            # have the same number of samples
+            # have the same number of samples. The artifact_mask will be used to track which events have a blink on each
+            # of the EOG channels. It has one row for each EOG channel and one column for each EEG sample.
             if artifact_mask is None:
                 artifact_mask = np.empty((len(self.eog_chans), len(eeg)))
 
-            # Find the blinks recorded by each EOG channel
+            # Find the blinks recorded by each EOG channel and log them in artifact_mask
             artifact_mask[i] = self.find_blinks(eeg, self.blink_thresh)
             logger.debug('Done.')
         logger.debug('Blink identification complete.')
 
-        # Get a list of the indices for all samples that contain a blink
+        # Get a list of the indices for all samples that contain a blink on any EOG channel
         blinks = np.where(np.any(artifact_mask, 0))[0]
 
         logger.debug('Aligning blinks with events...')
-        # Check for blinks that occurred during each event
+        # Check each event to see if any blinks occurred during it
         for i in range(len(self.events)):
             # Skip the event if it has no eegfile or no eegoffset, as it will not be possible to align artifacts with it
             if self.events[i].eegfile == '' or self.events[i].eegoffset < 0:
@@ -89,10 +103,10 @@ class ArtifactDetector:
             # If on the last event or next event has no eegdata, look for artifacts occurring up to 3000 ms after the
             # event onset
             if i == len(self.events) - 1 or self.events[i + 1].eegoffset <= 0:
-                ev_len = 3000 * self.sample_rate / 1000  # Placeholder - considers the 3 seconds following event onset
+                ev_len = 3000 * self.sample_rate / 1000
                 ev_blink = blinks[np.where(
                     np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
-            # Otherwise, use the next event as the upper bound for aligning artifacts with the current event
+            # Otherwise, use the next event as the upper time bound for aligning artifacts with the current event
             else:
                 ev_blink = blinks[
                     np.where(np.logical_and(self.events[i].eegoffset <= blinks,
@@ -130,29 +144,26 @@ class ArtifactDetector:
         Blinks are identified as occurring on any sample where the fast average exceeds the given threshold, i.e.
         whenever voltage displays a large and rapid divergence from baseline.
 
-        :param data: A numpy array containing the EEG data that will be searched for blinks.
-        :param thresh: The uV threshold used for determining when a blink has occurred.
+        :param data: A numpy array containing the EEG signal that will be searched for blinks.
+        :param thresh: The mV threshold used for determining when a blink has occurred.
         :return: A numpy array containing one boolean per EEG sample, indicating whether that sample contains a blink.
         """
-        # Set weights for the fast-changing average (a, b) and the slow-changing average (c, d)
-        a, b = (.5, .5)
-        c, d = (.975, .025)
-
-        # Create the arrays for the two averages
+        # Create an array for each of the two running averages
         num_samples = len(data)
         fast = np.empty(num_samples)
         slow = np.empty(num_samples)
 
-        # Calculate starting "fast" and "slow" averages
+        # Calculate the starting "fast" and "slow" averages
         start_mean = np.mean(data[0:10])
-        fast[0] = b * (data[0] - start_mean)
-        slow[0] = c * start_mean + d * data[0]
+        fast[0] = .5 * (data[0] - start_mean)
+        slow[0] = .975 * start_mean + .025 * data[0]
 
         # Track the running averages across all samples
         for i in range(1, num_samples):
-            fast[i] = a * fast[i - 1] + b * (data[i] - slow[i - 1])
-            slow[i] = c * slow[i - 1] + d * data[i]
+            fast[i] = .5 * fast[i - 1] + .5 * (data[i] - slow[i - 1])
+            slow[i] = .975 * slow[i - 1] + .025 * data[i]
 
+        # Mark whether each sample's "fast average" exceeded the threshold
         return abs(fast) >= thresh
 
     def find_bad_events(self, duration, offset, buff, filtfreq):
@@ -160,7 +171,7 @@ class ArtifactDetector:
         Determines which channels contain artifacts on each word presentation event. This is done by finding the mean
         and standard deviation of the voltage across all channels and events, and then labeling samples that are more
         than 4 standard deviations above or below the mean as bad samples. Any channel that contains at least one bad
-        sample during a given event will be marked on the event as a bad channel. Any event with one or more bad
+        sample during a given event will be marked on the event as a badEventChannel. Any event with one or more bad
         channels is marked as a bad event.
 
         :param duration: How many milliseconds of EEG data will be loaded for each event.
@@ -217,11 +228,12 @@ class ArtifactDetector:
 
     def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
         """
-        Loads the eeg data from a single channel for each event. For each event in events, gets {ev_length} samples
-        from channel {chan}, beginning with the sample defined by the event's eegoffset field. Runs a first-order,
-        bandstop Butterworth filter on the data from each event upon loading.
+        Loads the eeg data from a single channel for all events. For each event in the events structure, gets
+        {ev_length} samples from channel {chan}, beginning with the sample defined by the event's eegoffset field. Runs
+        a first-order bandstop Butterworth filter on the data from each event upon loading to reduce
+        background noise.
 
-        :param chan: The channel from which data will be loaded.
+        :param chan: The string label of the channel from which data will be loaded.
         :param events: The list of events whose data will be loaded.
         :param ev_length: The integer number of samples to load for each event.
         :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
@@ -232,7 +244,10 @@ class ArtifactDetector:
         :param filtfreq: The frequencies on which to filter the data.
         :return: A matrix where each row is the array of data samples for one event.
         """
+        # The total length of data that will be loaded is ev_length plus the single buffer before and double buffer
+        # after the event
         len_with_buffer = ev_length + 3 * buff
+        # Create an events x samples matrix to hold the data from all events
         data = np.zeros((len(events), len_with_buffer))
         # Calculate the index of the first byte for each event's starting sample (16-bit data == 2 bytes per sample)
         byte_offsets = (offset - buff + events.eegoffset) * 2
@@ -241,7 +256,9 @@ class ArtifactDetector:
             with open(os.path.join(self.reref_dir, events[i].eegfile) + '.' + str(chan), 'rb') as f:
                 f.seek(byte_offsets[i])
                 data[i] = np.fromfile(f, 'int16', len_with_buffer)
+            # Run a first-order bandstop filter on the data from each event. Typically will be run with a range of 58-62
             data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
         # Multiply all data by the gain
         data *= self.gain
+        # Return only the data from the event itself. The buffers are dropped from the beginning and end.
         return data[:, buff:buff + ev_length]

@@ -776,7 +776,13 @@ class EGI_reader(EEG_reader):
     amp_gain: The gain factor
     data_format: A string stating the format in which the output split channel files will be written.
     """
-    def __init__(self, raw_filename, unused_jacksheet):
+    def __init__(self, raw_filename, unused_jacksheet=None):
+        """
+        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
+        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
+        """
+
         self.raw_filename = raw_filename
         self.basename = ''
         self.noreref_loc = ''
@@ -813,6 +819,7 @@ class EGI_reader(EEG_reader):
         Number of Events: The number of event channels, typically the sync pulse channel(s)
         Event Names: The four-character label for each event (e.g. 'DIN1', 'DI15')
         """
+        # The raw data file will arrive compressed, so must be read using the bz2 module
         with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Read header info; each pair from self.header_names contains the name of the header and the format to be
             # used by struct.unpack(); '>l' unpacks a long, '>h' unpacks a short.
@@ -820,12 +827,14 @@ class EGI_reader(EEG_reader):
                 bytes_to_read = 2 if pair[1] == '>h' else 4
                 self.header[pair[0]] = struct.unpack(pair[1], raw_file.read(bytes_to_read))[0]
 
-            # Read event codes
+            # Read event codes, e.g. D255, DI15, DIN1
             self.header['event_codes'] = np.empty(self.header['num_events'], dtype='S4')
             for i in range(0, self.header['num_events']):
-                # Each event code is four characters long
+                # Each event code is four characters long and will be read as a length-4 array
                 code = struct.unpack('>4c', raw_file.read(4))
+                # Remove any trailing whitespace from each character
                 code = (x.rstrip() for x in code)
+                # Join the individual characters into a string
                 code = ''.join(code)
                 self.header['event_codes'][i] = code
 
@@ -871,11 +880,14 @@ class EGI_reader(EEG_reader):
 
         self.amp_gain = .0762963  # Gain is always this value for EGI - no need to calculate it
 
-        # Limit the number of samples that are copied at once, to reduce memory usage
+        # Limit the number of samples that are copied at once to 1 million, to reduce memory usage
         step_size = 1000000
         total_read = 0
+        # Data will initially be read into a long, 1-dimensional array before organizing by channel
         raw = np.zeros((total_samples, 1))
         logger.debug('Loading %d samples...' % total_samples)
+
+        # The raw data file will arrive compressed, so must be read using the bz2 module
         with bz2.BZ2File(self.raw_filename, 'rb') as raw_file:
             # Go to index for the beginning of the EEG samples in the raw file
             data_start_index = 36 + 4 * self.header['num_events']
@@ -892,29 +904,34 @@ class EGI_reader(EEG_reader):
                 total_read += samples_to_read
             logger.debug('%d...Done' % total_read)
 
-        # Organize the data into a matrix with each channel and event on its own row
+        # Organize the data into a matrix with each channel on its own row, and a column for each sample
         self._data = raw.reshape((self.header['num_channels'] + self.header['num_events'], self.header['num_samples']),
                                  order='F')
 
-        # Run a first-order highpass butterworth filter on the EEG signal from each channel
+        # Run a first-order .1 Hz high pass butterworth filter on the EEG signal from each channel
         logger.debug('Running first-order .1 Hz highpass filter on all channels.')
         for i in range(self._data.shape[0]):
             self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
         logger.debug('Done')
 
-        # Divide the signal by the amplifier gain
+        # Divide the signal by the amplifier gain (note: writing this as "self._data /= self.amp_gain" does not work)
         self._data = self._data / self.amp_gain
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
         self._data = self._data.clip(bounds.min, bounds.max)
+
+        # Divide sync pulse channel(s) by their max value. This will ensure that sync pulses are marked as 1 and other
+        # samples end up marked as 0
         for i in range(self.header['num_events']):
             self._data[-1*i] = self._data[-1*i] / np.max(self._data[-1*i])
+
+        # Change data format of the EEG data to the format in which it will be saved
         self._data = np.around(self._data).astype(self.DATA_FORMAT)
 
     def _split_data(self, location, basename):
         """
-        Splits the data extracted from the raw file into each channel and event, and writes the data for each channel
+        Splits the data extracted from the raw file into each channel and writes the data for each channel
         into a separate file. Also writes two parameter files containing the sample rate, data format, and amp gain
         for the session.
         :param location: A string denoting the directory in which the channel files are to be written
@@ -934,7 +951,7 @@ class EGI_reader(EEG_reader):
             filename = os.path.join(location, basename + ('.%03d' % j))
             logger.debug(str(i+1))
             sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event
+            # Each row of self._data contains all samples for one channel or event, so write each row to its own file
             self._data[i].tofile(filename)
 
         # Write event channel files
@@ -944,7 +961,6 @@ class EGI_reader(EEG_reader):
             filename = os.path.join(location, ''.join(filename))
             logger.debug(self.header['event_codes'][current_event])
             sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event, so write each row to its own file
             self._data[i].tofile(filename)
             current_event += 1
 
@@ -962,9 +978,9 @@ class EGI_reader(EEG_reader):
 
     def reref(self, bad_chans, location):
         """
-        Rereferences the EEG recordings and writes the referenced data to separate files for each channel. Rereferencing
-        is performed by dividing each sample by the average voltage of that sample number across all good channels
-        (excluding event channels).
+        Rereferences the EEG recordings using the common average reference, then writes the referenced data to separate
+        files for each channel. Rereferencing is performed by dividing each sample by the average voltage of that sample
+        number across all good channels (excluding sync channels).
 
         :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
         :param location: A string denoting the directory to which the reref files will be written
@@ -985,7 +1001,7 @@ class EGI_reader(EEG_reader):
         # Rereference the data
         self._data = self._data - means
 
-        # Clip to within bounds of selected data format
+        # Clip data to within bounds of selected data format and convert it to that data type
         bounds = np.iinfo(self.DATA_FORMAT)
         self._data = np.around(self._data.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
 
@@ -1004,7 +1020,8 @@ class EGI_reader(EEG_reader):
         copy(os.path.join(self.noreref_loc, 'params.txt'), location)
         logger.debug('Done.')
 
-        # Write a bad_chans.txt file in the reref folder
+        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
+        # of the common average reference
         np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
 
     @staticmethod
@@ -1012,7 +1029,7 @@ class EGI_reader(EEG_reader):
         """
         Reads an artifact log to determine whether there were any bad channels during a session. A channel is considered
         to be bad if it contained an artifact lasting longer than {threshold} milliseconds. Bad channels are excluded
-        from the rereferencing process.
+        from the rereferencing process. Note that artifact logs do not exist for any EGI sessions run 
         :param log: The filepath to the artifact log
         :param threshold: The minimum number of milliseconds that an artifact must last in order for a channel to be
         declared "bad"
@@ -1077,7 +1094,12 @@ class BDF_reader(EEG_reader):
     data_format: A string stating the format in which the output split channel files will be written.
     sample_rate: The sample rate of the recording
     """
-    def __init__(self, raw_filename, unused_jacksheet):
+    def __init__(self, raw_filename, unused_jacksheet=None):
+        """
+        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
+        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
+        """
         self.raw_filename = raw_filename
         self.basename = ''
         self.noreref_loc = ''
