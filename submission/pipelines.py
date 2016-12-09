@@ -274,12 +274,20 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     # Have to wait to aggregate index until after submission
     # tasks.append(IndexAggregatorTask())
 
-    info = dict(
-        localization=localization,
-        montage=montage_num,
-        subject_alias=code,
-        import_type='build'
-    )
+    if protocol == 'ltp':
+        info = dict(
+            subject_alias=code,
+            import_type='build',
+            original_session=original_session
+        )
+    else:
+        info = dict(
+            localization=localization,
+            montage=montage_num,
+            subject_alias=code,
+            import_type='build'
+        )
+
     if original_session != session:
         info['original_session'] = original_session
     if 'new_experiment' in kwargs and kwargs['new_experiment'] != experiment:
@@ -323,13 +331,19 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
     montage_num = montage.split('.')[1]
     # Have to wait to aggregate index until after submission
     #tasks.append(IndexAggregatorTask())
-
-    info = dict(
-        localization=localization,
-        montage=montage_num,
-        subject_alias=code,
-        import_type='conversion'
-    )
+    if protocol == 'ltp':
+        info = dict(
+            subject_alias=code,
+            import_type='conversion',
+            original_session=original_session
+        )
+    else:
+        info = dict(
+            localization=localization,
+            montage=montage_num,
+            subject_alias=code,
+            import_type='conversion'
+        )
     if original_session != session:
         info['original_session'] = original_session
     if experiment != new_experiment:

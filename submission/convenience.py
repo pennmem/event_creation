@@ -64,6 +64,37 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
         return '%1.1f' % (new_montage_num)
 
+def get_ltp_subject_sessions_by_experiment(experiment):
+    events_dir = os.path.join(DATA_ROOT, 'scalp', 'ltp', experiment, 'behavioral', 'events')
+    events_files = sorted(glob.glob(os.path.join(events_dir, 'events_all_LTP*.mat')),
+                          key=lambda f: f.split('_')[:-1])
+    seen_experiments = defaultdict(list)
+    for events_file in events_files:
+        print events_file
+        subject = os.path.basename(events_file)[11:-4]  # Subject number is the basename with events_all_, .mat removed
+        subject_no_year = subject.split('_')[0]
+        if '_' in subject:
+            continue
+        mat_events_reader = BaseEventReader(filename=events_file, common_root=DATA_ROOT)
+        logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
+        try:
+            mat_events = mat_events_reader.read()
+            sessions = np.unique(mat_events['session']) - 1  # MATLAB events start counting sessions at 1 instead of 0
+            version = 0.
+            for i, session in enumerate(sessions):
+                if 'experiment' in mat_events.dtype.names:
+                    experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
+                else:
+                    experiments = [experiment]
+                for this_experiment in experiments:
+                    n_sessions = seen_experiments[subject_no_year].count(this_experiment)
+                    yield subject_no_year, subject, n_sessions, session, this_experiment, version
+                    seen_experiments[subject_no_year].append(this_experiment)
+        except IndexError or AttributeError:
+            traceback.print_exc()
+            logger.error('Could not get session from {}'.format(events_file))
+
+
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
     if re.match('catFR[0-4]', experiment):
         ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
@@ -114,17 +145,27 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
     excluded_experiments = excluded_experiments or []
     for experiment in orig_experiments:
         logger.info("Building json DB for experiment {}".format(experiment))
-        subject_sessions = get_subject_sessions_by_experiment(experiment, protocol, include_montage_changes)
+        if protocol == 'ltp':
+            subject_sessions = get_ltp_subject_sessions_by_experiment(experiment)
+        else:
+            subject_sessions = get_subject_sessions_by_experiment(experiment, protocol, include_montage_changes)
         for subject, code, session, orig_session, new_experiment, version in subject_sessions:
             if (not included_subjects is None) and (not code in included_subjects):
                 continue
             if excluded_experiments and new_experiment in excluded_experiments:
                 continue
-            session_dict = {
-                'original_session': orig_session,
-                'montage': determine_montage_from_code(code, allow_new=True, allow_skip=True),
-                'code': code
-            }
+            if protocol == 'ltp':
+                session_dict = {
+                    'original_session': orig_session,
+                    'montage': '0.0',
+                    'code': code
+                }
+            else:
+                session_dict = {
+                    'original_session': orig_session,
+                    'montage': determine_montage_from_code(code, allow_new=True, allow_skip=True),
+                    'code': code
+                }
             if (new_experiment != experiment):
                 if new_experiment == 'PS2.1':
                     session_dict['original_experiment'] = 'PS21'
@@ -730,4 +771,3 @@ if __name__ == '__main__':
     print(importers.describe())
 
     exit(0)
-
