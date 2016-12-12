@@ -159,11 +159,9 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
                     new_event.final_distractor = np.unique(events[pres_mask].final_distractor)
                     # Correct recall if word is from the most recent list
                     if new_event.intrusion == 0:
-                        new_event.recalled = True
-                        # Retroactively log on the word pres event that the word was recalled, and when it was recalled
+                        # Retroactively log on the word pres event that the word was recalled
                         if not any(events[pres_mask].recalled):
                             events.recalled[pres_mask] = True
-                            events.rectime[pres_mask] = new_event.rectime
                     else:
                         events.intruded[pres_mask] = new_event.intrusion
                 else:  # XLI from later list

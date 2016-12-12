@@ -938,17 +938,11 @@ def th_stim_comparison_exceptions(event1, event2, field_name1, field_name2):
     return False
 
 def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
-    # New parser retroactively logs 'rectime' on the presentation events for subsequently recalled words; old did not
-    if field == 'rectime' and event2['rectime'] == -999:
-        return True
-    # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
+    # Ignore the fact that empty strings from events.mat may show up as '[]' instead of ''
     if field == 'item_name' and event1['item_name'] == '' and event2['item_name'] == '[]':
         return True
     # New parser records 'recalled', 'intruded', 'recognized', and 'rejected' as booleans, with a default of 0 instead of -999
     if field in ('recalled', 'finalrecalled', 'intruded', 'recognized', 'rejected') and event1[field] == 0 and event2[field] == -999:
-        return True
-    # New parser fills in 'recalled' and 'intruded' on word recalls; original did not
-    if field in ('recalled', 'intruded') and event1['type'] == 'REC_WORD':
         return True
     # New parser records empty font and case fields as empty strings instead of NaN
     if field in ('font', 'case') and event1[field] == '' and event2[field] == 'nan':
@@ -964,32 +958,23 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
-    if field == 'eegfile' and event1[field] != '' and event2[field] != '':
+    if field == 'eegfile' and event1[field][:5] == os.path.basename(event2[field])[:5] and event1[field][-12:] == os.path.basename(event2[field])[-12:]:
         return True
     # .mat files are having NaNs loaded as random integers for wordno and trial fields
-    if field in ('item_num', 'trial') and event1[field] == -999:
-        return True
+    # if field in ('item_num', 'trial') and event1[field] == -999:
+    #    return True
     return False
 
 
 def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
-    # New parser retroactively logs 'rectime' on the presentation events for subsequently recalled words; old did not
-    if field == 'rectime' and event2['rectime'] == -999 and event1['type'] == 'WORD':
-        return True
     # Ignore the fact that empty strings from events.mat show up as '[]' instead of ''
     if field == 'item_name' and event1['item_name'] == '' and event2['item_name'] == '[]':
         return True
     # New parser records 'recalled' and 'intruded' as booleans, with a default of 0 instead of -999
     if field in ('recalled', 'intruded') and event1[field] == 0 and event2[field] == -999:
         return True
-    # New parser fills in 'recalled' and 'intruded' on word recalls; original did not
-    if field in ('recalled', 'intruded') and event1['type'] == 'REC_WORD':
-        return True
     # New parser considers beginning distractors to be part of the trial they precede, rather than the previous trial
     if field == 'trial' and (event1['trial'] == event2['trial'] + 1 or (event1['trial'] == 1 and event2['trial'] == -999)) and event1['type'] == 'DISTRACTOR':
-        return True
-    # New parser gives REC_START events a begin_distractor value of -999 instead of 0
-    if field == 'begin_distractor' and event1['begin_distractor'] == -999 and event2['begin_distractor'] == 0:
         return True
     if field == 'item_num' and event1['item_num'] == -999 and event2['item_num'] == 0:
         return True
@@ -1003,7 +988,7 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
-    if field == 'eegfile' and event1[field] != '' and event2[field] != '':
+    if field == 'eegfile' and event1[field][:5] == os.path.basename(event2[field])[:5] and event1[field][-12:] == os.path.basename(event2[field])[-12:]:
         return True
     return False
 
@@ -1260,16 +1245,14 @@ TH_SYS1_COMPARATOR_INPUTS = dict(
 
 LTPFR_COMPARATOR_INPUTS = dict(
     field_switch={'item_name': 'item', 'item_num': 'itemno'},
-    field_ignore=all_ignore + ('eegfile', 'eegoffset', 'artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
-                               'badEvent', 'badEventChannel'),
+    field_ignore=all_ignore,
     exceptions=ltpfr_comparison_exceptions,
     type_ignore=()
 )
 
 LTPFR2_COMPARATOR_INPUTS = dict(
     field_switch={'item_name': 'item', 'item_num': 'itemno'},
-    field_ignore=all_ignore + ('artifactMS', 'artifactNum', 'artifactFrac', 'artifactMeanMS',
-                               'badEvent', 'badEventChannel'),
+    field_ignore=all_ignore,
     exceptions=ltpfr2_comparison_exceptions,
     type_ignore=()
 )

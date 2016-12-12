@@ -260,11 +260,9 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
                     new_event.rt = np.unique(events[pres_mask].rt)
                     # Correct recall, i.e. word is from the most recent list
                     if new_event.intrusion == 0:
-                        new_event.recalled = True
-                        # Retroactively log on the word pres event that the word was recalled, and when it was recalled
+                        # Retroactively log on the word pres event that the word was recalled
                         if not any(events[pres_mask].recalled):
                             events.recalled[pres_mask] = True
-                            events.rectime[pres_mask] = new_event.rectime
                     elif self._is_ffr:
                         new_event.studytrial = pres_trial
                         events.finalrecalled[pres_mask] = True
