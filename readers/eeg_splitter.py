@@ -2,6 +2,7 @@ import sys
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
 from eeg_reader import EDF_reader, NK_reader, NSx_reader, read_jacksheet
+from traceback import print_exc
 import re
 import json
 import os
@@ -305,6 +306,7 @@ class EEG_splitter_gui(QWidget):
         try:
             open(self.model.jacksheet_filename(is_json), 'a')
         except:
+            print_exc()
             message = 'Could not open file %s for writing. Check permissions...' % self.model.jacksheet_filename(is_json)
             msg = QMessageBox(self)
             msg.setText(message)
@@ -906,20 +908,28 @@ class EEG_splitter_model():
     def jacksheet_directory_exists(self):
         return os.path.exists(self.jacksheet_dirname)
 
+    @staticmethod
+    def read_json_jacksheet(filename):
+        jacksheet_str = json.load(open(filename))
+        return {int(k):v for k,v in jacksheet_str.items()}
+
     def compare_jacksheets(self, is_json):
         if is_json:
             try:
-                jacksheet = read_jacksheet(self.json_jacksheet_filename)
+                jacksheet = self.read_json_jacksheet(self.json_jacksheet_filename)
             except:
+                print_exc()
                 return 'Jacksheet could not be read'
         else:
             try:
                 jacksheet = self.construct_jacksheet_dict_from_txt()
             except:
+                print_exc()
                 return 'Jacksheet, leads, or good leads could not be read'
 
         only_old = {}
         for number, lead in jacksheet.items():
+            number = int(number)
             label = lead['label']
             if lead['reref']:
                 if number not in self.neural_channels or label != self.neural_channels[number]:
@@ -933,37 +943,41 @@ class EEG_splitter_model():
         only_new_neural = {}
         for number, lead in self.neural_channels.items():
             if number not in jacksheet or lead != jacksheet[number]['label'] or not jacksheet[number]['neural']\
-                or not jacksheet[number]['reref']:
+                    or not jacksheet[number]['reref']:
                 only_new_neural[number] = '%s (Neural, reref)' % lead
 
         only_new_non_neural = {}
         for number, lead in self.non_neural_channels.items():
             if number not in jacksheet or lead != jacksheet[number]['label'] or jacksheet[number]['neural']\
-                or jacksheet[number]['reref']:
+                    or jacksheet[number]['reref']:
                 only_new_non_neural[number] = '%s (Non-Neural)' % lead
 
         only_new_non_reref = {}
         for number, lead in self.non_reref_channels.items():
             if number not in jacksheet or lead != jacksheet[number]['label'] or not jacksheet[number]['neural']\
-                or jacksheet[number]['reref']:
+                    or jacksheet[number]['reref']:
                 only_new_non_reref[number] = '%s (Neural, non-reref)' % lead
 
         error = ''
         if only_old:
+            print 'Only old: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_old))
             error += self.format_leads_for_message(only_old, 'old jacksheet')
         if only_new_neural:
+            print 'Only new neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_neural))
             error += self.format_leads_for_message(only_new_neural, 'new neural channels')
         if only_new_non_reref:
+            print 'Only new non-reref: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_reref))
             error += self.format_leads_for_message(only_new_non_reref, 'new non-reref channels')
         if only_new_non_neural:
+            print 'Only new non-neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_neural))
             error += self.format_leads_for_message(only_new_non_neural, 'new non-neural channels')
         return error
 
     def format_leads_for_message(self, lead_dict, label):
         error = 'The following channels appear only in %s:\n' % label
         error_list = EEG_splitter_gui.strings_from_dict(lead_dict)
-        if len(error_list) > 35:
-            error_list = error_list[:35] + ['[clipped]']
+        if len(error_list) > 10:
+            error_list = error_list[:10] + ['[clipped]']
         error += '\n'.join(error_list) + '\n\n'
         return error
 
