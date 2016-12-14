@@ -624,7 +624,7 @@ class EEG_splitter_model():
         'Stim-2',
         'Stim-2-Stim-1',
         'EKG',
-        'ECG;',
+        'ECG',
         'Stim-1',
     ]
 
