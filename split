@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+USR=`logname`
+
+source ~/.bashrc
+source activate event_creation
+python -m readers.eeg_splitter "$@"
