@@ -650,7 +650,7 @@ class EEG_splitter_model():
     JACKSHEET_JSON = 'jacksheet.json'
     JACKSHEET_TXT = 'jacksheet.txt'
 
-    DEBUG = True
+    DEBUG = False
 
     def __init__(self):
         self._non_split_regex_list = self.DEFAULT_NON_SPLIT[:]
