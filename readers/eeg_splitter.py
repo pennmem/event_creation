@@ -1,7 +1,7 @@
 import sys
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
-from eeg_reader import EDF_reader, NK_reader, NSx_reader, read_jacksheet
+from eeg_reader import EDF_reader, NK_reader, NSx_reader
 from traceback import print_exc
 import re
 import json
@@ -912,6 +912,12 @@ class EEG_splitter_model():
     def read_json_jacksheet(filename):
         jacksheet_str = json.load(open(filename))
         return {int(k):v for k,v in jacksheet_str.items()}
+    
+    @staticmethod
+    def read_txt_jacksheet(filename):
+        jacksheet_str = [line.strip().split() for line in open(filename, 'r')]
+        return {int(line[0]):{'label': line[1]} for line in jacksheet_str}
+
 
     def compare_jacksheets(self, is_json):
         if is_json:
@@ -1010,7 +1016,7 @@ class EEG_splitter_model():
         return output
 
     def construct_jacksheet_dict_from_txt(self):
-        jacksheet = read_jacksheet(self.txt_jacksheet_filename)
+        jacksheet = self.read_txt_jacksheet(self.txt_jacksheet_filename)
         for key in jacksheet:
             jacksheet[key]['neural'] = False
             jacksheet[key]['reref'] = False
