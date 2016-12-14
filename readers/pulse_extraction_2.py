@@ -3,6 +3,8 @@ from PyQt4.QtGui import *
 from PyQt4 import QtCore
 from threading import Timer
 
+import matplotlib
+matplotlib.use("Qt4Agg")
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 import matplotlib.pyplot as plt
@@ -76,7 +78,7 @@ class SyncPulseExtractor(QWidget):
         self.data_root_contents = QLabel("")
 
         self.data_root_contents.setMinimumWidth(200)
-        self.data_root_contents.setFont(QFont('', 12))
+        self.data_root_contents.setFont(QFont('', 8))
 
         data_root_layout = QHBoxLayout()
         data_root_layout.addWidget(self.data_root_button)
@@ -128,7 +130,7 @@ class SyncPulseExtractor(QWidget):
         self.status_text = QLabel("")
         self.eeg_text.setAlignment(QtCore.Qt.AlignCenter)
         self.eeg_text.setMaximumWidth(400)
-        self.eeg_text.setFont(QFont('', 12))
+        self.eeg_text.setFont(QFont('', 8))
 
         status_layout = QVBoxLayout()
         status_layout.addWidget(self.eeg_text, alignment=QtCore.Qt.AlignHCenter)
@@ -369,7 +371,7 @@ class UnFindablePeaksException(Exception):
 
 class SyncPulseExtractionModel(object):
 
-    DEFAULT_DATA_ROOT = '/Volumes/rhino_mount/data/eeg'
+    DEFAULT_DATA_ROOT = '/data/eeg'
 
     def __init__(self):
         self.eeg_file = []
