@@ -244,9 +244,10 @@ class EEG_splitter_gui(QWidget):
     def select_root(self):
         dirname = QFileDialog.getExistingDirectory(self, "Select root directory",
                                                    '/', QFileDialog.ShowDirsOnly)
-        self.model.root_directory = str(dirname)
-        self.update_root()
-        self.root_dir_button.setDown(False)
+        if dirname:
+            self.model.root_directory = str(dirname)
+            self.update_root()
+            self.root_dir_button.setDown(False)
 
     def save_config(self):
         if not os.path.exists(self.model.CONFIG_DIRECTORY):
