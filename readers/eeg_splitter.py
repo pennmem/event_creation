@@ -243,7 +243,7 @@ class EEG_splitter_gui(QWidget):
 
     def select_root(self):
         dirname = QFileDialog.getExistingDirectory(self, "Select root directory",
-                                                   '/Volumes', QFileDialog.ShowDirsOnly)
+                                                   '/', QFileDialog.ShowDirsOnly)
         self.model.root_directory = str(dirname)
         self.update_root()
         self.root_dir_button.setDown(False)
@@ -598,12 +598,12 @@ Notes:
 
 class EEG_splitter_model():
 
-    SUBJECT_DIRECTORY = '/Volumes/rhino_mount/data/eeg'
+    SUBJECT_DIRECTORY = '/data/eeg'
 
     CONFIG_DIRECTORY = os.path.join(os.environ['HOME'], 'pysplit_config')
     DEFAULT_CONFIG = 'default_config.json'
 
-    EEG_FILE_EXTENSIONS = 'EEG files (*.EEG; *.EDF; *.NS2)'
+    EEG_FILE_EXTENSIONS = 'EEG files (*.EEG *.EDF *.NS2)'
     CONFIG_FILE_EXTENSION = 'JSON files (*.json)'
 
     DEFAULT_NON_SPLIT = [
