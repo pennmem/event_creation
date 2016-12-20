@@ -39,6 +39,7 @@ There are five main files in this repo (so far):
 * localization.py
  * Used to build the Localization object, which will hold information throughout the pipeline
  * Bottom of the file contains examples for usage
+ * Run example code with `python localization.py`
  * Use in your own file with:
     ```
     >>> from localization import Localization
@@ -47,3 +48,4 @@ There are five main files in this repo (so far):
     
     >>> loc.get_contacts()
     ```
+  
