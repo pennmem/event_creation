@@ -14,7 +14,7 @@ After installation (if not on rhino) set the path to mounted rhino in config.py
 
 NOTE: cannot use "~" expansion. Provide the full path (e.g. /Users/iped/rhino not ~/rhino if in home folder)
 
-There are four main files in this repo (so far):
+There are five main files in this repo (so far):
 
 * snap\_coordinates.py
  * handles the snapping of coordinates to a surface (pial surface, by default)
@@ -36,4 +36,14 @@ There are four main files in this repo (so far):
  * View sample output with: `python mri_info.py`
 * json\_cleaner.py
  * Used in the output of vox\_mother\_converter to output json on a single line. 
-
+* localization.py
+ * Used to build the Localization object, which will hold information throughout the pipeline
+ * Bottom of the file contains examples for usage
+ * Use in your own file with:
+    ```
+    >>> from localization import Localization
+    
+    >>> loc = Localization('/path/to/voxel_coordinates.json')
+    
+    >>> loc.get_contacts()
+    ```

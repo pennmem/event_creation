@@ -275,9 +275,13 @@ class Localization(object):
 
 if __name__ == '__main__':
     from pprint import pprint
-    loc = Localization('sample_voxel_coordinates.json')
+    import sys
+    if len(sys.argv) > 1:
+        loc = Localization(sys.argv[1])
+    else:
+        loc = Localization('sample_voxel_coordinates.json')
     pprint(loc._contact_dict)
-    loc.to_json('sample_voxel_coordinates_out.json')
+    loc.to_json('sample_voxel_coordinates_start.json')
 
     leads = loc.get_lead_names()
     print('Lead names are {}'.format(leads))
@@ -364,4 +368,4 @@ if __name__ == '__main__':
     labels = loc.get_pair_labels('my_atlas', pairs_all[0:4])
     print("Pairs {} now have atlas {} labels {}".format(pairs_all[0:4], 'my_atlas', labels))
 
-    loc.to_json("sample_voxel_coordinates_modified.json")
+    loc.to_json("sample_voxel_coordinates_end.json")
