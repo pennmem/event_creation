@@ -1,0 +1,845 @@
+{
+  "leads": {
+    "LAS": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 354, 227, 40 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LAS1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 373, 221, 44 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LAS2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 387, 217, 54 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LAS3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 393, 213, 67 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LAS4"
+        }],
+      "n_groups": 1, 
+      "type": "S"
+    }, 
+    "LOAD": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 305, 352, 127 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LOAD1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 315, 352, 126 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LOAD2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 324, 354, 124 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LOAD3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 334, 354, 123 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LOAD4"
+        }],
+      "n_groups": 1, 
+      "type": "D"
+    }, 
+    "LOPD": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 346, 379, 186 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LOPD1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 344, 381, 179 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LOPD2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 342, 383, 173 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LOPD3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 340, 385, 166 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LOPD4"
+        }],
+      "n_groups": 1, 
+      "type": "D"
+    }, 
+    "LOS": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 338, 373, 173 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LOS1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 342, 383, 161 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LOS2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 346, 393, 149 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LOS3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 348, 401, 136 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LOS4"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 350, 408, 123 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 0 ],
+          "name": "LOS5"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 350, 414, 110 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 0 ],
+          "name": "LOS6"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 346, 412, 96 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 0 ],
+          "name": "LOS7"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 336, 401, 87 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 0 ],
+          "name": "LOS8"
+        }],
+      "n_groups": 1, 
+      "type": "S"
+    }, 
+    "LPOG": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 408, 262, 69 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LPOG1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 412, 260, 81 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LPOG2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 410, 258, 96 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LPOG3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 403, 258, 110 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LPOG4"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 399, 256, 124 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 0 ],
+          "name": "LPOG5"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 397, 254, 139 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 0 ],
+          "name": "LPOG6"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 393, 254, 151 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 0 ],
+          "name": "LPOG7"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 387, 254, 167 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 0 ],
+          "name": "LPOG8"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 408, 283, 70 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 1 ],
+          "name": "LPOG9"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 412, 281, 84 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 1 ],
+          "name": "LPOG10"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 412, 281, 97 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 1 ],
+          "name": "LPOG11"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 408, 279, 111 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 1 ],
+          "name": "LPOG12"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 406, 276, 126 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 1 ],
+          "name": "LPOG13"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 403, 274, 140 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 1 ],
+          "name": "LPOG14"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 399, 272, 153 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 1 ],
+          "name": "LPOG15"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 387, 274, 166 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 1 ],
+          "name": "LPOG16"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 410, 303, 71 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 2 ],
+          "name": "LPOG17"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 414, 303, 84 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 2 ],
+          "name": "LPOG18"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 412, 301, 99 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 2 ],
+          "name": "LPOG19"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 410, 299, 113 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 2 ],
+          "name": "LPOG20"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 408, 297, 127 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 2 ],
+          "name": "LPOG21"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 403, 295, 141 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 2 ],
+          "name": "LPOG22"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 397, 293, 154 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 2 ],
+          "name": "LPOG23"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 389, 293, 169 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 2 ],
+          "name": "LPOG24"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 406, 324, 73 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 3 ],
+          "name": "LPOG25"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 410, 324, 86 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 3 ],
+          "name": "LPOG26"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 410, 322, 100 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 3 ],
+          "name": "LPOG27"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 406, 319, 114 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 3 ],
+          "name": "LPOG28"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 406, 317, 129 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 3 ],
+          "name": "LPOG29"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 403, 315, 143 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 3 ],
+          "name": "LPOG30"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 399, 313, 156 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 3 ],
+          "name": "LPOG31"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 391, 313, 169 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 3 ],
+          "name": "LPOG32"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 395, 340, 74 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 4 ],
+          "name": "LPOG33"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 401, 344, 87 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 4 ],
+          "name": "LPOG34"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 401, 342, 101 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 4 ],
+          "name": "LPOG35"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 399, 340, 116 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 4 ],
+          "name": "LPOG36"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 397, 338, 130 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 4 ],
+          "name": "LPOG37"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 397, 334, 143 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 4 ],
+          "name": "LPOG38"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 395, 332, 157 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 4 ],
+          "name": "LPOG39"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 391, 328, 171 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 4 ],
+          "name": "LPOG40"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 381, 354, 77 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 5 ],
+          "name": "LPOG41"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 389, 360, 89 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 5 ],
+          "name": "LPOG42"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 393, 360, 103 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 5 ],
+          "name": "LPOG43"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 389, 356, 116 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 5 ],
+          "name": "LPOG44"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 387, 354, 130 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 5 ],
+          "name": "LPOG45"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 385, 352, 144 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 5 ],
+          "name": "LPOG46"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 383, 348, 159 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 5 ],
+          "name": "LPOG47"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 379, 344, 173 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 5 ],
+          "name": "LPOG48"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 360, 369, 81 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 6 ],
+          "name": "LPOG49"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 375, 377, 90 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 6 ],
+          "name": "LPOG50"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 379, 379, 104 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 6 ],
+          "name": "LPOG51"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 379, 377, 117 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 6 ],
+          "name": "LPOG52"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 375, 373, 131 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 6 ],
+          "name": "LPOG53"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 373, 369, 146 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 6 ],
+          "name": "LPOG54"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 371, 365, 160 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 6 ],
+          "name": "LPOG55"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 369, 362, 174 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 6 ],
+          "name": "LPOG56"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 348, 385, 84 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 7 ],
+          "name": "LPOG57"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 362, 395, 91 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 7 ],
+          "name": "LPOG58"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 369, 397, 104 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 7 ],
+          "name": "LPOG59"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 367, 393, 119 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 7 ],
+          "name": "LPOG60"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 362, 387, 133 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 7 ],
+          "name": "LPOG61"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 360, 385, 146 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 7 ],
+          "name": "LPOG62"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 356, 379, 160 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 7 ],
+          "name": "LPOG63"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 352, 375, 174 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 7 ],
+          "name": "LPOG64"
+        }],
+      "n_groups": 1, 
+      "type": "G"
+    }, 
+    "LPS": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 344, 233, 39 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LPS1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 365, 233, 40 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LPS2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 383, 229, 47 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LPS3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 393, 227, 59 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LPS4"
+        }],
+      "n_groups": 1, 
+      "type": "S"
+    }, 
+    "LTD": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 328, 274, 73 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LTD1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 336, 268, 73 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LTD2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 346, 264, 74 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LTD3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 354, 258, 74 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LTD4"
+        }],
+      "n_groups": 1, 
+      "type": "D"
+    }, 
+    "LTS": {
+      "contacts": [ 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 322, 219, 44 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 0, 0 ],
+          "name": "LTS1"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 324, 199, 47 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 1, 0 ],
+          "name": "LTS2"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 334, 184, 53 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 2, 0 ],
+          "name": "LTS3"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 348, 174, 60 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 3, 0 ],
+          "name": "LTS4"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 365, 176, 69 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 4, 0 ],
+          "name": "LTS5"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 379, 186, 76 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 5, 0 ],
+          "name": "LTS6"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 389, 201, 83 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 6, 0 ],
+          "name": "LTS7"
+        }, 
+        {
+          "coordinate_spaces": {
+            "ct_voxel": [ 397, 217, 89 ]
+          }, 
+          "grid_group": 0, 
+          "grid_loc": [ 7, 0 ],
+          "name": "LTS8"
+        }],
+      "n_groups": 1, 
+      "type": "S"
+    }
+  }, 
+  "origin_ct": "UNKNOWN"
+}
