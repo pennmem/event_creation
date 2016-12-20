@@ -36,10 +36,17 @@ def clean_json(json_string):
     to the start of a JSON object (as oppsed to a list member)
     """
     new_lines = []
+    in_list = False
     for line in json_string.split('\n'):
-        if not ('{' in line ):
+        if ']' in line:
+            in_list = False
             new_lines[-1] += line.strip()
+        elif '[' in line:
+            in_list = True
+            new_lines.append(line + ' ')
+        elif in_list and line.strip()[0].isdigit():
+            new_lines[-1] += line.strip() + ' '
         else:
-            new_lines.append(line)
+            new_lines.append(line)  
     return '\n'.join(new_lines)
 
