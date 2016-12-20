@@ -6,10 +6,10 @@ Removes linebreaks that do not correspond to the start of a JSON object
 import re
 import json
 
-def clean_dump(object, fd, *args, **kwargs):
+def clean_json_dump(object, fd, *args, **kwargs):
     """
     Dump JSON representation of an object to a file
-    >>> clean_dump({'hello': 'world'}, 
+    >>> clean_json_dump({'hello': 'world'},
                    open('file_out.json', 'w'),
                    indent=2, sort_keys=True)
     :param object: The object to dump to the json file
@@ -17,12 +17,12 @@ def clean_dump(object, fd, *args, **kwargs):
     :param *args: args to supply to json.dumps
     :param **kwargs: keyword arguments to supply to json.dumps
     """
-    fd.write(clean_dumps(object, *args, **kwargs))
+    fd.write(clean_json_dumps(object, *args, **kwargs))
 
-def clean_dumps(object, *args, **kwargs):
+def clean_json_dumps(object, *args, **kwargs):
     """
     Dump JSON representation of an object to a string
-    >>> clean_dump({'hello': 'world'}, indent=2)
+    >>> clean_json_dump({'hello': 'world'}, indent=2)
     :param object: The object to dump to json string
     :param *args: args to supply to json.dumps
     :param **kwargs: keyword arguments to supply to json.dumps
@@ -44,7 +44,7 @@ def clean_json(json_string):
         elif '[' in line:
             in_list = True
             new_lines.append(line + ' ')
-        elif in_list and line.strip()[0].isdigit():
+        elif in_list and ':' not in line and line.strip()[0] != '{':
             new_lines[-1] += line.strip() + ' '
         else:
             new_lines.append(line)  
