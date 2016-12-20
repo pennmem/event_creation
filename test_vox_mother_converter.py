@@ -23,12 +23,12 @@ def show_subgrids(lead):
             grid[j] = ''
         for contact in subgrid.values():
             if not contact.grid_loc:
-                print 'Cannot fit contact {} in grid!'.format(contact.name)
+                print('Cannot fit contact {} in grid!'.format(contact.name))
                 continue
             grid[contact.grid_loc[1], contact.grid_loc[0]] = contact.name
         
-        print '____{} {}____'.format(i, grid_size)
-        print '\n'.join(['\t'.join(row) for row in grid])
+        print('____{} {}____'.format(i, grid_size))
+        print('\n'.join(['\t'.join(row) for row in grid]))
 
 def show_leads(leads):
     """
@@ -36,7 +36,7 @@ def show_leads(leads):
     :param lead: dictionary of {lead_name : {contact_name1: contact1, contact_name2: contact2...}}
     """
     for name, lead in leads.items():
-        print "********{}*********".format(name)
+        print("********{}*********".format(name))
         show_subgrids(lead)
 
 if __name__ == '__main__':

@@ -30,11 +30,12 @@ class Contact(object):
         self.grid_loc = None
     
     def to_dict(self):
-        return {'type': self.type,
-                'grid_size': self.grid_size,
+        return {'name': self.name,
                 'grid_group': self.grid_group,
                 'grid_loc': self.grid_loc,
-                'coordinates': self.coords}
+                'coordinate_spaces':{'ct_voxel': self.coords}
+                }
+
 
 
 def leads_to_dict(leads):
@@ -46,9 +47,19 @@ def leads_to_dict(leads):
     :returns: dictionary of form {contact_name1: {contact properties...}, contact_name2: {contact properties}}
     """
     out_dict = {}
+    out_dict['origin_ct'] = 'UNKNOWN'
+    out_dict['leads'] = {}
     for lead_name, contacts in leads.items():
+        lead_dict = {}
+        contact = contacts.values()[0]
+        lead_dict['type'] = contact.type
+        groups = set()
+        contact_list = []
         for contact in contacts.values():
-            out_dict[contact.name] = contact.to_dict()
+            groups.add(contact.grid_group)
+            contact_list.append(contact.to_dict())
+        lead_dict['n_groups'] = len(groups)
+        out_dict['leads'][lead_name] = lead_dict
     return out_dict
 
 def read_mother(mother_file):
@@ -93,7 +104,7 @@ def add_jacksheet(leads, jacksheet_file):
         # Tries to find lead name vs contact number
         match = re.match(r'(.+?)(\d+$)', contact_name)
         if not match:
-            print 'Warning: cannot parse contact {}. Skipping'.format(contact_name)
+            print('Warning: cannot parse contact {}. Skipping'.format(contact_name))
             continue
         lead_name = match.group(1)
         contact_num = int(match.group(2))
