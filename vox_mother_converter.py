@@ -58,6 +58,7 @@ def leads_to_dict(leads):
         for contact in contacts.values():
             groups.add(contact.grid_group)
             contact_list.append(contact.to_dict())
+        lead_dict['contacts'] = contact_list
         lead_dict['n_groups'] = len(groups)
         out_dict['leads'][lead_name] = lead_dict
     return out_dict
