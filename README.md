@@ -34,12 +34,14 @@ There are five main files in this repo (so far):
     >>> get_transform('/path/to/surface.mgz', 'vox2ras')`
     ```
  * View sample output with: `python mri_info.py`
+ 
 * json\_cleaner.py
  * Used in the output of vox\_mother\_converter to output json on a single line. 
+ 
 * localization.py
  * Used to build the Localization object, which will hold information throughout the pipeline
  * Bottom of the file contains examples for usage
- * Run example code with `python localization.py`
+ * Run example code with `python localization.py`.
  * Use in your own file with:
     ```
     >>> from localization import Localization
