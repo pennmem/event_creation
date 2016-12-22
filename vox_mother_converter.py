@@ -11,7 +11,7 @@ import numpy as np
 import os
 from collections import defaultdict
 from config import RHINO_ROOT
-from json_cleaner import clean_dump
+from json_cleaner import clean_json_dump
 import json
 
 class Contact(object):
@@ -22,6 +22,7 @@ class Contact(object):
     def __init__(self, contact_name=None, contact_num=None, coords=None, type=None, size=None):
         self.name = contact_name
         self.coords = coords
+        self.fs_coords = None
         self.num = contact_num
         self.type = type
         self.grid_size = size
@@ -30,11 +31,14 @@ class Contact(object):
         self.grid_loc = None
     
     def to_dict(self):
-        return {'name': self.name,
-                'grid_group': self.grid_group,
-                'grid_loc': self.grid_loc,
-                'coordinate_spaces':{'ct_voxel': self.coords}
-                }
+        d =  {'name': self.name,
+              'grid_group': self.grid_group,
+              'grid_loc': self.grid_loc,
+              'coordinate_spaces':{'ct_voxel': {'raw': self.coords}}
+              }
+        if self.fs_coords is not None:
+            d['coordinate_spaces']['fs'] = {'raw': self.fs_coords}
+        return d
 
 
 
@@ -159,7 +163,18 @@ def add_grid_loc(leads):
             contact.grid_loc = ((num-start_num) % contact.grid_size[0], (num-start_num)/contact.grid_size[0])
             contact.grid_group = group
 
-def build_leads(files):
+def add_freesurfer_coords(leads, files):
+    raw_coords = files['raw_coords']
+    for line in open(raw_coords, 'r'):
+        split_line = line.split('\t')
+        jack_num = int(split_line[0])
+        fs_coords = [float(f) for f in split_line[1:]]
+        for lead in leads.values():
+            for contact in lead.values():
+                if contact.jack_num is not None and int(contact.jack_num) == int(jack_num):
+                    contact.fs_coords = fs_coords
+
+def build_leads(files, do_freesurfer=False):
     """
     Builds the leads dictionary from VOX_coords_mother and jacksheet
     :param files: dictionary of files including 'vox_mom' and 'jacksheet'
@@ -168,6 +183,8 @@ def build_leads(files):
     leads = read_mother(files['vox_mom'])
     add_jacksheet(leads, files['jacksheet'])
     add_grid_loc(leads)
+    if do_freesurfer:
+        add_freesurfer_coords(leads, files)
     return leads
 
 def file_locations(subject):
@@ -178,13 +195,19 @@ def file_locations(subject):
     """
     files = dict(
         vox_mom=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'VOX_coords_mother.txt'),
-        jacksheet=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'docs', 'jacksheet.txt')
+        jacksheet=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'docs', 'jacksheet.txt'),
+        raw_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'RAW_coords.txt')
     )
     return files
 
 if __name__ == '__main__':
-    import sys
-    leads = build_leads(file_locations(sys.argv[1]))
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-s', '--subject', dest='subject', required=True)
+    parser.add_argument('-o', '--output', dest='output', required=True)
+    parser.add_argument('--add-fs', dest='add_fs', required=False, action='store_true', default=False)
+    args = parser.parse_args()
+    leads = build_leads(file_locations(args.subject), args.add_fs)
     leads_as_dict = leads_to_dict(leads)
-    clean_dump(leads_as_dict, open(sys.argv[2],'w'), indent=2, sort_keys=True)
+    clean_json_dump(leads_as_dict, open(args.output,'w'), indent=2, sort_keys=True)
 

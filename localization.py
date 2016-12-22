@@ -84,7 +84,7 @@ class Localization(object):
             contacts.extend(lead_contacts)
         return contacts
 
-    def get_contact_coordinate(self, coordinate_space, contact):
+    def get_contact_coordinate(self, coordinate_space, contact, coordinate_type='raw'):
         """ Gets the coordinates for a single contact
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels", ...
         :param contact: name of the contact
@@ -94,9 +94,9 @@ class Localization(object):
         contact_dict = self._contact_dict_by_name(contact)
         if coordinate_space not in contact_dict['coordinate_spaces']:
             return None
-        return np.array(contact_dict['coordinate_spaces'][coordinate_space])
+        return np.array(contact_dict['coordinate_spaces'][coordinate_space][coordinate_type])
 
-    def get_contact_coordinates(self, coordinate_space, contacts):
+    def get_contact_coordinates(self, coordinate_space, contacts, coordinate_type='raw'):
         """ Gets the coordinates for all provided contacts
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels"...
         :param contacts: list of contact names
@@ -104,26 +104,26 @@ class Localization(object):
         """
         coordinates = []
         for contact in contacts:
-            coordinates.append(self.get_contact_coordinate(coordinate_space, contact))
+            coordinates.append(self.get_contact_coordinate(coordinate_space, contact, coordinate_type))
         return np.array(coordinates)
     
-    def set_contact_coordinate(self, coordinate, coordinate_space, contact):
+    def set_contact_coordinate(self, coordinate, coordinate_space, contact, coordinate_type='raw'):
         """ Sets the coordinates for a given contact and coordinate space
         :param coordinate: [x, y, z] of this contact's coordinates
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels"...
         :param contact: name of contact to modify
         """
         contact_dict = self._contact_dict_by_name(contact)
-        contact_dict['coordinate_spaces'][coordinate_space] = [float(c) for c in coordinate]
+        contact_dict['coordinate_spaces'][coordinate_space][coordinate_type] = [float(c) for c in coordinate]
 
-    def set_contact_coordinates(self, coordinates, coordinate_space, contacts):
+    def set_contact_coordinates(self, coordinates, coordinate_space, contacts, coordinate_type='raw'):
         """ Sets the coordinates for all provided contacts
         :param coordinates: [[x1, y1, z1], [x2, y2, z2], ...] for each contact
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels"...
         :param contacts: list of contact names (same length as coordinates)
         """
         for contact, coordinate in zip(contacts, coordinates):
-            self.set_contact_coordinate(coordinate, coordinate_space, contact)
+            self.set_contact_coordinate(coordinate, coordinate_space, contact, coordinate_type)
 
     def get_contact_label(self, atlas_name, contact):
         """ Gets the atlas label for a given contact
@@ -182,7 +182,7 @@ class Localization(object):
             pair_names.extend([pair['names'] for pair in pairs])
         return pair_names
 
-    def get_pair_coordinate(self, coordinate_space, pair):
+    def get_pair_coordinate(self, coordinate_space, pair, coordinate_type='raw'):
         """ Gets the coordinates at which a pair is located
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels"...
         :param pair: 2 element list containing the names of the contacts in the pair
@@ -190,14 +190,14 @@ class Localization(object):
         """
         contact_name1 = pair[0]
         contact_name2 = pair[1]
-        coord1 = self.get_contact_coordinate(coordinate_space, contact_name1)
-        coord2 = self.get_contact_coordinate(coordinate_space, contact_name2)
+        coord1 = self.get_contact_coordinate(coordinate_space, contact_name1, coordinate_type)
+        coord2 = self.get_contact_coordinate(coordinate_space, contact_name2, coordinate_type)
         if coord1 is None or coord2 is None:
             return None
         coord = ( np.array(coord1) + np.array(coord2) ) / 2
         return np.array(coord)
 
-    def get_pair_coordinates(self, coordinate_space, pairs):
+    def get_pair_coordinates(self, coordinate_space, pairs, coordinate_type='raw'):
         """ Gets the coordinates at which a set of pairs are located
         :param coordinate_space: one of "fs", "t1_mri", "ct_voxels"...
         :param pairs: 2xN list containing the names of contacts in each pair
@@ -205,7 +205,7 @@ class Localization(object):
         """
         coords = []
         for pair in pairs:
-            coords.append(self.get_pair_coordinate(coordinate_space, pair))
+            coords.append(self.get_pair_coordinate(coordinate_space, pair, coordinate_type))
         return np.array(coords)
 
 
