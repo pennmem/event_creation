@@ -48,7 +48,7 @@ dependencies:
 - xarray=0.8.2=py27_0
 - zlib=1.2.8=3
 - pip:
-  - ptsa==1.0.3
   - pyedflib==0.1.6
   - pywavelets==0.4.0
+  - ptsa==1.0.3
 

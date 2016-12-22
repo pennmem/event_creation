@@ -469,7 +469,7 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
     return sorted_failures
 
 def get_code_montage(code, protocol='r1'):
-    r1 = JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
+    r1 = ORIG_INDEXES[protocol] #JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
     try:
         localization_num = r1.get_value('localization', subject_alias=code)
         montage_num = r1.get_value('montage', subject_alias=code)
@@ -477,8 +477,16 @@ def get_code_montage(code, protocol='r1'):
     except ValueError:
         return None
 
-def show_imported_sessions(subject, experiment, protocol='r1'):
-    r1 = JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
+def show_imported_experiments(subject, protocol='r1'):
+    r1 = ORIG_INDEXES[protocol]
+    experiments = r1.experiments(subject=subject)
+    if not experiments:
+        print 'No sessions for this subject'
+    for experiment in experiments:
+        show_imported_sessions(subject, experiment, protocol)
+
+def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
+    r1 = ORIG_INDEXES[protocol] #    JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
     sessions = r1.sessions(subject=subject, experiment=experiment)
     print '| Existing {} sessions for {}'.format(experiment, subject)
     if not sessions:
@@ -489,7 +497,18 @@ def show_imported_sessions(subject, experiment, protocol='r1'):
             orig_sess = r1.get_value('original_session', subject=subject, experiment=experiment, session=session)
         except ValueError:
             orig_sess = session
-        print '|- {sess}: ({code}, {exp}_{orig_sess})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess)
+        if code != subject:
+            montage_str = '{}.{}'.format(r1.get_value('montage', subject=subject, experiment=experiment, session=session),
+                                         r1.get_value('localization', subject=subject, experiment=experiment, session=session))
+        else:
+            montage_str = ''
+        import_type = r1.get_value('import_type', subject=subject, experiment=experiment, session=session)
+        if import_type == 'build':
+            import_type = ''
+        else:
+            import_type = ' ({})'.format(import_type)
+        print '|- {sess}: ({code}{montage}, {exp}_{orig_sess}{type})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess,
+                                                                             montage=montage_str, type=import_type)
 
 ORIG_INDEXES = {
     'r1': JsonIndexReader(os.path.join(DB_ROOT, 'protocols', 'r1.json')),
@@ -688,6 +707,8 @@ if __name__ == '__main__':
                         help='Imports all sessions from the specified JSON file')
     parser.add_argument('--build-db', dest='db_name', default=False,
                         help='ONLY build a database for import. \rOptions are [ram, sharing]')
+    parser.add_argument('--view-only', dest='view_only', action='store_true', default=False,
+                        help="View information about already submitted subjects")
 
     args = parser.parse_args()
 
@@ -752,7 +773,11 @@ if __name__ == '__main__':
         print(importer.describe())
         exit(0)
 
-
+    if args.view_only:
+        code = raw_input("Enter subject code: ")
+        subject = re.sub(r'_.*', '', code)
+        show_imported_experiments(subject)
+        exit(0)
 
     inputs = prompt_for_session_inputs(**vars(args))
 
