@@ -218,8 +218,11 @@ class EventCreationTask(PipelineTask):
             aligner = System2Aligner(unaligned_events, files, db_folder)
             if self.event_label != 'math':
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
+
             if self.experiment.startswith("TH"):
                 start_type = "CHEST"
+            elif self.experiment == 'PS21':
+                start_type = 'NP_POLL'
             else:
                 start_type = "SESS_START"
             events = aligner.align(start_type)
