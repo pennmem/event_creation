@@ -164,7 +164,7 @@ def add_grid_loc(leads):
             contact.grid_group = group
 
 def add_freesurfer_coords(leads, files):
-    raw_coords = files['raw_coords']
+    raw_coords = files['fs_coords']
     for line in open(raw_coords, 'r'):
         split_line = line.split('\t')
         jack_num = int(split_line[0])
@@ -196,7 +196,7 @@ def file_locations(subject):
     files = dict(
         vox_mom=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'VOX_coords_mother.txt'),
         jacksheet=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'docs', 'jacksheet.txt'),
-        raw_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'RAW_coords.txt')
+        fs_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'RAW_coords.txt')
     )
     return files
 
