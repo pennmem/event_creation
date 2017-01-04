@@ -197,8 +197,8 @@ class System2TaskAligner(object):
 
         if len(self.host_time_np_starts) > 1:
             min_errors = errors[best_index]
-            if min_errors > 1000:
-                raise UnAlignableEEGException('Guess at beginning of recording inaccurate by over a second')
+            if min_errors > 10000:
+                raise UnAlignableEEGException('Guess at beginning of recording inaccurate by over ten seconds (%d ms)' % min_errors)
             plt.clf()
             fig, ax = plt.subplots()
             error_indices = np.arange(len(min_errors)) if isinstance(min_errors, list) else 1
@@ -274,6 +274,7 @@ class System2TaskAligner(object):
                 logger.warn('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
+                logger.error("Events {} could not be aligned! Session starts at event {}".format(still_nans, okay_no_align_up_to))
                 raise Exception('Could not convert {} times past start of session'.format(len(still_nans)))
         return time_dest
 

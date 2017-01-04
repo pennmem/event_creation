@@ -742,8 +742,14 @@ class EDF_reader(EEG_reader):
                 if not label:
                     logger.debug("skipping channel {}".format(header['label']))
                     continue
-                out_channel = self.jacksheet[label]
-                used_jacksheet_labels.append(label)
+                if label.upper() in self.jacksheet:
+                    out_channel = self.jacksheet[label.upper()]
+                    used_jacksheet_labels.append(label.upper())
+                elif label in self.jacksheet:
+                    out_channel = self.jacksheet[label]
+                    used_jacksheet_labels.append(label)
+                else:
+                    logger.debug("skipping channel {}".format(label))
             else:
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))
