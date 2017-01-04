@@ -17,7 +17,7 @@ class ArtifactDetector:
         :param system: A string denoting whether the session used EGI or Biosemi
         :param basename: The string basename of the EEG channel files
         :param reref_dir: The path to the directory containing rereferenced EEG data for the session
-        :param sample_rate: The integer sample rate of the recording (EGI = 500, Biosemi = 512)
+        :param sample_rate: The integer sample rate of the recording (EGI = 500, BioSemi varies)
         :param gain: The amplifier gain (a float, EGI = .0762963)
         """
         self.events = events
@@ -52,7 +52,7 @@ class ArtifactDetector:
         """
         if self.known_sys:
             self.process_eog()
-            self.find_bad_events(duration=3200, offset=-100, buff=500, filtfreq=[[58, 62]])
+            self.find_bad_events(duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
         return self.events
 
     def process_eog(self):
@@ -175,9 +175,9 @@ class ArtifactDetector:
         channels is marked as a bad event.
 
         :param duration: How many milliseconds of EEG data will be loaded for each event.
-        :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
-        positive, is the number of samples the skip immdiately after the word presentation.
-        :param buff: The number of samples before {offset} that should also be included.
+        :param offset: If negative, is the milliseconds to include before the onset of the word presentation. If
+        positive, is the number of milliseconds to skip immdiately after the word presentation.
+        :param buff: The number of milliseconds to include as buffers during filtering.
         :param filtfreq: The frequencies on which to filter when lodaing EEG data.
 
         data: A channels x events x samples matrix of EEG data.
@@ -189,6 +189,8 @@ class ArtifactDetector:
         all_chans = np.array([os.path.splitext(f)[1][1:] for f in glob.glob(os.path.join(self.reref_dir, self.basename + '.*'))])
         # Calculate the number of samples to read from each event based on the duration in ms
         ev_length = int(duration * self.sample_rate / 1000)
+        offset = int(offset * self.sample_rate / 1000)
+        buff = int(offset * self.sample_rate / 1000)
 
         has_eeg = np.where(self.events.eegfile != '')[0]
         # Create a channels x events_with_eeg x samples matrix containing the samps from each channel during each event
@@ -239,7 +241,7 @@ class ArtifactDetector:
         :param ev_length: The integer number of samples to load for each event.
         :param offset: If negative, is the number of samples to include before the onset of the word presentation. If
         positive, is the number of samples the skip immdiately after the word presentation.
-        :param buff: Additional samples to be read on either side of the event which are used in filtering, but are
+        :param buff: Additional milliseconds to be read on either side of the event which are used in filtering, but are
         removed before returning. 1 * buff additional samples are read before the event and 2 * buff additional samples
         are read after it.
         :param filtfreq: The frequencies on which to filter the data.
@@ -248,10 +250,13 @@ class ArtifactDetector:
         # The total length of data that will be loaded is ev_length plus the single buffer before and double buffer
         # after the event
         len_with_buffer = ev_length + 3 * buff
-        # Create an events x samples matrix to hold the data from all events
-        data = np.zeros((len(events), len_with_buffer))
         # Calculate the index of the first byte for each event's starting sample (16-bit data == 2 bytes per sample)
         byte_offsets = (offset - buff + events.eegoffset) * 2
+        # Byte offsets can be negative if an event occurred immediately after EEG recording began. If this happens, just
+        # start from byte offset 0
+        byte_offsets[np.where(byte_offsets < 0)[0]] = 0
+        # Create an events x samples matrix to hold the data from all events
+        data = np.zeros((len(events), len_with_buffer))
         # Load each event's data from its reref file, while filtering the data from each event
         for i in range(len(events)):
             with open(os.path.join(self.reref_dir, events[i].eegfile) + '.' + str(chan), 'rb') as f:
