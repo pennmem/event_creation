@@ -190,31 +190,46 @@ class ArtifactDetector:
         # Calculate the number of samples to read from each event based on the duration in ms
         ev_length = int(duration * self.sample_rate / 1000)
         offset = int(offset * self.sample_rate / 1000)
-        buff = int(offset * self.sample_rate / 1000)
+        buff = int(buff * self.sample_rate / 1000)
 
-        has_eeg = np.where(self.events.eegfile != '')[0]
         # Create a channels x events_with_eeg x samples matrix containing the samps from each channel during each event
         logger.debug('Loading reref data for word presentation events...')
-        data = np.zeros((len(all_chans), len(has_eeg), ev_length))
+        data = np.zeros((len(all_chans), len(self.events), ev_length), dtype=np.float)
+        data.fill(np.nan)
         for i in range(len(all_chans)):
-            data[i] = self.get_event_eeg(all_chans[i], self.events[has_eeg], ev_length, offset, buff, filtfreq)
+            data[i] = self.get_event_eeg(all_chans[i], self.events, ev_length, offset, buff, filtfreq)
         logger.debug('Done.')
 
-        # Get the indices of all word presentation events with eeg data
-        pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
-        chans_to_use = np.where(np.array([(chan not in self.weak_chans) for chan in all_chans]))[0]
+        try:
+            # Load the mean and std deviation if they have already been calculated. This way math events generation can
+            # calculate the voltage thresholds without access to word presesntation events.
+            with open(os.path.join(self.reref_dir, 'mean_stddev.txt'), 'r') as f:
+                thresh_data = f.readlines()
+            avg = float(thresh_data[0])
+            stddev = float(thresh_data[1])
+            logger.debug('Loaded average voltage from file.')
+        except IOError:
+            logger.debug('Calculating average voltage...')
+            # Get the indices of all word presentation events with eeg data
+            pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
+            chans_to_use = np.where(np.array([(chan not in self.weak_chans) for chan in all_chans]))[0]
 
-        # Calculate mean and standard deviation across all samples in non-weak channels from all presentation events
-        data_to_use = data[np.ix_(chans_to_use, pres_ev_ind, )]
-        avg = data_to_use.mean()
-        stddev = data_to_use.std()
+            # Calculate mean and standard deviation across all samples in non-weak channels from all presentation events
+            data_to_use = data[np.ix_(chans_to_use, pres_ev_ind, )]
+            avg = data_to_use.mean()
+            stddev = data_to_use.std()
+
+            logger.debug('Saving average voltage...')
+            with open(os.path.join(self.reref_dir, 'mean_stddev.txt'), 'w') as f:
+                f.write(str(avg) + '\n' + str(stddev))
 
         # Set artifact threshold to 4 standard deviations away from the mean
+        logger.debug('Calculating artifact thresholds...')
         pos_thresh = avg + 4 * stddev
         neg_thresh = avg - 4 * stddev
 
         # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
-        logger.debug('Finding artifacts during word presentations...')
+        logger.debug('Finding artifacts during all events...')
         data = np.logical_or(data > pos_thresh, data < neg_thresh)
 
         # Get matrix of channels x events where entries are True if one or more bad samples occur on a channel during
@@ -225,9 +240,9 @@ class ArtifactDetector:
         # Mark each bad event with a list of the channels containing bad samples during the event
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
-            self.events[has_eeg[i]].badEvent = True
+            self.events[i].badEvent = True
             badEventChannel = all_chans[np.where(bad_evchans[:, i])[0]]
-            self.events[has_eeg[i]].badEventChannel = np.append(badEventChannel, np.array(['' for x in range(132 - len(badEventChannel))]))
+            self.events[i].badEventChannel = np.append(badEventChannel, np.array(['' for x in range(len(self.events[i].badEventChannel) - len(badEventChannel))]))
 
     def get_event_eeg(self, chan, events, ev_length, offset, buff, filtfreq):
         """
@@ -245,7 +260,7 @@ class ArtifactDetector:
         removed before returning. 1 * buff additional samples are read before the event and 2 * buff additional samples
         are read after it.
         :param filtfreq: The frequencies on which to filter the data.
-        :return: A matrix where each row is the array of data samples for one event.
+        :return: A matrix where each row is the array of data samples for one event, from channel {chan}.
         """
         # The total length of data that will be loaded is ev_length plus the single buffer before and double buffer
         # after the event
@@ -259,6 +274,8 @@ class ArtifactDetector:
         data = np.zeros((len(events), len_with_buffer))
         # Load each event's data from its reref file, while filtering the data from each event
         for i in range(len(events)):
+            if events[i].eegfile == '':
+                continue
             with open(os.path.join(self.reref_dir, events[i].eegfile) + '.' + str(chan), 'rb') as f:
                 f.seek(byte_offsets[i])
                 data[i] = np.fromfile(f, 'int16', len_with_buffer)
