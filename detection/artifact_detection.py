@@ -11,7 +11,7 @@ class ArtifactDetector:
     using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, system, basename, reref_dir, sample_rate, gain):
+    def __init__(self, events, system, basename, noreref_dir, reref_dir, sample_rate, gain):
         """
         :param events: The events structure (a recarray) for the session
         :param system: A string denoting whether the session used EGI or Biosemi
@@ -22,16 +22,22 @@ class ArtifactDetector:
         """
         self.events = events
         self.basename = basename
+        self.noreref_dir = noreref_dir
         self.reref_dir = reref_dir
         self.sample_rate = sample_rate
         self.gain = gain
         self.known_sys = True
+        # These are extensions that should not be interpreted as channel files
+        self.non_chans = ['sync', 'DIN1', 'DI15', 'D255', 'Status', 'epoc', 'txt']
+        # Load the common average reference channel for use in calculating re-referenced data
+        self.ref_chan = np.fromfile(os.path.join(self.reref_dir, self.basename + '.ref'), 'int16')
 
         if system == 'EGI':
             self.num_chans = 129
             self.eog_chans = [('025', '127'), ('008', '126')]  # 127 is left, 126 is right
             self.weak_chans = np.array(['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063',
                                         '099', '107', '113', '114', '126', '127'])
+
             self.blink_thresh = 100
         elif system == 'Biosemi':
             self.num_chans = 132
@@ -64,20 +70,21 @@ class ArtifactDetector:
         event, any blinks occurring up to 3 seconds after the event onset are attached to the event.
         """
         logger.debug('Identifying blinks in the EOG channels...')
-        eeg_path = os.path.join(self.reref_dir, self.basename)
+        eeg_path = os.path.join(self.noreref_dir, self.basename)
         # Load and scan the rereferenced eeg data from each EOG channel. If the channel is a binary channel
         # (represented as a tuple), load both sub-channels and subtract one from the other before searching for blinks.
+
         artifact_mask = None
         for i in range(len(self.eog_chans)):
             ch = self.eog_chans[i]
             if isinstance(ch, tuple):
                 logger.debug('Identifying blinks in binary channel ' + str(ch) + '...')
-                eeg1 = np.fromfile(eeg_path + '.' + ch[0], 'int16') * self.gain
-                eeg2 = np.fromfile(eeg_path + '.' + ch[1], 'int16') * self.gain
+                eeg1 = (np.fromfile(eeg_path + '.' + ch[0], 'int16') - self.ref_chan) * self.gain
+                eeg2 = (np.fromfile(eeg_path + '.' + ch[1], 'int16') - self.ref_chan) * self.gain
                 eeg = eeg1 - eeg2
             else:
                 logger.debug('Identifying blinks in channel ' + str(ch) + '...')
-                eeg = np.fromfile(eeg_path + '.' + ch, 'int16') * self.gain
+                eeg = (np.fromfile(eeg_path + '.' + ch, 'int16') - self.ref_chan) * self.gain
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
             # have the same number of samples. The artifact_mask will be used to track which events have a blink on each
@@ -186,7 +193,8 @@ class ArtifactDetector:
         """
         # Get a list of the channels to search for artifacts. Look for all reref files that begin with the basename,
         # then get their extension (minus the preceding period)
-        all_chans = np.array([os.path.splitext(f)[1][1:] for f in glob.glob(os.path.join(self.reref_dir, self.basename + '.*'))])
+        all_chans = [os.path.splitext(f)[1][1:] for f in glob.glob(os.path.join(self.noreref_dir, self.basename + '.*'))]
+        all_chans = np.array([chan for chan in all_chans if chan not in self.non_chans])
         # Calculate the number of samples to read from each event based on the duration in ms
         ev_length = int(duration * self.sample_rate / 1000)
         offset = int(offset * self.sample_rate / 1000)
@@ -265,20 +273,21 @@ class ArtifactDetector:
         # The total length of data that will be loaded is ev_length plus the single buffer before and double buffer
         # after the event
         len_with_buffer = ev_length + 3 * buff
-        # Calculate the index of the first byte for each event's starting sample (16-bit data == 2 bytes per sample)
-        byte_offsets = (offset - buff + events.eegoffset) * 2
-        # Byte offsets can be negative if an event occurred immediately after EEG recording began. If this happens, just
+        # Calculate the start sample index for each event, factoring in the buffer and offset parameters
+        offsets = (offset - buff + events.eegoffset)
+        # Offsets can be negative if an event occurred immediately after EEG recording began. If this happens, just
         # start from byte offset 0
-        byte_offsets[np.where(byte_offsets < 0)[0]] = 0
+        offsets[np.where(offsets < 0)[0]] = 0
         # Create an events x samples matrix to hold the data from all events
         data = np.zeros((len(events), len_with_buffer))
         # Load each event's data from its reref file, while filtering the data from each event
+        chan_data = None
         for i in range(len(events)):
             if events[i].eegfile == '':
                 continue
-            with open(os.path.join(self.reref_dir, events[i].eegfile) + '.' + str(chan), 'rb') as f:
-                f.seek(byte_offsets[i])
-                data[i] = np.fromfile(f, 'int16', len_with_buffer)
+            if chan_data is None:
+                chan_data = np.fromfile(os.path.join(self.noreref_dir, events[i].eegfile) + '.' + str(chan), 'int16') - self.ref_chan
+            data[i] = chan_data[offsets[i]:offsets[i]+len_with_buffer]
             # Run a first-order bandstop filter on the data from each event. Typically will be run with a range of 58-62
             data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
         # Multiply all data by the gain

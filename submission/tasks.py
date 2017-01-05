@@ -229,8 +229,8 @@ class EventCreationTask(PipelineTask):
         elif self.protocol == 'ltp':
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.reref_dir,
-                                                 aligner.sample_rate, aligner.gain)
+            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.noreref_dir,
+                                                 aligner.reref_dir, aligner.sample_rate, aligner.gain)
             events = artifact_detector.run()
         else:
             aligner = System1Aligner(unaligned_events, files)
