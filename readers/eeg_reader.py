@@ -14,12 +14,15 @@ import datetime
 import sys
 import bz2
 import files
+import tables
 from loggers import logger
 from shutil import copy
 from helpers.butter_filt import butter_filt
 
 class UnSplittableEEGFileException(Exception):
     pass
+
+
 
 class EEG_reader:
 
@@ -98,6 +101,45 @@ class EEG_reader:
         num_ref_label = re.sub(r'0(?=[0-9]+$)', '', ref_label)
         if num_ref_label in jacksheet_dict:
             return num_ref_label
+
+
+class HD5_reader(EEG_reader):
+
+    def __init__(self, hd5_filename, experiment_config_filename):
+        self.raw_filename = hd5_filename
+        self.exp_config_filename = experiment_config_filename
+        self.exp_config = json.load(open(experiment_config_filename))
+        self.sample_rate = self.exp_config['global_settings']['sampling_rate']
+
+        self.start_datetime = None
+        self.num_samples = None
+        self._h5file = None
+
+    @property
+    def h5file(self):
+        if self._h5file is None:
+            self._h5file = tables.open_file(self.raw_filename, mode='r')
+        return self._h5file
+
+    def get_start_time(self):
+        return datetime.datetime.utcfromtimestamp(self.h5file.root.start_ms.read()/1000.)
+
+    def get_sample_rate(self):
+        return self.sample_rate
+
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_n_samples(self):
+        return self.h5file.root.timeseries.shape[1]
+
+    def _split_data(self, location, basename):
+        ports = self.h5file.root.ports
+        for i, port in enumerate(ports):
+            filename = os.path.join(location, basename + ('.%03d' % port))
+            data = self.h5file.root.timeseries[i, :]
+            logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
+            data.tofile(filename)
 
 
 class NK_reader(EEG_reader):
@@ -553,6 +595,7 @@ class Multi_NSx_reader(EEG_reader):
     def _split_data(self, location, basename):
         for reader in self.readers:
             reader._split_data(location, basename)
+
 
 
 class NSx_reader(EEG_reader):
@@ -1449,3 +1492,10 @@ def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):
         # If the data file is compressed, get the extension before the .bz2
         file_type = os.path.splitext(os.path.splitext(raw_filename)[0])[1].lower() if file_type == '.bz2' else file_type
         return READERS[file_type](raw_filename, jacksheet_filename, **kwargs)
+
+
+if __name__ == '__main__':
+    hd5_reader = HD5_reader("/Users/iped/event_creation/tests/test_input/R9999X/experiments/FR1/session_0/host_pc/20170106_115912/eeg_timeseries.h5",
+                            "/Users/iped/event_creation/tests/test_input/R9999X/experiments/FR1/session_0/host_pc/20170106_115912/experiment_config.json")
+    output = '/Users/iped/event_creation/tests/test_output/R9999X/eeg_output/'
+    hd5_reader.split_data(output, 'TEST')

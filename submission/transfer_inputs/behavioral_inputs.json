@@ -1,6 +1,16 @@
 {
   "r1": {
     "type": "group",
+
+    "eeg_sources": {
+        "type": "link",
+        "multiple": false,
+        "required": true,
+        "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{new_experiment}/sessions/{session}/ephys/current_processed",
+        "origin_file": "sources.json",
+        "destination": "eeg_sources.json"
+    },
+
     "conversion": {
       "type": "group",
       "matlab_events": {
@@ -31,18 +41,19 @@
         "destination": "contacts.json"
       }
     },
+
     "transfer": {
-      "session_log": {
-        "type": "file",
-        "multiple": false,
-        "required": false,
-        "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
-        "origin_file": "session.log",
-        "destination": "logs/session.log"
-      },
       "type": "group",
       "system_1": {
         "type": "group",
+        "session_log": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "session.log",
+          "destination": "logs/session.log"
+        },
         "eeg_log": {
           "type": "file",
           "multiple": false,
@@ -71,6 +82,78 @@
           }
         }
       },
+      "system_2": {
+        "type": "group",
+        "session_log": {
+          "type": "file",
+          "multiple": false,
+          "required": false,
+          "origin_directory": "{data_root}/{code}/behavioral/{experiment}/session_{original_session}",
+          "origin_file": "session.log",
+          "destination": "logs/session.log"
+        },
+        "host_logs": {
+          "type": "file",
+          "multiple": true,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
+          "origin_file": "{experiment}_{subject}_*.log",
+          "destination": "logs/host_logs/"
+        }
+      },
+      "system_3": {
+        "type": "group",
+        "host_pc_logs": {
+          "type": "directory",
+          "multiple": true,
+          "required": true,
+          "origin_directory": "{data_root}/{code}/experiments/{experiment}/session_{original_session}/host_pc",
+          "origin_file": "*",
+          "destination": "host_pc/",
+          "contents": {
+            "event_log": {
+              "type": "file",
+              "multiple": false,
+              "required": true,
+              "origin_directory": ".",
+              "origin_file": "event_log.json",
+              "destination": "event_log.json"
+            },
+            "experiment_config":{
+              "type": "file",
+              "multiple": false,
+              "required": true,
+              "origin_directory": ".",
+              "origin_file": "experiment_config.json",
+              "destination": "experiment_config.json"
+            },
+            "output_log": {
+              "type": "file",
+              "multiple": false,
+              "required": true,
+              "origin_directory": ".",
+              "origin_file": "output.log",
+              "destination": "unused/output.log"
+            },
+            "electrode_config": {
+              "type": "file",
+              "multiple": false,
+              "required": true,
+              "origin_directory": "./config_files",
+              "origin_file": "*.csv",
+              "destination": "electrode_config.csv"
+            },
+            "electrode_binary": {
+              "type": "file",
+              "multiple": false,
+              "required": true,
+              "origin_directory": "./config_files",
+              "origin_file": "*.bin",
+              "destination": "unused/electrode_config.bin"
+            }
+          }
+        }
+      },
       "stim": {
         "type": "group",
         "contacts": {
@@ -82,17 +165,7 @@
           "destination": "contacts.json"
         }
       },
-      "default": {
-        "type": "group",
-        "eeg_sources": {
-          "type": "link",
-          "multiple": false,
-          "required": true,
-          "origin_directory": "{db_root}/protocols/{protocol}/subjects/{subject}/experiments/{new_experiment}/sessions/{session}/ephys/current_processed",
-          "origin_file": "sources.json",
-          "destination": "eeg_sources.json"
-        }
-      },
+
       "PS": {
         "type": "group",
         "system_2": {
@@ -167,17 +240,6 @@
           "origin_directory": "{data_root}/{code}/behavioral/{experiment}",
           "origin_file": "sconfig.py",
           "destination": "experiment_files/sconfig.py"
-        }
-      },
-      "system_2": {
-        "type": "group",
-        "host_logs": {
-          "type": "file",
-          "multiple": true,
-          "required": true,
-          "origin_directory": "{data_root}/{code}/raw/{experiment}_{original_session}",
-          "origin_file": "{experiment}_{subject}_*.log",
-          "destination": "logs/host_logs/"
         }
       },
       "catFR": {

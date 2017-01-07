@@ -1,4 +1,4 @@
-from base_log_parser import BaseSessionLogParser, UnparsableLineException
+from base_log_parser import BaseSessionLogParser, UnparsableLineException, BaseSys3LogParser
 from system2_log_parser import System2LogParser
 import numpy as np
 import re
@@ -364,3 +364,63 @@ class PSHostLogParser(BaseSessionLogParser):
             start_index = 0
         events[start_index:].ad_observed = True
         return events
+
+class PSSys3LogParser(BaseSys3LogParser):
+
+    _PS_FIELDS =  (
+        ('exp_version', '', 'S16'),
+        ('ad_observed', -1, 'int'),
+        ('is_stim', 0, 'b1')
+    )
+
+    def __init__(self, protocol, subject, montage, experiment, session, files,
+                 primary_log='event_log', allow_unparsed_events=True, include_stim_params=True):
+        super(PSSys3LogParser, self).__init__(protocol, subject, montage, experiment, session,
+                                              files, primary_log, allow_unparsed_events, include_stim_params)
+
+        self._experiment = 'PS2.1'
+        self._exp_version = '3.0'
+        self._saw_ad = False
+
+        self._add_type_to_new_event(
+            STIM=self._event_skip, # Skip because it is added later with alignment
+            SHAM=self.event_default,
+            PAUSED=self.event_paused,
+        )
+
+    def event_paused(self, event_json):
+        if event_json['event_value'] == 'OFF':
+            return False
+        event = self.event_default(event_json)
+        event.type = 'AD_CHECK'
+        return event
+
+if __name__ == '__main__':
+
+    import os
+    from viewers.view_recarray import pprint_rec as ppr, to_json
+    from alignment.system3 import System3Aligner
+
+    d = '/Users/iped/event_creation/tests/test_input/R9999X/experiments/PS2/session_37/host_pc/123_45_6788'
+
+    files = dict(
+        event_log=[os.path.join(d, 'event_log.json')] ,
+        electrode_config=[os.path.join(d, 'config_files', 'SubjID_TwoStimChannels.csv')],
+        eeg_sources=os.path.join(d, 'eeg_sources.json')
+    )
+
+    pslp = PSSys3LogParser('r1', 'R9999X', 0.0, 'PS2.1', 37, files)
+
+    events = pslp.parse()
+
+    aligner = System3Aligner(events, files)
+
+    aligner.add_stim_events(pslp.event_template, pslp.persist_fields_during_stim)
+
+    aligned_events = aligner.align()
+
+    aligned_events = pslp.clean_events(aligned_events)
+
+    import pprint
+
+    print(to_json(aligned_events))

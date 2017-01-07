@@ -5,7 +5,9 @@ import os
 import re
 from loggers import logger
 import codecs
-
+import json
+import copy
+from parsers.electrode_config_parser import ElectrodeConfig, UnparseableConfigException
 
 class UnparsableLineException(Exception):
     pass
@@ -19,50 +21,10 @@ class IncomparableFieldException(Exception):
     pass
 
 
-class BaseSessionLogParser(object):
-    """
-    BaseSessionLogParser contains the basic structure for creating events from session.log files
-
-    Three functions should be called within __init__ of overriding functions:
-
-    _add_fields(field_template):
-        field_template should be a tuple of the same format as _BASE_FIELDS. That is, ((NAME, DEFAULT, DTYPE), ...)
-        This sets the default event type. Fields must be added in order to be modified in other functions.
-
-    _add_type_to_new_event(**kwargs)
-        keyword arguments should provide a function to be called for each "TYPE" of log line, where "TYPE" is the
-        "_TYPE_INDEX"th part of session.log when split by tabs.
-        The function accepts the line split by tabs, and returns a new event or False if no event is to be added
-
-        arguments should have format:
-        TYPE = fn
-        where fn is of format:
-        def fn(split_line):
-            return new_event
-
-    _add_type_to_modify_event(**kwargs)
-        keyword arguments should provide a function to be called for each "TYPE" of log, where "TYPE" is the
-        "_TYPE_INDEX"th part of session.log when split by tabs.
-        The function accepts all events that have been created up until that point, and returns all events after
-        modification
-
-        arguments should have the format:
-        TYPE = fn
-        where fn is of format:
-        def fn(events):
-            return events_modified
-    """
+class BaseLogParser(object):
 
     # Maximum length of stim params
     MAX_STIM_PARAMS = 10
-
-    # Index in split line corresponding to these fields
-    _MSTIME_INDEX = 0
-    _MSOFFSET_INDEX = 1
-    _TYPE_INDEX = 2
-
-    # Token on which to split lines of session.log
-    _SPLIT_DELIMITER = '\t'
 
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
@@ -96,23 +58,6 @@ class BaseSessionLogParser(object):
                                 # to JSON
     )
 
-    @classmethod
-    def empty_stim_params(cls):
-        """
-        :return: A record array of just the stimulation paramers
-        """
-        return cls.event_from_template(cls._STIM_FIELDS)
-
-    @classmethod
-    def stim_params_template(cls):
-        """
-        Maximum of 10 stimulated electrodes at once, completely arbitrarily
-        """
-        return 'stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS
-
-    # Alignment doesn't have to start until this event is seen
-    START_EVENT = 'SESS_START'
-
     # Maximum amount of time after which a valid annotation can appear in a .ann file
     MAX_ANN_LENGTH = 600000
 
@@ -142,18 +87,16 @@ class BaseSessionLogParser(object):
 
         # Read the contents of the primary log file
         self._primary_log = files[primary_log]
-        self._contents = self.read_primary_log()
+
+        # Read the contents of the primary log file
+        self._contents = self._read_primary_log()
 
         # _fields defines the structure of the final recarray
         self._fields = self._BASE_FIELDS
         if include_stim_params:
             self._fields += (self.stim_params_template(),)
 
-        # These events are common in pyepl, and can be skipped by default
-        self._type_to_new_event = {
-            'B': self._event_skip,
-            'E': self._event_skip
-        }
+        self._type_to_new_event = {}
         self._type_to_modify_events = {}
 
         # Try to read the jacksheet if it is present
@@ -171,7 +114,21 @@ class BaseSessionLogParser(object):
         except KeyError:
             self._ann_files = []
 
-        pass
+    @classmethod
+    def empty_stim_params(cls):
+        """
+        :return: A record array of just the stimulation paramers
+        """
+        return cls.event_from_template(cls._STIM_FIELDS)
+
+
+    @classmethod
+    def stim_params_template(cls):
+        """
+        Maximum of 10 stimulated electrodes at once, completely arbitrarily
+        """
+        return 'stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS
+
 
     def clean_events(self, events):
         """
@@ -182,15 +139,13 @@ class BaseSessionLogParser(object):
         """
         order = np.argsort(events['mstime'])
         events = events[order]
+        events = events.view(np.recarray)
+        events.protocol = self._protocol
+        events.experiment = self._experiment
+        events.subject = self._subject
+        events.session = self._session
+        events.montage = self._montage
         return events
-
-    def read_primary_log(self):
-        """
-        Reads the lines from the primary log file, splitting each line based on the delimiter defined for the class
-        :return: A list containing each line in the log file, split on the appropriate delimiter
-        """
-        return [line.strip().split(self._SPLIT_DELIMITER)
-                for line in codecs.open(self._primary_log, encoding='utf-8').readlines()]
 
     @staticmethod
     def persist_fields_during_stim(event):
@@ -201,6 +156,7 @@ class BaseSessionLogParser(object):
         """
         return []
 
+
     @property
     def event_template(self):
         """
@@ -208,6 +164,7 @@ class BaseSessionLogParser(object):
         :return:
         """
         return self._fields
+
 
     def _add_fields(self, *args):
         """
@@ -218,23 +175,6 @@ class BaseSessionLogParser(object):
         init_fields.extend(args)
         self._fields = tuple(init_fields)
 
-    def _add_type_to_new_event(self, **kwargs):
-        """
-        Defines the types which should correspond to the creation of a new event
-        Adds type-> creation function mapping
-        :param kwargs: TYPE = function
-        """
-        for (key, value) in kwargs.items():
-            self._type_to_new_event[key] = value
-
-    def _add_type_to_modify_events(self, **kwargs):
-        """
-        Defines the types which should correspond to the modification of existing events
-        Adds type-> modifying function mapping
-        :param kwargs:  TYPE = function
-        """
-        for (key, value) in kwargs.items():
-            self._type_to_modify_events[key] = value
 
     @classmethod
     def event_from_template(cls, template):
@@ -247,6 +187,7 @@ class BaseSessionLogParser(object):
         dtypes = cls.dtype_from_template(template)
         return np.rec.array(defaults, dtype=dtypes)
 
+
     @classmethod
     def dtype_from_template(cls, template):
         """
@@ -254,8 +195,9 @@ class BaseSessionLogParser(object):
         :param template:
         :return:
         """
-        dtypes = [(entry[0], entry[2], entry[3] if len(entry)>3 else 1) for entry in template]
+        dtypes = [(entry[0], entry[2], entry[3] if len(entry) > 3 else 1) for entry in template]
         return dtypes
+
 
     @property
     def _empty_event(self):
@@ -273,26 +215,6 @@ class BaseSessionLogParser(object):
 
         return event
 
-    @staticmethod
-    def _event_skip(*_):
-        """
-        Called to skip event creation for a given line
-        :param _: ignores arguments
-        :return: False
-        """
-        return False
-
-    def event_default(self, split_line):
-        """
-        Returns a default event with mstime, msoffset, and type filled in
-        :param split_line: A single split line from the primary log file
-        :return: new event
-        """
-        event = self._empty_event
-        event.mstime = int(split_line[self._MSTIME_INDEX])
-        event.msoffset = int(split_line[self._MSOFFSET_INDEX])
-        event.type = split_line[self._TYPE_INDEX]
-        return event
 
     @staticmethod
     def set_event_stim_params(event, jacksheet, index=0, **params):
@@ -306,54 +228,25 @@ class BaseSessionLogParser(object):
 
         for param, value in params.items():
             if param == 'amplitude' and value < 5:
-                value *= 1000 # Put in uA. Ugly fix...
+                value *= 1000  # Put in uA. Ugly fix...
             event.stim_params[index][param] = value
 
-        reverse_jacksheet = {v: k for k, v in jacksheet.items()}
-        if 'anode_label' in params:
+        if 'anode_label' in params and 'anode_number' not in params:
+            reverse_jacksheet = {v: k for k, v in jacksheet.items()}
             event.stim_params[index]['anode_number'] = reverse_jacksheet[params['anode_label'].upper()]
-        if 'cathode_label' in params:
+
+        if 'cathode_label' in params and 'cathode_number' not in params:
+            reverse_jacksheet = {v: k for k, v in jacksheet.items()}
             event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label'].upper()]
-        if 'anode_number' in params:
+
+        if 'anode_number' in params and 'anode_label' not in params:
             event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']].upper()
-        if 'cathode_number' in params:
+
+        if 'cathode_number' in params and 'cathode_label' not in params:
             event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']].upper()
 
         event.stim_params[index]._remove = False
 
-    def parse(self):
-        """
-        Makes all events for the primary log file
-        :return: all events
-        """
-        # Start with a single empty event
-        events = self._empty_event
-        # Loop over the contents of the log file
-        for split_line in self._contents:
-            this_type = split_line[self._TYPE_INDEX]
-
-            # Check if the line is parseable
-            if this_type in self._type_to_new_event:
-                new_event = self._type_to_new_event[this_type](split_line)
-                if not isinstance(new_event, np.recarray) and not (new_event is False):
-                    raise Exception('Event not properly provided from log parser')
-                elif isinstance(new_event, np.recarray):
-                    events = np.append(events, new_event)
-            elif self._allow_unparsed_events:
-                # Fine to skip lines if specified
-                pass
-            else:
-                raise UnparsableLineException("Event type %s not parseable" % this_type)
-
-            # Modify existing events if necessary
-            if this_type in self._type_to_modify_events:
-                events = self._type_to_modify_events[this_type](events.view(np.recarray))
-
-        # Remove first (empty) event
-        if events.ndim > 0:
-            return events[1:]
-        else:
-            return events
 
     # Used to find relevant lines in .ann files
     # Note from Jesse Pazdera: I added '[???]' to the accepted strings that can appear in the third column in order to
@@ -380,6 +273,218 @@ class BaseSessionLogParser(object):
         split_lines = [line.split() for line in matching_lines if float(line.split()[0]) < self.MAX_ANN_LENGTH]
         return [(float(line[0]), int(line[1]), ' '.join(line[2:])) for line in split_lines]
 
+    def _read_primary_log(self):
+        raise NotImplementedError("BaseLogParser is to be extended in classes that specify log format")
+
+    def _get_raw_event_type(self, raw_event):
+        raise NotImplementedError("BaseLogParser is to be extended in classes that specify log format")
+
+    def _add_type_to_new_event(self, **kwargs):
+        """
+        Defines the types which should correspond to the creation of a new event
+        Adds type-> creation function mapping
+        :param kwargs: TYPE = function
+        """
+        for (key, value) in kwargs.items():
+            self._type_to_new_event[key] = value
+
+    def _add_type_to_modify_events(self, **kwargs):
+        """
+        Defines the types which should correspond to the modification of existing events
+        Adds type-> modifying function mapping
+        :param kwargs:  TYPE = function
+        """
+        for (key, value) in kwargs.items():
+            self._type_to_modify_events[key] = value
+
+
+    @staticmethod
+    def _event_skip(*_):
+        """
+        Called to skip event creation for a given line
+        :param _: ignores arguments
+        :return: False
+        """
+        return False
+
+
+    def parse(self):
+        """
+        Makes all events for the primary log file
+        :return: all events
+        """
+        # Start with a single empty event
+        events = self._empty_event
+        # Loop over the contents of the log file
+        for raw_event in self._contents:
+            this_type = self._get_raw_event_type(raw_event)
+
+            # Check if the line is parseable
+            if this_type in self._type_to_new_event:
+                new_event = self._type_to_new_event[this_type](raw_event)
+                if not isinstance(new_event, np.recarray) and not (new_event is False):
+                    raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
+                elif isinstance(new_event, np.recarray):
+                    events = np.append(events, new_event)
+            elif self._allow_unparsed_events:
+                # Fine to skip lines if specified
+                pass
+            else:
+                raise UnparsableLineException("Event type %s not parseable" % this_type)
+
+            # Modify existing events if necessary
+            if this_type in self._type_to_modify_events:
+                events = self._type_to_modify_events[this_type](events.view(np.recarray))
+
+        # Remove first (empty) event
+        if events.ndim > 0:
+            return events[1:]
+        else:
+            return events
+
+
+class BaseSessionLogParser(BaseLogParser):
+    """
+    BaseSessionLogParser contains the basic structure for creating events from session.log files
+
+    Three functions should be called within __init__ of overriding functions:
+
+    _add_fields(field_template):
+        field_template should be a tuple of the same format as _BASE_FIELDS. That is, ((NAME, DEFAULT, DTYPE), ...)
+        This sets the default event type. Fields must be added in order to be modified in other functions.
+
+    _add_type_to_new_event(**kwargs)
+        keyword arguments should provide a function to be called for each "TYPE" of log line, where "TYPE" is the
+        "_TYPE_INDEX"th part of session.log when split by tabs.
+        The function accepts the line split by tabs, and returns a new event or False if no event is to be added
+
+        arguments should have format:
+        TYPE = fn
+        where fn is of format:
+        def fn(split_line):
+            return new_event
+
+    _add_type_to_modify_event(**kwargs)
+        keyword arguments should provide a function to be called for each "TYPE" of log, where "TYPE" is the
+        "_TYPE_INDEX"th part of session.log when split by tabs.
+        The function accepts all events that have been created up until that point, and returns all events after
+        modification
+
+        arguments should have the format:
+        TYPE = fn
+        where fn is of format:
+        def fn(events):
+            return events_modified
+    """
+
+    # Index in split line corresponding to these fields
+    _MSTIME_INDEX = 0
+    _MSOFFSET_INDEX = 1
+    _TYPE_INDEX = 2
+
+    # Token on which to split lines of session.log
+    _SPLIT_DELIMITER = '\t'
+
+    # Alignment doesn't have to start until this event is seen
+    START_EVENT = 'SESS_START'
+
+
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
+                 allow_unparsed_events=False, include_stim_params=False):
+        """
+        constructor
+        :param protocol: Protocol for this subject/session
+        :param subject: Subject that ran in this session (no montage code)
+        :param montage: Montage for this subject/session
+        :param experiment: Experiment name and number for this session (e.g. FR3, catFR1)
+        :param session: Session for this subject/session
+        :param files: A dictionary of files (as returned from an instance of Transferer). Must include an entry with
+                      the key as primary_log, and may include a list of files under the key 'annotations' pointing to
+                      .ann files
+        :param primary_log: The key to the 'files' dictionary in which the log to be parsed resides
+        :param allow_unparsed_events: If false, parser will throw an exception when a line cannot be parsed
+        :param include_stim_params: If true, events are initialized with an empty stim_params sub rec-array
+        :return:
+        """
+
+        super(BaseSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files, primary_log,
+                                                   allow_unparsed_events, include_stim_params)
+
+
+        # These events are common in pyepl, and can be skipped by default
+        self._add_type_to_new_event(
+            B=self._event_skip,
+            E=self._event_skip
+        )
+
+    def read_primary_log(self):
+        """
+        Reads the lines from the primary log file, splitting each line based on the delimiter defined for the class
+        :return: A list containing each line in the log file, split on the appropriate delimiter
+        """
+        return [line.strip().split(self._SPLIT_DELIMITER)
+                for line in codecs.open(self._primary_log, encoding='utf-8').readlines()]
+
+    def _add_type_to_new_event(self, **kwargs):
+        """
+        Defines the types which should correspond to the creation of a new event
+        Adds type-> creation function mapping
+        :param kwargs: TYPE = function
+        """
+        for (key, value) in kwargs.items():
+            self._type_to_new_event[key] = value
+
+    def _add_type_to_modify_events(self, **kwargs):
+        """
+        Defines the types which should correspond to the modification of existing events
+        Adds type-> modifying function mapping
+        :param kwargs:  TYPE = function
+        """
+        for (key, value) in kwargs.items():
+            self._type_to_modify_events[key] = value
+
+    def event_default(self, split_line):
+        """
+        Returns a default event with mstime, msoffset, and type filled in
+        :param split_line: A single split line from the primary log file
+        :return: new event
+        """
+        event = self._empty_event
+        event.mstime = int(split_line[self._MSTIME_INDEX])
+        event.msoffset = int(split_line[self._MSOFFSET_INDEX])
+        event.type = split_line[self._TYPE_INDEX]
+        return event
+
+    def _get_raw_event_type(self, split_line):
+        return split_line[self._TYPE_INDEX]
+
+
+class BaseSys3LogParser(BaseLogParser):
+
+    _STIME_FIELD = 't_event'
+    _TYPE_FIELD = 'event_label'
+    _EEG_OFFSET_FIELD = 'offset'
+
+    def _read_primary_log(self):
+        contents = []
+        for log in self._primary_log:
+            contents += json.load(codecs.open(log,  encoding='utf-8'))['events']
+        return contents
+
+    def event_default(self, event_json):
+        """
+        Returns a default event with mstime, msoffset, and type filled in
+        :param split_line: A single split line from the primary log file
+        :return: new event
+        """
+        event = self._empty_event
+        event.mstime = event_json[self._STIME_FIELD] * 1000
+        event.type = event_json[self._TYPE_FIELD]
+        event.eeg_offset = event_json[self._EEG_OFFSET_FIELD]
+        return event
+
+    def _get_raw_event_type(self, event_json):
+        return event_json[self._TYPE_FIELD]
 
 class EventComparator:
     """
