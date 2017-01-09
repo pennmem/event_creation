@@ -4,7 +4,7 @@ import glob
 import shutil
 import datetime
 import hashlib
-
+import yaml
 
 from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
 import files
@@ -19,6 +19,12 @@ TRANSFER_INPUTS = {
     'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.json')
 }
 
+
+def yml_join(loader, node):
+    return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
+
+yaml.add_constructor('!join', yml_join)
+
 class UnTransferrableException(Exception):
     pass
 
@@ -31,7 +37,7 @@ class Transferer(object):
 
     JSON_FILES = {}
 
-    def __init__(self, json_file, groups, destination, **kwargs):
+    def __init__(self, config_filename, groups, destination, **kwargs):
         self.groups = groups
         self.destination_root = os.path.abspath(destination)
         self.destination_current = os.path.join(self.destination_root, self.CURRENT_NAME)
@@ -39,7 +45,10 @@ class Transferer(object):
         logger.debug('Transferer {} created'.format(self.label))
         self.kwargs = kwargs
         self.transferred_files = {}
-        self.transfer_dict = self.load_groups(self.load_json_input(json_file), groups)
+        if os.path.splitext(config_filename)[-1] == '.json':
+            self.transfer_dict = self.load_groups_from_json(self.load_json_input(config_filename), groups)
+        else:
+            self.transfer_dict = self.load_groups_from_yaml(self.load_yaml_input(config_filename), groups)
         self.old_symlink = None
         self.transfer_aborted = False
         self.previous_label = self.get_current_target()
@@ -51,6 +60,11 @@ class Transferer(object):
         if json_file not in cls.JSON_FILES:
             cls.JSON_FILES[json_file] = json.load(open(json_file))
         return cls.JSON_FILES[json_file]
+
+
+    @classmethod
+    def load_yaml_input(cls, yaml_file):
+        return yaml.load(open(yaml_file))
 
     def get_label(self):
         if self.transfer_aborted:
@@ -140,9 +154,22 @@ class Transferer(object):
             return None
 
     @classmethod
-    def load_groups(cls, full_dict, groups):
+    def load_groups_from_yaml(cls, input, groups):
+        out_dict = dict()
+
+        for file in input['files']:
+            if all([group in groups for group in file['groups']]):
+                name = file['name']
+                del file['name']
+                del file['groups']
+                out_dict[name] = file
+
+        return out_dict
+
+    @classmethod
+    def load_groups_from_json(cls, full_dict, groups):
         if "default" in full_dict:
-            out_dict = cls.load_groups(full_dict["default"], groups)
+            out_dict = cls.load_groups_from_json(full_dict["default"], groups)
         else:
             out_dict = dict()
 
@@ -150,7 +177,7 @@ class Transferer(object):
             if not isinstance(value, dict):
                 continue
             if value["type"] == "group" and key in groups:
-                out_dict.update(cls.load_groups(value, groups))
+                out_dict.update(cls.load_groups_from_json(value, groups))
             elif value["type"] != "group":
                 out_dict[key] = value
         return out_dict
@@ -224,7 +251,7 @@ class Transferer(object):
         self.get_dict_checksums(self.transfer_dict, md5s=md5s)
 
         for name, this_md5 in md5s.items():
-            if not name in old_index:
+            if name not in old_index:
                 logger.info("Found new file: {}".format(name))
                 return True
 
@@ -559,10 +586,51 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 
 
 
-def xtest_load_groups():
+def test_load_groups():
     from pprint import pprint
-    transferer = Transferer('./behavioral_inputs.json', ('system_2', "TH"))
-    pprint(transferer.transfer_dict)
+
+    f = Transferer.load_yaml_input('./transfer_inputs/ephys_inputs.yml')
+
+    groups = []
+    for f in f['files']:
+        groups.extend(f['groups'])
+    groups = set(groups)
+
+    import itertools
+
+    combos = []
+    for i in range(len(groups)):
+        combos.extend(itertools.combinations(groups, i))
+
+    for combo in combos:
+
+        print '----- {} '.format(combo)
+
+        transferer = Transferer('./transfer_inputs/behavioral_inputs.json', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output')
+        transferer2 = Transferer('./transfer_inputs/behavioral_inputs.yml', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output')
+
+        print 'forward'
+        transfer_dict_match(transferer.transfer_dict, transferer2.transfer_dict)
+        print 'backward'
+        transfer_dict_match(transferer2.transfer_dict, transferer.transfer_dict)
+
+
+def transfer_dict_match(a ,b):
+    for k, v_a in a.items():
+        if k not in b:
+            print 'KEY MISSING: {}'.format(k)
+            continue
+        v_b = b[k]
+        for kk, vv_a in v_a.items():
+            if kk == 'checksum_filename_only' and not vv_a:
+                continue
+            if kk not in v_b :
+                print 'Missing key {} {}'.format(k, kk)
+                continue
+            vv_b = v_b[kk]
+            if vv_a != vv_b:
+                print 'Mismatch {} {}: {} vs {}'.format(k, kk, vv_a, vv_b)
+
 
 def xtest_transfer_files_sys2():
     transferer = Transferer('./behavioral_inputs.json', ('system_2', 'r1'), '../tests/test_output/test_transfer',
@@ -596,7 +664,7 @@ def test_transfer_files_sys3():
     else:
         print 'Checksum succeeded!'
 
-def test_transfer_files_sys3_2():
+def xtest_transfer_files_sys3_2():
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'FR'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_input',
                             db_root=DB_ROOT,
@@ -620,4 +688,4 @@ def test_transfer_files_sys3_2():
 
 if __name__ == '__main__':
     logger.set_stdout_level(0)
-    test_transfer_files_sys3_2()
+    test_load_groups()

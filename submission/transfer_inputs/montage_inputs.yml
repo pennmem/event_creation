@@ -1,0 +1,28 @@
+directories:
+  loc_db_dir      : &LOC_DB '{loc_db_root}'
+  protocol_loc_db : &LOC_PROTOCOL !join [*LOC_DB, 'protocols/{protocol}']
+  code_loc_db     : &LOC_CODE !join [*LOC_PROTOCOL, 'codes/{code}']
+
+default_file: &FILE
+  type: file
+  groups: []
+  multiple: false
+  required: true
+  checksum_filename_only: false
+  destination: '.'
+
+files:
+
+  ## Conversion
+
+  - name: contacts
+    <<: *FILE
+    groups: [ r1, json_import ]
+    origin_directory: *LOC_CODE
+    origin_file: contacts.json
+
+  - name: pairs
+    <<: *FILE
+    groups: [ r1, json_import ]
+    origin_directory: *LOC_CODE
+    origin_File: pairs.json

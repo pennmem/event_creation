@@ -47,7 +47,7 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
 
 
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups:
-        source_file_info = Transferer.load_groups(group_dict, groups)
+        source_file_info = Transferer.load_groups_from_json(group_dict, groups)
         if experiment.startswith('TH'):
             if 'eeg_log' in source_file_info:
                 eeg_log_info = source_file_info['eeg_log']
