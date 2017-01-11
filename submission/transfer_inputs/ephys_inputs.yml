@@ -19,7 +19,7 @@ directories:
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
 
-  sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'experiments/{experiment}']
+  sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
   sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
   sys3_host_dir       : &SYS3_HOST_DIR !join [*SYS3_SESS_DIR, "host_pc"]
 
@@ -32,23 +32,21 @@ default_link: &LINK
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
-  destination: '.'
+  checksum_contents: true
 
 default_file: &FILE
   type: file
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
-  destination: '.'
+  checksum_contents: true
 
 default_dir: &DIR
   type: directory
   groups: []
   multiple: false
   required: true
-  destination: '.'
+  checksum_contents: false
 
 files:
 
@@ -64,8 +62,8 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer ]
-    checksum_filename_only: false
+    groups: [ r1, transfer, '!system_3']
+    checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:
       - '*.edf'
@@ -82,15 +80,18 @@ files:
     origin_directory: *SYS3_HOST_DIR
     origin_file: '*'
     destination: 'host_pc/'
-    contents:
+    files:
       - name: raw_eeg
         <<: *FILE
+        checksum_contents: false
         origin_directory: '.'
         origin_file: '*.h5'
+        destination: eeg_timeseries.h5
       - name: experiment_config
         << : *FILE
         origin_directory: "."
         origin_file: experiment_config.json
+        destination: experiment_config.json
 
   - name: elec_file
     <<: *FILE
@@ -105,12 +106,15 @@ files:
     groups: [ r1, transfer ]
     origin_directory: *CURR_MONT
     origin_file: contacts.json
+    destination: contacts.json
 
   - name: channel_map
     <<: *FILE
+    required: false
     groups: [ r1, transfer ]
     origin_directory: !join [*SUBJ_DIR, 'docs']
-    origin_file: 'channel_map.json'
+    origin_file: channel_map.json
+    destination: channel_map.json
 
   - name: raw_eeg
     <<: *FILE
@@ -120,7 +124,7 @@ files:
     origin_file:
       - '*.raw.bz2'
       - '*.bdf.bz2'
-    destination: 'raw_eeg/'
+    destination: raw_eeg/
 
   - name: artifact_log
     <<: *FILE

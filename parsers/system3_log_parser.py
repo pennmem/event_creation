@@ -9,7 +9,7 @@ class System3LogParser:
 
     _LABEL_FIELD = 'event_label'
     _VALUE_FIELD = 'event_value'
-    _SOURCE_SORT_FIELD = 't_event'
+    _SOURCE_SORT_FIELD = 'orig_timestamp'
     _DEST_SORT_FIELD = 'mstime'
     _STIM_CHANNEL_FIELD = 'stim_pair'
 
@@ -33,7 +33,7 @@ class System3LogParser:
     _DEFAULT_PULSE_WIDTH = 300
 
 
-    def __init__(self, event_logs, electrode_config_files):
+    def __init__(self, event_logs, electrode_config_files, has_task_laptop=False):
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
@@ -143,7 +143,7 @@ class System3LogParser:
     def make_stim_event(cls, stim_dict, electrode_config):
         stim_event = cls._empty_event()
         stim_params = {}
-        stim_params[cls._DEST_SORT_FIELD] = stim_dict[cls._SOURCE_SORT_FIELD] * 1000
+        stim_params[cls._DEST_SORT_FIELD] = stim_dict[cls._SOURCE_SORT_FIELD]
 
         for input, param in cls._DICT_TO_FIELD.items():
             stim_params[param] = stim_dict[cls._STIM_PARAMS_FIELD][input]
@@ -167,7 +167,7 @@ if __name__ == '__main__':
 
     import os
     from viewers.view_recarray import pprint_rec as ppr
-    d = '/Users/iped/event_creation/tests/test_input/R9999X/experiments/PS2/session_37/host_pc/123_45_6788'
+    d = '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/PS2/session_37/host_pc/123_45_6788'
     event_log = os.path.join(d, 'event_log.json')
     conf = os.path.join(d, 'config_files', 'SubjID_TwoStimChannels.csv')
 

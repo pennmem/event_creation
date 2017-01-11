@@ -15,13 +15,10 @@ directories:
   behavioral_dir     : &BEH_DIR !join [*SUBJ_DIR, "behavioral"]
   beh_experiment_dir : &BEH_EXP_DIR !join [*BEH_DIR, '{experiment}']
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
+  sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
-
-  sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'experiments/{experiment}']
-  sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
-  sys3_host_dir       : &SYS3_HOST_DIR !join [*SYS3_SESS_DIR, "host_pc"]
 
   ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
   ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
@@ -33,20 +30,21 @@ default_link: &LINK
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
+  checksum_contents: true
 
 default_file: &FILE
   type: file
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
+  checksum_contents: true
 
 default_dir: &DIR
   type: directory
   groups: []
   multiple: false
   required: true
+  checksum_contents: false
 
 files:
 
@@ -205,27 +203,31 @@ files:
     origin_directory: *SYS3_HOST_DIR
     origin_file: '*'
     destination: 'host_pc/'
-    contents:
+    files:
       - name: event_log
         << : *FILE
         origin_directory: "."
         origin_file: event_log.json
         destination: event_log.json
+
       - name: experiment_config
         << : *FILE
         origin_directory: "."
         origin_file: experiment_config.json
         destination: experiment_config.json
+
       - name : output_log
         << : *FILE
         origin_directory: "."
         origin_file: output.log
         destination: unused/output.log
+
       - name: electrode_config
         << : *FILE
-        origin_directory: "."
+        origin_directory: "./config_files"
         origin_file: '*.csv'
         destination: electrode_config.csv
+
       - name: electrode_binary
         << : *FILE
         origin_directory: './config_files'

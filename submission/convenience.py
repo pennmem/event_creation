@@ -13,7 +13,7 @@ from pipelines import  MATLAB_CONVERSION_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
 from loggers import logger
 from automation import Importer, ImporterCollection
-from config import DATA_ROOT, RHINO_ROOT, DB_ROOT
+from config import config
 from ptsa.data.readers.IndexReader import JsonIndexReader
 
 try:
@@ -646,7 +646,7 @@ def prompt_for_montage_inputs():
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(DB_ROOT, 'protocols', protocol,
                                  'subjects', subject,
-                                 'experiments', experiment,
+                                 'behavioral', experiment,
                                  'sessions', str(session))
     behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
@@ -679,10 +679,10 @@ if __name__ == '__main__':
                         help='Imports a localization or montage instead of importing events')
     parser.add_argument('--change-experiment', dest='change_experiment', action='store_true', default=False,
                         help='Signals that the name of the experiment changes on import. '
-                             'Defaults to true for PS* experiments')
+                             'Defaults to true for PS* behavioral')
     parser.add_argument('--change-session', dest='change_session', action='store_true', default=False,
                         help='Signals that the session number changes on import. Defaults to true '
-                             'for PS* experiments or subjects with montage changes')
+                             'for PS* behavioral or subjects with montage changes')
     parser.add_argument('--sys2', dest='sys2', action='store_true', default=False,
                         help='Forces system 2 processing if it cannot be determined automatically')
     parser.add_argument('--sys1', dest='sys1', action='store_true', default=False,
@@ -709,11 +709,17 @@ if __name__ == '__main__':
                         help='ONLY build a database for import. \rOptions are [ram, sharing]')
     parser.add_argument('--view-only', dest='view_only', action='store_true', default=False,
                         help="View information about already submitted subjects")
+    parser.add_argument('--show-plots', dest='show_plots', action='store_true', default=False,
+                        help="When aligning data, show plots of fit and residuals (not available on rhino)")
 
     args = parser.parse_args()
 
     if args.log_debug:
         logger.set_stdout_level(0)
+
+    if not args.show_plots:
+        import matplotlib
+        matplotlib.use('agg')
 
     if args.clean_db:
         print('Cleaning database and ignoring other arguments')

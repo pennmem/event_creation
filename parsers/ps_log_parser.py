@@ -401,7 +401,7 @@ if __name__ == '__main__':
     from viewers.view_recarray import pprint_rec as ppr, to_json
     from alignment.system3 import System3Aligner
 
-    d = '/Users/iped/event_creation/tests/test_input/R9999X/experiments/PS2/session_37/host_pc/123_45_6788'
+    d = '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/PS2/session_37/host_pc/123_45_6788'
 
     files = dict(
         event_log=[os.path.join(d, 'event_log.json')] ,

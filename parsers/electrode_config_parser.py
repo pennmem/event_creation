@@ -213,7 +213,7 @@ class ElectrodeConfig(object):
                 line = line.strip()
                 label = line.split(':')[0]
                 if label not in self.parse_fields:
-                    raise UnparseableConfigException("Could not parse field {}".format(label))
+                    raise UnparseableConfigException("Could not parse line {}".format(line))
                 parser = self.parse_fields[label]
                 line = parser(line, config_file)
 

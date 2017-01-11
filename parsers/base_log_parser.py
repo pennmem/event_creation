@@ -417,7 +417,7 @@ class BaseSessionLogParser(BaseLogParser):
             E=self._event_skip
         )
 
-    def read_primary_log(self):
+    def _read_primary_log(self):
         """
         Reads the lines from the primary log file, splitting each line based on the delimiter defined for the class
         :return: A list containing each line in the log file, split on the appropriate delimiter

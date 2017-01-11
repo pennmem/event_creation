@@ -10,6 +10,7 @@ import files
 from parsers.pal_log_parser import PALSessionLogParser
 from alignment.system1 import System1Aligner
 from alignment.system2 import System2Aligner
+from alignment.system3 import System3Aligner
 from alignment.LTPAligner import LTPAligner
 from readers.eeg_reader import get_eeg_reader
 from viewers.view_recarray import to_json, from_json
@@ -43,17 +44,19 @@ class PipelineTask(object):
         self.critical = critical
         self.name = str(self)
         self.pipeline = None
+        self.destination = None
 
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
 
     def create_file(self, filename, contents, label, index_file=True):
-        with files.open_with_perms(os.path.join(self.pipeline.destination, filename), 'w') as f:
+        with files.open_with_perms(os.path.join(self.destination, filename), 'w') as f:
             f.write(contents)
         if index_file:
             self.pipeline.register_output(filename, label)
 
     def run(self, files, db_folder):
+        self.destination = db_folder
         try:
             self._run(files, db_folder)
         except Exception:
@@ -132,38 +135,36 @@ class SplitEEGTask(PipelineTask):
             # Detect Biosemi channel files
             num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         else:
-            if 'contacts' in files:
-                jacksheet_file = files['contacts']
+            if 'experiment_config' in files:
+                jacksheet_files = files['experiment_config'] # Jacksheet embedded in hdf5 file
+            elif 'contacts' in files:
+                jacksheet_files = [files['contacts']] * len(raw_eeg_groups)
             elif 'jacksheet' in files:
-                jacksheet_file = files['jacksheet']
+                jacksheet_files = [files['jacksheet']] * len(raw_eeg_groups)
             else:
                 raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
 
             channel_map = files.get('channel_map')
 
-            for raw_eeg in raw_eeg_groups:
-                if 'substitute_raw_file_for_header' in files:
-                    reader = get_eeg_reader(raw_eeg, jacksheet_file,
-                                            substitute_raw_file_for_header=files['substitute_raw_file_for_header'],
-                                            channel_map_filename=channel_map)
-                else:
-                    try:
-                        reader = get_eeg_reader(raw_eeg, jacksheet_file, channel_map_filename=channel_map)
-                    except KeyError as k:
-                        logger.warn('Cannot split file with extension {}'.format(k))
-                        continue
+            for raw_eeg, jacksheet_file in zip(raw_eeg_groups, jacksheet_files):
+                try:
+                    reader = get_eeg_reader(raw_eeg, jacksheet_file, channel_map_filename=channel_map)
+                except KeyError as k:
+                    traceback.print_exc()
+                    logger.warn('Cannot split file with extension {}'.format(k))
+                    continue
 
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
                                                                 experiment=self.experiment,
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
-                reader.split_data(self.pipeline.destination, split_eeg_filename)
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+                reader.split_data(db_folder, split_eeg_filename)
+            num_split_files = len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
 
         if num_split_files == 0:
             raise UnProcessableException(
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
-                    self.pipeline.destination))
+                    db_folder))
 
 
 class MatlabEEGConversionTask(PipelineTask):
@@ -191,7 +192,7 @@ class EventCreationTask(PipelineTask):
         'TH': THSessionLogParser
     }
 
-    def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
+    def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num=0, event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
@@ -201,7 +202,7 @@ class EventCreationTask(PipelineTask):
         self.montage = montage
         self.experiment = experiment
         self.session = session
-        self.is_sys2 = is_sys2
+        self.r1_sys_num = r1_sys_num
         self.kwargs = kwargs
         self.event_label = event_label
         self.filename = '{label}_events.json'.format(label=event_label)
@@ -214,8 +215,18 @@ class EventCreationTask(PipelineTask):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
-        if self.is_sys2:
-            aligner = System2Aligner(unaligned_events, files, db_folder)
+        if self.protocol == 'ltp':
+            aligner = LTPAligner(unaligned_events, files, db_folder)
+            events = aligner.align()
+            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.reref_dir,
+                                                 aligner.sample_rate, aligner.gain)
+            events = artifact_detector.run()
+        elif self.r1_sys_num in (2, 3):
+            if self.r1_sys_num == 2:
+                aligner = System2Aligner(unaligned_events, files, db_folder)
+            else:
+                aligner = System3Aligner(unaligned_events, files, db_folder)
+
             if self.event_label != 'math':
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
@@ -226,15 +237,11 @@ class EventCreationTask(PipelineTask):
             else:
                 start_type = "SESS_START"
             events = aligner.align(start_type)
-        elif self.protocol == 'ltp':
-            aligner = LTPAligner(unaligned_events, files, db_folder)
-            events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.reref_dir,
-                                                 aligner.sample_rate, aligner.gain)
-            events = artifact_detector.run()
-        else:
+        elif self.r1_sys_num == 1:
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
+        else:
+            raise UnProcessableException("r1_sys_num must be in (1, 3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events)
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
@@ -257,7 +264,6 @@ class EventCombinationTask(PipelineTask):
 
         self.create_file('{}_events.json'.format(self.COMBINED_LABEL),
                          to_json(combined_events), '{}_events'.format(self.COMBINED_LABEL))
-
 
 class MontageLinkerTask(PipelineTask):
     """
@@ -297,8 +303,6 @@ class MontageLinkerTask(PipelineTask):
                 raise UnProcessableException("Cannot find montage for {} in {}".format(self.subject, fullfile))
             logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
-
-
 
 class MatlabEventConversionTask(PipelineTask):
 
@@ -598,7 +602,6 @@ class CompareEventsTask(PipelineTask):
             else:
                 logger.debug('Stim comparison success!')
 
-
 class UnProcessableException(Exception):
     pass
 
@@ -656,7 +659,49 @@ def xtest_change_current():
     change_current(previous_label,
                             'protocols', protocol,
                             'subjects', subject,
-                            'experiments', experiment,
+                            'behavioral', experiment,
                             'sessions', str(session),
                             'ephys')
 
+def test_split_h5():
+
+    files = {
+        'raw_eeg': [
+            '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115509/eeg_timeseries.h5',
+            '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/eeg_timeseries.h5'
+        ],
+        'experiment_config': [
+            '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115509/experiment_config.json',
+            '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/experiment_config.json'
+        ]
+    }
+
+    splitter = SplitEEGTask('R9999X', 0.0, 'FR1', 0, 'r1', True)
+
+    splitter.run(files, '/Users/iped/event_creation/tests/test_output/R9999X/eeg_output')
+
+def test_sys3_events_creation():
+
+    files = {
+        'session_log':'/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/session.log',
+        'wordpool': '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/RAM_wordpool.txt',
+        'event_log': ['/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115509/event_log.json',
+                      '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/event_log.json'],
+        'electrode_config': ['/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115509/config_files/R1001P_FromJson.csv',
+                             '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/config_files/R1001P_FromJson.csv'],
+        'eeg_sources': '/Users/iped/event_creation/tests/test_output/R9999X/eeg_output/sources.json'
+    }
+
+    pipeline = lambda: None
+    pipeline.register_output = lambda *_: None
+
+    creator = EventCreationTask('r1', 'R9999X', 0.0, 'FR1', 0, 3)
+    creator.set_pipeline(pipeline)
+
+    creator.run(files, '/Users/iped/event_creation/tests/test_output/R9999X/eeg_output')
+
+
+
+
+if __name__ == '__main__':
+    test_split_h5()

@@ -1,7 +1,7 @@
 
 
 from transferer import Transferer, generate_ephys_transferer, generate_session_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, DATA_ROOT
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, DATA_ROOT, DB_ROOT
 
 from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
@@ -14,6 +14,8 @@ from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+
+from readers.configuration_reader import TransferConfig
 
 from loggers import logger
 import files
@@ -35,7 +37,7 @@ GROUPS = {
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
 
-def determine_groups(protocol, subject, experiment, session, group_dict, *args, **kwargs):
+def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, *args, **kwargs):
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
     groups = (protocol,)
@@ -45,43 +47,54 @@ def determine_groups(protocol, subject, experiment, session, group_dict, *args, 
 
     groups += tuple(args)
 
+    if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
 
-    if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups:
-        source_file_info = Transferer.load_groups_from_json(group_dict, groups)
-        if experiment.startswith('TH'):
-            if 'eeg_log' in source_file_info:
-                eeg_log_info = source_file_info['eeg_log']
-                eeg_log_file = Transferer.get_origin_files(eeg_log_info,
-                                                           protocol=protocol,
-                                                           subject=subject,
-                                                           code=subject,
-                                                           experiment=experiment,
-                                                           original_session=session,
-                                                           data_root=DATA_ROOT)[0]
-                if len(open(eeg_log_file).read().strip()) == 0:
-                    groups += ('system_2',)
-                else:
-                    groups += ('system_1',)
-            else:
-                groups += ('system_2',)
-        elif 'session_log' in source_file_info:
-            session_log_info = source_file_info['session_log']
-            session_log_files = Transferer.get_origin_files(session_log_info,
-                                                           protocol=protocol,
-                                                           subject=subject,
-                                                           code=subject,
-                                                           experiment=experiment,
-                                                           original_session=session,
-                                                           data_root=DATA_ROOT)
-            if len(session_log_files) < 1:
-                logger.warn("Could not find session log file! Assuming system_1 ")
-                groups += ('system_1', )
-            else:
-                version = get_version_num(session_log_files[0])
-                if version >= 2:
-                    groups += ('system_2',)
-                else:
-                    groups += ('system_1',)
+        inputs = dict(protocol=protocol,
+                      subject=subject,
+                      code=subject,
+                      session=session,
+                      experiment=experiment,
+                      data_root=DATA_ROOT,
+                      db_root=DB_ROOT,
+                      **kwargs)
+
+        systems = ('system_1', 'system_2', 'system_3')
+
+        for sys in ('system_1', 'system_2', 'system_3'):
+            transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
+            try:
+                transfer_cfg.locate_origin_files()
+                break
+            except Exception as e:
+                logger.debug("Guessing not system {}: {}".format(sys, e))
+                continue
+        groups += (sys,)
+
+        #
+        # session_log = transfer_cfg.get_file('session_log')
+        # eeg_log = transfer_cfg.get_file('eeg_log')
+        #
+        # if experiment.startswith('TH'):
+        #     if eeg_log is not None:
+        #         if len(open(eeg_log.origin_paths[0]).read().strip()) == 0:
+        #             groups += ('system_2',)
+        #         else:
+        #             groups += ('system_1',)
+        #     else:
+        #         groups += ('system_2',)
+        # elif session_log is not None:
+        #     if len(session_log.origin_paths) < 1:
+        #         logger.warn("Could not find session log file! Assuming system_1 ")
+        #         groups += ('system_1', )
+        #     else:
+        #         version = get_version_num(session_log.origin_paths[0])
+        #         if version >= 3:
+        #             groups += ('system_3')
+        #         elif version >= 2:
+        #             groups += ('system_2',)
+        #         else:
+        #             groups += ('system_1',)
+
         if experiment.endswith("3"):
             groups += ("stim", )
     return groups
@@ -126,7 +139,7 @@ class TransferPipeline(object):
 
     @property
     def processed_label(self):
-        return '{}_processed'.format(self.transferer.get_label())
+        return '{}_processed'.format(self.transferer.label)
 
     def create_index(self):
         index = {}
@@ -146,14 +159,16 @@ class TransferPipeline(object):
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
 
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))
-        missing_files, expected_dir = self.transferer.missing_required_files()
+        missing_files = self.transferer.missing_files()
         if missing_files:
-            logger.error("Missing file {}. Deleting processed folder {}".format(missing_files, self.destination))
+            logger.error("Missing files {}. "
+                         "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}. '
-                                           'Expected in {}'.format(missing_files, expected_dir))
+            raise UnTransferrableException('Missing file {}'
+                                           'Expected in {}'.format(missing_files[0].name,
+                                                                   missing_files[0].formatted_origin_dir))
 
-        should_transfer = self.transferer.check_checksums()
+        should_transfer = not self.transferer.matches_existing_checksum()
         if should_transfer != True:
             logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
@@ -241,14 +256,19 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     code = code or subject
 
     groups =  determine_groups(protocol, code, experiment, original_session,
-                               json.load(open(TRANSFER_INPUTS['behavioral'])), 'transfer', *groups)
+                               TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
                                              code=code, **kwargs)
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
+
+    system = 3 if 'system_3' in groups else 2 if 'system_2' in groups else 1 if 'system_1' in groups else 0
+
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups))
+
+
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -260,7 +280,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         raise Exception('Unknown protocol %s' % protocol)
 
     if do_math:
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, 'system_2' in groups,
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', MathLogParser, critical=False))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
@@ -303,8 +323,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         new_experiment = 'catFR' + experiment[-1]
 
     new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         json.load(open(TRANSFER_INPUTS['behavioral'])),
-                                         'conversion')
+                                         TRANSFER_INPUTS['behavioral'], 'conversion')
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment
@@ -358,3 +377,20 @@ def build_import_montage_pipeline(subject, montage, protocol, code):
     tasks = [ImportJsonMontageTask(subject, montage)]
     return TransferPipeline(transferer, *tasks)
 
+
+def test_split_sys3():
+    pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
+    pipeline.run()
+
+def test_create_sys3_events():
+    pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
+                                     new_experiment='FR1',
+                                     localization=0, montage_num=0,
+                                     code='R9999X',
+                                     original_session=1, sync_folder='', sync_filename='')
+    pipeline.run()
+
+if __name__ == '__main__':
+    logger.set_stdout_level(0)
+    test_split_sys3()
+    test_create_sys3_events()

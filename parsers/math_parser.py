@@ -26,7 +26,7 @@ class MathLogParser(BaseSessionLogParser):
     @classmethod
     def _math_fields_ltp(cls):
         """
-        Used instead of _math_fields for LTP experiments.
+        Used instead of _math_fields for LTP behavioral.
         """
         return (
             ('list', -999, 'int16'),

@@ -5,18 +5,20 @@ import shutil
 import datetime
 import hashlib
 import yaml
+import traceback
 
 from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
 import files
 from loggers import logger
 from collections import defaultdict
+from readers.configuration_reader import TransferConfig
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
 
 TRANSFER_INPUTS = {
-    'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.json'),
-    'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.json'),
-    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.json')
+    'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.yml'),
+    'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.yml'),
+    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.yml')
 }
 
 
@@ -41,86 +43,44 @@ class Transferer(object):
         self.groups = groups
         self.destination_root = os.path.abspath(destination)
         self.destination_current = os.path.join(self.destination_root, self.CURRENT_NAME)
-        self.label = datetime.datetime.now().strftime(self.STRFTIME)
-        logger.debug('Transferer {} created'.format(self.label))
+
+        self._label = datetime.datetime.now().strftime(self.STRFTIME)
+        logger.debug('Transferer {} created'.format(self._label))
+        self.destination_labelled = os.path.join(self.destination_root, self._label)
+
+
         self.kwargs = kwargs
-        self.transferred_files = {}
-        if os.path.splitext(config_filename)[-1] == '.json':
-            self.transfer_dict = self.load_groups_from_json(self.load_json_input(config_filename), groups)
-        else:
-            self.transfer_dict = self.load_groups_from_yaml(self.load_yaml_input(config_filename), groups)
+        self.transferred_files = []
+        self.transferred_filenames = {}
+
+        self.transfer_config = TransferConfig(config_filename, groups, **kwargs)
+
         self.old_symlink = None
         self.transfer_aborted = False
         self.previous_label = self.get_current_target()
         self._should_transfer = True
+
         self.transfer_type = 'IMPORT'
 
-    @classmethod
-    def load_json_input(cls, json_file):
-        if json_file not in cls.JSON_FILES:
-            cls.JSON_FILES[json_file] = json.load(open(json_file))
-        return cls.JSON_FILES[json_file]
-
-
-    @classmethod
-    def load_yaml_input(cls, yaml_file):
-        return yaml.load(open(yaml_file))
-
-    def get_label(self):
+    @property
+    def label(self):
         if self.transfer_aborted:
             return self.previous_label
         else:
-            return self.label
+            return self._label
+
+    def missing_files(self):
+        self.transfer_config.locate_origin_files()
+        return self.transfer_config.missing_files()
 
     def set_transfer_type(self, transfer_type):
         self.transfer_type = transfer_type
 
-    def build_transferred_index(self):
-        md5_dict = {}
-        destination_labeled = os.path.join(self.destination_root, self.label)
-        for name, files in self.transferred_files.items():
-            info = self.transfer_dict[name]
-            md5_dict.update(self.build_transfer_index_entry(name, files, info, destination_labeled))
-
-        return md5_dict
-
-    @classmethod
-    def build_transfer_index_entry(cls, name, files, info, destination_labeled):
-        index_dict = {}
-        if info['type'] == 'directory':
-            sub_dir = {}
-            for sub_dir in files:
-                for sub_name, sub_files in sub_dir.items():
-                    sub_info = info['contents'][sub_name]
-                    new_index = cls.build_transfer_index_entry(sub_name, sub_files, sub_info, destination_labeled)
-                    if sub_name not in index_dict:
-                        index_dict.update(cls.build_transfer_index_entry(sub_name, sub_files, sub_info, destination_labeled))
-                    else:
-                        index_dict[sub_name]['files'].extend(new_index[sub_name]['files'])
-            for sub_name, sub_files in sub_dir.items():
-                md5_sum = hashlib.md5()
-                sub_info = info['contents'][sub_name]
-                for each_file in index_dict[sub_name]['files']:
-                    if 'checksum_filename_only' in sub_info and sub_info['checksum_filename_only']:
-                        md5_sum.update(os.path.basename(each_file))
-                    else:
-                        md5_sum.update(open(os.path.join(destination_labeled, each_file)).read())
-                index_dict[sub_name]['md5'] = md5_sum.hexdigest()
-
-        elif len(files) > 0:
-            if not isinstance(files, list):
-                files = [files]
-            index_dict[name] = {'files': []}
-            md5_sum = hashlib.md5()
-            for each_file in files:
-                index_dict[name]['files'].append(os.path.relpath(each_file, destination_labeled))
-                if 'checksum_filename_only' in info and info['checksum_filename_only']:
-                    md5_sum.update(os.path.basename(each_file))
-                else:
-                    md5_sum.update(open(each_file).read())
-            info['md5'] = md5_sum.hexdigest()
-
-        return index_dict
+    def transferred_index(self):
+        index = {}
+        for file in self.transferred_files:
+            index.update(file.transferred_index())
+        return index
 
     def get_current_target(self):
         current = os.path.join(self.destination_current)
@@ -134,10 +94,13 @@ class Transferer(object):
         if not os.path.exists(old_index_filename):
             return {}
         with open(old_index_filename, 'r') as old_index_file:
-            return json.load(old_index_file)
+            old_index = json.load(old_index_file)
+            if old_index is None:
+                return {}
+            return old_index
 
-    def write_index_file(self):
-        index = self.build_transferred_index()
+    def write_transferred_index(self):
+        index = self.transferred_index()
         with files.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
 
@@ -153,167 +116,19 @@ class Transferer(object):
             logger.info('No type file found')
             return None
 
-    @classmethod
-    def load_groups_from_yaml(cls, input, groups):
-        out_dict = dict()
-
-        for file in input['files']:
-            if all([group in groups for group in file['groups']]):
-                name = file['name']
-                del file['name']
-                del file['groups']
-                out_dict[name] = file
-
-        return out_dict
-
-    @classmethod
-    def load_groups_from_json(cls, full_dict, groups):
-        if "default" in full_dict:
-            out_dict = cls.load_groups_from_json(full_dict["default"], groups)
-        else:
-            out_dict = dict()
-
-        for key, value in full_dict.items():
-            if not isinstance(value, dict):
-                continue
-            if value["type"] == "group" and key in groups:
-                out_dict.update(cls.load_groups_from_json(value, groups))
-            elif value["type"] != "group":
-                out_dict[key] = value
-        return out_dict
-
-    def get_destination_path(self, info, local_destination_root=None):
-        if info['multiple']:
-            destination_directory = info['destination']
-        else:
-            destination_directory = os.path.dirname(info['destination'])
-
-        if local_destination_root is None:
-            local_destination_root = os.path.join(self.destination_root, self.label)
-
-        destination_path = os.path.join(local_destination_root, destination_directory)
-        return destination_path
-
-    @classmethod
-    def get_origin_files(cls, info, root='', **kwargs):
-        try:
-            origin_directory = info['origin_directory'].format(**kwargs)
-        except:
-            if info['required']:
-                logger.error("Could not determine all keys for {} when formatting {}".format(info['destination'], info['origin_directory']))
-                raise
-            else:
-                return []
-
-        origin_directory = os.path.join(root, origin_directory)
-
-        if info['type'] == 'link':
-            origin_directory = os.path.relpath(os.path.realpath(origin_directory))
-
-        origin_file_entry = info['origin_file']
-
-        if not isinstance(origin_file_entry, list):
-            origin_file_entry = [origin_file_entry]
-
-        origin_files = []
-
-        for origin_file in origin_file_entry:
-            origin_filename = origin_file.format(**kwargs)
-            origin_path = os.path.join(origin_directory, origin_filename)
-            new_files = glob.glob(origin_path)
-
-            if len(new_files) == 0:
-                logger.debug("Could not find any files in {}".format(origin_path))
-            origin_files += new_files
-
-        return origin_files
-
-    def missing_required_files(self):
-        for name, info in self.transfer_dict.items():
-            origin_files = self.get_origin_files(info, **self.kwargs)
-
-            if info['required'] and not origin_files:
-                logger.error("Could not locate file {} in {}".format(name,
-                                                                     info['origin_directory'].format(**self.kwargs)))
-                return name, info['origin_directory'].format(**self.kwargs)
-
-            if (not info['multiple']) and len(origin_files) > 1:
-                logger.error("multiple = {}, but {} files found".format(info['multiple'],
-                                                                        len(origin_files)))
-                return name, info['origin_directory'].format(**self.kwargs)
-        return False, None
-
-    def check_all_checksums(self):
+    def matches_existing_checksum(self):
         old_index = self.load_previous_index()
 
-        md5s = defaultdict(hashlib.md5)
+        for file in self.transfer_config.valid_files:
+            if file.name not in old_index:
+                logger.info("Found new file: {}".format(file.name))
+                return False
 
-        self.get_dict_checksums(self.transfer_dict, md5s=md5s)
+            if not file.matches_transferred_index(old_index[file.name]):
+                logger.info("Found differing file: {}".format(file.name))
+                return False
 
-        for name, this_md5 in md5s.items():
-            if name not in old_index:
-                logger.info("Found new file: {}".format(name))
-                return True
-
-            if not old_index[name]['md5'] == this_md5.hexdigest():
-                logger.info("Found differing file: {}".format(name))
-                return True
-
-        return False
-
-    def get_dict_checksums(self, transfer_dict,  md5s=None, root_dir=''):
-        transferrable_files = self.get_files_to_transfer(transfer_dict, root_dir)
-
-        for transfer_item in transferrable_files:
-            self.get_item_checksums(transfer_item, md5s, root_dir,)
-
-    def get_item_checksums(self, transfer_item, md5s, root_dir=''):
-        name = transfer_item['name']
-        info = transfer_item['info']
-        files = transfer_item['files']
-
-        if info['type'] == 'directory':
-            for file in files:
-                self.get_dict_checksums(info['contents'], md5s, file)
-            return
-
-        this_md5 = md5s[name]
-
-        for origin_file in files:
-            if 'checksum_filename_only' in info and info['checksum_filename_only']:
-                this_md5.update(os.path.basename(origin_file))
-            else:
-                this_md5.update(open(origin_file).read())
-
-
-    def get_files_to_transfer(self, transfer_dict = None, root_dir=''):
-
-        transferrable_files = []
-
-        if transfer_dict is None:
-            transfer_dict = self.transfer_dict
-
-        for name, info in transfer_dict.items():
-            logger.debug('Checking {}'.format(name))
-
-            origin_files = self.get_origin_files(info, root_dir, **self.kwargs)
-
-            if info['required'] and not origin_files:
-                raise UnTransferrableException("Could not locate file {}".format(name))
-
-            if (not info['multiple']) and len(origin_files) > 1:
-                raise UnTransferrableException("multiple = {}, but {} files found".format(info['multiple'],
-                                                                                          len(origin_files)))
-
-            if not origin_files:
-                continue
-
-            transferrable_files.append({'name': name,
-                                        'info': info,
-                                        'files': origin_files,
-                                        'directory': info['origin_directory'].format(**self.kwargs)})
-
-        return transferrable_files
+        return True
 
     def _transfer_files(self):
         if not os.path.exists(self.destination_root):
@@ -321,166 +136,64 @@ class Transferer(object):
 
         logger.info('Transferring into {}'.format(self.destination_root))
 
-        file_dicts = self.get_files_to_transfer()
-        if not file_dicts:
-            logger.info('No files to transfer.')
+        if len(self.transfer_config.valid_files) == 0:
+            logger.info("No files to transfer.")
             self.transfer_aborted = True
-            return None
+            return
 
-        for file_dict in file_dicts:
-            self.transferred_files[file_dict['name']] = self._transfer_file_entry(file_dict)
-
+        for file in self.transfer_config.valid_files:
+            file.transfer(self.destination_labelled)
+            self.transferred_files.append(file)
+            self.transferred_filenames.update(file.transferred_filenames())
 
         if os.path.islink(self.destination_current):
             self.old_symlink = os.path.relpath(os.path.realpath(self.destination_current), self.destination_root)
             os.unlink(self.destination_current)
+
         os.symlink(self.label, self.destination_current)
 
-        self.write_index_file()
+        self.write_transferred_index()
         self.write_transfer_type()
 
-        return self.transferred_files
-
-    def _transfer_file_entry(self, file_dict, local_destination_root = None):
-        name = file_dict['name']
-        info = file_dict['info']
-        origin_files = file_dict['files']
-
-        logger.info('Transferring {}'.format(name))
-
-        destination_path = self.get_destination_path(info, local_destination_root)
-        if not os.path.exists(destination_path):
-            files.makedirs(destination_path)
-
-        this_files_transferred = []
-
-        if local_destination_root is None:
-            local_destination_root = os.path.join(self.destination_root, self.label)
-
-        for origin_file in origin_files:
-            if info['multiple']:
-                destination_file_path = origin_file.replace(file_dict['directory'], '')
-                while destination_file_path[0] == '/':
-                    destination_file_path = destination_file_path[1:]
-                destination_file = os.path.join(destination_path, destination_file_path)
-            else:
-                destination_file = os.path.join(local_destination_root, info['destination'])
-
-            if info['type'] == 'file':
-                if not os.path.exists(os.path.dirname(destination_file)):
-                    files.makedirs(os.path.dirname(destination_file))
-                shutil.copyfile(origin_file, destination_file)
-                logger.debug('Copied file {} to {}'.format(origin_file, destination_file))
-            elif info['type'] == 'directory':
-                copied_files = self._copy_directory(info, origin_file, destination_file)
-                logger.debug('Copied directory {} to {}'.format(origin_file, destination_file))
-                destination_file = copied_files
-            elif info['type'] == 'link':
-                if os.path.islink(destination_file):
-                    logger.warn('Removing link %s' % destination_file)
-                    os.unlink(destination_file)
-                link = os.path.relpath(os.path.realpath(origin_file), os.path.realpath(destination_path))
-                os.symlink(link, destination_file)
-                logger.debug('Linking {} to {}'.format(link, destination_file))
-            else:
-                raise UnTransferrableException("Type {} not known." + \
-                                               "Must be 'file', 'directory', or 'link'".format(info['type']))
-            this_files_transferred.append(destination_file)
-
-        if not info['multiple'] and len(this_files_transferred) > 1:
-            raise Exception("How did this happen??")
-
-        return this_files_transferred if info['multiple'] else this_files_transferred[0]
-
-
-    def _copy_directory(self, info, origin, destination):
-        os.makedirs(destination)
-        contents = info['contents']
-        file_dicts = self.get_files_to_transfer(contents, origin)
-        files_transferred = {}
-        for file_dict in file_dicts:
-            logger.debug("Copying directory contents {}".format(file_dict['name']))
-            files_transferred[file_dict['name']] = self._transfer_file_entry(file_dict, destination)
-        return files_transferred
-
+        return self.transferred_filenames
 
     def transfer_with_rollback(self):
             try:
                 return self._transfer_files()
             except Exception as e:
+                traceback.print_exc()
                 logger.error('Exception encountered: %s' % e.message)
 
                 self.remove_transferred_files()
                 raise
 
     def remove_transferred_files(self):
-        new_transferred_files = {k:v for k,v in self.transferred_files.items()}
-        for file in self.transferred_files:
-            logger.debug('Removing Entry : {} '.format(file))
-            if file not in self.transfer_dict: # Must have been added later. This is messy. Should be fixed.
-                os.remove(self.transferred_files[file])
-                continue
-            info = self.transfer_dict[file]
-            destination_path = self.get_destination_path(info)
-
-            origin_file_entry = info['origin_file']
-            if not isinstance(origin_file_entry, list):
-                origin_file_entry = [origin_file_entry]
-
-            for origin_file in origin_file_entry:
-                if info['multiple']:
-                    destination_files = glob.glob(os.path.join(destination_path, origin_file.format(**self.kwargs)))
-                    for destination_file in destination_files:
-                        if info['type'] == 'file':
-                            logger.debug('removing %s' % destination_file)
-                            os.remove(destination_file)
-                        elif info['type'] == 'directory':
-                            logger.debug('removing %s' % destination_file)
-                            shutil.rmtree(destination_file)
-                else:
-                    destination_file = os.path.join(self.destination_root, self.label, info['destination'])
-                    logger.debug('removing %s' % destination_file)
-                    if info['type'] == 'link':
-                        os.unlink(destination_file)
-                    else:
-                        os.remove(destination_file)
-
-
-            del new_transferred_files[file]
-        self.transferred_files = new_transferred_files
-
-        index_file = os.path.join(self.destination_current, self.INDEX_NAME)
-        if os.path.exists(index_file):
-            os.remove(index_file)
-
-        transfer_type_file = os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME)
-        if os.path.exists(transfer_type_file):
-            os.remove(transfer_type_file)
-
-
-        self.delete_if_empty(self.destination_root)
         if os.path.islink(self.destination_current):
-            logger.debug('removing symlink: %s' % self.destination_current)
+            logger.debug("Removing symlink: {}".format(self.destination_current))
             os.unlink(self.destination_current)
             if self.old_symlink:
                 os.symlink(self.old_symlink, self.destination_current)
         else:
-            logger.warn('Could not find symlink %s' % self.destination_current)
+            logger.warn("Could not find symlink {}".format(self.destination_current))
 
+        self.warn_and_delete(self.destination_labelled)
 
     @classmethod
-    def delete_if_empty(cls, path):
+    def warn_and_delete(cls, path):
         try:
-            for (subpath, _, files) in os.walk(path, topdown=False):
-                if len(files) == 1 and files[0] == 'log.txt':
-                    os.remove(os.path.join(subpath, files[0]))
-                if subpath == path:
-                    continue
-                cls.delete_if_empty(subpath)
-            os.rmdir(path)
+            for (subpath, subdirs, files) in os.walk(path, topdown=False):
+                for file in files:
+                    logger.info("Removing file {}".format(file))
+                    if os.path.islink(os.path.join(subpath, file)):
+                        os.unlink(os.path.join(subpath, file))
+                    else:
+                        os.remove(os.path.join(subpath, file))
+                for subdir in subdirs:
+                    logger.info("Removing directory {}".format(subdir))
+                    os.rmdir(os.path.join(subpath, subdir))
         except Exception as e:
-            pass
-            #print 'Couldn\'t remove {}: {}'.format(path, e)
+            logger.warn("Failed to delete a file! {}".format(e))
+            traceback.print_exc()
 
 
 
@@ -507,7 +220,7 @@ def find_sync_file(subject, experiment, session):
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
                               code=None, original_session=None, new_experiment=None, **kwargs):
-    json_file = TRANSFER_INPUTS['ephys']
+    cfg_file = TRANSFER_INPUTS['ephys']
     if new_experiment is None:
         new_experiment = experiment
     destination = os.path.join(DB_ROOT,
@@ -520,7 +233,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
     original_session = original_session if not original_session is None else session
 
 
-    return Transferer(json_file, (experiment,) + groups, destination,
+    return Transferer(cfg_file, (experiment,) + groups, destination,
                       protocol=protocol,
                       subject=subject, experiment=experiment, new_experiment=new_experiment, session=original_session,
                       data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
@@ -531,7 +244,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
 def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
     groups = groups + ('json_import',)
-    json_file = TRANSFER_INPUTS['montage']
+    cfg_file = TRANSFER_INPUTS['montage']
     code = code or subject
 
     localization = montage.split('.')[0]
@@ -544,14 +257,14 @@ def generate_montage_transferer(subject, montage, protocol, code=None, groups=tu
                                'montages', montage_num,
                                'neuroradiology')
 
-    transferer = Transferer(json_file, groups, destination, protocol=protocol, subject=subject, code=code,
+    transferer = Transferer(cfg_file, groups, destination, protocol=protocol, subject=subject, code=code,
                             loc_db_root=LOC_DB_ROOT)
     return transferer
 
 
 def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
                                 original_session=None, new_experiment=None, **kwargs):
-    json_file = TRANSFER_INPUTS['behavioral']
+    cfg_file = TRANSFER_INPUTS['behavioral']
 
     code = code or subject
     original_session = original_session if not original_session is None else session
@@ -580,7 +293,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
                                'sessions', str(session),
                                'behavioral')
 
-    transferer= Transferer(json_file, (experiment,) + groups, destination, new_experiment=new_experiment,**kwarg_inputs)
+    transferer= Transferer(cfg_file, (experiment,) + groups, destination, new_experiment=new_experiment,**kwarg_inputs)
     return transferer
 
 
@@ -589,12 +302,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 def test_load_groups():
     from pprint import pprint
 
-    f = Transferer.load_yaml_input('./transfer_inputs/ephys_inputs.yml')
-
-    groups = []
-    for f in f['files']:
-        groups.extend(f['groups'])
-    groups = set(groups)
+    groups = ['r1', 'transfer', 'ltp', 'system_1', 'system_2', 'system_3']
 
     import itertools
 
@@ -606,13 +314,12 @@ def test_load_groups():
 
         print '----- {} '.format(combo)
 
-        transferer = Transferer('./transfer_inputs/behavioral_inputs.json', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output')
-        transferer2 = Transferer('./transfer_inputs/behavioral_inputs.yml', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output')
+        transferer2 = Transferer('./transfer_inputs/behavioral_inputs.yml', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output',
+                                 db_root=DB_ROOT, protocol='r1', subject='R9999X', new_experiment='FR1', session=0,
+                                 localization=0, montage_num=0, data_root=DATA_ROOT, experiment='FR1', code='R9999X',
+                                 original_session=0, sync_folder='')
 
-        print 'forward'
-        transfer_dict_match(transferer.transfer_dict, transferer2.transfer_dict)
-        print 'backward'
-        transfer_dict_match(transferer2.transfer_dict, transferer.transfer_dict)
+        print combo, [f.name for f in transferer2.transfer_config.valid_files]
 
 
 def transfer_dict_match(a ,b):

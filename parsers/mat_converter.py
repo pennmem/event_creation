@@ -1230,7 +1230,7 @@ def test_fr_mat_converter():
         new_events = from_json('test_{}_events.json'.format(subject))
         DB_ROOT = old_db_root
 
-        old_events = from_json(os.path.join(DB_ROOT, 'protocols', 'r1', 'subjects', subject, 'experiments', new_exp,
+        old_events = from_json(os.path.join(DB_ROOT, 'protocols', 'r1', 'subjects', subject, 'behavioral', new_exp,
                                             'sessions', str(new_sess), 'behavioral', 'current_processed', 'task_events.json'))
 
         compare_converted_events(old_events, new_events)
