@@ -93,8 +93,10 @@ class Localization(object):
 
         contact_dict = self._contact_dict_by_name(contact)
         if coordinate_space not in contact_dict['coordinate_spaces']:
-            return None
-        return np.array(contact_dict['coordinate_spaces'][coordinate_space][coordinate_type])
+            output = np.empty((1, 3))
+            output[:] = np.NAN
+            return output
+        return np.array(contact_dict['coordinate_spaces'][coordinate_space][coordinate_type], ndmin=2)
 
     def get_contact_coordinates(self, coordinate_space, contacts, coordinate_type='raw'):
         """ Gets the coordinates for all provided contacts
@@ -102,9 +104,12 @@ class Localization(object):
         :param contacts: list of contact names
         :returns: np.array of [[x1, y1, z1], [x2, y2, z2], ...] for each contact
         """
-        coordinates = []
+        coordinates = np.array([[], [], []]).T
         for contact in contacts:
-            coordinates.append(self.get_contact_coordinate(coordinate_space, contact, coordinate_type))
+            coordinate = self.get_contact_coordinate(coordinate_space, contact, coordinate_type)
+            print coordinates.shape
+            print coordinate.shape
+            coordinates = np.concatenate((coordinates, coordinate), 0)
         return np.array(coordinates)
     
     def set_contact_coordinate(self, coordinate, coordinate_space, contact, coordinate_type='raw'):

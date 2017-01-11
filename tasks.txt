@@ -10,7 +10,7 @@
         coregistration information
     output:
         Contacts.fs_mm
--- Surface + depth (non-critical) --
+-- Surface (non-critical) --
 2: Dykstra
     input:
         voxel_coordinates.json
