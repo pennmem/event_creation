@@ -3,7 +3,6 @@ import scipy.stats
 import os
 # this makes matplotlib independent of the X server - comes handy on clusters
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from readers.eeg_reader import NSx_reader
 from copy import deepcopy

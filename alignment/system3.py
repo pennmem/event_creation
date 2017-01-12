@@ -2,11 +2,16 @@
 import json
 import scipy.stats
 import numpy as np
+import os
 
 from copy import deepcopy
 from loggers import logger
+import matplotlib.pyplot as plt
 
+from system1 import UnAlignableEEGException
 from parsers.system3_log_parser import System3LogParser
+
+from config import config
 
 class System3Aligner(object):
 
@@ -14,6 +19,10 @@ class System3Aligner(object):
     ENS_TIME_FIELD = 'eegoffset'
     EEG_FILE_FIELD = 'eegfile'
 
+    MAXIMUM_ALLOWED_RESIDUAL = 500
+
+    FROM_LABELS = (('orig_timestamp', 1000),
+                   ('t_event', 1))
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -28,15 +37,27 @@ class System3Aligner(object):
         self.events = events
         self.merged_events = events
 
-        self.task_to_ens_coefs, self.task_ends = \
-            self.get_coefficients_from_event_log('t_event', 'offset')
+
+        for label, rate in self.FROM_LABELS:
+            try:
+                self.task_to_ens_coefs, self.task_ends = \
+                    self.get_coefficients_from_event_log(label, 'offset', rate)
+            except KeyError as key_error:
+                if key_error.message != label:
+                    raise
+                continue
+            self.from_label = label
+            break
+        else:
+            raise UnAlignableEEGException("Could not find sortable label in events")
+
 
         self.eeg_info = json.load(open(files['eeg_sources']))
 
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         # Merge in the stim events
 
-        s3lp = System3LogParser(self.events_logs, self.electrode_config)
+        s3lp = System3LogParser(self.events_logs, self.electrode_config, self.from_label)
         self.merged_events = s3lp.merge_events(self.events, event_template, persistent_fields)
 
         # Have to manually correct subject and session due to events appearing before start of session
@@ -46,20 +67,35 @@ class System3Aligner(object):
         return self.merged_events
 
 
-    def get_coefficients_from_event_log(self, from_label, to_label):
+    def get_coefficients_from_event_log(self, from_label, to_label, rate):
 
         ends = []
         coefs = []
 
-        for event_log in self.events_logs:
+        for i, event_log in enumerate(self.events_logs):
 
             event_dict = json.load(open(event_log))['events']
 
-            froms = [event[from_label] * 1000 for event in event_dict]
-            tos = [event[to_label] for event in event_dict]
+            froms = [float(event[from_label]) * 1000. / rate for event in event_dict]
+            tos = [float(event[to_label]) for event in event_dict]
+
+            froms = np.array(froms)
+            tos = np.array(tos)
+
+            froms = froms[tos > 0]
+            tos = tos[tos > 0]
+
+            if len(froms) <= 1:
+                continue
 
             coefs.append(scipy.stats.linregress(froms, tos)[:2])
             ends.append(froms[-1])
+
+            self.plot_fit(froms, tos, coefs[-1], '.', 'fit{}'.format(i))
+            self.check_fit(froms, tos, coefs[-1])
+
+        if len(coefs) == 0:
+            raise UnAlignableEEGException("Could not find enough events to determine coefficients!")
 
         return coefs, ends
 
@@ -112,7 +148,7 @@ class System3Aligner(object):
                 dest[np.isnan(dest)] = -1
             else:
                 logger.error("Events {} could not be aligned! Session starts at event {}".format(still_nans, align_start_index))
-                raise Exception('Could not convert {} times past start of session'.format(len(still_nans)))
+                raise UnAlignableEEGException('Could not convert {} times past start of session'.format(len(still_nans)))
         return dest
 
 
@@ -136,3 +172,54 @@ class System3Aligner(object):
         :return: converted times
         """
         return coefficients[0] * np.array(source) + coefficients[1]
+
+    @classmethod
+    def check_fit(cls, x, y, coefficients):
+        fit = coefficients[0] * np.array(x) + coefficients[1]
+        residuals = np.array(y) - fit
+        if abs(1 - coefficients[0]) > .05:
+            raise UnAlignableEEGException(
+                "Maximum deviation from slope is .1, current slope is {}".format(coefficients[0])
+            )
+
+        if max(residuals) > cls.MAXIMUM_ALLOWED_RESIDUAL:
+            logger.error("Maximum residual of fit ({}) "
+                         "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+
+            max_index = np.where(residuals == max(residuals))[0]
+
+            logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
+                time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
+            ))
+            raise UnAlignableEEGException(
+                "Maximum residual of fit ({}) "
+                "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+    @classmethod
+    def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
+        """
+        Plots a fit between two values (both plotting fit itself and residuals
+        :param x:
+        :param y:
+        :param coefficients:
+        :param plot_save_dir: Where to save the plot
+        :param plot_save_label: What to name the saved plot
+        :return: None
+        """
+        fit = coefficients[0] * np.array(x) + coefficients[1]
+        plt.figure(figsize=(20,10))
+        plt.subplot(121)
+        plt.plot(x, y, 'g.', x, fit, 'b-')
+        plt.title("EEG Samples vs Timestamps")
+        plt.xlabel("Timestamp (ms)")
+        plt.ylabel("EEG Samples")
+        plt.xlim(min(x), max(x))
+
+        plt.subplot(122)
+        plt.plot(x, y - fit, 'g.-', [min(x), max(x)], [0, 0], 'k-')
+        plt.title("Fit residuals")
+        plt.xlabel("Timestamp (ms)")
+        plt.ylabel("Best-fit residuals")
+        plt.xlim(min(x), max(x))
+        plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
+                                                                                ext='.png')))
+        plt.show()

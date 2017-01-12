@@ -9,19 +9,16 @@ directories:
   current_ephys_dir   : &CURR_EPHYS !join [*SESS_DB, "ephys/current_processed"]
   current_montage_dir : &CURR_MONT !join [*MONTAGE_DB, "neuroradiology/current_processed"]
 
-  matlab_event_dir : &MLAB_EV_DIR '{event_root}/{ram_experiment}'
+  matlab_event_dir : &MLAB_EV_DIR '{events_root}/{ram_experiment}'
 
   subject_import_dir : &SUBJ_DIR "{data_root}/{code}"
   behavioral_dir     : &BEH_DIR !join [*SUBJ_DIR, "behavioral"]
   beh_experiment_dir : &BEH_EXP_DIR !join [*BEH_DIR, '{experiment}']
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
+  sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
-
-  sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'experiments/{experiment}']
-  sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
-  sys3_host_dir       : &SYS3_HOST_DIR !join [*SYS3_SESS_DIR, "host_pc"]
 
   ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
   ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
@@ -33,20 +30,21 @@ default_link: &LINK
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
+  checksum_contents: true
 
 default_file: &FILE
   type: file
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
+  checksum_contents: true
 
 default_dir: &DIR
   type: directory
   groups: []
   multiple: false
   required: true
+  checksum_contents: false
 
 files:
 
@@ -71,17 +69,17 @@ files:
   - name: matlab_events
     << : *FILE
     groups: [ r1, conversion ]
-    required: false
     origin_directory: *MLAB_EV_DIR
-    origin_file: '{code}_math.mat'
-    destination: math_events.mat
+    origin_file: '{code}_events.mat'
+    destination: original_events.mat
 
   - name: math_events
     << : *FILE
+    required: false
     groups: [ r1, conversion, verbal ]
     origin_directory: *MLAB_EV_DIR
-    origin_file: '{code}_events.mat'
-    destination: contacts.json
+    origin_file: '{code}_math.mat'
+    destination: math_events.mat
 
   ## Verbal
 
@@ -156,7 +154,7 @@ files:
 
   # TH specific
 
-  - name: th_log
+  - name: session_log
     << : *FILE
     groups : [r1, transfer, TH ]
     origin_directory: *BEH_SESS_DIR
@@ -194,7 +192,7 @@ files:
     multiple: true
     origin_directory: *RAW_DIR
     origin_file: '{experiment}_{subject}_*.log'
-    destination: 'logs/host_logs'
+    destination: 'logs/host_logs/'
 
   # System 3
 
@@ -211,21 +209,25 @@ files:
         origin_directory: "."
         origin_file: event_log.json
         destination: event_log.json
+
       - name: experiment_config
         << : *FILE
         origin_directory: "."
         origin_file: experiment_config.json
         destination: experiment_config.json
+
       - name : output_log
         << : *FILE
         origin_directory: "."
         origin_file: output.log
         destination: unused/output.log
+
       - name: electrode_config
         << : *FILE
-        origin_directory: "."
+        origin_directory: "./config_files"
         origin_file: '*.csv'
         destination: electrode_config.csv
+
       - name: electrode_binary
         << : *FILE
         origin_directory: './config_files'

@@ -75,7 +75,7 @@ class EEG_reader:
         noreref_location = os.path.join(location, 'noreref')
         if not os.path.exists(noreref_location):
             files.makedirs(noreref_location)
-        logger.info("Splitting data into {}/{}".format(location, basename))
+        logger.info("Splitting data into {}/{}".format(noreref_location, basename))
         self._split_data(noreref_location, basename)
         self.write_sources(location, basename)
         logger.info("Splitting complete")
@@ -105,11 +105,14 @@ class EEG_reader:
 
 class HD5_reader(EEG_reader):
 
-    def __init__(self, hd5_filename, experiment_config_filename):
+    def __init__(self, hd5_filename, experiment_config_filename, channel_map_filename=None):
         self.raw_filename = hd5_filename
         self.exp_config_filename = experiment_config_filename
         self.exp_config = json.load(open(experiment_config_filename))
         self.sample_rate = self.exp_config['global_settings']['sampling_rate']
+
+        # UNUSED IN SYSTEM 3
+        self.channel_map_filesname = channel_map_filename
 
         self.start_datetime = None
         self.num_samples = None
@@ -118,6 +121,7 @@ class HD5_reader(EEG_reader):
     @property
     def h5file(self):
         if self._h5file is None:
+            logger.debug("Opening {}".format(self.raw_filename))
             self._h5file = tables.open_file(self.raw_filename, mode='r')
         return self._h5file
 
@@ -1509,7 +1513,8 @@ READERS = {
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
     '.raw': EGI_reader,
-    '.bdf': BDF_reader
+    '.bdf': BDF_reader,
+    '.h5': HD5_reader
 }
 
 
@@ -1524,7 +1529,7 @@ def get_eeg_reader(raw_filename, jacksheet_filename=None, **kwargs):
 
 
 if __name__ == '__main__':
-    hd5_reader = HD5_reader("/Users/iped/event_creation/tests/test_input/R9999X/experiments/FR1/session_0/host_pc/20170106_115912/eeg_timeseries.h5",
-                            "/Users/iped/event_creation/tests/test_input/R9999X/experiments/FR1/session_0/host_pc/20170106_115912/experiment_config.json")
+    hd5_reader = HD5_reader("/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/eeg_timeseries.h5",
+                            "/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/host_pc/20170106_115912/experiment_config.json")
     output = '/Users/iped/event_creation/tests/test_output/R9999X/eeg_output/'
     hd5_reader.split_data(output, 'TEST')

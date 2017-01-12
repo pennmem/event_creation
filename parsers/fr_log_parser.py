@@ -272,3 +272,12 @@ class FRSessionLogParser(BaseSessionLogParser):
         events = events.view(np.recarray)
         return np.logical_and(events.item_name == word, np.logical_or(events.type == 'WORD', events.type == 'PRACTICE_WORD'))
 
+
+if __name__ == '__main__':
+    files = {
+        'session_log':'/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/session.log',
+        'wordpool': '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/RAM_wordpool.txt'
+    }
+
+    frslp = FRSessionLogParser('r1', 'R9999X', 0.0, 'FR1', 0, files)
+    frslp.parse()

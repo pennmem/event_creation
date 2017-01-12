@@ -1,0 +1,136 @@
+directories:
+  protcol_db_dir    : &PROTOCOL_DB '{db_root}/protocols/{protocol}'
+  subject_db_dir    : &SUBJ_DB !join [*PROTOCOL_DB, 'subjects/{subject}']
+  exp_db_dir        : &EXP_DB !join [*SUBJ_DB, 'experiments/{new_experiment}']
+  sess_db_dir       : &SESS_DB !join [*EXP_DB, 'sessions/{session}']
+  localization_db_dir : &LOC_DB !join [*SUBJ_DB, 'localizations/{localization}']
+  montage_db_dir : &MONTAGE_DB !join [*LOC_DB, 'montages/{montage_num}']
+
+  current_ephys_dir   : &CURR_EPHYS !join [*SESS_DB, "ephys/current_processed"]
+  current_montage_dir : &CURR_MONT !join [*MONTAGE_DB, "neuroradiology/current_processed"]
+
+  matlab_event_dir : &MLAB_EV_DIR '{events_root}/{ram_experiment}'
+
+  subject_import_dir : &SUBJ_DIR "{data_root}/{code}"
+  behavioral_dir     : &BEH_DIR !join [*SUBJ_DIR, "behavioral"]
+  beh_experiment_dir : &BEH_EXP_DIR !join [*BEH_DIR, '{experiment}']
+  beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
+  sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
+
+  raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
+
+  sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
+  sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
+  sys3_host_dir       : &SYS3_HOST_DIR !join [*SYS3_SESS_DIR, "host_pc"]
+
+  ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
+  ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
+  ltp_eeg_dir  : &LTP_EEG_DIR !join [*LTP_SESS_DIR, 'eeg']
+
+default_link: &LINK
+  type: link
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: true
+
+default_file: &FILE
+  type: file
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: true
+
+default_dir: &DIR
+  type: directory
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: false
+
+files:
+
+  ## Conversion
+
+  - name: matlab_events
+    << : *FILE
+    groups: [ r1, conversion ]
+    origin_directory: *MLAB_EV_DIR
+    origin_file: '{code}_events.mat'
+    destination: original_events.mat
+
+  - name: raw_eeg
+    << : *FILE
+    multiple: true
+    groups: [ r1, transfer, '!system_3']
+    checksum_contents: false
+    origin_directory: *RAW_DIR
+    origin_file:
+      - '*.edf'
+      - '*.EDF'
+      - '*.eeg'
+      - '*.EEG'
+      - '*/*.ns*'
+    destination: raw_eeg
+
+  - name: host_pc_files
+    << : *DIR
+    groups: [ r1, transfer, system_3]
+    multiple: true
+    origin_directory: *SYS3_HOST_DIR
+    origin_file: '*'
+    destination: 'host_pc/'
+    files:
+      - name: raw_eeg
+        <<: *FILE
+        checksum_contents: false
+        origin_directory: '.'
+        origin_file: '*.h5'
+        destination: eeg_timeseries.h5
+      - name: experiment_config
+        << : *FILE
+        origin_directory: "."
+        origin_file: experiment_config.json
+        destination: experiment_config.json
+
+  - name: elec_file
+    <<: *FILE
+    groups: [ r1, transfer ]
+    required: false
+    origin_directory: *RAW_DIR
+    origin_file: '*.21[eE]'
+    destination: 'raw_eeg/'
+
+  - name: contacts
+    <<: *LINK
+    groups: [ r1, transfer ]
+    origin_directory: *CURR_MONT
+    origin_file: contacts.json
+    destination: contacts.json
+
+  - name: channel_map
+    <<: *FILE
+    required: false
+    groups: [ r1, transfer ]
+    origin_directory: !join [*SUBJ_DIR, 'docs']
+    origin_file: channel_map.json
+    destination: channel_map.json
+
+  - name: raw_eeg
+    <<: *FILE
+    groups: [ ltp ]
+    multiple: true
+    origin_directory: *LTP_EEG_DIR
+    origin_file:
+      - '*.raw.bz2'
+      - '*.bdf.bz2'
+    destination: raw_eeg/
+
+  - name: artifact_log
+    <<: *FILE
+    groups: [ ltp ]
+    multiple: true
+    required: false
+    origin_directory: *LTP_EEG_DIR
+    origin_file: '*.log'
+    destination: 'logs/'

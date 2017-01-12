@@ -2,11 +2,12 @@ import json
 import os
 import copy
 from collections import defaultdict
-from transferer import DB_ROOT, UnTransferrableException
+from transferer import UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
                       build_convert_eeg_pipeline, build_import_montage_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
+from config import paths
 import traceback
 
 class ImporterCollection(object):
@@ -181,7 +182,7 @@ class Importer(object):
     def check(self):
         try:
             processed_exists = os.path.exists(os.path.join(self.transferer.destination_root, 'current_processed'))
-            checksum_fail = self.transferer.check_checksums()
+            checksum_fail = not self.transferer.matches_existing_checksum()
             self._should_transfer = checksum_fail or not processed_exists
         except Exception as e:
             self.set_error('check', e)
@@ -217,7 +218,7 @@ class Automator(object):
 
     def __init__(self, protocol):
         self.protocol = protocol
-        self.index = JsonIndexReader(os.path.join(DB_ROOT, 'protocols', '{}.json'.format(protocol)))
+        self.index = JsonIndexReader(os.path.join(paths.db_root, 'protocols', '{}.json'.format(protocol)))
         self.importers = []
 
     def populate_importers(self):
