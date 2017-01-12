@@ -25,7 +25,7 @@ from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConv
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
 from detection.artifact_detection import ArtifactDetector
 from loggers import logger
-from config import DATA_ROOT, DB_ROOT, RHINO_ROOT
+from config import paths
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
@@ -299,7 +299,7 @@ class MontageLinkerTask(PipelineTask):
         self.pipeline.register_info('montage', self.montage_num)
         for name, file in self.FILES.items():
             fullfile = os.path.join(montage_path, file)
-            if not os.path.exists(os.path.join(DB_ROOT, fullfile)):
+            if not os.path.exists(os.path.join(paths.db_root, fullfile)):
                 raise UnProcessableException("Cannot find montage for {} in {}".format(self.subject, fullfile))
             logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
@@ -389,7 +389,7 @@ class CleanDbTask(PipelineTask):
 
     @classmethod
     def run(cls, *_):
-        for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
+        for root, dirs, files in os.walk(os.path.join(paths.db_root, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
                 logger.debug('Removing {}'.format(root))
@@ -397,7 +397,7 @@ class CleanDbTask(PipelineTask):
             elif len(os.listdir(root)) == 0:
                 logger.debug('Removing {}'.format(root))
                 os.rmdir(root)
-        for root, dirs, files in os.walk(os.path.join(DB_ROOT, 'protocols'), False):
+        for root, dirs, files in os.walk(os.path.join(paths.db_root, 'protocols'), False):
             for dir in dirs:
                 if not os.path.exists(os.path.join(root, dir)):
                     # Directory may have already been deleted
@@ -416,7 +416,7 @@ class CleanDbTask(PipelineTask):
 
 class IndexAggregatorTask(PipelineTask):
 
-    PROTOCOLS_DIR = os.path.join(DB_ROOT, 'protocols')
+    PROTOCOLS_DIR = os.path.join(paths.db_root, 'protocols')
     PROTOCOLS = ('r1', 'ltp')
     PROCESSED_DIRNAME = 'current_processed'
     INDEX_FILENAME = 'index.json'
@@ -459,7 +459,7 @@ class IndexAggregatorTask(PipelineTask):
             sub_d = sub_d[entry[0]][entry[1]]
 
         current_dir = os.path.dirname(index_path)
-        rel_dirname = os.path.relpath(current_dir, DB_ROOT)
+        rel_dirname = os.path.relpath(current_dir, paths.db_root)
         if 'files' in index:
             for name, file in index['files'].items():
                 sub_d[name] = os.path.join(rel_dirname, file)
@@ -478,12 +478,12 @@ class IndexAggregatorTask(PipelineTask):
 
         value_dir = os.path.dirname(type_dir)
         path_list = []
-        while os.path.realpath(value_dir) != os.path.realpath(DB_ROOT):
+        while os.path.realpath(value_dir) != os.path.realpath(paths.db_root):
             key_dir = os.path.dirname(value_dir)
             path_list.append((os.path.basename(key_dir), os.path.basename(value_dir)))
             value_dir = os.path.dirname(key_dir)
             if os.path.basename(key_dir) == '':
-                raise Exception('Could not locate {} in {}'.format(DB_ROOT, index_path))
+                raise Exception('Could not locate {} in {}'.format(paths.db_root, index_path))
         return path_list[::-1]
 
     def run(self, *_):
@@ -525,9 +525,9 @@ class CompareEventsTask(PipelineTask):
     def get_matlab_event_file(self):
         if self.protocol == 'r1':
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
-            event_directory = os.path.join(RHINO_ROOT, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
+            event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
         elif self.protocol == 'ltp':
-            event_directory = os.path.join(RHINO_ROOT, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code, 'session_{}'.format(self.original_session), 'events.mat')
+            event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code, 'session_{}'.format(self.original_session), 'events.mat')
         else:
             raise NotImplementedError('Only R1 and LTP event comparison implemented')
 
@@ -544,7 +544,7 @@ class CompareEventsTask(PipelineTask):
         mat_events_reader = \
             BaseEventReader(
                 filename=mat_file,
-                common_root=RHINO_ROOT,
+                common_root=paths.rhino_root,
                 eliminate_events_with_no_eeg=False,
             )
         logger.debug('Loading matlab events')
@@ -606,7 +606,7 @@ class UnProcessableException(Exception):
     pass
 
 def change_current(source_folder, *args):
-    destination_directory = os.path.join(DB_ROOT, *args)
+    destination_directory = os.path.join(paths.db_root, *args)
     destination_source = os.path.join(destination_directory, source_folder)
     destination_processed = os.path.join(destination_directory, '{}_processed'.format(source_folder))
     if not os.path.exists(destination_source):

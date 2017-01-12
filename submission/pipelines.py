@@ -1,7 +1,9 @@
 
 
 from transferer import Transferer, generate_ephys_transferer, generate_session_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, DATA_ROOT, DB_ROOT
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
+
+from config import paths
 
 from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
@@ -48,26 +50,27 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
     groups += tuple(args)
 
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
-
+        kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
                       subject=subject,
                       code=subject,
                       session=session,
                       experiment=experiment,
-                      data_root=DATA_ROOT,
-                      db_root=DB_ROOT,
                       **kwargs)
+        inputs.update(**paths.options)
 
         systems = ('system_1', 'system_2', 'system_3')
 
         for sys in ('system_1', 'system_2', 'system_3'):
-            transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
             try:
+                transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
                 break
             except Exception as e:
                 logger.debug("Guessing not system {}: {}".format(sys, e))
                 continue
+        else:
+            logger.info("Making a wild guess that this is system {}".format(sys))
         groups += (sys,)
 
         #
@@ -220,6 +223,10 @@ class TransferPipeline(object):
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
     new_experiment = new_experiment if not new_experiment is None else experiment
+
+    groups = determine_groups(protocol, code, experiment, original_session,
+                              TRANSFER_INPUTS['ephys'], 'transfer', *groups, **kwargs)
+
     transferer = generate_ephys_transferer(subject, experiment, session, protocol, groups + ('transfer',),
                                            code=code,
                                            original_session=original_session,
@@ -254,6 +261,12 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
+
+    try:
+        kwargs['sync_folder'], kwargs['sync_filename'] = \
+            find_sync_file(code, experiment, original_session)
+    except:
+        logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
     groups =  determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
