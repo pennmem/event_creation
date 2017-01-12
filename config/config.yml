@@ -1,6 +1,6 @@
 
 paths : &PATHS
-  rhino_root  : &RHINO '/Users/iped/event_creation/tests/test_input'
+  rhino_root  : &RHINO '/'
   data_root   : !join [*RHINO, 'data/eeg']
   loc_db_root : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
   db_root     : *RHINO
