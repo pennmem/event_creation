@@ -18,8 +18,12 @@ def PSLogParser(protocol, subject, montage, experiment, session,  files):
     """
     if 'session_log' in files:
         return PSSessionLogParser(protocol, subject, montage, experiment, session, files)
-    else:
+    elif 'host_log' in files:
         return PSHostLogParser(protocol, subject, montage, experiment, session, files)
+    elif 'event_log' in files:
+        return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
+    else:
+        raise Exception("Could not determine system 1, 2, or 3 from inputs")
 
 
 class PSSessionLogParser(BaseSessionLogParser):
