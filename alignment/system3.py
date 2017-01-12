@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from system1 import UnAlignableEEGException
 from parsers.system3_log_parser import System3LogParser
 
-from submission.config import DO_PLOT
+from config import config
 
 class System3Aligner(object):
 
@@ -21,8 +21,10 @@ class System3Aligner(object):
 
     MAXIMUM_ALLOWED_RESIDUAL = 500
 
+    FROM_LABELS = (('orig_timestamp', 1000),
+                   ('t_event', 1))
 
-    def __init__(self, events, files, plot_save_dir=None, has_task_laptop=False):
+    def __init__(self, events, files, plot_save_dir=None):
 
         self.files = files
 
@@ -35,17 +37,27 @@ class System3Aligner(object):
         self.events = events
         self.merged_events = events
 
-        self.has_task_laptop = has_task_laptop
 
-        self.task_to_ens_coefs, self.task_ends = \
-            self.get_coefficients_from_event_log('orig_timestamp', 'offset')
+        for label, rate in self.FROM_LABELS:
+            try:
+                self.task_to_ens_coefs, self.task_ends = \
+                    self.get_coefficients_from_event_log(label, 'offset', rate)
+            except KeyError as key_error:
+                if key_error.message != label:
+                    raise
+                continue
+            self.from_label = label
+            break
+        else:
+            raise UnAlignableEEGException("Could not find sortable label in events")
+
 
         self.eeg_info = json.load(open(files['eeg_sources']))
 
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         # Merge in the stim events
 
-        s3lp = System3LogParser(self.events_logs, self.electrode_config, self.has_task_laptop)
+        s3lp = System3LogParser(self.events_logs, self.electrode_config, self.from_label)
         self.merged_events = s3lp.merge_events(self.events, event_template, persistent_fields)
 
         # Have to manually correct subject and session due to events appearing before start of session
@@ -55,7 +67,7 @@ class System3Aligner(object):
         return self.merged_events
 
 
-    def get_coefficients_from_event_log(self, from_label, to_label):
+    def get_coefficients_from_event_log(self, from_label, to_label, rate):
 
         ends = []
         coefs = []
@@ -64,10 +76,16 @@ class System3Aligner(object):
 
             event_dict = json.load(open(event_log))['events']
 
-            froms = [float(event[from_label]) for event in event_dict]
+            froms = [float(event[from_label]) * 1000. / rate for event in event_dict]
             tos = [float(event[to_label]) for event in event_dict]
 
-            if len(froms) == 0:
+            froms = np.array(froms)
+            tos = np.array(tos)
+
+            froms = froms[tos > 0]
+            tos = tos[tos > 0]
+
+            if len(froms) <= 1:
                 continue
 
             coefs.append(scipy.stats.linregress(froms, tos)[:2])
@@ -75,6 +93,9 @@ class System3Aligner(object):
 
             self.plot_fit(froms, tos, coefs[-1], '.', 'fit{}'.format(i))
             self.check_fit(froms, tos, coefs[-1])
+
+        if len(coefs) == 0:
+            raise UnAlignableEEGException("Could not find enough events to determine coefficients!")
 
         return coefs, ends
 
@@ -156,6 +177,11 @@ class System3Aligner(object):
     def check_fit(cls, x, y, coefficients):
         fit = coefficients[0] * np.array(x) + coefficients[1]
         residuals = np.array(y) - fit
+        if abs(1 - coefficients[0]) > .05:
+            raise UnAlignableEEGException(
+                "Maximum deviation from slope is .1, current slope is {}".format(coefficients[0])
+            )
+
         if max(residuals) > cls.MAXIMUM_ALLOWED_RESIDUAL:
             logger.error("Maximum residual of fit ({}) "
                          "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
@@ -168,8 +194,6 @@ class System3Aligner(object):
             raise UnAlignableEEGException(
                 "Maximum residual of fit ({}) "
                 "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
-
-
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
         """
