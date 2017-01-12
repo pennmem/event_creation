@@ -16,28 +16,37 @@ class ConfigurationException(Exception):
 
 class ConfigOption(object):
 
+    def __init__(self, options):
+        self.options = options
+        for k, v in options.items():
+            setattr(self, k, v)
+
+    def set(self, k, v):
+        if k not in self.options:
+            raise ConfigurationException("Attempted to set invalid option {}. "
+                                         "Valid options are {}".format(k, self.options.keys()))
+        self.options[k] = v
+        setattr(self, k, v)
+
+    def get(self, k, default=None):
+        return self.options.get(k, default)
+
     def __str__(self):
-        return repr(self) + '(' + ', '.join('{}={}'.format(k,v) for k,v in vars(self).items()) + ')'
+        return repr(self) + '(' + ', '.join('{}={}'.format(k, getattr(self, k)) for k in self.options.keys() ) + ')'
+
+    def __contains__(self, item):
+        return item in self.options
 
 class Configuration(object):
 
     DEFAULT_CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'config.yml')
-    CONFIG_HANDLERS = {}
-
-    def show_plot_handler(self, value):
-        if value:
-            matplotlib.use(MPL_BACKEND)
-        else:
-            matplotlib.use('agg')
-
-    CONFIG_HANDLERS['show_plot'] = show_plot_handler
 
     def __init__(self, config_file=None):
         if config_file is None:
             self.config_file = self.DEFAULT_CONFIG_FILE
 
         self.config_dict = {}
-
+        self.options = {}
         self.parser = argparse.ArgumentParser()
 
         self.load_config(self.config_file)
@@ -54,12 +63,10 @@ class Configuration(object):
                 self.add_argument(option)
 
             if 'options' not in option:
-                setattr(self, option['dest'], option.get('default', False))
+                self.options[option['dest']] = option.get('default', False)
             else:
-                subfield = ConfigOption()
-                setattr(self, option['dest'], subfield)
-                for k, v in option['options'].items():
-                    setattr(subfield, k, v)
+                subfield = ConfigOption(option['options'])
+                self.options[option['dest']] = subfield
 
     def add_argument(self, option):
         cpy = copy.copy(option)
@@ -80,12 +87,30 @@ class Configuration(object):
         self.parser.add_argument(name, **cpy)
 
     def parse_args(self, *args, **kwargs):
-        self.parser.parse_args(*args, **kwargs)
+        parsed = self.parser.parse_args(*args, **kwargs)
+
+        for k, v in self.options.items():
+            new_v = getattr(parsed, k)
+            if isinstance(v, ConfigOption):
+                if new_v is None:
+                    continue
+                for val in new_v:
+                    for val_item in val.split(':'):
+                        v.set(*val_item.split('='))
+            else:
+                self.options[k] = new_v
+
 
     def __str__(self):
-        return repr(self) + '(' + ', '.join('{}={}'.format(k,v) for k,v in vars(self).items() if k != 'config_dict') + ')'
+        return repr(self) + '(' + ', '.join('{}={}'.format(k,v) for k,v in self.options.items()) + ')'
+
+    def __getattr__(self, item):
+        try:
+            return vars(self)[item]
+        except KeyError:
+            return self.options[item]
 
 if __name__ == '__main__':
     config = Configuration()
-    config.parse_args()
+    config.parse_args(['--path','rhino_root=abc'])
     print config

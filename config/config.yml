@@ -13,7 +13,7 @@ inputs: &INPUTS
   montage :
   localization :
   experiment :
-  new_experiment :
+  original_experiment :
   session :
   original_session :
 
@@ -22,8 +22,8 @@ options:
   - dest: log_debug
     arg: debug
     help: 'Prints debug information to terminal during execution'
-  - dest: montage-only
-    arg: montage_only
+  - dest: montage_only
+    arg: montage-only
     help: 'Imports a localization or montage instead of importing events'
   - dest: change_experiment
     arg: change-experiment
