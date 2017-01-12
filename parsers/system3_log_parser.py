@@ -9,7 +9,6 @@ class System3LogParser:
 
     _LABEL_FIELD = 'event_label'
     _VALUE_FIELD = 'event_value'
-    _SOURCE_SORT_FIELD = 'orig_timestamp'
     _DEST_SORT_FIELD = 'mstime'
     _STIM_CHANNEL_FIELD = 'stim_pair'
 
@@ -33,7 +32,8 @@ class System3LogParser:
     _DEFAULT_PULSE_WIDTH = 300
 
 
-    def __init__(self, event_logs, electrode_config_files, has_task_laptop=False):
+    def __init__(self, event_logs, electrode_config_files, source_sort_field='orig_timestamp'):
+        self.source_sort_field = source_sort_field
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
@@ -139,20 +139,19 @@ class System3LogParser:
         return params['pulse_freq'] * params['stim_duration'] / (1000 * 1000)
 
 
-    @classmethod
-    def make_stim_event(cls, stim_dict, electrode_config):
-        stim_event = cls._empty_event()
+    def make_stim_event(self, stim_dict, electrode_config):
+        stim_event = self._empty_event()
         stim_params = {}
-        stim_params[cls._DEST_SORT_FIELD] = stim_dict[cls._SOURCE_SORT_FIELD]
+        stim_params[self._DEST_SORT_FIELD] = stim_dict[self.source_sort_field]
 
-        for input, param in cls._DICT_TO_FIELD.items():
-            stim_params[param] = stim_dict[cls._STIM_PARAMS_FIELD][input]
+        for input, param in self._DICT_TO_FIELD.items():
+            stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
 
-        stim_params['pulse_width'] = stim_dict['pulse_width'] if 'pulse_width' in stim_dict else cls._DEFAULT_PULSE_WIDTH
-        stim_params['n_pulses'] = cls.get_n_pulses(stim_params)
+        stim_params['pulse_width'] = stim_dict['pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
+        stim_params['n_pulses'] = self.get_n_pulses(stim_params)
         stim_params['stim_on'] = True
 
-        stim_channels = electrode_config.stim_channels[stim_dict[cls._STIM_PARAMS_FIELD][cls._STIM_CHANNEL_FIELD]]
+        stim_channels = electrode_config.stim_channels[stim_dict[self._STIM_PARAMS_FIELD][self._STIM_CHANNEL_FIELD]]
         anode_numbers = stim_channels.anodes
         cathode_numbers = stim_channels.cathodes
 
