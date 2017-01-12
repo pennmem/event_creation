@@ -13,7 +13,7 @@ import datetime
 from readers import eeg_reader
 from readers.eeg_reader import read_jacksheet
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from submission.config import DATA_ROOT, RHINO_ROOT, EVENTS_ROOT, DB_ROOT
+from config import paths
 from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
 import files
@@ -262,7 +262,7 @@ class MatlabEEGExtractor(object):
 
         # For each unique eeg location:
         for eeg_location in eeg_locations:
-            eeg_location = os.path.join(RHINO_ROOT, eeg_location)
+            eeg_location = os.path.join(paths.rhino_root, eeg_location)
             # Get the original parameters
             params = self.get_params(eeg_location)
             n_samples = np.nan
@@ -1211,12 +1211,12 @@ def test_fr_mat_converter():
         new_exp = exp[1] if len(exp)>1 else exp[0]
         new_sess = session[1] if len(session)>1 else session[0]
 
-        DB_ROOT = EVENTS_ROOT
+        DB_ROOT = paths.events_root
         print subject, exp, session
 
-        mat_file = os.path.join(EVENTS_ROOT, 'RAM_{}'.format(orig_exp[0].upper()+orig_exp[1:]), '{}_events.mat'.format(subject))
+        mat_file = os.path.join(paths.events_root, 'RAM_{}'.format(orig_exp[0].upper()+orig_exp[1:]), '{}_events.mat'.format(subject))
 
-        files = {'jacksheet': os.path.join(DATA_ROOT, subject, 'docs', 'jacksheet.txt'),
+        files = {'jacksheet': os.path.join(paths.data_root, subject, 'docs', 'jacksheet.txt'),
                  'matlab_events': mat_file}
 
         converter_type = CONVERTERS[re.sub(r'[^A-Za-z]','', new_exp)]
