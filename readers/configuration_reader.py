@@ -103,7 +103,8 @@ class TransferFile(object):
         self._expanded_files = None
         self.formatted_origin_dir = ''
         self.formatted_origin_filenames = []
-        self.origin_paths = []
+        self._origin_paths = []
+        self._located = False
         self.destination_directories = []
         self.destination_filenames = []
 
@@ -139,6 +140,12 @@ class TransferFile(object):
     @property
     def files(self):
         return self._expanded_files
+
+    @property
+    def origin_paths(self):
+        if not self._located:
+            raise Exception("Attempt to access origin paths of {} before locating".format(self.name))
+        return self._origin_paths
 
     def expand_files(self, groups):
         expanded_files = build_group_index(self._files, groups)
@@ -203,8 +210,8 @@ class TransferFile(object):
     def contents_to_check(self):
         contents = []
         if not self._checksum_contents:
-            for filename in self.formatted_origin_filenames:
-                contents.append(filename)
+            for filename in self.origin_paths:
+                contents.append(os.path.basename(filename))
         else:
             for filename in self.origin_paths:
                 contents.append(open(filename).read())
@@ -217,6 +224,7 @@ class TransferFile(object):
     def calculate_checksum(self):
         for element in self.contents_to_check():
             self._checksum.update(element)
+        self._checksum_calculated = True
 
     def format(self, **kwargs):
         formatted = self.attempt_format(self.origin_directory, self.required, **kwargs)
@@ -250,7 +258,7 @@ class TransferFile(object):
     def locate(self, root=''):
 
         if root in self._roots_located:
-            logger.debug("Attempting to locate {} in {} again. Refusing.".format(self.name, root))
+            logger.debug("Attempting to locate {} again. Refusing.".format(self.name, root))
             return
 
         containing_directory = self.origin_containing_directory(root)
@@ -289,9 +297,10 @@ class TransferFile(object):
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,
                                                                        containing_directory))
 
-        self.origin_paths.extend(new_origin_paths)
+        self._origin_paths.extend(new_origin_paths)
         self.destination_directories.extend(new_destination_directories)
         self._roots_located.append(root)
+        self._located = True
 
 
     @staticmethod
@@ -301,7 +310,7 @@ class TransferFile(object):
             formatted = to_format.format(**kwargs)
         except KeyError as e:
             if required:
-                logger.error("Keyword error for {}".format(to_format))
+                logger.error("Keyword error {} for {}".format(e, to_format))
                 raise ImproperConfigException("Could not find keyword {} for {}".format(e, to_format))
             else:
                 logger.debug("Could not format {}".format(to_format))
