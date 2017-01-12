@@ -7,7 +7,7 @@ import hashlib
 import yaml
 import traceback
 
-from config import DATA_ROOT, LOC_DB_ROOT, DB_ROOT, EVENTS_ROOT
+from config import paths
 import files
 from loggers import logger
 from collections import defaultdict
@@ -118,7 +118,7 @@ class Transferer(object):
 
     def matches_existing_checksum(self):
         old_index = self.load_previous_index()
-
+        self.transfer_config.locate_origin_files()
         for file in self.transfer_config.valid_files:
             if file.name not in old_index:
                 logger.info("Found new file: {}".format(file.name))
@@ -158,14 +158,14 @@ class Transferer(object):
         return self.transferred_filenames
 
     def transfer_with_rollback(self):
-            try:
-                return self._transfer_files()
-            except Exception as e:
-                traceback.print_exc()
-                logger.error('Exception encountered: %s' % e.message)
+        try:
+            return self._transfer_files()
+        except Exception as e:
+            traceback.print_exc()
+            logger.error('Exception encountered: %s' % e.message)
 
-                self.remove_transferred_files()
-                raise
+            self.remove_transferred_files()
+            raise
 
     def remove_transferred_files(self):
         if os.path.islink(self.destination_current):
@@ -191,6 +191,7 @@ class Transferer(object):
                 for subdir in subdirs:
                     logger.info("Removing directory {}".format(subdir))
                     os.rmdir(os.path.join(subpath, subdir))
+            os.rmdir(path)
         except Exception as e:
             logger.warn("Failed to delete a file! {}".format(e))
             traceback.print_exc()
@@ -198,7 +199,7 @@ class Transferer(object):
 
 
 def find_sync_file(subject, experiment, session):
-    subject_dir = os.path.join(DATA_ROOT, subject)
+    subject_dir = os.path.join(paths.data_root, subject)
     # Look in raw folder first
     raw_sess_dir = os.path.join(subject_dir, 'raw', '{exp}_{sess}'.format(exp=experiment, sess=session))
     sync_files = glob.glob(os.path.join(raw_sess_dir, '*.sync'))
@@ -223,7 +224,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
     cfg_file = TRANSFER_INPUTS['ephys']
     if new_experiment is None:
         new_experiment = experiment
-    destination = os.path.join(DB_ROOT,
+    destination = os.path.join(paths.db_root,
                                'protocols', protocol,
                                'subjects', subject,
                                'experiments', new_experiment,
@@ -236,7 +237,7 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
     return Transferer(cfg_file, (experiment,) + groups, destination,
                       protocol=protocol,
                       subject=subject, experiment=experiment, new_experiment=new_experiment, session=original_session,
-                      data_root=DATA_ROOT, db_root=DB_ROOT, events_root=EVENTS_ROOT,
+                      data_root=paths.data_root, db_root=paths.db_root, events_root=paths.events_root,
                       code=code, original_session=original_session, **kwargs)
 
 
@@ -250,7 +251,7 @@ def generate_montage_transferer(subject, montage, protocol, code=None, groups=tu
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
 
-    destination = os.path.join(DB_ROOT,
+    destination = os.path.join(paths.db_root,
                                'protocols', protocol,
                                'subjects', subject,
                                'localizations', localization,
@@ -258,7 +259,7 @@ def generate_montage_transferer(subject, montage, protocol, code=None, groups=tu
                                'neuroradiology')
 
     transferer = Transferer(cfg_file, groups, destination, protocol=protocol, subject=subject, code=code,
-                            loc_db_root=LOC_DB_ROOT)
+                            loc_db_root=paths.loc_db_root)
     return transferer
 
 
@@ -272,7 +273,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     kwarg_inputs = dict(protocol=protocol,
                         experiment=experiment, session=session,
                         code=code, original_session=original_session,
-                        data_root=DATA_ROOT, events_root=EVENTS_ROOT, db_root=DB_ROOT, **kwargs)
+                        data_root=paths.data_root, events_root=paths.events_root, db_root=paths.db_root, **kwargs)
 
     kwarg_inputs['subject'] = subject
 
@@ -286,7 +287,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
     if not new_experiment:
         new_experiment = experiment
 
-    destination = os.path.join(DB_ROOT,
+    destination = os.path.join(paths.db_root,
                                'protocols', protocol,
                                'subjects', subject,
                                'experiments', new_experiment,
@@ -315,8 +316,8 @@ def test_load_groups():
         print '----- {} '.format(combo)
 
         transferer2 = Transferer('./transfer_inputs/behavioral_inputs.yml', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output',
-                                 db_root=DB_ROOT, protocol='r1', subject='R9999X', new_experiment='FR1', session=0,
-                                 localization=0, montage_num=0, data_root=DATA_ROOT, experiment='FR1', code='R9999X',
+                                 db_root=paths.db_root, protocol='r1', subject='R9999X', new_experiment='FR1', session=0,
+                                 localization=0, montage_num=0, data_root=paths.data_root, experiment='FR1', code='R9999X',
                                  original_session=0, sync_folder='')
 
         print combo, [f.name for f in transferer2.transfer_config.valid_files]
@@ -342,7 +343,7 @@ def transfer_dict_match(a ,b):
 def xtest_transfer_files_sys2():
     transferer = Transferer('./behavioral_inputs.json', ('system_2', 'r1'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_data',
-                            db_root=DB_ROOT,
+                            db_root=paths.db_root,
                             subject='R1124J_1',
                             experiment='FR3',
                             session=1)
@@ -352,7 +353,7 @@ def xtest_transfer_files_sys2():
 def test_transfer_files_sys3():
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'PS'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_input',
-                            db_root=DB_ROOT,
+                            db_root=paths.db_root,
                             code='R9999X',
                             subject='R9999X',
                             experiment='PS2',
@@ -374,7 +375,7 @@ def test_transfer_files_sys3():
 def xtest_transfer_files_sys3_2():
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'FR'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_input',
-                            db_root=DB_ROOT,
+                            db_root=paths.db_root,
                             code='R9999X',
                             subject='R9999X',
                             experiment='FR1',
