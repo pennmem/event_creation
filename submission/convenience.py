@@ -498,7 +498,7 @@ def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
         except ValueError:
             orig_sess = session
         if code != subject:
-            montage_str = '{}.{}'.format(r1.get_value('montage', subject=subject, experiment=experiment, session=session),
+            montage_str = ' ({}.{})'.format(r1.get_value('montage', subject=subject, experiment=experiment, session=session),
                                          r1.get_value('localization', subject=subject, experiment=experiment, session=session))
         else:
             montage_str = ''

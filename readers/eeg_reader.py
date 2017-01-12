@@ -1027,9 +1027,8 @@ class EGI_reader(EEG_reader):
 
     def reref(self, bad_chans, location):
         """
-        Rereferences the EEG recordings using the common average reference, then writes the referenced data to separate
-        files for each channel. Rereferencing is performed by dividing each sample by the average voltage of that sample
-        number across all good channels (excluding sync channels).
+        Calculates the common average reference across all channels, then writes this average channel to a file in the
+        reref directory.
 
         :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
         :param location: A string denoting the directory to which the reref files will be written
@@ -1046,6 +1045,27 @@ class EGI_reader(EEG_reader):
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
         means = np.mean(self._data[good_chans-1], axis=0)
+        bounds = np.iinfo(self.DATA_FORMAT)
+        means = np.around(means.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
+
+        logger.debug('Writing common average reference data...')
+        means.tofile(os.path.join(location, self.basename + '.ref'))
+        logger.debug('Done.')
+
+        # Copy the params.txt file from the noreref folder
+        logger.debug('Copying param file...')
+        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
+        logger.debug('Done.')
+
+        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
+        # of the common average reference
+        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
+
+        '''
+        The following code is used for writing out actual re-referenced channels. This has been replaced by saving only
+        the common average reference data, which can then be loaded and subtracted from any "noreref" channel file to
+        obtain the re-referenced version. This saves us from writing an extra copy of all the EEG data, which wastes
+        storage space on Rhino.
 
         # Rereference the data
         self._data = self._data - means
@@ -1063,15 +1083,7 @@ class EGI_reader(EEG_reader):
             # Write the rereferenced data from each channel to its own file
             self._data[chan-1].tofile(filename)
         logger.debug('Done.')
-
-        # Copy the params.txt file from the noreref folder
-        logger.debug('Copying param file...')
-        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
-        logger.debug('Done.')
-
-        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
-        # of the common average reference
-        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
+        '''
 
     @staticmethod
     def find_bad_chans(log, threshold):
@@ -1369,11 +1381,10 @@ class BDF_reader(EEG_reader):
 
     def reref(self, bad_chans, location):
         """
-        Rereferences the EEG recordings and writes the referenced data to separate files for each channel. Rereferencing
-        is performed by dividing each sample by the average voltage of that sample number across all good channels
-        (excluding event channels).
+        Calculates the common average reference across all channels, then writes this average channel to a file in the
+        reref directory.
 
-        :param bad_chans: A list containing all channel numbers to be excluded from rereferencing
+        :param bad_chans: 1-D numpy array containing all channel numbers to be excluded from rereferencing
         :param location: A string denoting the directory to which the reref files will be written
         """
         # Create directory if needed
@@ -1382,16 +1393,38 @@ class BDF_reader(EEG_reader):
 
         logger.debug('Rerefencing data...')
 
-        # Ignore bad channels and the sync channel for the purposes of calculating the averages for rereference
-        good_chans = np.where(np.array([(chan not in bad_chans) for chan in self.header['channel_names']]))[0]
+        # Ignore bad channels for the purposes of calculating the averages for rereference
+        all_chans = np.array(range(1, self.header['num_channels']+1))
+        good_chans = np.setdiff1d(all_chans, np.array(bad_chans))
 
         # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
-        means = np.mean(self._data[good_chans], axis=0)
+        means = np.mean(self._data[good_chans-1], axis=0)
+        bounds = np.iinfo(self.DATA_FORMAT)
+        means = np.around(means.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
+
+        logger.debug('Writing common average reference data...')
+        means.tofile(os.path.join(location, self.basename + '.ref'))
+        logger.debug('Done.')
+
+        # Copy the params.txt file from the noreref folder
+        logger.debug('Copying param file...')
+        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
+        logger.debug('Done.')
+
+        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
+        # of the common average reference
+        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
+
+        '''
+        The following code is used for writing out actual re-referenced channels. This has been replaced by saving only
+        the common average reference data, which can then be loaded and subtracted from any "noreref" channel file to
+        obtain the re-referenced version. This saves us from writing an extra copy of all the EEG data, which wastes
+        storage space on Rhino.
 
         # Rereference the data
         self._data = self._data - means
 
-        # Clip to within bounds of selected data format
+        # Clip data to within bounds of selected data format and convert it to that data type
         bounds = np.iinfo(self.DATA_FORMAT)
         self._data = np.around(self._data.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
 
@@ -1399,16 +1432,12 @@ class BDF_reader(EEG_reader):
 
         # Write reref files
         logger.debug('Writing rereferenced channels...')
-        for i in range(self._data.shape[0]):
-            filename = os.path.join(location, self.basename + '.' + self.header['channel_names'][i])
+        for chan in all_chans:
+            filename = os.path.join(location, self.basename + ('.%03d' % chan))
             # Write the rereferenced data from each channel to its own file
-            self._data[i].tofile(filename)
+            self._data[chan-1].tofile(filename)
         logger.debug('Done.')
-
-        # Copy the params.txt file from the noreref folder
-        logger.debug('Copying param file...')
-        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
-        logger.debug('Done.')
+        '''
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
