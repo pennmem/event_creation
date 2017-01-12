@@ -78,7 +78,7 @@ files:
     groups: [ r1, transfer, system_3]
     multiple: true
     origin_directory: *SYS3_HOST_DIR
-    origin_file: '*'
+    origin_file: '????????_??????'
     destination: 'host_pc/'
     files:
       - name: raw_eeg
