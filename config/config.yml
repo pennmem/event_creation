@@ -70,7 +70,7 @@ options:
     help: 'View information about already-submitted subjects'
   - dest: show_plots
     arg: show-plots
-    help: 'Show plots of fit and residuals when aligning data (not available on rhino)'
+    help: 'Show plots of fit and residuals when aligning data (not available when running with sudo)'
   - dest: inputs
     arg: set-input
     action: append
