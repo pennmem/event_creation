@@ -64,7 +64,7 @@ options:
     arg: build-db
     action: store
     default: null
-    help: 'Builds a JSON database which can later be imported'
+    help: 'Builds a JSON database which can later be imported. Current options are "sharing" or "ram"'
   - dest: view_only
     arg: view-only
     help: 'View information about already-submitted subjects'
