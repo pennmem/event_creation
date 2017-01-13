@@ -7,6 +7,7 @@ import yaml
 import hashlib
 import files
 import shutil
+from config import paths
 from collections import defaultdict
 from loggers import logger
 
@@ -319,7 +320,7 @@ class TransferFile(object):
     def transferred_index(self):
         index = {
             self.name: dict(
-                origin_files=self.origin_paths,
+                origin_files=[os.path.relpath(origin_path, paths.rhino_root) for origin_path in self.origin_paths],
                 md5=self.checksum.hexdigest(),
             )
         }

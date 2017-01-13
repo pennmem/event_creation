@@ -16,7 +16,7 @@ if __name__ == '__main__':
         import matplotlib
         matplotlib.use('agg')
 
-from pipelines import  MATLAB_CONVERSION_TYPE
+from submission.pipelines import  MATLAB_CONVERSION_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
 from loggers import logger
 from automation import Importer, ImporterCollection
