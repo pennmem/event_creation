@@ -72,12 +72,12 @@ if __name__ == '__main__':
     leads_fs = Localization(args.output)
     files_fs = file_locations_fs(args.subject)
     if not os.path.isfile(files_fs["coord_t1"]) or not os.path.isfile(files_fs["fs_orig_t1"]):
-      print '\nCoregistration not available\n'
+      print '\n\nCoregistration not available\n'
       exit(1)
     leads_fs = build_leads_fs(files_fs, leads_fs)
 
     leads_fs.to_json(args.output + '_fs')
-    print '\nStage 1: json file saved with freesurfer space coordinates\n'
+    print '\n\nStage 1: json file saved with freesurfer space coordinates\n'
 
     """
     Add test for localization info
@@ -85,9 +85,23 @@ if __name__ == '__main__':
     leads_loc = Localization(args.output + '_fs')
     files_loc = file_locations_loc(args.subject)
     if not os.path.isfile(files_loc["native_loc"]):
-      print '\nLocalization not available\n'
+      print '\n\nLocalization not available\n'
       exit(1)
     leads_loc = add_autoloc(files_loc, leads_loc)
 
     leads_loc.to_json(args.output + '_fs' + '_loc')
-    print '\nStage 3: json file saved with localization information\n'
+    print '\n\nStage 3: json file saved with localization information\n'
+
+    """
+    Add test for MNI info
+    """
+    leads_mni = Localization(args.output + '_fs' + '_loc')
+    files_mni = file_locations_loc(args.subject)
+    if not os.path.isfile(files_loc["mni_loc"]):
+      print '\n\nMNI coordinates not available\n'
+      exit(1)
+    leads_mni = add_mni(files_mni, leads_mni)
+
+    leads_mni.to_json(args.output + '_fs' + '_loc' + '_mni')
+    print '\n\nStage 4: json file saved with MNI coordinates\n'
+

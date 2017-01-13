@@ -39,6 +39,7 @@ def read_and_tx(t1_file, fs_orig_t1, leads):
     # Get freesurfer matrices
     Torig = get_transform(fs_orig_t1, 'vox2ras-tkr')
     Norig = get_transform(fs_orig_t1, 'vox2ras')
+    print "Trannsformed",
     for line in open(t1_file):
         split_line = line.strip().split(',')
 
@@ -59,7 +60,7 @@ def read_and_tx(t1_file, fs_orig_t1, leads):
         # Compute the transformation
         fullmat = Torig * inv(Norig) 
         fscoords = fullmat.dot( coords )
-        print "Transformed ", contact_name  
+        print contact_name,
 
         fsx = fscoords[0,0]
         fsy = fscoords[0,1]

@@ -25,6 +25,7 @@ def read_loc(native_loc, leads):
     :returns: dictionary of form TODO {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
     """
 
+    print 'Saved localization for', 
     for line in open(native_loc):
         split_line = line.strip().split(',')
 
@@ -39,10 +40,35 @@ def read_loc(native_loc, leads):
 
         # Enter into "leads" dictionary
         leads.set_contact_label('whole_brain', contact_name, loc_list[0])
-        print "Read whole brain localization for ", contact_name
+        print contact_name + '(WB)', 
         if len(loc_list) > 1:
           leads.set_contact_label('mtl', contact_name, loc_list[1])
-          print "Read MTL localization for ", contact_name
+          print contact_name + '(MTL)', 
+    return leads
+
+def read_mni(mni_loc, leads):
+    """
+    Reads electrodenames_coordinates_native_and_T1.csv, returning a dictionary of leads
+    :param t1_file: path to electrodenames_coordinates_native_and_T1.csv file
+    :returns: dictionary of form TODO {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
+    """
+
+    print "Saved MNI coordinate for ", 
+    for line in open(mni_loc):
+        split_line = line.strip().split(',')
+
+        # Contact name
+        contact_name = split_line[0]
+
+        # Contact localization
+        contact_mni_x = split_line[1]
+        contact_mni_y = split_line[2]
+        contact_mni_z = split_line[3]
+
+        # Enter into "leads" dictionary
+        leads.set_contact_coordinate('mni', contact_name, [contact_mni_x, contact_mni_y, contact_mni_z])
+        print contact_name,
+
     return leads
 
 
@@ -55,6 +81,15 @@ def add_autoloc(files, leads):
     leads = read_loc(files['native_loc'], leads)
     return leads
 
+def add_mni(files, leads):
+    """
+    Builds the leads dictionary from VOX_coords_mother and jacksheet
+    :param files: dictionary of files including 'vox_mom' and 'jacksheet'
+    :returns: dictionary of form {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
+    """
+    leads = read_mni(files['mni_loc'], leads)
+    return leads
+
 def file_locations_loc(subject):
     """
     Creates the default file locations dictionary
@@ -63,6 +98,7 @@ def file_locations_loc(subject):
     """
     files = dict(
         native_loc=os.path.join(RHINO_ROOT, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_native.csv'),
+        mni_loc=os.path.join(RHINO_ROOT, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_mni.csv'),
     )
     return files
 
