@@ -425,12 +425,14 @@ class System2TaskAligner(object):
             plt.plot(x, y, 'g.', x, fit, 'b-')
             plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
                                                                               ext=cls.PLOT_SAVE_FILE_EXT)))
+            plt.show()
 
         if plot_save_dir:
             plt.clf()
             plt.plot(x, y-fit, 'g-', [min(x), max(x)], [0, 0], 'k-')
             plt.savefig(os.path.join(plot_save_dir, '{label}_residuals{ext}'.format(label=plot_save_label,
                                                                               ext=cls.PLOT_SAVE_FILE_EXT)))
+            plt.show()
 
 
 

@@ -32,8 +32,10 @@ class System3LogParser:
     _DEFAULT_PULSE_WIDTH = 300
 
 
-    def __init__(self, event_logs, electrode_config_files, source_sort_field='orig_timestamp'):
-        self.source_sort_field = source_sort_field
+    def __init__(self, event_logs, electrode_config_files, source_time_field='orig_timestamp',
+                 source_time_multiplier=1):
+        self.source_time_field = source_time_field
+        self.source_time_multiplier = source_time_multiplier
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
@@ -142,7 +144,7 @@ class System3LogParser:
     def make_stim_event(self, stim_dict, electrode_config):
         stim_event = self._empty_event()
         stim_params = {}
-        stim_params[self._DEST_SORT_FIELD] = stim_dict[self.source_sort_field]
+        stim_params[self._DEST_SORT_FIELD] = stim_dict[self.source_time_field] * self.source_time_multiplier
 
         for input, param in self._DICT_TO_FIELD.items():
             stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
