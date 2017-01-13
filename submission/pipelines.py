@@ -1,32 +1,22 @@
-
-
-from transferer import Transferer, generate_ephys_transferer, generate_session_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
-
-from config import paths
-
-from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
-                  EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  ImportJsonMontageTask, IndexAggregatorTask, MontageLinkerTask, CleanDbTask
-
-from parsers.base_log_parser import get_version_num
-
-from parsers.mat_converter import MathMatConverter
-
-from parsers.math_parser import MathLogParser
-from parsers.ltpfr_log_parser import LTPFRSessionLogParser
-from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
-
-from readers.configuration_reader import TransferConfig
-
-from loggers import logger
-import files
-
 import json
-import shutil
 import os
 import re
+import shutil
 import traceback
+
+import files
+from config import paths
+from loggers import logger
+from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+from parsers.ltpfr_log_parser import LTPFRSessionLogParser
+from parsers.mat_converter import MathMatConverter
+from parsers.math_parser import MathLogParser
+from submission.transfer_config import TransferConfig
+from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+                  EventCreationTask, CompareEventsTask, EventCombinationTask, \
+                  ImportJsonMontageTask, MontageLinkerTask
+from transferer import generate_ephys_transferer, generate_session_transferer,\
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
 
 GROUPS = {
     'FR': ('verbal', 'stim'),
