@@ -538,7 +538,7 @@ def get_next_orig_session(code, experiment, protocol='r1'):
 
 
 def get_next_new_session(subject, experiment, protocol='r1'):
-    index = load_index[protocol]
+    index = load_index(protocol)
     sessions = index.sessions(subject=subject, experiment=experiment)
     if len(sessions) > 0:
         return max([int(s) for s in sessions]) + 1
@@ -563,6 +563,8 @@ def prompt_for_session_inputs(inputs, **opts):
     if protocol is None:
         protocol = 'ltp' if experiment.startswith('ltp') else \
                    'r1' if subject.startswith('R') else None
+    groups = (protocol,)
+
 
     montage = inputs.montage
     if montage is None:
@@ -597,7 +599,13 @@ def prompt_for_session_inputs(inputs, **opts):
         if opts.get('change_experiment', False):
             original_experiment = raw_input('Enter original experiment: ')
         elif experiment == 'PS2.1':
-            original_experiment = 'PS21'
+            is_sys3 = confirm("Is this a system 3 session? ")
+            if is_sys3:
+                groups+= ('system_3',)
+                original_experiment = 'PS2'
+            else:
+                groups += ('system_2',)
+                original_experiment = 'PS21'
         elif experiment.startswith('PS'):
             original_experiment = 'PS'
         else:
@@ -629,15 +637,22 @@ def prompt_for_session_inputs(inputs, **opts):
         code=code,
         session=session,
         original_session=original_session,
-        groups=(protocol,),
+        groups=groups,
         attempt_import=attempt_import,
         attempt_conversion=attempt_conversion
     )
-
-    if opts.get('sys2', False) or experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
+    
+    if opts.get('sys2', False):
         inputs['groups'] += ('system_2',)
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
+    elif experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1') and \
+            'system_2' not in groups and 'system_3' not in groups:
+        is_sys3 = confirm("Is this a system 3 session? ")
+        if is_sys3:
+            inputs['groups'] += ("system_3",)
+        else:
+            inputs['groups'] += ("system_2",)
 
     if experiment.startswith('PS') or experiment.startswith('TH'):
         inputs['do_math'] = False
