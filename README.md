@@ -1,4 +1,4 @@
-# event_creation
+# Submission Utility (event creation)
 
 This repository contains python utilities for the submission of 
 data to centralized location, and the subsequent processing and QA of
@@ -148,6 +148,12 @@ The execution of submission can be broken up into two parts
 (***transferring*** and ***processing***), which in combination make up the process of 
 ***submitting***.
 
+Submission consists of the creation of a `TransferPipeline` 
+(`submission.pipelines.TransferPipeline`), which consists of a single `Transferer`, 
+and any number of `PipelineTask`s (which perform the processing). Pipeline tasks can 
+be marked as non-critical, in which case a failure is allowed. By default, however,
+failure of an individual task rolls back the entire transfer process.
+
 ### Transferring
 
 #### Transfer config files
@@ -210,3 +216,94 @@ in turn contains `TransferFile`s, representing each file to transfer.
 When the transfer is initiated, the `Transferer` will copy each required item to 
 their destination directories, and will roll back the transfer entirely if it
 fails at any point.
+
+Functions that instantiate different types of Transferers are located in 
+ `submission.transferer` (`generate_ephys_transferer()`, `generate_montage_transferer()`,
+ `genereate_session_transferer()`)
+
+### Processing
+
+At the present time, there are two types of processing pipelines that have been 
+implemented: montage and events creation. Event creation can be further broken down
+into "building" and "converting" events, each of which consist of an EEG Splitting
+pipeline, and an Events Creation pipeline
+
+#### Montage creation
+Montage creation simply copies the information from the `loc_db` (localization database,
+currently located in RAM_maint's home folder) into the submission database. 
+
+#### Building events
+As EEG splitting and events creation are separable tasks, they are organized into 
+two separate pipelines which are run successively. These pipelines are instantiated
+with functions in `subbmission.pipelines` (`build_split_pipeline()`, `build_events_pipeline()`).
+
+Both pipelines start by determining the groups to which the transfer belongs
+(`submission.pipelines.determine_groups()`), then proceeds with the creation
+of the processed files.
+
+##### EEG splitting
+Splitting is initialized from the `SplitEEGTask` (`submission.tasks.SplitEEGTask`) object, which
+instantiates an `EEGReader` (`readers.eeg_reader.EEGReader`) specific to the file format 
+that is being split (EDF, Nihon-Kohdon, HDF, and others).
+
+The splitting task first groups simultaneous recordings (only applicable to Blackrock ns2 files),
+then splits each of the files into the processed "noreref" directory. 
+
+**TODO:** ns[3-6] files are recorded at the same time as ns2 files, and contain micro recordings.
+Some way of splitting these files and generating a secondary eegoffset field has to be created.
+
+Finally, the splitting task creats a `sources.json` file, which lists the basename and
+meta-information for each of the split files, so they can be later aligned with behavioral events. 
+
+##### Event creation
+The `EventCreationTask` (`submission.tasks.EventCreationTask`) orchestrates the creation
+and aligning of events. It performs any or all of the following steps:
+- **parsing**: creates a child of `BaseLogParser` (`parsers.base_log_parser.BaseLogParser`), which
+  parses the primary log file for the experiment and creates a set of `np.recarray` events
+  
+- **alignment**: creates an aligner which fills in the `eegoffset` field of the events. There is no
+  common parent class for alignment, as the methods differed widely enough I found it difficult
+  to find common code.
+  
+- **adding stim**: For System 2 and System 3, the aligner can add stimulation events to the recarray.
+  In theory, adding stim has nothing to do with alignment and should be moved elsewhere. In practice,
+  they use the same log file.
+  
+- **artifact detection**: *LTP only* 
+
+- **cleaning**: Performs any post-alignment removal or changing of events, if necessary
+
+###### Parsing
+
+The `BaseLogParser` defines the steps for parsing a log file. It defines a template for the fields
+that are to be created in the record array (`_BASE_FIELDS`), as well as the fields relevant to
+stimulation (`_STIM_FIELDS`). The parser functions by splitting the log file into units (lines
+for epl, list elements for JSON) and determining a type for each log unit. Each type is then 
+mapped to a function that defines the corresponding event to be created for that unit.
+
+For example, the `PSSys3LogParser` (which extends `BaseSys3LogParser`), registers the following
+event creation handlers:
+
+```
+self._add_type_to_new_event(
+    STIM=self._event_skip, # Skip because it is added later with alignment
+    SHAM=self.event_default,
+    PAUSED=self.event_paused,
+)
+```
+
+`STIM` events are skipped entirely, as they are handled by the Aligner class (for aforementioned 
+bad reasons). `SHAM` events create a new event of type `SHAM` with no other modifications, and
+`PAUSED` events call the event_paused() constructor:
+
+```
+def event_paused(self, event_json):
+    if event_json['event_value'] == 'OFF':
+        return False
+    event = self.event_default(event_json)
+    event.type = 'AD_CHECK'
+    return event
+```
+`event_paused()` returns False to signal that the event should be skipped in the case that the
+"pause" turned off (experiment is resumed), and otherwise returns the default event, but 
+modifies the event type to be `AD_CHECK`.
