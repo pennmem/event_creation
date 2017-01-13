@@ -317,6 +317,7 @@ def build_session_inputs(subject, new_experiment, session, info):
     original_session = info.get('original_session', session)
     is_sys1 = info.get('system_1', False)
     is_sys2 = info.get('system_2', False)
+    is_sys3 = info.get('system_3', False)
     montage = info.get('montage', '0.0')
     code = info.get('code', subject)
     protocol = info.get('protocol', 'r1')
@@ -351,6 +352,8 @@ def build_session_inputs(subject, new_experiment, session, info):
         attempt_import=attempt_import
     )
 
+    if is_sys3:
+        inputs['groups'] += ('system_3',)
     if is_sys2 or new_experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1'):
         inputs['groups'] += ('system_2',)
     elif is_sys1:
