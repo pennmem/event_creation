@@ -10,6 +10,9 @@ class Localization(object):
     VALID_COORDINATE_SPACES = (
         'ct_voxel',
         'freesurfer',
+        't1_mri',
+        't2_mri',
+        'mni',
     )
     
     VALID_COORDINATE_TYPES = (
@@ -29,6 +32,7 @@ class Localization(object):
     VALID_ATLASES = (
         'dk',
         'whole_brain',
+        'mtl',
     )
 
     def __init__(self, json_file=None):

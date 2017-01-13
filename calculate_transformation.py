@@ -59,7 +59,7 @@ def read_and_tx(t1_file, fs_orig_t1, leads):
         # Compute the transformation
         fullmat = Torig * inv(Norig) 
         fscoords = fullmat.dot( coords )
-        print contact_name, fscoords  
+        print "Transformed ", contact_name  
 
         fsx = fscoords[0,0]
         fsy = fscoords[0,1]
@@ -80,7 +80,7 @@ def build_leads_fs(files, leads):
     leads = read_and_tx(files['coord_t1'], files['fs_orig_t1'], leads)
     return leads
 
-def file_locations_sd(subject):
+def file_locations_fs(subject):
     """
     Creates the default file locations dictionary
     :param subject: Subject name to look for files within
@@ -94,7 +94,7 @@ def file_locations_sd(subject):
 
 if __name__ == '__main__':
     import sys
-    leads = build_leads_sd(file_locations(sys.argv[1]))
+    leads = build_leads_fs(file_locations(sys.argv[1]))
     leads_as_dict = leads_to_dict(leads)
     clean_dump(leads_as_dict, open(sys.argv[2],'w'), indent=2, sort_keys=True)
 

@@ -12,6 +12,7 @@ from voxcoords_to_fs import *
 """
 from vox_mother_converter import *
 from calculate_transformation import *
+from add_locations import *
 from  localization import Localization
 
 def show_subgrids(lead):
@@ -53,16 +54,40 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', dest='output', required=True)
     parser.add_argument('--add-fs', dest='add_fs', required=False, action='store_true', default=False)
     args = parser.parse_args()
-    leads = build_leads(file_locations(args.subject), args.add_fs)
+    files_mother = file_locations(args.subject)
+    if os.path.isfile(files_mother['vox_mom']) == False:
+      print '\nVOX coords not available\n'
+      exit(1)
+    leads = build_leads(files_mother, args.add_fs)
     show_leads(leads)
     leads_as_dict = leads_to_dict(leads)
     clean_json_dump(leads_as_dict, open(args.output,'w'), indent=2, sort_keys=True)
 
+    print '\nStage 0: json file saved with vox coords\n'
+
     """
     Add test for fs coordinate
-    leads_sd.set_contact_coordinate('freesurfer', 'LA1', [0,1,2], 'raw')
-    show_leads(leads_sd)
     """
-    leads_fs = Localization(args.output)
-    leads_fs = build_leads_fs(file_locations_sd(args.subject), leads_fs)
 
+    leads_fs = Localization(args.output)
+    files_fs = file_locations_fs(args.subject)
+    if not os.path.isfile(files_fs["coord_t1"]) or not os.path.isfile(files_fs["fs_orig_t1"]):
+      print '\nCoregistration not available\n'
+      exit(1)
+    leads_fs = build_leads_fs(files_fs, leads_fs)
+
+    leads_fs.to_json(args.output + '_fs')
+    print '\nStage 1: json file saved with freesurfer space coordinates\n'
+
+    """
+    Add test for localization info
+    """
+    leads_loc = Localization(args.output + '_fs')
+    files_loc = file_locations_loc(args.subject)
+    if not os.path.isfile(files_loc["native_loc"]):
+      print '\nLocalization not available\n'
+      exit(1)
+    leads_loc = add_autoloc(files_loc, leads_loc)
+
+    leads_loc.to_json(args.output + '_fs' + '_loc')
+    print '\nStage 3: json file saved with localization information\n'
