@@ -12,9 +12,11 @@ from config import config, paths
 
 if __name__ == '__main__':
     config.parse_args()
+    import matplotlib
     if not config.show_plots:
-        import matplotlib
         matplotlib.use('agg')
+    else:
+        matplotlib.use('Qt4Agg')
 
 from submission.pipelines import  MATLAB_CONVERSION_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
