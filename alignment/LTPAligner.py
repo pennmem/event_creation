@@ -23,13 +23,14 @@ class LTPAligner:
         pulse_files: The list of sync pulse logs from the ephys computer (.D255, .DI15, .DIN1 files).
         noreref_dir: The path to the EEG noreref directory.
         reref_dir: The path to the EEG reref directory.
+        root_names: A list containing the root name of each EEG recording (designed for cases with multiple recordings
+        from a single session)
         num_samples: The number of EEG samples in the sync channel file.
         pulses: A numpy array containing the indices of EEG samples that contain sync pulses.
         ephys_ms: The mstimes of the sync pulses received by the ephys computer.
         behav_ms: The mstimes of the sync pulses sent by the behavioral computer.
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
-        basename: The basename of a participant's split EEG files (without the .### extension).
         sample_rate: The sample rate of the EEG recording (typically 500).
         gain: The amplifier gain. Not used by alignment, but is loaded from params.txt for later use by the artifact
         detection system, since we're accessing the file anyway.
@@ -43,13 +44,16 @@ class LTPAligner:
         for f in os.listdir(self.noreref_dir):
             if f.endswith(('.Status', '.DIN1', '.DI15', '.D255')):
                 self.pulse_files.append(f)
+        self.root_names = []
+        for f in self.pulse_files:
+            if f not in self.root_names:
+                self.root_names.append(os.path.splitext(os.path.basename(f))[0])
         self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
-        self.basename = os.path.splitext(self.pulse_files[0])[0] if len(self.pulse_files) > 0 else ''
         # Determine sample rate from the params.txt file
 
         eeg_params = os.path.join(self.reref_dir, 'params.txt')
@@ -78,12 +82,6 @@ class LTPAligner:
         """
         logger.debug('Aligning...')
 
-        # Determine which sync pulse file to use and get the indices of the samples that contain sync pulses
-        self.get_ephys_sync()
-        if self.pulses is None:
-            logger.warn('No sync pulse file could be found. Unable to align behavioral and EEG data.')
-            return self.events
-
         # Get the behavioral sync data and create eeg.eeglog.up if necessary
         if len(self.behav_files) > 0:
             self.get_behav_sync()
@@ -91,34 +89,47 @@ class LTPAligner:
             logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
-        # Calculate the eeg offset for each event using PTSA's alignment system
-        logger.debug('Calculating EEG offsets...')
-        try:
-            eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
-                                                         window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESH)
-            logger.debug('Done.')
+        for basename in self.root_names:
+            logger.debug('Calculating alignment for recording, ' + rec)
+            # Reset ephys sync data
+            self.num_samples = -999
+            self.pulses = None
+            self.ephys_ms = None
 
-            # Add eeg offset and eeg file information to the events
-            logger.debug('Adding EEG file and offset information to events structure...')
-            oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
-            for i in range(self.events.shape[0]):
-                if 0 <= eeg_offsets[i] <= self.num_samples:
-                    self.events[i].eegoffset = eeg_offsets[i]
-                    self.events[i].eegfile = self.basename
-                else:
-                    oob += 1
-            logger.debug('Done.')
+            # Determine which sync pulse file to use and get the indices of the samples that contain sync pulses
+            self.get_ephys_sync(basename)
+            if self.pulses is None:
+                logger.warn('No sync pulse file could be found. Unable to align behavioral and EEG data.')
+                return self.events
 
-            if oob > 0:
-                logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+            # Calculate the eeg offset for each event using PTSA's alignment system
+            logger.debug('Calculating EEG offsets...')
+            try:
+                eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
+                                                             window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESH)
+                logger.debug('Done.')
 
-        except ValueError as e:
-            logger.warn(e)
-            logger.warn('Unable to align events with EEG data!')
+                # Add eeg offset and eeg file information to the events
+                logger.debug('Adding EEG file and offset information to events structure...')
+                oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
+                for i in range(self.events.shape[0]):
+                    if 0 <= eeg_offsets[i] <= self.num_samples:
+                        self.events[i].eegoffset = eeg_offsets[i]
+                        self.events[i].eegfile = basename
+                    else:
+                        oob += 1
+                logger.debug('Done.')
+
+                if oob > 0:
+                    logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+
+            except ValueError as e:
+                logger.warn(e)
+                logger.warn('Unable to align events with EEG data!')
 
         return self.events
 
-    def get_ephys_sync(self):
+    def get_ephys_sync(self, name):
         """
         Determines which type of sync pulse file to use for alignment when multiple are present. When this is the case,
         .D255 files take precedence, followed by .DI15, and then .DIN1 files. Once the correct sync file has been found,
@@ -130,7 +141,7 @@ class LTPAligner:
             self.pulse_files = [self.pulse_files]
         for file_type in ('.Status', '.D255', '.DI15', '.DIN1'):
             for f in self.pulse_files:
-                if f.endswith(file_type):
+                if f.startswith(name) and f.endswith(file_type):
                     pulse_sync_file = f
                     eeg_samples = np.fromfile(os.path.join(self.noreref_dir, pulse_sync_file), 'int16')
                     self.num_samples = len(eeg_samples)
@@ -143,8 +154,6 @@ class LTPAligner:
                     mask = np.where(np.diff(self.ephys_ms) < 100)[0] + 1
                     self.ephys_ms = np.delete(self.ephys_ms, mask)
                     self.pulses = np.delete(self.pulses, mask)
-
-                    self.basename = os.path.splitext(os.path.basename(f))[0]
                     logger.debug('Done.')
                     return
 
