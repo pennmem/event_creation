@@ -50,7 +50,7 @@ class ArtifactDetector:
             self.blink_thresh = 1500
             self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
-            logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % self.system)
+            logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % system)
             self.known_sys = False
 
     def run(self):
