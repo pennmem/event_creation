@@ -135,6 +135,8 @@ In the most basic use case, creation of events can be executed with just
 - **`--show-plots`**: If alignment fails, enable this option for a graphical view 
      of the details of alignment. *NOTE: This cannot be run with "sudo", so 
      a user-writable database location must be specified*
+     - example: `./submit --show-plots --paths db_root='.'`
+     - Note that this will **not** actually submit to the real database
 - **`--set-input`**: If running a same or similar set of inputs, this can save time. 
     Could also be useful  for automation, calling from crontabs, etc. Use syntax such as:
     - `./submit --set subject=R1001P:session=0:experiment=FR1`
@@ -307,3 +309,96 @@ def event_paused(self, event_json):
 `event_paused()` returns False to signal that the event should be skipped in the case that the
 "pause" turned off (experiment is resumed), and otherwise returns the default event, but 
 modifies the event type to be `AD_CHECK`.
+
+The file `parsers.base_log_parser` is heavily commented and will be of great use if extending 
+this functionality
+
+###### Alignment
+The `Aligner` set of classes add the eegoffset and eegfile fields to a set of record-array events.
+While they share common outputs, the methods for alignment different widely enough that extracting common
+functionality didn't seem worth it, so each file implements the call to `align()` separately.
+
+The call to `align()` returns a new copy of the events with eegoffset and eegfile filled in.
+
+All aligners rely on the `eeg_sources` file (created during eeg splitting) to determine the start
+times of the files. 
+
+The code in `alignment.system2` and `alignment.system1` are well commented and can be refereced
+if interested in the specifics of the alignment method. The following are a few notes on alignment
+in each system
+
+*System 1:* 
+* Alignment depends on the files `eeg_log` and `sync_pulses`, the former of which 
+    lists the times at which the sync pulse was sent on the laptop, and the latter is a list of
+    the samples at which eeg pulses were extracted from the raw EEG file.
+* To extract sync pulses, use the `pulse_extraction` tools.
+* The general method is to find a "start window" and "end window" - periods of time at the start
+    and end of the `eeg_log` that can be found (via diffs) in the `sync_pulses` file. Once those
+    start and end windows are located, it fits a straight line between them. There is no real error
+    checking for good alignment.
+* **TODO**: The MATLAB aligntool had the ability to align multiple source files. This does not.
+
+*System 2*:
+* System 2 alignment is done with either `System2TaskAligner` (for most events) or 
+    `System2HostAligner` (for PS2(.1), because it doesn't use the task laptop
+* The call to `align()` takes a `start_type`: events that occur before this type 
+    appears in the events file do not have to be aligned
+* The `System2TaskAligner` gets coefficients between the task and host, and 
+    host and neuroport, then aligns from task to host.
+* If `--show-plot` is specified, execution will pause until the plot of the fit is closed.
+     
+*System 3*:
+* System 3 alignment reuses much of the code from system 2. 
+
+###### Adding stim
+The System 2 and System 3 alignment can add stimulation into the events, as stim is specified
+in the events on the host PC, not on the task laptop. As such, the regressions used
+to calculate `eegoffset` must be applied backwards to find the appropriate `mstime` at which 
+stimulation took place.
+
+The parameter `persistent_fields` specifies those fields in the recarray which persist across
+stim events. For example, if stim occurs during a word, the stim event should still specify
+that that word was onscreen. 
+
+###### Artifact detection
+(Not covered in this document)
+
+###### Cleaning
+After events have been aligned, the parser can optionally implement a `clean_events()` function
+which takes in the events, and returns a copy with some events modified. This can be useful 
+for post-hoc marking of, e.g., which words received stim.
+
+
+#### Converting events
+EEG and events creation are again broken into two pipelines, built with 
+`submission.pipelines.build_convert_eeg_pipeline` and `submission.pipelines.build_convert_events_pipeline`.
+
+These pipelines read in the initial MATLAB events, then convert these events directly to 
+recarrays, using one of the classes in `parsers.mat_converter`.
+
+### Comparing
+If events are built from scratch and MATLAB events exist, the submission utility has the 
+ability to compare the existing MATLAB events to the recarray events that are generated.
+
+
+The file `tests.test_event_creation` is terrible, and contains all of the exceptions that 
+were necessary to get the matlab events to agree with the recarray events. Most of these 
+are individual differences due to the reprocessing of data, or due to mistakes in the original 
+data. 
+
+## Additional notes
+
+* Some reorganization of the files and directories into more sensible units would be nice. The
+    directory `readers` should probably just be `eeg`, and `submission.convenience` should probably
+    just be `submission.submission`.
+    
+* pulse_extraction and pulse_extraction_2 contain almost identical codebases, and should be 
+    combined into a single file. They differ in that one reads split eeg and one reads raw eeg.
+* Additional command line options can be specified in `config.config.yml`
+* The python `logging` class is at the root of the `loggers.logger`. It simply sets up defaults
+    so that information will be printed in the right way, and will be logged to a rotating file
+    in the `protocols` database
+* There is an extra layer of abstraction in the input process through the file `submission.automation`.
+    This file specifies the builders for different pipelines, and helps to keep track of errors
+    and successes in the case in which multiple pipelines are created and processed at the same time.
+   
