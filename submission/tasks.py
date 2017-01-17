@@ -259,6 +259,7 @@ class EventCombinationTask(PipelineTask):
 
     def _run(self, files, db_folder):
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
+        event_files = [f for f in event_files if os.path.isfile(f)]
         events = [from_json(event_file) for event_file in event_files]
         combiner = EventCombiner(events)
         combined_events = combiner.combine()
