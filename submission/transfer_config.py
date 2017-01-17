@@ -7,7 +7,7 @@ import yaml
 import hashlib
 import files
 import shutil
-from config import paths
+from configuration import paths
 from collections import defaultdict
 from loggers import logger
 
@@ -91,7 +91,7 @@ class TransferFile(object):
 
         for name in self.REQUIRED_PROPERTIES:
             if name not in kwargs:
-                raise ImproperConfigException("Property {} not provided for transfer config entry {}".format(name, kwargs))
+                raise ImproperConfigException("Property {} not provided for transfer configuration entry {}".format(name, kwargs))
             setattr(self, '_'+name, kwargs[name])
 
         for name in self.OPTIONAL_PROPERTIES:
@@ -99,7 +99,7 @@ class TransferFile(object):
 
         for name in kwargs:
             if name not in self.REQUIRED_PROPERTIES and name not in self.OPTIONAL_PROPERTIES:
-                raise ImproperConfigException("Unknown property {} provided in config entry {}".format(name, kwargs))
+                raise ImproperConfigException("Unknown property {} provided in configuration entry {}".format(name, kwargs))
 
         self._expanded_files = None
         self.formatted_origin_dir = ''

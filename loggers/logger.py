@@ -3,7 +3,7 @@ import logging
 import os
 import logging.handlers
 import files
-from config import paths
+from configuration import paths
 
 # TODO: REPLACE WITH PYTHON LOGGING MODULE
 

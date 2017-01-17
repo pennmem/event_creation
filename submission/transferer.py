@@ -7,7 +7,7 @@ import traceback
 import yaml
 
 import files
-from config import paths
+from configuration import paths
 from loggers import logger
 from submission.transfer_config import TransferConfig
 

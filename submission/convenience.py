@@ -8,7 +8,7 @@ import collections
 import traceback
 import files
 from collections import defaultdict
-from config import config, paths
+from configuration import config, paths
 
 if __name__ == '__main__':
     config.parse_args()
