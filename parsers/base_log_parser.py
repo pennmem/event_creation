@@ -274,9 +274,17 @@ class BaseLogParser(object):
         return [(float(line[0]), int(line[1]), ' '.join(line[2:])) for line in split_lines]
 
     def _read_primary_log(self):
+        """
+        Creates the list of entries from the primary log file
+        :return: A list in which each item corresponds to one entry in the primary log file
+        """
         raise NotImplementedError("BaseLogParser is to be extended in classes that specify log format")
 
     def _get_raw_event_type(self, raw_event):
+        """
+        Given an entry returned from _read_primary_log, returns the type of that entry
+        :return: A string, the type of the entry from the primary log
+        """
         raise NotImplementedError("BaseLogParser is to be extended in classes that specify log format")
 
     def _add_type_to_new_event(self, **kwargs):
