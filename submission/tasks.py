@@ -118,7 +118,8 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
         if self.protocol == 'ltp':
-            for raw_eeg in raw_eeg_groups:
+            for i in range(len(raw_eeg_groups)):
+                raw_eeg = raw_eeg_groups[i]
                 reader = get_eeg_reader(raw_eeg, None)
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
                                                                 experiment=self.experiment,
@@ -126,7 +127,7 @@ class SplitEEGTask(PipelineTask):
                                                                 time=reader.get_start_time_string())
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
 
-                bad_chans = reader.find_bad_chans(files['artifact_log'], threshold=600000) if 'artifact_log' in files else np.array([])
+                bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
                 np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
                 reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
 
@@ -136,7 +137,7 @@ class SplitEEGTask(PipelineTask):
             num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         else:
             if 'experiment_config' in files:
-                jacksheet_files = files['experiment_config'] # Jacksheet embedded in hdf5 file
+                jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
                 jacksheet_files = [files['contacts']] * len(raw_eeg_groups)
             elif 'jacksheet' in files:
@@ -218,7 +219,7 @@ class EventCreationTask(PipelineTask):
         if self.protocol == 'ltp':
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.system, aligner.basename, aligner.noreref_dir,
+            artifact_detector = ArtifactDetector(events, aligner.system, aligner.root_names, aligner.noreref_dir,
                                                  aligner.reref_dir, aligner.sample_rate, aligner.gain)
             events = artifact_detector.run()
         elif self.r1_sys_num in (2, 3):
@@ -258,6 +259,7 @@ class EventCombinationTask(PipelineTask):
 
     def _run(self, files, db_folder):
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
+        event_files = [f for f in event_files if os.path.isfile(f)]
         events = [from_json(event_file) for event_file in event_files]
         combiner = EventCombiner(events)
         combined_events = combiner.combine()

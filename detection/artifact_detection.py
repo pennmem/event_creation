@@ -11,33 +11,37 @@ class ArtifactDetector:
     using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, system, basename, noreref_dir, reref_dir, sample_rate, gain):
+    def __init__(self, events, system, root_names, noreref_dir, reref_dir, sample_rate, gain):
         """
         :param events: The events structure (a recarray) for the session
         :param system: A string denoting whether the session used EGI or Biosemi
-        :param basename: The string basename of the EEG channel files
+        :param root_names: A list of the string basenames of the EEG channel files (useful in the event that there were
+        multiple recordings made during a single session)
         :param reref_dir: The path to the directory containing rereferenced EEG data for the session
         :param sample_rate: The integer sample rate of the recording (EGI = 500, BioSemi varies)
         :param gain: The amplifier gain (a float, EGI = .0762963)
         """
         self.events = events
-        self.basename = basename
+        self.root_names = root_names
         self.noreref_dir = noreref_dir
         self.reref_dir = reref_dir
+        self.basename = root_names[0]  # Used for tracking the basename of the recording currently being processed
         self.sample_rate = sample_rate
         self.gain = gain
         self.known_sys = True
         # These are extensions that should not be interpreted as channel files
         self.non_chans = ['sync', 'DIN1', 'DI15', 'D255', 'Status', 'epoc', 'txt']
-        # Load the common average reference channel for use in calculating re-referenced data
-        self.ref_chan = np.fromfile(os.path.join(self.reref_dir, self.basename + '.ref'), 'int16')
+
+        self.ref_chans = {}
+        # Load the common average reference channel for each recording
+        for name in root_names:
+            self.ref_chans[name] = np.fromfile(os.path.join(self.reref_dir, name + '.ref'), 'int16')
 
         if system == 'EGI':
             self.num_chans = 129
             self.eog_chans = [('025', '127'), ('008', '126')]  # 127 is left, 126 is right
             self.weak_chans = np.array(['001', '008', '014', '017', '021', '025', '032', '044', '049', '056', '063',
                                         '099', '107', '113', '114', '126', '127'])
-
             self.blink_thresh = 100
         elif system == 'Biosemi':
             self.num_chans = 132
@@ -46,7 +50,7 @@ class ArtifactDetector:
             self.blink_thresh = 1500
             self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
-            logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % self.system)
+            logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % system)
             self.known_sys = False
 
     def run(self):
@@ -57,8 +61,11 @@ class ArtifactDetector:
         :return: The events structure updated with artifact and blink info.
         """
         if self.known_sys:
-            self.process_eog()
-            self.find_bad_events(duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
+            for basename in self.root_names:
+                self.basename = basename
+                self.process_eog()
+            if self.basename != '':
+                self.find_bad_events(duration=3200, offset=-200, buff=1000, filtfreq=[[58, 62]])
         return self.events
 
     def process_eog(self):
@@ -71,20 +78,20 @@ class ArtifactDetector:
         """
         logger.debug('Identifying blinks in the EOG channels...')
         eeg_path = os.path.join(self.noreref_dir, self.basename)
+
         # Load and scan the rereferenced eeg data from each EOG channel. If the channel is a binary channel
         # (represented as a tuple), load both sub-channels and subtract one from the other before searching for blinks.
-
         artifact_mask = None
         for i in range(len(self.eog_chans)):
             ch = self.eog_chans[i]
             if isinstance(ch, tuple):
                 logger.debug('Identifying blinks in binary channel ' + str(ch) + '...')
-                eeg1 = (np.fromfile(eeg_path + '.' + ch[0], 'int16') - self.ref_chan) * self.gain
-                eeg2 = (np.fromfile(eeg_path + '.' + ch[1], 'int16') - self.ref_chan) * self.gain
+                eeg1 = (np.fromfile(eeg_path + '.' + ch[0], 'int16') - self.ref_chans[self.basename]) * self.gain
+                eeg2 = (np.fromfile(eeg_path + '.' + ch[1], 'int16') - self.ref_chans[self.basename]) * self.gain
                 eeg = eeg1 - eeg2
             else:
                 logger.debug('Identifying blinks in channel ' + str(ch) + '...')
-                eeg = (np.fromfile(eeg_path + '.' + ch, 'int16') - self.ref_chan) * self.gain
+                eeg = (np.fromfile(eeg_path + '.' + ch, 'int16') - self.ref_chans[self.basename]) * self.gain
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
             # have the same number of samples. The artifact_mask will be used to track which events have a blink on each
@@ -104,7 +111,7 @@ class ArtifactDetector:
         # Check each event to see if any blinks occurred during it
         for i in range(len(self.events)):
             # Skip the event if it has no eegfile or no eegoffset, as it will not be possible to align artifacts with it
-            if self.events[i].eegfile == '' or self.events[i].eegoffset < 0:
+            if self.events[i].eegfile != self.basename or self.events[i].eegoffset < 0:
                 continue
 
             # If on the last event or next event has no eegdata, look for artifacts occurring up to 3000 ms after the
@@ -286,7 +293,7 @@ class ArtifactDetector:
             if events[i].eegfile == '':
                 continue
             if chan_data is None:
-                chan_data = np.fromfile(os.path.join(self.noreref_dir, events[i].eegfile) + '.' + str(chan), 'int16') - self.ref_chan
+                chan_data = np.fromfile(os.path.join(self.noreref_dir, events[i].eegfile) + '.' + str(chan), 'int16') - self.ref_chans[events[i].eegfile]
             data[i] = chan_data[offsets[i]:offsets[i]+len_with_buffer]
             # Run a first-order bandstop filter on the data from each event. Typically will be run with a range of 58-62
             data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)

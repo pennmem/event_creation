@@ -1,17 +1,15 @@
+import datetime
+import glob
 import json
 import os
-import glob
-import shutil
-import datetime
-import hashlib
-import yaml
 import traceback
 
-from config import paths
+import yaml
+
 import files
+from config import paths
 from loggers import logger
-from collections import defaultdict
-from readers.configuration_reader import TransferConfig
+from submission.transfer_config import TransferConfig
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
 
@@ -301,8 +299,6 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 
 
 def test_load_groups():
-    from pprint import pprint
-
     groups = ['r1', 'transfer', 'ltp', 'system_1', 'system_2', 'system_3']
 
     import itertools
