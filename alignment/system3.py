@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from system1 import UnAlignableEEGException
 from parsers.system3_log_parser import System3LogParser
 
-from config import config
+from configuration import config
 
 class System3Aligner(object):
 

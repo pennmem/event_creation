@@ -13,7 +13,7 @@ import datetime
 from readers import eeg_reader
 from readers.eeg_reader import read_jacksheet
 from ptsa.data.readers.BaseEventReader import BaseEventReader
-from config import paths
+from configuration import paths
 from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
 import files

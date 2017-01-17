@@ -79,5 +79,5 @@ options:
   - dest: paths
     arg: path
     action: append
-    help: 'Override the path set in config file (KEY=VALUE).'
+    help: 'Override the path set in configuration file (KEY=VALUE).'
     options: *PATHS

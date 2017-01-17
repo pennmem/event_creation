@@ -25,7 +25,7 @@ from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConv
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
 from detection.artifact_detection import ArtifactDetector
 from loggers import logger
-from config import paths
+from configuration import paths
 
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS

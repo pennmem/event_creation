@@ -269,7 +269,7 @@ class EEG_splitter_gui(QWidget):
                 self.model.load_config(filename)
             except (IOError, KeyError):
                 msg = QMessageBox(self)
-                msg.setText("Could not load config file...")
+                msg.setText("Could not load configuration file...")
                 msg.exec_()
                 return
             self.update_regexes()
@@ -477,7 +477,7 @@ class EEG_splitter_gui(QWidget):
                 self.model.load_config(os.path.join(self.model.CONFIG_DIRECTORY, self.model.DEFAULT_CONFIG))
             except (IOError, ValueError, KeyError):
                 msg = QMessageBox(self)
-                msg.setText("Could not load default config. Creating now...")
+                msg.setText("Could not load default configuration. Creating now...")
                 msg.exec_()
                 if not os.path.exists(self.model.CONFIG_DIRECTORY):
                     os.mkdir(self.model.CONFIG_DIRECTORY)

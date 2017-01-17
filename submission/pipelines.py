@@ -5,7 +5,7 @@ import shutil
 import traceback
 
 import files
-from config import paths
+from configuration import paths
 from loggers import logger
 from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from parsers.ltpfr_log_parser import LTPFRSessionLogParser
