@@ -164,6 +164,24 @@ def add_grid_loc(leads):
             contact.grid_group = group
 
 def add_freesurfer_coords(leads, files):
+    coords_file = files['fs_coords']
+    for line in open(coords_file, 'r'):
+        split_line = line.split('\t')
+        contact_name = split_line[0][1:]
+        fs_coords = [float(f) for f in split_line[1:4]]
+        found = False
+        for lead_name, lead in leads.items():
+            for contact in lead.values():
+                if contact.name == contact_name:
+                    contact.fs_coords = fs_coords
+                    found = True
+                    break
+            if found:
+                break
+        else:
+            print('WARNING: could not find {}'.format(contact_name))
+
+def X_add_freesurfer_coords(leads, files):
     raw_coords = files['fs_coords']
     for line in open(raw_coords, 'r'):
         split_line = line.split('\t')
@@ -196,7 +214,7 @@ def file_locations(subject):
     files = dict(
         vox_mom=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'VOX_coords_mother.txt'),
         jacksheet=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'docs', 'jacksheet.txt'),
-        fs_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'RAW_coords.txt')
+        fs_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'coords', 'monopolar_start_blender.txt')
     )
     return files
 
