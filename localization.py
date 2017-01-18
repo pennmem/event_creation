@@ -12,7 +12,7 @@ class Localization(object):
     
     VALID_COORDINATE_SPACES = (
         'ct_voxel',
-        'freesurfer',
+        'fs',
         't1_mri',
         't2_mri',
         'mni',
@@ -144,8 +144,6 @@ class Localization(object):
         coordinates = np.array([[], [], []]).T
         for contact in contacts:
             coordinate = self.get_contact_coordinate(coordinate_space, contact, coordinate_type)
-            print coordinates.shape
-            print coordinate.shape
             coordinates = np.concatenate((coordinates, coordinate), 0)
         return np.array(coordinates)
     
