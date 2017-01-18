@@ -1,0 +1,3 @@
+[submodule "neurorad"]
+	path = neurorad
+	url = https://github.com/pennmem/neurorad_pipeline.git
