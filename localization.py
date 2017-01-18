@@ -5,6 +5,9 @@ from json_cleaner import clean_json_dump
 class InvalidFieldException(Exception):
     pass
 
+class InvalidContactException(Exception):
+    pass
+
 class Localization(object):
     
     VALID_COORDINATE_SPACES = (
@@ -75,7 +78,7 @@ class Localization(object):
         if lead in self._contact_dict['leads']:
             return self._contact_dict['leads'][lead]['type']
         else:
-            raise Exception("Lead {} does not exist".format(lead))
+            raise InvalidContactException("Lead {} does not exist".format(lead))
 
     def get_lead_types(self, leads):
         """ Gets the types for each lead
@@ -93,7 +96,7 @@ class Localization(object):
             for contact_dict in lead['contacts']:
                 if contact_dict['name'] == contact:
                     return lead['type']
-        raise Exception("Contact {} does not exist".format(contact))
+        raise InvalidContactException("Contact {} does not exist".format(contact))
 
     def get_contact_types(self, contacts):
         """ Gets the types for each provided contact
@@ -421,14 +424,14 @@ class Localization(object):
             for contact in lead['contacts']:
                 if contact['name'] == contact_name:
                     return contact
-        raise Exception("Contact {} does not exist!".format(contact_name))
+        raise InvalidContactException("Contact {} does not exist!".format(contact_name))
 
     def _pair_dict_by_name(self, pair_names):
         for lead in self._contact_dict['leads'].values():
             for pair in lead['pairs']:
                 if pair['names'][0] == pair_names[0] and pair['names'][1] == pair_names[1]:
                     return pair
-        return Exception("Pair {} does not exist!".format(pair_names))
+        return InvalidContactException("Pair {} does not exist!".format(pair_names))
 
 if __name__ == '__main__':
     from pprint import pprint
