@@ -43,10 +43,10 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             ('rejected', False, 'b1'),
             ('rej_time', -999, 'int32'),
 
-            ('artifactMS', -999, 'int32'),
-            ('artifactNum', -999, 'int32'),
-            ('artifactFrac', -999, 'float16'),
-            ('artifactMeanMS', -999, 'float16'),
+            ('artifactMS', -1, 'int32'),
+            ('artifactNum', -1, 'int32'),
+            ('artifactFrac', -1, 'float16'),
+            ('artifactMeanMS', -1, 'float16'),
             ('badEvent', False, 'b1'),
             ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
                                                 # all badEventChannel entries must be length 132

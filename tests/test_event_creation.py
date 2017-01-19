@@ -954,15 +954,13 @@ def ltpfr_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
-    if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
+    if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 3:
         return True
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
-    if field == 'eegfile' and event1[field][:5] == os.path.basename(event2[field])[:5] and event1[field][-12:] == os.path.basename(event2[field])[-12:]:
-        return True
-    # .mat files are having NaNs loaded as random integers for wordno and trial fields
-    # if field in ('item_num', 'trial') and event1[field] == -999:
-    #    return True
+    if field == 'eegfile' and len(event1['eegfile']) >= 12 and len(event2['eegfile'][0]) >= 12:
+        if event1['eegfile'][-12:] == event2['eegfile'][0][-12:]:
+            return True
     return False
 
 
@@ -980,16 +978,17 @@ def ltpfr2_comparison_exceptions(event1, event2, field, parent_field=None):
         return True
     if field == 'serialpos' and event1['serialpos'] == -999 and event2['serialpos'] == 0:
         return True
-    if field == 'final_distractor' and event1[field] == -999 and event1['type'] == 'REC_START':
+    if field == 'final_distractor' and event1['final_distractor'] == -999 and event1['type'] == 'REC_START':
         return True
     # Allow for small discrepancies in the new and old eegoffset. Note that all offsets SHOULD be 1 less in Python than
     # in MATLAB, as the offset is the index for an EEG sample and Python begins indexing at 0 rather than 1.
-    if field == 'eegoffset' and abs(event1[field] - event2[field]) <= 3:
+    if field == 'eegoffset' and abs(event1['eegoffset'] - event2['eegoffset']) <= 3:
         return True
     # This should be checked on later, but for now just make sure that some eegfile is listed in the new event if the
     # old event had one - not necessarily that they match (new pipeline may have different filepaths)
-    if field == 'eegfile' and event1[field][:5] == os.path.basename(event2[field])[:5] and event1[field][-12:] == os.path.basename(event2[field])[-12:]:
-        return True
+    if field == 'eegfile' and len(event1['eegfile']) >= 12 and len(event2['eegfile'][0]) >= 12:
+        if event1['eegfile'][-12:] == event2['eegfile'][0][-12:]:
+            return True
     return False
 
 FR1_STIM_COMPARISON = dict(
@@ -1245,14 +1244,14 @@ TH_SYS1_COMPARATOR_INPUTS = dict(
 
 LTPFR_COMPARATOR_INPUTS = dict(
     field_switch={'item_name': 'item', 'item_num': 'itemno'},
-    field_ignore=all_ignore,
+    field_ignore=all_ignore + ('badEventChannel', 'artifactMS', 'artifactMeanMS', 'artifactFrac', 'artifactNum'),
     exceptions=ltpfr_comparison_exceptions,
     type_ignore=()
 )
 
 LTPFR2_COMPARATOR_INPUTS = dict(
     field_switch={'item_name': 'item', 'item_num': 'itemno'},
-    field_ignore=all_ignore,
+    field_ignore=all_ignore + ('badEventChannel', 'artifactMS', 'artifactMeanMS', 'artifactFrac', 'artifactNum'),
     exceptions=ltpfr2_comparison_exceptions,
     type_ignore=()
 )

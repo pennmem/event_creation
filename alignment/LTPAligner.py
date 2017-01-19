@@ -90,7 +90,7 @@ class LTPAligner:
             return self.events
 
         for basename in self.root_names:
-            logger.debug('Calculating alignment for recording, ' + rec)
+            logger.debug('Calculating alignment for recording, ' + basename)
             # Reset ephys sync data
             self.num_samples = -999
             self.pulses = None

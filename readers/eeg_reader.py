@@ -976,11 +976,11 @@ class EGI_reader(EEG_reader):
 
         # Divide sync pulse channel(s) by their max value. This will ensure that sync pulses are marked as 1 and other
         # samples end up marked as 0
-        for i in range(self.header['num_events']):
+        for i in range(1, self.header['num_events'] + 1):
             self._data[-1*i] = self._data[-1*i] / np.max(self._data[-1*i])
 
         # Change data format of the EEG data to the format in which it will be saved
-        self._data = np.around(self._data).astype(self.DATA_FORMAT)
+        self._data = np.rint(self._data).astype(self.DATA_FORMAT)
 
     def _split_data(self, location, basename):
         """
