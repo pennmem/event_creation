@@ -7,25 +7,20 @@ Requires subject ID to find localization data
 Run:
     python add_locations.py <subject> <out_file>
 """
-import re
-import numpy as np
-import os
-from collections import defaultdict
-from config import RHINO_ROOT
+import logging
+
 from mri_info import *
-from numpy.linalg import inv
-import json
-from  localization import Localization
+from config import paths
+log = logging.getLogger('submission')
 
-
-def read_loc(native_loc, leads):
+def read_loc(native_loc, localization):
     """
     Reads electrodenames_coordinates_native_and_T1.csv, returning a dictionary of leads
     :param t1_file: path to electrodenames_coordinates_native_and_T1.csv file
     :returns: dictionary of form TODO {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
     """
 
-    print 'Saved localization for', 
+    log.debug('Saved localization for:')
     for line in open(native_loc):
         split_line = line.strip().split(',')
 
@@ -39,21 +34,20 @@ def read_loc(native_loc, leads):
         loc_list = contact_autoloc.strip().split('/')
 
         # Enter into "leads" dictionary
-        leads.set_contact_label('whole_brain', contact_name, loc_list[0])
-        print contact_name + '(WB)', 
+        localization.set_contact_label('whole_brain', contact_name, loc_list[0])
+        log.debug(contact_name + '(WB)')
         if len(loc_list) > 1:
-          leads.set_contact_label('mtl', contact_name, loc_list[1])
-          print contact_name + '(MTL)', 
-    return leads
+            localization.set_contact_label('mtl', contact_name, loc_list[1])
+            log.debug(contact_name + '(MTL)')
 
-def read_mni(mni_loc, leads):
+def read_mni(mni_loc, localization):
     """
     Reads electrodenames_coordinates_native_and_T1.csv, returning a dictionary of leads
     :param t1_file: path to electrodenames_coordinates_native_and_T1.csv file
     :returns: dictionary of form TODO {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
     """
 
-    print "Saved MNI coordinate for ", 
+    log.debug("Saved MNI Coordinate for: ")
     for line in open(mni_loc):
         split_line = line.strip().split(',')
 
@@ -66,29 +60,25 @@ def read_mni(mni_loc, leads):
         contact_mni_z = split_line[3]
 
         # Enter into "leads" dictionary
-        leads.set_contact_coordinate('mni', contact_name, [contact_mni_x, contact_mni_y, contact_mni_z])
-        print contact_name,
-
-    return leads
+        localization.set_contact_coordinate('mni', contact_name, [contact_mni_x, contact_mni_y, contact_mni_z])
+        log.debug(contact_name)
 
 
-def add_autoloc(files, leads):
+def add_autoloc(files, localization):
     """
     Builds the leads dictionary from VOX_coords_mother and jacksheet
     :param files: dictionary of files including 'vox_mom' and 'jacksheet'
     :returns: dictionary of form {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
     """
-    leads = read_loc(files['native_loc'], leads)
-    return leads
+    read_loc(files['native_loc'], localization)
 
-def add_mni(files, leads):
+def add_mni(files, localization):
     """
     Builds the leads dictionary from VOX_coords_mother and jacksheet
     :param files: dictionary of files including 'vox_mom' and 'jacksheet'
     :returns: dictionary of form {lead_name: {contact_name1: contact1, contact_name2:contact2, ...}}
     """
-    leads = read_mni(files['mni_loc'], leads)
-    return leads
+    read_mni(files['mni_loc'], localization)
 
 def file_locations_loc(subject):
     """
@@ -97,14 +87,9 @@ def file_locations_loc(subject):
     :returns: Dictionary of {file_name: file_location}
     """
     files = dict(
-        native_loc=os.path.join(RHINO_ROOT, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_native.csv'),
-        mni_loc=os.path.join(RHINO_ROOT, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_mni.csv'),
+        native_loc=os.path.join(paths.rhino_root, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_native.csv'),
+        mni_loc=os.path.join(paths.rhino_root, 'data10', 'RAM', 'subjects', subject, 'imaging', subject, 'electrodenames_coordinates_mni.csv'),
     )
     return files
 
-if __name__ == '__main__':
-    import sys
-    leads = build_leads_sd(file_locations(sys.argv[1]))
-    leads_as_dict = leads_to_dict(leads)
-    clean_dump(leads_as_dict, open(sys.argv[2],'w'), indent=2, sort_keys=True)
 

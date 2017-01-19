@@ -10,7 +10,7 @@ import re
 import numpy as np
 import os
 from collections import defaultdict
-from config import RHINO_ROOT
+from config import paths
 from json_cleaner import clean_json_dump
 import json
 
@@ -212,11 +212,16 @@ def file_locations(subject):
     :returns: Dictionary of {file_name: file_location}
     """
     files = dict(
-        vox_mom=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'VOX_coords_mother.txt'),
-        jacksheet=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'docs', 'jacksheet.txt'),
-        fs_coords=os.path.join(RHINO_ROOT, 'data', 'eeg', subject, 'tal', 'coords', 'monopolar_start_blender.txt')
+        vox_mom=os.path.join(paths.rhino_root, 'data', 'eeg', subject, 'tal', 'VOX_coords_mother.txt'),
+        jacksheet=os.path.join(paths.rhino_root, 'data', 'eeg', subject, 'docs', 'jacksheet.txt'),
+        fs_coords=os.path.join(paths.rhino_root, 'data', 'eeg', subject, 'tal', 'coords', 'monopolar_start_blender.txt')
     )
     return files
+
+def convert(files, output):
+    leads = build_leads(files)
+    leads_as_dict = leads_to_dict(leads)
+    clean_json_dump(leads_as_dict, open(output, 'w'), indent=2, sort_keys=True)
 
 if __name__ == '__main__':
     import argparse

@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from json_cleaner import clean_json_dump
+from json_cleaner import clean_json_dump, clean_json_dumps
 
 class InvalidFieldException(Exception):
     pass
@@ -65,6 +65,9 @@ class Localization(object):
     def to_json(self, json_file):
         """ Dumps to a json file """
         clean_json_dump(self._contact_dict, open(json_file, 'w'), indent=2, sort_keys=True)
+
+    def to_jsons(self):
+        return clean_json_dumps(self._contact_dict, indent=2, sort_keys=True)
 
     def get_lead_names(self):
         """ Returns list of strings of lead names """
