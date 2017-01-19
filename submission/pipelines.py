@@ -12,10 +12,17 @@ from parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from submission.transfer_config import TransferConfig
-from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+
+from tasks import ImportJsonMontageTask, CleanLeafTask
+
+from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  ImportJsonMontageTask, MontageLinkerTask
-from transferer import generate_ephys_transferer, generate_session_transferer,\
+                  MontageLinkerTask
+
+from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
+                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
+
+from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
                        generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
 
 GROUPS = {
@@ -111,8 +118,10 @@ class TransferPipeline(object):
         self.log_filenames = [
             os.path.join(self.destination_root, 'log.txt'),
         ]
+        self.stored_objects = {}
         self.output_files = {}
         self.output_info = info
+        self.on_failure = lambda: CleanLeafTask(False).run([], self.destination)
 
     def previous_transfer_type(self):
         return self.transferer.previous_transfer_type()
@@ -125,6 +134,16 @@ class TransferPipeline(object):
 
     def register_info(self, info_key, info_value):
         self.output_info[info_key] = info_value
+
+    def store_object(self, name, item):
+        self.stored_objects[name] = item
+
+    def retrieve_object(self, name):
+        return self.stored_objects[name]
+
+    @property
+    def source_dir(self):
+        return self.transferer.destination_labelled
 
     @property
     def source_label(self):
@@ -146,7 +165,7 @@ class TransferPipeline(object):
             with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
                 json.dump(index, f, indent=2, sort_keys=True)
 
-    def run(self, force=False):
+    def _initialize(self, force=False):
         if not os.path.exists(self.destination):
             files.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
@@ -175,10 +194,12 @@ class TransferPipeline(object):
                         shutil.rmtree(self.destination)
                     except OSError:
                         logger.warn('Could not remove destination {}'.format(self.destination))
-                    return
+                    return False
                 else:
                     logger.info('Forcing transfer to happen anyway')
+        return True
 
+    def _execute_tasks(self):
         logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
         pipeline_task = None
@@ -206,8 +227,20 @@ class TransferPipeline(object):
                 shutil.rmtree(self.destination)
             raise
 
-        logger.info('Transfer pipeline ended normally')
-        self.create_index()
+    def run(self, force=False):
+        try:
+            print 'HEREREEEEE'
+            if not self._initialize(force):
+                self.on_failure()
+                return
+            self._execute_tasks()
+            logger.info('Transfer pipeline ended normally')
+            self.create_index()
+        except Exception as e:
+            self.on_failure()
+            raise
+
+
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
@@ -372,6 +405,22 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         info['original_experiment'] = experiment
 
     return TransferPipeline(transferer, *tasks, **info)
+
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new):
+
+    transferer = generate_localization_transferer(subject, protocol, localization, code, is_new)
+
+    tasks = [
+        LoadVoxelCoordinatesTask(subject, localization, is_new),
+        CalculateTransformsTask(subject, localization),
+        CorrectCoordinatesTask(subject, localization),
+        AddContactLabelsTask(subject, localization),
+        AddMNICoordinatesTask(subject, localization),
+        WriteFinalLocalizationTask()
+
+    ]
+
+    return TransferPipeline(transferer, *tasks)
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code):

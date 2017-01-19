@@ -1,4 +1,14 @@
 import sys
+from configuration import config, paths
+
+if __name__ == '__main__':
+    config.parse_args()
+    import matplotlib
+    if not config.show_plots:
+        matplotlib.use('agg')
+    else:
+        matplotlib.use('Qt4Agg')
+
 from PyQt4.QtGui import *
 from PyQt4 import QtCore
 from threading import Timer
@@ -16,7 +26,6 @@ import numpy as np
 
 import os
 
-from submission.transferer import DATA_ROOT
 
 class LabeledEditLayout(QHBoxLayout):
 
@@ -338,7 +347,7 @@ class UnFindablePeaksException(Exception):
 
 class SyncPulseExtractionModel(object):
 
-    DEFAULT_DATA_ROOT = DATA_ROOT
+    DEFAULT_DATA_ROOT = paths.data_root
 
     def __init__(self):
         self.loaded_eeg_files = []
@@ -395,6 +404,7 @@ class SyncPulseExtractionModel(object):
             filenames += glob.glob(os.path.join(self.noreref_dir(), '%s.%03d' % (self.basename, int(self.elec2))))
         else:
             filenames += [None]
+        print 'filenames', filenames
         return filenames
 
     def find_eeg_files(self):
@@ -403,6 +413,7 @@ class SyncPulseExtractionModel(object):
             return
 
         if self.elec1:
+            print self.noreref_dir()
             possible_files += \
                     glob.glob(os.path.join(self.noreref_dir(), '*.%03d' % int(self.elec1)))
         if self.elec2:

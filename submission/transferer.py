@@ -16,7 +16,8 @@ TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'
 TRANSFER_INPUTS = {
     'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.yml'),
     'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.yml'),
-    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.yml')
+    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.yml'),
+    'localization': os.path.join(TRANSFER_INPUTS_DIR, 'localization_inputs.yml')
 }
 
 
@@ -238,6 +239,27 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
                       data_root=paths.data_root, db_root=paths.db_root, events_root=paths.events_root,
                       code=code, original_session=original_session, **kwargs)
 
+def generate_localization_transferer(subject, protocol, localization, code, is_new):
+
+    cfg_file = TRANSFER_INPUTS['localization']
+
+    destination = os.path.join(paths.db_root,
+                               'protocols', protocol,
+                               'subjects', subject,
+                               'localizations', localization,
+                               'neuroradiology')
+
+    if is_new:
+        groups = ('new', )
+    else:
+        groups = ('old', )
+
+    return Transferer(cfg_file, groups, destination,
+                      protocol=protocol,
+                      subject=subject,
+                      localization=localization,
+                      code=code,
+                      data_root=paths.data_root, db_root=paths.db_root)
 
 
 def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
