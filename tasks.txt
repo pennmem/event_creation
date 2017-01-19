@@ -1,0 +1,47 @@
+0: Construct object
+    input:
+        voxel_coordinates.json
+    output:
+        Contacts object
+
+1: Calculate transformations
+    input:
+        Contacts
+        coregistration information
+    output:
+        Contacts.fs_mm
+-- Surface (non-critical) --
+2: Dykstra
+    input:
+        voxel_coordinates.json
+        ['fs_mm']
+        freesurfer pial surfaces
+        get_pairs(voxel_coordinates) -> [['LAF1', 'LAF2'], ['LAF2', 'LAF3']]
+    output:
+        ['dyksra_mm']
+        ['distance_from_vertex']
+        ['displacement_from_original']
+        ['average_deformation']
+        ['anatomical_locations'] (dkt atlas)
+-- Surface or depth --
+3: Get atlas coordinates (for all atlases)
+    inputs:
+        ['dykstra_mm'] (surface)
+        segmentations
+    output:
+        ['anatomical_locations'] (whole-brain, mtl, mni)
+        Spheres for each modality
+        ['dykstra_mm_native']
+
+** SAVE 2 FILES:
+- complete set of information
+- contacts.json/pairs.json
+
+-- Automated pipeline stop here --
+4a: Build manual localization file (making excel file)
+4b: Joel's localization
+    inputs: 
+         complete dictionary
+         csv file (from excel)
+    outputs:
+        ['stein_localization'] ('comments', 'loc_tag')
