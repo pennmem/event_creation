@@ -18,7 +18,7 @@ if __name__ == '__main__':
     else:
         matplotlib.use('Qt4Agg')
 
-from submission.pipelines import  MATLAB_CONVERSION_TYPE
+from submission.pipelines import MATLAB_CONVERSION_TYPE
 from tasks import CleanDbTask, IndexAggregatorTask
 from loggers import logger
 from automation import Importer, ImporterCollection
@@ -35,6 +35,7 @@ except:
 
 class UnknownMontageException(Exception):
     pass
+
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(paths.db_root, 'protocols', protocol, 'montages', code, 'info.json')
@@ -71,6 +72,7 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
                                                                                                 montage_code))
 
         return '%1.1f' % (new_montage_num)
+
 
 def get_ltp_subject_sessions_by_experiment(experiment):
     events_dir = os.path.join(paths.data_root, 'scalp', 'ltp', experiment, 'behavioral', 'events')
@@ -194,13 +196,16 @@ def build_sharing_import_database():
     experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2')
     build_json_import_db('export_sessions.json', experiments, [], subjects_for_export, 'r1', True)
 
+
 def build_verbal_import_database():
     experiments = ('FR1', 'FR2', 'FR3', 'PAL1', 'PAL2', 'PAL3', 'catFR1', 'catFR2', 'catFR3')
     build_json_import_db('verbal_sessions.json', experiments)
 
+
 def build_YC_import_database():
     experiments = ('YC1', 'YC2')
     build_json_import_db('yc_sessions.json', experiments)
+
 
 def build_TH_import_database():
     experiments = ('TH1', 'TH3')
@@ -212,6 +217,7 @@ RAM_EXPERIMENTS = ('FR1', 'FR2', 'FR3',
                    'catFR1', 'catFR2', 'catFR3',
                    'TH1', 'TH3',
                    'PS')
+
 
 def build_ram_import_database():
     build_json_import_db('r1_sessions.json', RAM_EXPERIMENTS, ('PS0',))
@@ -311,7 +317,6 @@ def run_montage_import(kwargs, force=False):
 this_dir = os.path.realpath(os.path.dirname(__file__))
 
 
-
 def build_session_inputs(subject, new_experiment, session, info):
     experiment = info.get('original_experiment', new_experiment)
     original_session = info.get('original_session', session)
@@ -407,6 +412,7 @@ def session_inputs_from_json(filename):
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
+
 def importer_sort_key(importer):
     return (importer.kwargs['subject'] if 'subject' in importer.kwargs else '',
             importer.kwargs['experiment'] if 'experiment' in importer.kwargs else '',
@@ -456,6 +462,7 @@ def import_montages_from_json(filename, force=False):
         interrupted = True
     return successes, failures, interrupted
 
+
 def run_json_import(filename, do_import, do_convert, force_events=False, force_eeg=False, force_montage=False,
                     log_file='json_import.log'):
     montage_successes, montage_failures, interrupted = import_montages_from_json(filename, force_montage)
@@ -479,6 +486,7 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
 
     return sorted_failures
 
+
 def get_code_montage(code, protocol='r1'):
     r1 = load_index(protocol)
     try:
@@ -488,6 +496,7 @@ def get_code_montage(code, protocol='r1'):
     except ValueError:
         return None
 
+
 def show_imported_experiments(subject, protocol='r1'):
     r1 = load_index(protocol)
     experiments = r1.experiments(subject=subject)
@@ -495,6 +504,7 @@ def show_imported_experiments(subject, protocol='r1'):
         print 'No sessions for this subject'
     for experiment in experiments:
         show_imported_sessions(subject, experiment, protocol)
+
 
 def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
     r1 = load_index(protocol)
@@ -532,7 +542,6 @@ def load_index(protocol):
     return LOADED_INDEXES[protocol]
 
 
-
 def get_next_orig_session(code, experiment, protocol='r1'):
     index = load_index(protocol)
     orig_sessions = list(index.aggregate_values('original_session', subject_alias=code, experiment=experiment))
@@ -549,6 +558,7 @@ def get_next_new_session(subject, experiment, protocol='r1'):
         return max([int(s) for s in sessions]) + 1
     else:
         return 0
+
 
 def prompt_for_session_inputs(inputs, **opts):
 
@@ -569,7 +579,6 @@ def prompt_for_session_inputs(inputs, **opts):
         protocol = 'ltp' if experiment.startswith('ltp') else \
                    'r1' if subject.startswith('R') else None
     groups = (protocol,)
-
 
     montage = inputs.montage
     if montage is None:
@@ -694,6 +703,7 @@ def prompt_for_montage_inputs():
 
     return inputs
 
+
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(paths.db_root, 'protocols', protocol,
                                  'subjects', subject,
@@ -703,6 +713,7 @@ def session_exists(protocol, subject, experiment, session):
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
 
     return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
+
 
 def montage_exists(protocol, subject, montage):
     montage_num = montage.split('.')[1]
@@ -715,6 +726,7 @@ def montage_exists(protocol, subject, montage):
 
     return os.path.exists(neurorad_current)
 
+
 def confirm(prompt):
     while True:
         resp = raw_input(prompt)
@@ -722,8 +734,8 @@ def confirm(prompt):
             return resp.lower() == 'y' or resp.lower() == 'yes'
         print('Please enter y or n')
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     if config.log_debug:
         logger.set_stdout_level(0)
 

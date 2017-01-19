@@ -287,7 +287,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                        'math', MathLogParser, critical=False))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
-    if do_compare:
+    if do_compare or protocol == 'ltp':  # Temporarily set for LTP pipeline testing
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,
                                        match_field=kwargs['match_field'] if 'match_field' in kwargs else None))
 
