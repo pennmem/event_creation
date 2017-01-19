@@ -69,7 +69,8 @@ class CleanDbTask(PipelineTask):
     PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
 
     @classmethod
-    def run(cls, *_):
+    def run(cls, files=None, db_folder=None):
+
         for root, dirs, files in os.walk(os.path.join(paths.db_root, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
@@ -94,6 +95,41 @@ class CleanDbTask(PipelineTask):
                     if not source_dir in dirs:
                         logger.warn("Removing {} in {}".format(dir, root))
                         shutil.rmtree(os.path.join(root, dir))
+
+class CleanLeafTask(PipelineTask):
+
+
+    SOURCE_REGEX = '^\d{8}\.\d{6}$'
+    PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
+
+    def __init__(self, critical=False):
+        super(CleanLeafTask, self).__init__(critical)
+        self.name = 'Clean leaf of database'
+
+    @classmethod
+    def _run(cls, files, db_folder):
+        print 'I AM HERE'
+        abs_path = os.path.abspath(db_folder)
+
+        while not os.path.samefile(abs_path, paths.db_root):
+
+            contents = os.listdir(abs_path)
+
+            contains_stuff = len(contents) > 0
+
+            if contains_stuff and len(contents) == 1:
+                print 'contents are', contents
+                if contents[0] == 'log.txt':
+                    os.remove(os.path.join(abs_path, contents[0]))
+                    contains_stuff = False
+
+            if not contains_stuff:
+                new_abs_path = os.path.abspath(os.path.join(abs_path, '..'))
+                os.rmdir(abs_path)
+                abs_path = new_abs_path
+            else:
+                logger.debug("Stopped cleaning due to contents {}".format(contents))
+                break
 
 class IndexAggregatorTask(PipelineTask):
 

@@ -111,7 +111,7 @@ class Importer(object):
         return status
 
     def describe_transfer(self):
-        if self.should_transfer:
+        if self.should_transfer():
             if self.errors['transfer']:
                 status = 'necessary + failed'
             elif not self.transferred:
@@ -176,7 +176,6 @@ class Importer(object):
         self.errored = True
         self.traceback = traceback.format_exc()
 
-    @property
     def should_transfer(self):
         if self.initialized and self._should_transfer is None:
             self.check()
@@ -190,6 +189,7 @@ class Importer(object):
         except Exception as e:
             self.set_error('check', e)
             self._should_transfer = False
+            self.pipeline.on_failure()
         return self._should_transfer
 
     def run(self, force=False):
@@ -202,11 +202,14 @@ class Importer(object):
             self.pipeline.transferer.remove_transferred_files()
             logger.info("Transfer rolled back. Aborting.")
             self.set_error('processing', e)
+            self.pipeline.on_failure()
             raise
         except UnTransferrableException as e:
             self.set_error('transfer', e)
+            self.pipeline.on_failure()
         except Exception as e:
             self.set_error('processing', e)
+            self.pipeline.on_failure()
 
 class Automator(object):
 

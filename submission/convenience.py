@@ -234,7 +234,7 @@ def attempt_importers(importers, force):
     i=0
     for i, importer in enumerate(importers):
         logger.info("Attempting {}".format(importer.label))
-        if importer.should_transfer or force:
+        if importer.should_transfer() or force:
             importer.run(force)
 
         if not importer.errored:

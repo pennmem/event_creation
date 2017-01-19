@@ -13,7 +13,7 @@ from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from submission.transfer_config import TransferConfig
 
-from tasks import ImportJsonMontageTask
+from tasks import ImportJsonMontageTask, CleanLeafTask
 
 from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
@@ -121,6 +121,7 @@ class TransferPipeline(object):
         self.stored_objects = {}
         self.output_files = {}
         self.output_info = info
+        self.on_failure = lambda: CleanLeafTask(False).run([], self.destination)
 
     def previous_transfer_type(self):
         return self.transferer.previous_transfer_type()
@@ -164,7 +165,7 @@ class TransferPipeline(object):
             with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
                 json.dump(index, f, indent=2, sort_keys=True)
 
-    def run(self, force=False):
+    def _initialize(self, force=False):
         if not os.path.exists(self.destination):
             files.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
@@ -193,10 +194,12 @@ class TransferPipeline(object):
                         shutil.rmtree(self.destination)
                     except OSError:
                         logger.warn('Could not remove destination {}'.format(self.destination))
-                    return
+                    return False
                 else:
                     logger.info('Forcing transfer to happen anyway')
+        return True
 
+    def _execute_tasks(self):
         logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
         pipeline_task = None
@@ -224,8 +227,20 @@ class TransferPipeline(object):
                 shutil.rmtree(self.destination)
             raise
 
-        logger.info('Transfer pipeline ended normally')
-        self.create_index()
+    def run(self, force=False):
+        try:
+            print 'HEREREEEEE'
+            if not self._initialize(force):
+                self.on_failure()
+                return
+            self._execute_tasks()
+            logger.info('Transfer pipeline ended normally')
+            self.create_index()
+        except Exception as e:
+            self.on_failure()
+            raise
+
+
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
