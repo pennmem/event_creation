@@ -71,7 +71,7 @@ files:
       - '*.eeg'
       - '*.EEG'
       - '*/*.ns*'
-    destination: raw_eeg
+    destination: raw_eeg/
 
   - name: host_pc_files
     << : *DIR

@@ -69,6 +69,7 @@ class Transferer(object):
             return self._label
 
     def missing_files(self):
+        logger.debug("Searching for missing files")
         self.transfer_config.locate_origin_files()
         return self.transfer_config.missing_files()
 
@@ -138,7 +139,7 @@ class Transferer(object):
         if len(self.transfer_config.valid_files) == 0:
             logger.info("No files to transfer.")
             self.transfer_aborted = True
-            return
+            raise UnTransferrableException("No files to transfer")
 
         for file in self.transfer_config.valid_files:
             file.transfer(self.destination_labelled)
@@ -264,7 +265,7 @@ def generate_localization_transferer(subject, protocol, localization, code, is_n
 
 def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
-    groups = groups + ('json_import',)
+    groups = groups + ('r1', 'json_import',)
     cfg_file = TRANSFER_INPUTS['montage']
     code = code or subject
 

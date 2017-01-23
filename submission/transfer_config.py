@@ -67,8 +67,13 @@ class TransferConfig(object):
         return self._files.get(name)
 
     def locate_origin_files(self):
-        for file in self.valid_files:
-            file.locate()
+        logger.debug("Locating files {}".format(self._files))
+        for file in self._files.values():
+            try:
+                file.locate()
+                logger.debug("File {} located".format(file.name))
+            except ImproperConfigException:
+                logger.debug("Could not locate {}".format(file.name))
 
     def missing_files(self):
         missing_files = []
@@ -231,6 +236,7 @@ class TransferFile(object):
         formatted = self.attempt_format(self.origin_directory, self.required, **kwargs)
         if formatted is None:
             self._valid = False
+            logger.debug("Invalid formatting of {}".format(self.origin_directory))
             return
         self.formatted_origin_dir = formatted
 
@@ -246,6 +252,7 @@ class TransferFile(object):
                 formatted.append(f)
 
         if len(formatted) == 0:
+            logger.debug("Invalid formatting of {}".format(self.origin_directory))
             self._valid = False
             return
 
@@ -261,6 +268,8 @@ class TransferFile(object):
         if root in self._roots_located:
             logger.debug("Attempting to locate {} again. Refusing.".format(self.name, root))
             return
+
+        logger.debug("Locating {}".format(self.name))
 
         containing_directory = self.origin_containing_directory(root)
 
@@ -280,8 +289,14 @@ class TransferFile(object):
             new_origin_paths.extend(new_files)
 
             for new_file in new_files:
-                new_destination_directory = os.path.relpath(containing_directory, os.path.dirname(new_file))
-                new_destination_directories.append(os.path.join(os.path.basename(root), new_destination_directory))
+                new_destination_directory = os.path.relpath(os.path.dirname(new_file), containing_directory, )
+                if self._multiple:
+                    new_destination_directories.append(os.path.join(os.path.basename(root),
+                                                                    self._destination,
+                                                                    new_destination_directory))
+                else:
+                    new_destination_directories.append(os.path.join(os.path.basename(root),
+                                                                    new_destination_directory))
 
 
         for path in new_origin_paths:
