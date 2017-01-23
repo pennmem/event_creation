@@ -111,6 +111,12 @@ class CleanLeafTask(PipelineTask):
         print 'I AM HERE'
         abs_path = os.path.abspath(db_folder)
 
+        if not os.path.exists(abs_path):
+            abs_path = os.path.abspath(os.path.join(abs_path, '..'))
+
+        if not os.path.exists(abs_path):
+            return
+
         while not os.path.samefile(abs_path, paths.db_root):
 
             contents = os.listdir(abs_path)
