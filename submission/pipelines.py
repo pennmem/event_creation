@@ -62,6 +62,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
             try:
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
+                logger.info("Making educated guess that this is system {}".format(sys))
                 break
             except Exception as e:
                 logger.debug("Guessing not system {}: {}".format(sys, e))

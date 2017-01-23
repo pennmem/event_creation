@@ -1487,6 +1487,8 @@ def read_text_jacksheet(filename):
 def read_json_jacksheet(filename):
     json_load = json.load(open(filename))
     contacts = json_load.values()[0]['contacts']
+    if contacts is None:
+        raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
     jacksheet = {int(v['channel']): k for k, v in contacts.items()}
     return jacksheet
 
