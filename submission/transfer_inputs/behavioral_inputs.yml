@@ -109,6 +109,7 @@ files:
   - name: config
     << : *FILE
     groups: [r1, transfer, verbal ]
+    required: false
     origin_directory: *BEH_EXP_DIR
     origin_file: config.py
     destination: experiment_files/config.py
@@ -116,6 +117,7 @@ files:
   - name: sconfig
     << : *FILE
     groups: [r1, transfer, verbal ]
+    required: false
     origin_directory: *BEH_EXP_DIR
     origin_file: sconfig.py
     destination: experiment_files/sconfig.py
@@ -149,6 +151,7 @@ files:
   - name: no_accent_wordpool
     << : *FILE
     groups: [r1, transfer, FR]
+    required: false
     origin_directory: *BEH_EXP_DIR
     origin_file: RAM_wordpool_noAcc.txt
     destination: experiment_files/wordpool_no_accent.txt
