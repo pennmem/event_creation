@@ -53,6 +53,7 @@ files:
   - name: eeg_sources
     << : *LINK
     groups: [ r1 ]
+    required: false # As groups are determined before ephys submission, event creation will fail if this is required
     origin_directory: *CURR_EPHYS
     origin_file: sources.json
     destination: eeg_sources.json
