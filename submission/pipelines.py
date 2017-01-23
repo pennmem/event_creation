@@ -230,7 +230,6 @@ class TransferPipeline(object):
 
     def run(self, force=False):
         try:
-            print 'HEREREEEEE'
             if not self._initialize(force):
                 self.on_failure()
                 return
@@ -359,8 +358,13 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         experiment = 'CatFR' + experiment[-1]
         new_experiment = 'catFR' + experiment[-1]
 
+    if 'groups' in kwargs:
+        no_group_kwargs = {k:v for k,v in kwargs if k not in ('groups', )}
+    else:
+        no_group_kwargs = kwargs
+
     new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         TRANSFER_INPUTS['behavioral'], 'conversion')
+                                         TRANSFER_INPUTS['behavioral'], 'conversion', no_group_kwargs)
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment
