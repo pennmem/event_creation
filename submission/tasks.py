@@ -124,12 +124,13 @@ class CleanLeafTask(PipelineTask):
             contains_stuff = len(contents) > 0
 
             if contains_stuff and len(contents) == 1:
-                print 'contents are', contents
                 if contents[0] == 'log.txt':
+                    logger.debug("Removing log file in {}".format(abs_path))
                     os.remove(os.path.join(abs_path, contents[0]))
                     contains_stuff = False
 
             if not contains_stuff:
+                logger.debug("Removing empty directory {}".format(abs_path))
                 new_abs_path = os.path.abspath(os.path.join(abs_path, '..'))
                 os.rmdir(abs_path)
                 abs_path = new_abs_path
