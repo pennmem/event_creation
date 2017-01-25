@@ -101,10 +101,10 @@ class Logger(object):
         self._logger.info(self.format_msg(msg, subject=self.subject, label=self.label))
 
     def warn(self, msg):
-        self._logger.warn(self.format_msg(msg, subject=self.subject, label=self.label))
+        self._logger.warn(self.format_msg(" ****** " + msg, subject=self.subject, label=self.label))
 
     def error(self, msg):
-        self._logger.error(self.format_msg(msg, subject=self.subject, label=self.label))
+        self._logger.error(self.format_msg(" ************ " + msg, subject=self.subject, label=self.label))
 
     def critical(self, msg):
-        self._logger.critical(self.format_msg(msg, subject=self.subject, label=self.label))
+        self._logger.critical(self.format_msg(" ********************* " + msg, subject=self.subject, label=self.label))

@@ -250,7 +250,7 @@ def attempt_importers(importers, force):
         logger.warn("{} failed".format(importer.label))
     if not success:
         descriptions = [importer.describe_errors() for importer in importers]
-        logger.error("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
+        logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
     return success, importers[:i+1]
 
 
@@ -673,13 +673,6 @@ def prompt_for_session_inputs(inputs, **opts):
         inputs['groups'] += ('system_2',)
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
-    elif experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1') and \
-            'system_2' not in groups and 'system_3' not in groups:
-        is_sys3 = confirm("Is this a system 3 session? ")
-        if is_sys3:
-            inputs['groups'] += ("system_3",)
-        else:
-            inputs['groups'] += ("system_2",)
 
     if experiment.startswith('PS') or experiment.startswith('TH'):
         inputs['do_math'] = False

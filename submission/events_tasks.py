@@ -186,6 +186,7 @@ class EventCreationTask(PipelineTask):
                 aligner = System3Aligner(unaligned_events, files, db_folder)
 
             if self.event_label != 'math':
+                logger.debug("Adding stimulation events")
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
             if self.experiment.startswith("TH"):

@@ -108,7 +108,6 @@ class CleanLeafTask(PipelineTask):
 
     @classmethod
     def _run(cls, files, db_folder):
-        print 'I AM HERE'
         abs_path = os.path.abspath(db_folder)
 
         if not os.path.exists(abs_path):

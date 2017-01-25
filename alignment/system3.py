@@ -58,7 +58,9 @@ class System3Aligner(object):
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         # Merge in the stim events
 
+        logger.debug("Generating system 3 log parser")
         s3lp = System3LogParser(self.events_logs, self.electrode_config, self.from_label, 1000 / self.from_multiplier)
+        logger.debug("Merging events")
         self.merged_events = s3lp.merge_events(self.events, event_template, persistent_fields)
 
         # Have to manually correct subject and session due to events appearing before start of session

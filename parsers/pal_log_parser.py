@@ -456,10 +456,12 @@ class PALSessionLogParser(BaseSessionLogParser):
         return event
 
     def modify_test(self, events):
-        orient_on = np.where(np.logical_or.reduce((events.type == 'STUDY_ORIENT',
+        orient_ons = np.where(np.logical_or.reduce((events.type == 'STUDY_ORIENT',
                                                    events.type == 'TEST_ORIENT',
-                                                   events.type == 'PRACTICE_RETRIEVAL_ORIENT')))[0][-1]
-        events[orient_on].serialpos = self._serialpos
+                                                   events.type == 'PRACTICE_RETRIEVAL_ORIENT')))[0]
+        if len(orient_ons) > 0:
+            orient_on = orient_ons[-1]
+            events[orient_on].serialpos = self._serialpos
 
         try:
             orient_off = np.where(np.logical_or(events.type == 'TEST_ORIENT_OFF',
