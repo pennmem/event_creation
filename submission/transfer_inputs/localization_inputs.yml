@@ -1,0 +1,86 @@
+directories:
+  protcol_db_dir    : &PROTOCOL_DB '{db_root}/protocols/{protocol}'
+  subject_db_dir    : &SUBJ_DB !join [*PROTOCOL_DB, 'subjects/{subject}']
+  localization_db_dir : &LOC_DB !join [*SUBJ_DB, 'localizations/{localization}']
+  montage_db_dir : &MONTAGE_DB !join [*LOC_DB, 'montages/{montage_num}']
+  current_montage_dir : &CURR_MONT !join [*MONTAGE_DB, "neuroradiology/current_processed"]
+
+  subject_import_dir : &SUBJ_DIR "{data_root}/{code}"
+
+  imaging_dir : &IMAGING_DIR !join [*SUBJ_DIR, "imaging"]
+  imaging_subject_dir : &IMAGING_SUBJ_DIR !join [*IMAGING_DIR, '{code}']
+
+  freesurfer_dir : &FS_DIR "{data_root}/freesurfer"
+  freesurfer_subj_dir: &FS_SUBJ !join [*FS_DIR, 'subjects', '{subject}']
+  freesurfer_mri_dir: &FS_MRI !join [*FS_SUBJ, 'mri']
+
+  tal_dir  : &TAL_DIR !join [*SUBJ_DIR, "tal"]
+  docs_dir : &DOCS_DIR !join [*SUBJ_DIR, "docs"]
+
+default_link: &LINK
+  type: link
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: true
+
+default_file: &FILE
+  type: file
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: true
+
+default_dir: &DIR
+  type: directory
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: false
+
+files:
+
+  - name: native_loc
+    << : *FILE
+    origin_directory: *IMAGING_SUBJ_DIR
+    origin_file: 'electrodenames_coordinates_native.csv'
+    destination: 'coordinates_native.csv'
+
+  - name: mni_loc
+    << : *FILE
+    origin_directory: *IMAGING_SUBJ_DIR
+    origin_file: 'electrodenames_coordinates_mni.csv'
+    destination: 'coordinates_mni.csv'
+
+  - name: coords_t1
+    << : *FILE
+    origin_directory: *IMAGING_SUBJ_DIR
+    origin_file: 'electrodenames_coordinates_native_and_T1.csv'
+    destination: 'coordinates_native_and_t1.csv'
+
+  - name: fs_orig_t1
+    << : *FILE
+    origin_directory: *FS_MRI
+    origin_file: 'orig.mgz'
+    destination: 'orig_mri.mgz'
+
+  - name: vox_mom
+    <<: *FILE
+    groups: [ 'old' ]
+    origin_directory: *TAL_DIR
+    origin_file: 'VOX_coords_mother.txt'
+    destination: 'VOX_coords_mother.txt'
+
+  - name: jacksheet
+    <<: *FILE
+    groups: [ 'old' ]
+    origin_directory: *DOCS_DIR
+    origin_file: 'jacksheet.txt'
+    destination: 'jacksheet.txt'
+
+  - name: voxel_coordinates
+    <<: *FILE
+    groups: [ 'new' ]
+    origin_directory: *TAL_DIR
+    origin_file: 'voxel_coordinates.json'
+    destination: 'voxel_coordinates.json'

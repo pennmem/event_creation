@@ -8,8 +8,7 @@ default_file: &FILE
   groups: []
   multiple: false
   required: true
-  checksum_filename_only: false
-  destination: '.'
+  checksum_contents: true
 
 files:
 
@@ -20,9 +19,11 @@ files:
     groups: [ r1, json_import ]
     origin_directory: *LOC_CODE
     origin_file: contacts.json
+    destination: contacts.json
 
   - name: pairs
     <<: *FILE
     groups: [ r1, json_import ]
     origin_directory: *LOC_CODE
-    origin_File: pairs.json
+    origin_file: pairs.json
+    destination: pairs.json

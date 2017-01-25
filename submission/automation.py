@@ -4,7 +4,7 @@ import copy
 from collections import defaultdict
 from transferer import UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
-                      build_convert_eeg_pipeline, build_import_montage_pipeline
+                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
 from configuration import paths
@@ -55,9 +55,11 @@ class Importer(object):
     BUILD_EPHYS = 3
     CONVERT_EVENTS = 4
     CONVERT_EPHYS = 5
+    LOCALIZATION = 6
 
     PIPELINE_BUILDERS = {
         MONTAGE: build_import_montage_pipeline,
+        LOCALIZATION: build_import_localization_pipeline,
         BUILD_EVENTS: build_events_pipeline,
         BUILD_EPHYS: build_split_pipeline,
         CONVERT_EVENTS: build_convert_events_pipeline,
@@ -65,6 +67,7 @@ class Importer(object):
     }
     LABELS = {
         MONTAGE: 'Montage Importer',
+        LOCALIZATION: 'Localization importer',
         BUILD_EVENTS: 'Events Builder',
         BUILD_EPHYS: 'Ephys Builder',
         CONVERT_EVENTS: 'Events Converter',
@@ -108,7 +111,7 @@ class Importer(object):
         return status
 
     def describe_transfer(self):
-        if self.should_transfer:
+        if self.should_transfer():
             if self.errors['transfer']:
                 status = 'necessary + failed'
             elif not self.transferred:
@@ -173,7 +176,6 @@ class Importer(object):
         self.errored = True
         self.traceback = traceback.format_exc()
 
-    @property
     def should_transfer(self):
         if self.initialized and self._should_transfer is None:
             self.check()
@@ -187,6 +189,7 @@ class Importer(object):
         except Exception as e:
             self.set_error('check', e)
             self._should_transfer = False
+            self.pipeline.on_failure()
         return self._should_transfer
 
     def run(self, force=False):
@@ -199,11 +202,14 @@ class Importer(object):
             self.pipeline.transferer.remove_transferred_files()
             logger.info("Transfer rolled back. Aborting.")
             self.set_error('processing', e)
+            self.pipeline.on_failure()
             raise
         except UnTransferrableException as e:
             self.set_error('transfer', e)
+            self.pipeline.on_failure()
         except Exception as e:
             self.set_error('processing', e)
+            self.pipeline.on_failure()
 
 class Automator(object):
 

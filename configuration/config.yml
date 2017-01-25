@@ -1,10 +1,11 @@
 
 paths : &PATHS
-  rhino_root  : &RHINO '/'
-  data_root   : !join [*RHINO, 'data/eeg']
-  loc_db_root : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
-  db_root     : *RHINO
-  events_root : !join [*RHINO, 'data/events']
+  rhino_root     : &RHINO '/'
+  data_root      : !join [*RHINO, 'data/eeg']
+  loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
+  db_root        : *RHINO
+  events_root    : !join [*RHINO, 'data/events']
+  freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
 
 inputs: &INPUTS
   protocol :
@@ -24,7 +25,10 @@ options:
     help: 'Prints debug information to terminal during execution'
   - dest: montage_only
     arg: montage-only
-    help: 'Imports a localization or montage instead of importing events'
+    help: 'Imports a montage instead of importing events'
+  - dest: localization_only
+    arg: localization-only
+    help: 'Adds localization information to database instead of importing events'
   - dest: change_experiment
     arg: change-experiment
     help: 'Signals that the name of the experiment changes on import. Defaults to true for PS* behavioral'
@@ -46,6 +50,9 @@ options:
   - dest: force_montage
     arg: force-montage
     help: 'Forces montage change even if no changes have occurred'
+  - dest: force_localization
+    arg: force-localization
+    help: 'Forces localization import even if no changes have occurred'
   - dest: clean_db
     arg: clean-only
     help: 'ONLY cleans the database. Removes empty folders and folders without processed equivalent'

@@ -12,10 +12,19 @@ from parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from submission.transfer_config import TransferConfig
-from tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+
+from tasks import ImportJsonMontageTask, CleanLeafTask
+
+from parsers.base_log_parser import get_version_num
+
+from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  ImportJsonMontageTask, MontageLinkerTask
-from transferer import generate_ephys_transferer, generate_session_transferer,\
+                  MontageLinkerTask
+
+from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
+                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
+
+from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
                        generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
 
 GROUPS = {
@@ -53,14 +62,32 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
 
         for sys in ('system_1', 'system_2', 'system_3'):
             try:
+                logger.info("Checking if this system is {}".format(sys))
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
-                break
+
+                missing_files = transfer_cfg.missing_required_files()
+
+                if len(missing_files) > 0:
+                    names = [missing_file.name for missing_file in missing_files]
+                    logger.info("Determined due to missing files ({}) that this system is not {}".format(names, sys))
+                    continue
+
+                match = r1_system_match(experiment, transfer_cfg, sys)
+
+                if match:
+                    logger.info("Making a very educated guess that this system is {}".format(sys))
+                    break
+                else:
+                    logger.info("Determined from log files that this system is not {}".format(sys))
+
             except Exception as e:
-                logger.debug("Guessing not system {}: {}".format(sys, e))
+                logger.debug("This system is probably not {} due to error: {}".format(sys, e))
                 continue
         else:
-            logger.info("Making a wild guess that this is system {}".format(sys))
+            logger.debug("System_# determination failed. I'm a failure. Nobody loves me.")
+            logger.error("Could not determine system of r1 subject. Continuing as if system is {}"
+                         ", but this will likely fail very soon!".format(sys))
         groups += (sys,)
 
         #
@@ -92,6 +119,50 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
             groups += ("stim", )
     return groups
 
+def r1_system_match(experiment, transfer_cfg, sys):
+    """
+    Determines whether the provided system_# matches the provided TransferConfig given the presence of system log files
+    It is liberal with matching -- if it could possibly be that system, it returns True
+    :param experiment:
+    :param transfer_cfg:
+    :param sys:
+    :return:
+    """
+    session_log = transfer_cfg.get_file('session_log')
+    eeg_log = transfer_cfg.get_file('eeg_log')
+    if experiment.startswith('TH'):
+        if eeg_log is not None:
+            with open(eeg_log.origin_paths[0]) as eeg_file:
+                if len(eeg_file.read().strip()) > 0:
+                    logger.debug("This appears to be system_1 because the eeg_log is not empty")
+                    return sys == 'system_1'
+                else:
+                    logger.debug("This appears to not be system_1 because the eeg_log is empty")
+                    return sys != 'system_1'
+        else:
+            return sys != 'system_1'
+
+    if session_log is not None:
+        if len(session_log.origin_paths) > 0:
+            try:
+                version = get_version_num(session_log.origin_paths[0])
+                logger.debug("The version number in session_log is {}".format(version))
+                if version >= 3:
+                    logger.debug("This appears to be system_3 due to version number")
+                    return sys == 'system_3'
+                elif version >= 2:
+                    logger.debug("This appears to be system_2 due to version number")
+                    return sys == 'system_2'
+            except Exception as e:
+                logger.debug("Error trying to get version number: {}".format(e))
+                pass
+
+    return True
+
+
+
+
+
 class TransferPipeline(object):
 
     CURRENT_PROCESSED_DIRNAME = 'current_processed'
@@ -111,8 +182,10 @@ class TransferPipeline(object):
         self.log_filenames = [
             os.path.join(self.destination_root, 'log.txt'),
         ]
+        self.stored_objects = {}
         self.output_files = {}
         self.output_info = info
+        self.on_failure = lambda: CleanLeafTask(False).run([], self.destination)
 
     def previous_transfer_type(self):
         return self.transferer.previous_transfer_type()
@@ -125,6 +198,16 @@ class TransferPipeline(object):
 
     def register_info(self, info_key, info_value):
         self.output_info[info_key] = info_value
+
+    def store_object(self, name, item):
+        self.stored_objects[name] = item
+
+    def retrieve_object(self, name):
+        return self.stored_objects[name]
+
+    @property
+    def source_dir(self):
+        return self.transferer.destination_labelled
 
     @property
     def source_label(self):
@@ -146,7 +229,7 @@ class TransferPipeline(object):
             with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
                 json.dump(index, f, indent=2, sort_keys=True)
 
-    def run(self, force=False):
+    def _initialize(self, force=False):
         if not os.path.exists(self.destination):
             files.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
@@ -154,11 +237,11 @@ class TransferPipeline(object):
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))
         missing_files = self.transferer.missing_files()
         if missing_files:
-            logger.error("Missing files {}. "
+            logger.warn("Missing files {}. "
                          "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}'
-                                           'Expected in {}'.format(missing_files[0].name,
+            raise UnTransferrableException('Missing file {}: '
+                                           'expected in {}'.format(missing_files[0].name,
                                                                    missing_files[0].formatted_origin_dir))
 
         should_transfer = not self.transferer.matches_existing_checksum()
@@ -175,10 +258,12 @@ class TransferPipeline(object):
                         shutil.rmtree(self.destination)
                     except OSError:
                         logger.warn('Could not remove destination {}'.format(self.destination))
-                    return
+                    return False
                 else:
                     logger.info('Forcing transfer to happen anyway')
+        return True
 
+    def _execute_tasks(self):
         logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
         pipeline_task = None
@@ -206,12 +291,24 @@ class TransferPipeline(object):
                 shutil.rmtree(self.destination)
             raise
 
-        logger.info('Transfer pipeline ended normally')
-        self.create_index()
+    def run(self, force=False):
+        try:
+            if not self._initialize(force):
+                self.on_failure()
+                return
+            self._execute_tasks()
+            logger.info('Transfer pipeline ended normally')
+            self.create_index()
+        except Exception as e:
+            self.on_failure()
+            raise
+
+
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
+    logger.set_label("Building EEG Splitter")
     new_experiment = new_experiment if not new_experiment is None else experiment
 
     groups = determine_groups(protocol, code, experiment, original_session,
@@ -229,6 +326,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
 
 def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
                                original_session=None, new_experiment=None, **kwargs):
+    logger.set_label("Building EEG Converter")
     new_experiment = new_experiment if not new_experiment is None else experiment
     if experiment[:-1] == 'catFR':
         experiment = 'CatFR'+experiment[-1]
@@ -248,6 +346,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
+    logger.set_label("Building Event Creator")
 
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
@@ -321,12 +420,20 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                                   original_session=None, new_experiment=None, **kwargs):
+
+    logger.set_label("Building Event Converter")
+
     if experiment[:-1] == 'catFR':
         experiment = 'CatFR' + experiment[-1]
         new_experiment = 'catFR' + experiment[-1]
 
+    if 'groups' in kwargs:
+        no_group_kwargs = {k:v for k,v in kwargs if k not in ('groups', )}
+    else:
+        no_group_kwargs = kwargs
+
     new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         TRANSFER_INPUTS['behavioral'], 'conversion')
+                                         TRANSFER_INPUTS['behavioral'], 'conversion', no_group_kwargs)
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment
@@ -372,6 +479,24 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         info['original_experiment'] = experiment
 
     return TransferPipeline(transferer, *tasks, **info)
+
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new):
+
+    logger.set_label("Building Localization Creator")
+
+    transferer = generate_localization_transferer(subject, protocol, localization, code, is_new)
+
+    tasks = [
+        LoadVoxelCoordinatesTask(subject, localization, is_new),
+        CalculateTransformsTask(subject, localization),
+        CorrectCoordinatesTask(subject, localization),
+        AddContactLabelsTask(subject, localization),
+        AddMNICoordinatesTask(subject, localization),
+        WriteFinalLocalizationTask()
+
+    ]
+
+    return TransferPipeline(transferer, *tasks)
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code):

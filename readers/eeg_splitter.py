@@ -1,4 +1,15 @@
 import sys
+
+from configuration import config, paths
+
+if __name__ == '__main__':
+    config.parse_args()
+    import matplotlib
+    if not config.show_plots:
+        matplotlib.use('agg')
+    else:
+        matplotlib.use('Qt4Agg')
+
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
 from eeg_reader import EDF_reader, NK_reader, NSx_reader
@@ -8,6 +19,8 @@ import json
 import os
 import glob
 import shutil
+
+
 
 class DeleteableListWidget(QListWidget):
     delete_pressed = QtCore.pyqtSignal()
@@ -385,6 +398,7 @@ class EEG_splitter_gui(QWidget):
         except Exception as e:
             self.close_status()
             msg2 = QMessageBox(self)
+            print_exc()
             msg2.setText("Error occurred! Booooo.\n%s"%e)
             msg2.exec_()
         self.split_button.setDown(False)

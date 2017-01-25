@@ -3,6 +3,7 @@ from electrode_config_parser import ElectrodeConfig
 import numpy as np
 from copy import deepcopy
 import json
+from loggers import logger
 
 
 class System3LogParser:
@@ -47,6 +48,11 @@ class System3LogParser:
                 stim_events = np.append(stim_events, new_event)
 
         self._stim_events = stim_events[1:] if stim_events.shape else stim_events
+
+        if stim_events.shape:
+            logger.info("Found {} stim events".format(stim_events.shape))
+        else:
+            logger.warn("Found no stim events")
 
     @property
     def stim_events(self):

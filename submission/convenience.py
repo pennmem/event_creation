@@ -240,7 +240,7 @@ def attempt_importers(importers, force):
     i=0
     for i, importer in enumerate(importers):
         logger.info("Attempting {}".format(importer.label))
-        if importer.should_transfer or force:
+        if importer.should_transfer() or force:
             importer.run(force)
 
         if not importer.errored:
@@ -250,7 +250,7 @@ def attempt_importers(importers, force):
         logger.warn("{} failed".format(importer.label))
     if not success:
         descriptions = [importer.describe_errors() for importer in importers]
-        logger.error("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
+        logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
     return success, importers[:i+1]
 
 
@@ -312,6 +312,19 @@ def run_montage_import(kwargs, force=False):
     importer = Importer(Importer.MONTAGE, **kwargs)
     success, importers = attempt_importers([importer], force)
     return success, ImporterCollection(importers)
+
+def run_localization_import(kwargs, force=False):
+    logger.set_subject(kwargs['subject'], kwargs['protocol'])
+    logger.set_label("Localization importer")
+
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **kwargs)
+    success, importers = attempt_importers([new_importer, old_importer], force)
+    if success:
+        used_importers = [importer for importer in importers if not importer.errored]
+    else:
+        used_importers = importers
+    return success, ImporterCollection(used_importers)
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -660,13 +673,6 @@ def prompt_for_session_inputs(inputs, **opts):
         inputs['groups'] += ('system_2',)
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
-    elif experiment in ('FR3', 'PAL3', 'catFR3', 'TH3', 'PS2.1') and \
-            'system_2' not in groups and 'system_3' not in groups:
-        is_sys3 = confirm("Is this a system 3 session? ")
-        if is_sys3:
-            inputs['groups'] += ("system_3",)
-        else:
-            inputs['groups'] += ("system_2",)
 
     if experiment.startswith('PS') or experiment.startswith('TH'):
         inputs['do_math'] = False
@@ -703,6 +709,22 @@ def prompt_for_montage_inputs():
 
     return inputs
 
+def prompt_for_localization_inputs():
+    code = raw_input('Enter original subject code (including _#): ')
+    subject = re.sub(r'_.*', '', code)
+
+    localization = ''
+    while not localization.isdigit():
+        localization = raw_input("Enter localization number: ")
+
+    inputs = dict(
+        code = code,
+        subject = subject,
+        localization = localization,
+        protocol = 'r1'
+    )
+
+    return inputs
 
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(paths.db_root, 'protocols', protocol,
@@ -714,6 +736,12 @@ def session_exists(protocol, subject, experiment, session):
 
     return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
 
+def localization_exists(protocol, subject, localization):
+    neurorad_current = os.path.join(paths.db_root, 'protocols', protocol,
+                           'subjects', subject,
+                           'localization', localization,
+                           'neuroradiology', 'current_processed')
+    return os.path.exists(neurorad_current)
 
 def montage_exists(protocol, subject, montage):
     montage_num = montage.split('.')[1]
@@ -798,6 +826,20 @@ if __name__ == '__main__':
         print('Importing montage')
         success, importer = run_montage_import(inputs, config.force_montage)
         print('Success:' if success else 'Failed:')
+        print(importer.describe())
+        exit(0)
+
+    if config.localization_only:
+        inputs = prompt_for_localization_inputs()
+        if inputs == False:
+            exit(0)
+        if localization_exists(inputs['protocol'], inputs['subject'], inputs['localization']):
+            if not config('{subject}, loc {loc} already exists. Continue and overwrite? '.format(**inputs)):
+                print("Import aborted! Exiting.")
+                exit(0)
+        print("Importing localization")
+        success, importer = run_localization_import(inputs, config.force_localization)
+        print('Success:' if success else 'Failed')
         print(importer.describe())
         exit(0)
 
