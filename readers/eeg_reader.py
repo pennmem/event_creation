@@ -926,11 +926,6 @@ class EGI_reader(EEG_reader):
         # Calculate total number of samples to read
         total_samples = (self.header['num_channels'] + self.header['num_events']) * self.header['num_samples']
 
-        # Calculate the gain factor for converting raw EEG data to uV
-        # amp_info = np.array(((-32767., 32767.), (-2.5, 2.5)))
-        # amp_fact = 1000.
-        # self.amp_gain = calc_gain(amp_info, amp_fact)
-
         self.amp_gain = .0762963  # Gain is always this value for EGI - no need to calculate it
 
         # Limit the number of samples that are copied at once to 1 million, to reduce memory usage
@@ -966,9 +961,6 @@ class EGI_reader(EEG_reader):
         for i in range(self._data.shape[0]):
             self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
         logger.debug('Done')
-
-        # Divide the signal by the amplifier gain (note: writing this as "self._data /= self.amp_gain" does not work)
-        self._data = self._data / self.amp_gain
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
@@ -1064,30 +1056,6 @@ class EGI_reader(EEG_reader):
         # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
         # of the common average reference
         np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
-
-        '''
-        The following code is used for writing out actual re-referenced channels. This has been replaced by saving only
-        the common average reference data, which can then be loaded and subtracted from any "noreref" channel file to
-        obtain the re-referenced version. This saves us from writing an extra copy of all the EEG data, which wastes
-        storage space on Rhino.
-
-        # Rereference the data
-        self._data = self._data - means
-
-        # Clip data to within bounds of selected data format and convert it to that data type
-        bounds = np.iinfo(self.DATA_FORMAT)
-        self._data = np.around(self._data.clip(bounds.min, bounds.max)).astype(self.DATA_FORMAT)
-
-        logger.debug('Done.')
-
-        # Write reref files
-        logger.debug('Writing rereferenced channels...')
-        for chan in all_chans:
-            filename = os.path.join(location, self.basename + ('.%03d' % chan))
-            # Write the rereferenced data from each channel to its own file
-            self._data[chan-1].tofile(filename)
-        logger.debug('Done.')
-        '''
 
     @staticmethod
     def find_bad_chans(log, threshold):

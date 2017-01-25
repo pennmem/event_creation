@@ -220,7 +220,7 @@ class EventCreationTask(PipelineTask):
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
             artifact_detector = ArtifactDetector(events, aligner.system, aligner.root_names, aligner.noreref_dir,
-                                                 aligner.reref_dir, aligner.sample_rate, aligner.gain)
+                                                 aligner.reref_dir, aligner.sample_rate)
             events = artifact_detector.run()
         elif self.r1_sys_num in (2, 3):
             if self.r1_sys_num == 2:
@@ -529,7 +529,7 @@ class CompareEventsTask(PipelineTask):
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
             event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
         elif self.protocol == 'ltp':
-            event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code, 'session_{}'.format(self.original_session), 'events.mat')
+            event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', str(self.experiment), str(self.code), 'session_{}'.format(str(self.original_session)), 'events.mat')
         else:
             raise NotImplementedError('Only R1 and LTP event comparison implemented')
 

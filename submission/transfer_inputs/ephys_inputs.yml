@@ -117,7 +117,7 @@ files:
     destination: channel_map.json
 
   - name: raw_eeg
-    <<: *FILE
+    <<: *LINK
     groups: [ ltp ]
     multiple: true
     origin_directory: *LTP_EEG_DIR

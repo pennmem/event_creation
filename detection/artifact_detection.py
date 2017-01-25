@@ -11,7 +11,7 @@ class ArtifactDetector:
     using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, system, root_names, noreref_dir, reref_dir, sample_rate, gain):
+    def __init__(self, events, system, root_names, noreref_dir, reref_dir, sample_rate):
         """
         :param events: The events structure (a recarray) for the session
         :param system: A string denoting whether the session used EGI or Biosemi
@@ -19,7 +19,6 @@ class ArtifactDetector:
         multiple recordings made during a single session)
         :param reref_dir: The path to the directory containing rereferenced EEG data for the session
         :param sample_rate: The integer sample rate of the recording (EGI = 500, BioSemi varies)
-        :param gain: The amplifier gain (a float, EGI = .0762963)
         """
         self.events = events
         self.root_names = root_names
@@ -27,10 +26,9 @@ class ArtifactDetector:
         self.reref_dir = reref_dir
         self.basename = root_names[0]  # Used for tracking the basename of the recording currently being processed
         self.sample_rate = sample_rate
-        self.gain = gain
         self.known_sys = True
         # These are extensions that should not be interpreted as channel files
-        self.non_chans = ['sync', 'DIN1', 'DI15', 'D255', 'Status', 'epoc', 'txt']
+        self.non_chans = ['sync', 'DIN1', 'DI15', 'D255', 'Status', 'epoc', 'txt', 'cal*', 'cal+']
 
         self.ref_chans = {}
         # Load the common average reference channel for each recording
@@ -48,7 +46,6 @@ class ArtifactDetector:
             self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
             self.weak_chans = np.array(['EXG1', 'EXG2', 'EXG3', 'EXG4'])
             self.blink_thresh = 1500
-            self.gain = 1  # Currently we only want to multiply EGI by the gain when it is loaded
         else:
             logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % system)
             self.known_sys = False
@@ -86,12 +83,12 @@ class ArtifactDetector:
             ch = self.eog_chans[i]
             if isinstance(ch, tuple):
                 logger.debug('Identifying blinks in binary channel ' + str(ch) + '...')
-                eeg1 = (np.fromfile(eeg_path + '.' + ch[0], 'int16') - self.ref_chans[self.basename]) * self.gain
-                eeg2 = (np.fromfile(eeg_path + '.' + ch[1], 'int16') - self.ref_chans[self.basename]) * self.gain
+                eeg1 = np.fromfile(eeg_path + '.' + ch[0], 'int16') - self.ref_chans[self.basename]
+                eeg2 = np.fromfile(eeg_path + '.' + ch[1], 'int16') - self.ref_chans[self.basename]
                 eeg = eeg1 - eeg2
             else:
                 logger.debug('Identifying blinks in channel ' + str(ch) + '...')
-                eeg = (np.fromfile(eeg_path + '.' + ch, 'int16') - self.ref_chans[self.basename]) * self.gain
+                eeg = np.fromfile(eeg_path + '.' + ch, 'int16') - self.ref_chans[self.basename]
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
             # have the same number of samples. The artifact_mask will be used to track which events have a blink on each
@@ -297,7 +294,5 @@ class ArtifactDetector:
             data[i] = chan_data[offsets[i]:offsets[i]+len_with_buffer]
             # Run a first-order bandstop filter on the data from each event. Typically will be run with a range of 58-62
             data[i] = butter_filt(data[i], filtfreq, self.sample_rate, filt_type='bandstop', order=1)
-        # Multiply all data by the gain
-        data *= self.gain
         # Return only the data from the event itself. The buffers are dropped from the beginning and end.
         return data[:, buff:buff + ev_length]
