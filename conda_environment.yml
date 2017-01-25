@@ -1,4 +1,4 @@
-name: event_creation2
+name: event_creation
 dependencies:
 - hdf5=1.8.17=1
 - matplotlib
