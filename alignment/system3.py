@@ -42,26 +42,51 @@ class System3Aligner(object):
             try:
                 self.task_to_ens_coefs, self.task_ends = \
                     self.get_coefficients_from_event_log(label, 'offset', rate)
+                self.host_to_ens_coefs, self.host_ends = \
+                    self.get_coefficients_from_event_log('t_event', 'offset', 1)
+                logger.debug("Found coefficient with label {}".format(label))
             except KeyError as key_error:
                 if key_error.message != label:
                     raise
+                logger.debug("Couldn't find coefficient with label {}".format(label))
+                continue
+            except UnAlignableEEGException:
+                logger.debug("Couldn't find coefficient with label {}".format(label))
                 continue
             self.from_label = label
             self.from_multiplier = rate
             break
+
         else:
             raise UnAlignableEEGException("Could not find sortable label in events")
 
-
         self.eeg_info = json.load(open(files['eeg_sources']))
+
+    def stim_event_to_mstime(self, event):
+
+        host_time = event['host_time'][0]
+
+        coef_inds = np.where(host_time <= self.host_ends)[0]
+
+        if len(coef_inds) > 0:
+            coef_ind = coef_inds[-1]
+        else:
+            if host_time - self.host_ends[-1] > 2000:
+                logger.error("Time extends beyond end of log file!")
+            coef_ind = len(self.host_ends)-1
+
+        ens_time = self.apply_coefficients(host_time, self.host_to_ens_coefs[coef_ind])
+        task_time = self.apply_coefficients_backwards(ens_time, self.task_to_ens_coefs[coef_ind])
+
+        return task_time
 
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         # Merge in the stim events
 
         logger.debug("Generating system 3 log parser")
-        s3lp = System3LogParser(self.events_logs, self.electrode_config, self.from_label, 1000 / self.from_multiplier)
+        s3lp = System3LogParser(self.events_logs, self.electrode_config)
         logger.debug("Merging events")
-        self.merged_events = s3lp.merge_events(self.events, event_template, persistent_fields)
+        self.merged_events = s3lp.merge_events(self.events, event_template, self.stim_event_to_mstime, persistent_fields)
 
         # Have to manually correct subject and session due to events appearing before start of session
         self.merged_events['subject'] = self.events[-1].subject
@@ -79,8 +104,10 @@ class System3Aligner(object):
 
             event_dict = json.load(open(event_log))['events']
 
-            froms = [float(event[from_label]) * 1000. / rate for event in event_dict]
-            tos = [float(event[to_label]) for event in event_dict]
+            froms = [float(event[from_label]) * 1000. / rate for event in event_dict \
+                    if from_label in event and to_label in event]
+            tos = [float(event[to_label]) for event in event_dict\
+                   if from_label in event and to_label in event]
 
             froms = np.array(froms)
             tos = np.array(tos)

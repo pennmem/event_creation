@@ -428,7 +428,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         new_experiment = 'catFR' + experiment[-1]
 
     if 'groups' in kwargs:
-        no_group_kwargs = {k:v for k,v in kwargs if k not in ('groups', )}
+        no_group_kwargs = {k:v for k,v in kwargs.items() if k not in ('groups', )}
     else:
         no_group_kwargs = kwargs
 

@@ -222,6 +222,7 @@ files:
 
       - name : output_log
         << : *FILE
+        required: false
         origin_directory: "."
         origin_file: output.log
         destination: unused/output.log
@@ -234,6 +235,7 @@ files:
 
       - name: electrode_binary
         << : *FILE
+        required: false
         origin_directory: './config_files'
         origin_file: '*.bin'
         destination: unused/electrode_config.bin
