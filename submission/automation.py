@@ -37,6 +37,10 @@ class ImporterCollection(object):
         transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
         statuses.append(transfer_statuses)
 
+        processing_statuses = '\tProcessing statuses: '
+        processing_statuses += ', '.join([i.describe_processing() for i in self.importers])
+        statuses.append(processing_statuses)
+
         if any([importer.errored for importer in self.importers]):
             error_status = '\tErrors:\n'
             for importer in self.importers:
@@ -124,6 +128,10 @@ class Importer(object):
                 status = 'complete'
         elif self.errors['check']:
             status = 'failed to compute checksum'
+        elif any(self.errors.values()):
+            status = 'errored'
+        elif self.transferred:
+            status = 'complete'
         else:
             status = 'not necessary'
         return status
