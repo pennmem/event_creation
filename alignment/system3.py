@@ -153,10 +153,21 @@ class System3Aligner(object):
 
     def apply_eeg_file(self, events):
 
+
+
         eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
 
         for eegfile, info in eeg_info:
-            mask = events[self.TASK_TIME_FIELD] >= info['start_time_ms']
+            start_time_host = info['start_time_ms']
+            inds = np.where(self.host_ends > start_time_host)[0]
+            if len(inds) == 0:
+                ind = len(self.host_ends)-1
+            else:
+                ind = inds[-1]
+
+            task_time = self.apply_coefficients_backwards(0, self.task_to_ens_coefs[ind])
+
+            mask = events[self.TASK_TIME_FIELD] >= task_time
             events[self.EEG_FILE_FIELD][mask] = eegfile
 
     @classmethod
