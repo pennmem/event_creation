@@ -10,6 +10,14 @@ actually a collection of directories and is not a true database.
 
 ## Installation
 
+After cloning the repository, execute the following two commands:
+```
+git submodule init
+git submodule update
+```
+This will initialize and check out the neurorad submodule.
+
+After installatino, the necessary dependencies must be installed.
 The easiest way to install the necessary python packages is with conda.
 
 The file conda_environment.yml specifies the packages necessary for 
