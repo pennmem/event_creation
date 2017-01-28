@@ -177,7 +177,7 @@ class EventCreationTask(PipelineTask):
             aligner = LTPAligner(unaligned_events, files, db_folder)
             events = aligner.align()
             artifact_detector = ArtifactDetector(events, aligner.system, aligner.root_names, aligner.noreref_dir,
-                                                 aligner.reref_dir, aligner.sample_rate, aligner.gain)
+                                                 aligner.reref_dir, aligner.sample_rate)
             events = artifact_detector.run()
         elif self.r1_sys_num in (2, 3):
             if self.r1_sys_num == 2:
@@ -186,6 +186,7 @@ class EventCreationTask(PipelineTask):
                 aligner = System3Aligner(unaligned_events, files, db_folder)
 
             if self.event_label != 'math':
+                logger.debug("Adding stimulation events")
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
             if self.experiment.startswith("TH"):

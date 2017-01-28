@@ -71,7 +71,7 @@ files:
       - '*.eeg'
       - '*.EEG'
       - '*/*.ns*'
-    destination: raw_eeg
+    destination: raw_eeg/
 
   - name: host_pc_files
     << : *DIR
@@ -96,6 +96,7 @@ files:
   - name: elec_file
     <<: *FILE
     groups: [ r1, transfer ]
+    multiple: true
     required: false
     origin_directory: *RAW_DIR
     origin_file: '*.21[eE]'
@@ -117,7 +118,7 @@ files:
     destination: channel_map.json
 
   - name: raw_eeg
-    <<: *FILE
+    <<: *LINK
     groups: [ ltp ]
     multiple: true
     origin_directory: *LTP_EEG_DIR

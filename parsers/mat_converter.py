@@ -18,6 +18,7 @@ from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
 import files
 from files import open_with_perms
+from configuration import paths
 
 class BaseMatConverter(object):
     """
@@ -67,7 +68,7 @@ class BaseMatConverter(object):
         self._fields = self._BASE_FIELDS
 
         # Get the matlab events for this specific session
-        event_reader = BaseEventReader(filename=str(files[events_type]), common_root=DB_ROOT)
+        event_reader = BaseEventReader(filename=str(files[events_type]), common_root=paths.db_root)
         mat_events = event_reader.read()
         sess_events = mat_events[mat_events.session == int(original_session)]
         self._mat_events = sess_events
@@ -241,7 +242,7 @@ class MatlabEEGExtractor(object):
         :param files: output of transferer, must include 'matlab_events'
         """
         event_reader = BaseEventReader(filename=str(files['matlab_events']),
-                                       common_root=DB_ROOT)
+                                       common_root=paths.db_root)
         mat_events = event_reader.read()
         sess_events = mat_events[mat_events.session == original_session]
         self._mat_events = sess_events
@@ -569,7 +570,14 @@ class YCMatConverter(BaseMatConverter):
                                              include_stim_params=True)
         filename = str(files['matlab_events'])
         mat_events = loadmat(filename, squeeze_me=True)['events']
-        sess_events = mat_events[mat_events['session'] == original_session]
+
+        sess_mask = mat_events['session'] == int(original_session)
+
+        sess_events = mat_events[sess_mask]
+        if len(sess_events) == 0:
+
+            raise Exception("No events with session {}. Options are {}".format(original_session,
+                                                                               np.unique(mat_events['session'])))
         self.max_path_entries = max([e['Path'].item()[0].shape[0] for e in sess_events])
         self.events_for_path = sess_events
 
@@ -1230,7 +1238,7 @@ def test_fr_mat_converter():
         new_events = from_json('test_{}_events.json'.format(subject))
         DB_ROOT = old_db_root
 
-        old_events = from_json(os.path.join(DB_ROOT, 'protocols', 'r1', 'subjects', subject, 'behavioral', new_exp,
+        old_events = from_json(os.path.join(paths.db_root, 'protocols', 'r1', 'subjects', subject, 'behavioral', new_exp,
                                             'sessions', str(new_sess), 'behavioral', 'current_processed', 'task_events.json'))
 
         compare_converted_events(old_events, new_events)

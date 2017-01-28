@@ -32,9 +32,7 @@ class LTPAligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         sample_rate: The sample rate of the EEG recording (typically 500).
-        gain: The amplifier gain. Not used by alignment, but is loaded from params.txt for later use by the artifact
-        detection system, since we're accessing the file anyway.
-        system: EGI or Biosemi, depending on which EEG system was used for the session. Like gain, it is not used for
+        system: EGI or Biosemi, depending on which EEG system was used for the session. While it is not used for
         alignment, but will be necessary for artifact detection afterwards.
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
@@ -61,11 +59,9 @@ class LTPAligner:
             with open(eeg_params) as eeg_params_file:
                 params_text = [line.split() for line in eeg_params_file.readlines()]
             self.sample_rate = int(params_text[0][1])
-            self.gain = float(params_text[2][1])
             self.system = params_text[3][1]
         else:
             self.sample_rate = -999
-            self.gain = 1
             self.system = ''
 
     def align(self):

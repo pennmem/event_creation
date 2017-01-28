@@ -37,6 +37,10 @@ class ImporterCollection(object):
         transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
         statuses.append(transfer_statuses)
 
+        processing_statuses = '\tProcessing statuses: '
+        processing_statuses += ', '.join([i.describe_processing() for i in self.importers])
+        statuses.append(processing_statuses)
+
         if any([importer.errored for importer in self.importers]):
             error_status = '\tErrors:\n'
             for importer in self.importers:
@@ -92,10 +96,14 @@ class Importer(object):
             self.transferer = self.pipeline.transferer
             self.initialized = True
         except Exception as e:
+            logger.warn("Encountered exception \"{}\" while initializing: {}".format(e, traceback.format_exc()))
             self.set_error('init', e)
             self.pipeline = None
             self.transferer = None
             self.initialized = False
+
+    def remove(self):
+        self.pipeline.on_failure()
 
     def previous_transfer_type(self):
         if self.pipeline:
@@ -120,6 +128,10 @@ class Importer(object):
                 status = 'complete'
         elif self.errors['check']:
             status = 'failed to compute checksum'
+        elif any(self.errors.values()):
+            status = 'errored'
+        elif self.transferred:
+            status = 'complete'
         else:
             status = 'not necessary'
         return status

@@ -63,12 +63,29 @@ class TransferConfig(object):
         return [file for file in self._files.values() if file.valid]
         # return {name: file_ for name, file_ in self._files.items() if file_.valid}
 
+    def located_files(self):
+        located_files = []
+        for file in self.valid_files:
+            if not file.location_attempted:
+                file.locate()
+            if file.located:
+               located_files.append(file)
+        return located_files
+
     def get_file(self, name):
         return self._files.get(name)
 
     def locate_origin_files(self):
+        logger.debug("Locating files {}".format(self._files))
         for file in self.valid_files:
-            file.locate()
+            try:
+                file.locate()
+                if file.located:
+                    logger.debug("File {} located".format(file.name))
+                else:
+                    logger.debug("Could not locate {}".format(file.name))
+            except ImproperConfigException:
+                logger.debug("Could not locate {}".format(file.name))
 
     def missing_files(self):
         missing_files = []
@@ -77,6 +94,20 @@ class TransferConfig(object):
                 file.locate()
             except ImproperConfigException:
                 missing_files.append(file)
+        return missing_files
+
+    def missing_required_files(self):
+        missing_files = []
+        for file in self._files.values():
+            if file.required:
+                if not file.located:
+                    try:
+                        file.locate()
+                    except ImproperConfigException:
+                        pass
+                if not file.located:
+                    logger.debug("Required file {file.name} is missing".format(file=file))
+                    missing_files.append(file)
         return missing_files
 
 class TransferFile(object):
@@ -117,6 +148,14 @@ class TransferFile(object):
         self._checksum_calculated = False
 
         self._transferred_files = []
+
+    @property
+    def located(self):
+        return self._located
+
+    @property
+    def location_attempted(self):
+        return len(self._roots_located) > 0
 
     @property
     def valid(self):
@@ -168,6 +207,10 @@ class TransferFile(object):
         return os.path.join(root, destination_directory_name)
 
     def transfer(self, root):
+
+        if not self.located:
+            self.locate(root)
+
         containing_dir = self.destination_containing_directory(root)
 
         if not os.path.exists(containing_dir):
@@ -231,6 +274,7 @@ class TransferFile(object):
         formatted = self.attempt_format(self.origin_directory, self.required, **kwargs)
         if formatted is None:
             self._valid = False
+            logger.debug("Invalid formatting of {}".format(self.origin_directory))
             return
         self.formatted_origin_dir = formatted
 
@@ -246,6 +290,7 @@ class TransferFile(object):
                 formatted.append(f)
 
         if len(formatted) == 0:
+            logger.debug("Invalid formatting of {}".format(self.origin_directory))
             self._valid = False
             return
 
@@ -259,8 +304,9 @@ class TransferFile(object):
     def locate(self, root=''):
 
         if root in self._roots_located:
-            logger.debug("Attempting to locate {} again. Refusing.".format(self.name, root))
             return
+
+        logger.debug("Locating {}".format(self.name))
 
         containing_directory = self.origin_containing_directory(root)
 
@@ -280,8 +326,14 @@ class TransferFile(object):
             new_origin_paths.extend(new_files)
 
             for new_file in new_files:
-                new_destination_directory = os.path.relpath(containing_directory, os.path.dirname(new_file))
-                new_destination_directories.append(os.path.join(os.path.basename(root), new_destination_directory))
+                new_destination_directory = os.path.relpath(os.path.dirname(new_file), containing_directory, )
+                if self._multiple:
+                    new_destination_directories.append(os.path.join(os.path.basename(root),
+                                                                    self._destination,
+                                                                    new_destination_directory))
+                else:
+                    new_destination_directories.append(os.path.join(os.path.basename(root),
+                                                                    new_destination_directory))
 
 
         for path in new_origin_paths:
@@ -301,7 +353,7 @@ class TransferFile(object):
         self._origin_paths.extend(new_origin_paths)
         self.destination_directories.extend(new_destination_directories)
         self._roots_located.append(root)
-        self._located = True
+        self._located = len(new_origin_paths) > 0
 
 
     @staticmethod
@@ -311,7 +363,7 @@ class TransferFile(object):
             formatted = to_format.format(**kwargs)
         except KeyError as e:
             if required:
-                logger.error("Keyword error {} for {}".format(e, to_format))
+                logger.debug("Keyword error {} for {}".format(e, to_format))
                 raise ImproperConfigException("Could not find keyword {} for {}".format(e, to_format))
             else:
                 logger.debug("Could not format {}".format(to_format))

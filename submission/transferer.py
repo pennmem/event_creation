@@ -69,6 +69,7 @@ class Transferer(object):
             return self._label
 
     def missing_files(self):
+        logger.debug("Searching for missing files")
         self.transfer_config.locate_origin_files()
         return self.transfer_config.missing_files()
 
@@ -118,7 +119,8 @@ class Transferer(object):
     def matches_existing_checksum(self):
         old_index = self.load_previous_index()
         self.transfer_config.locate_origin_files()
-        for file in self.transfer_config.valid_files:
+        for file in self.transfer_config.located_files():
+
             if file.name not in old_index:
                 logger.info("Found new file: {}".format(file.name))
                 return False
@@ -135,12 +137,12 @@ class Transferer(object):
 
         logger.info('Transferring into {}'.format(self.destination_root))
 
-        if len(self.transfer_config.valid_files) == 0:
+        if len(self.transfer_config.located_files()) == 0:
             logger.info("No files to transfer.")
             self.transfer_aborted = True
-            return
+            raise UnTransferrableException("No files to transfer")
 
-        for file in self.transfer_config.valid_files:
+        for file in self.transfer_config.located_files():
             file.transfer(self.destination_labelled)
             self.transferred_files.append(file)
             self.transferred_filenames.update(file.transferred_filenames())
@@ -264,7 +266,7 @@ def generate_localization_transferer(subject, protocol, localization, code, is_n
 
 def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
-    groups = groups + ('json_import',)
+    groups = groups + ('r1', 'json_import',)
     cfg_file = TRANSFER_INPUTS['montage']
     code = code or subject
 
@@ -313,6 +315,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
                                'experiments', new_experiment,
                                'sessions', str(session),
                                'behavioral')
+
 
     transferer= Transferer(cfg_file, (experiment,) + groups, destination, new_experiment=new_experiment,**kwarg_inputs)
     return transferer
