@@ -62,6 +62,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
 
         for sys in ('system_1', 'system_2', 'system_3'):
             try:
+                print "I AM HERE!"
                 logger.info("Checking if this system is {}".format(sys))
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
