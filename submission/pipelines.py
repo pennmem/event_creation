@@ -434,7 +434,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         no_group_kwargs = kwargs
 
     new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         TRANSFER_INPUTS['behavioral'], 'conversion', no_group_kwargs)
+                                         TRANSFER_INPUTS['behavioral'], 'conversion', **no_group_kwargs)
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment
