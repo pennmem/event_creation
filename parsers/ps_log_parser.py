@@ -18,7 +18,7 @@ def PSLogParser(protocol, subject, montage, experiment, session,  files):
     """
     if 'session_log' in files:
         return PSSessionLogParser(protocol, subject, montage, experiment, session, files)
-    elif 'host_log' in files:
+    elif 'host_logs' in files:
         return PSHostLogParser(protocol, subject, montage, experiment, session, files)
     elif 'event_log' in files:
         return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
@@ -316,7 +316,7 @@ class PSHostLogParser(BaseSessionLogParser):
         event['type'] = 'NP_POLL'
         return event
 
-    def read_primary_log(self):
+    def _read_primary_log(self):
         if isinstance(self._primary_log, list):
             self.host_log_files = sorted(self._primary_log)
         else:
