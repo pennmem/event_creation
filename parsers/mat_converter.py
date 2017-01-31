@@ -244,7 +244,7 @@ class MatlabEEGExtractor(object):
         event_reader = BaseEventReader(filename=str(files['matlab_events']),
                                        common_root=paths.db_root)
         mat_events = event_reader.read()
-        sess_events = mat_events[mat_events.session == original_session]
+        sess_events = mat_events[mat_events.session == int(original_session)]
         self._mat_events = sess_events
 
 
