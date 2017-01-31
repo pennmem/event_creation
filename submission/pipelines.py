@@ -250,18 +250,17 @@ class TransferPipeline(object):
             logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
                 logger.info('{} does not exist! Continuing anyway!'.format(self.current_dir))
+            elif force:
+                logger.info('Forcing transfer to happen anyway')
             else:
                 self.transferer.transfer_aborted = True
-                if not force:
-                    logger.debug('Removing processed folder {}'.format(self.destination))
-                    logger.info('Transfer pipeline ended without transfer')
-                    try:
-                        shutil.rmtree(self.destination)
-                    except OSError:
-                        logger.warn('Could not remove destination {}'.format(self.destination))
-                    return False
-                else:
-                    logger.info('Forcing transfer to happen anyway')
+                logger.debug('Removing processed folder {}'.format(self.destination))
+                logger.info('Transfer pipeline ended without transfer')
+                try:
+                    shutil.rmtree(self.destination)
+                except OSError:
+                    logger.warn('Could not remove destination {}'.format(self.destination))
+                return False
         return True
 
     def _execute_tasks(self):
