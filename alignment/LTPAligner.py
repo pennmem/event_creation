@@ -59,7 +59,7 @@ class LTPAligner:
             with open(eeg_params) as eeg_params_file:
                 params_text = [line.split() for line in eeg_params_file.readlines()]
             self.sample_rate = int(params_text[0][1])
-            self.system = params_text[3][1]
+            self.system = params_text[2][1]
         else:
             self.sample_rate = -999
             self.system = ''
