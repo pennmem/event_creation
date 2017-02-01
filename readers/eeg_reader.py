@@ -1081,7 +1081,7 @@ class EGI_reader(EEG_reader):
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.start_datetime
 
@@ -1092,7 +1092,7 @@ class EGI_reader(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.header['sample_rate']
 
@@ -1100,7 +1100,7 @@ class EGI_reader(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.header['num_samples']
 
@@ -1387,7 +1387,7 @@ class BDF_reader(EEG_reader):
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.start_datetime
 
@@ -1398,7 +1398,7 @@ class BDF_reader(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.sample_rate
 
@@ -1406,7 +1406,7 @@ class BDF_reader(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        if self.header is not None:
+        if self.header is None:
             self.read_header()
         return self.total_samples
 
@@ -1567,7 +1567,7 @@ class BDF_reader_new(EEG_reader):
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
-        if self.start_datetime is not None:
+        if self.start_datetime is None:
             self.get_data()
         return self.start_datetime
 
@@ -1578,7 +1578,7 @@ class BDF_reader_new(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
-        if self.sample_rate is not None:
+        if self.sample_rate is None:
             self.get_data()
         return self.sample_rate
 
@@ -1586,7 +1586,7 @@ class BDF_reader_new(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        if self.data is not None:
+        if self.data is None:
             self.get_data()
         return self.data.shape[1]
 
@@ -1637,7 +1637,7 @@ READERS = {
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
     '.raw': EGI_reader,
-    '.bdf': BDF_reader,
+    '.bdf': BDF_reader_new,
     '.h5': HD5_reader
 }
 
