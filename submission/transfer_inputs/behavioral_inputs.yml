@@ -192,11 +192,20 @@ files:
 
   - name: host_logs
     << : *FILE
-    groups: [ r1, transfer, system_2 ]
+    groups: [ r1, transfer, system_2, "!PS" ]
     multiple: true
     origin_directory: *RAW_DIR
     origin_file: '{experiment}_{subject}_*.log'
     destination: 'logs/host_logs/'
+
+  - name: host_logs
+    << : *FILE
+    groups: [ r1, transfer, system_2, PS ]
+    multiple: true
+    origin_directory: *RAW_DIR
+    origin_file: 'log*.log'
+    destination: 'logs/host_logs/'
+
 
   # System 3
 
@@ -222,6 +231,7 @@ files:
 
       - name : output_log
         << : *FILE
+        required: false
         origin_directory: "."
         origin_file: output.log
         destination: unused/output.log
@@ -234,6 +244,7 @@ files:
 
       - name: electrode_binary
         << : *FILE
+        required: false
         origin_directory: './config_files'
         origin_file: '*.bin'
         destination: unused/electrode_config.bin

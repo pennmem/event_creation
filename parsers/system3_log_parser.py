@@ -19,7 +19,7 @@ class System3LogParser:
     _STIM_PARAMS_FIELD = 'msg_stub'
 
     _SYS3_FIELDS = BaseLogParser._STIM_FIELDS + (
-        (_DEST_SORT_FIELD, -1, 'int64'),
+        ('host_time', -1, 'int64'),
     )
 
     _DICT_TO_FIELD = {
@@ -32,11 +32,13 @@ class System3LogParser:
 
     _DEFAULT_PULSE_WIDTH = 300
 
+    SOURCE_TIME_FIELD = 't_event'
+    SOURCE_TIME_MULTIPLIER = 1000
 
-    def __init__(self, event_logs, electrode_config_files, source_time_field='orig_timestamp',
-                 source_time_multiplier=1):
-        self.source_time_field = source_time_field
-        self.source_time_multiplier = source_time_multiplier
+
+    def __init__(self, event_logs, electrode_config_files):
+        self.source_time_field = self.SOURCE_TIME_FIELD
+        self.source_time_multiplier = self.SOURCE_TIME_MULTIPLIER
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
@@ -73,7 +75,7 @@ class System3LogParser:
     def _empty_event(cls):
         return BaseLogParser.event_from_template(cls.stim_params_template())
 
-    def merge_events(self, events, event_template, persistent_field_fn):
+    def merge_events(self, events, event_template, event_to_sort_value, persistent_field_fn):
 
         merged_events = events[:]
 
@@ -84,7 +86,7 @@ class System3LogParser:
         for i, stim_event in enumerate(self.stim_events):
 
             # Get the mstime for this host event
-            sort_value = stim_event.stim_params[self._DEST_SORT_FIELD][0]
+            sort_value = event_to_sort_value(stim_event[0])
 
             # Determine where to insert it in the full events structure
             after_events = (merged_events[self._DEST_SORT_FIELD] > sort_value)
@@ -113,8 +115,8 @@ class System3LogParser:
                 # Do the same for the stim_off_event
                 stim_off_sub_event = deepcopy(stim_event.stim_params).view(np.recarray)
                 stim_off_sub_event.stim_on = False
-                stim_off_sub_event[self._DEST_SORT_FIELD] += stim_off_sub_event.stim_duration
-                stim_off_time = stim_off_sub_event[self._DEST_SORT_FIELD][0]
+                stim_off_sub_event['host_time'] += stim_off_sub_event.stim_duration
+                stim_off_time = event_to_sort_value(stim_off_sub_event)
 
                 modify_indices = np.where(np.logical_and(merged_events[self._DEST_SORT_FIELD] > sort_value,
                                                          merged_events[self._DEST_SORT_FIELD] < stim_off_time))[0]
@@ -150,7 +152,7 @@ class System3LogParser:
     def make_stim_event(self, stim_dict, electrode_config):
         stim_event = self._empty_event()
         stim_params = {}
-        stim_params[self._DEST_SORT_FIELD] = stim_dict[self.source_time_field] * self.source_time_multiplier
+        stim_params['host_time'] = stim_dict[self.source_time_field] * self.source_time_multiplier
 
         for input, param in self._DICT_TO_FIELD.items():
             stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]

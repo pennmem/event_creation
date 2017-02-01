@@ -62,6 +62,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
 
         for sys in ('system_1', 'system_2', 'system_3'):
             try:
+                print "I AM HERE!"
                 logger.info("Checking if this system is {}".format(sys))
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
@@ -249,18 +250,17 @@ class TransferPipeline(object):
             logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
                 logger.info('{} does not exist! Continuing anyway!'.format(self.current_dir))
+            elif force:
+                logger.info('Forcing transfer to happen anyway')
             else:
                 self.transferer.transfer_aborted = True
-                if not force:
-                    logger.debug('Removing processed folder {}'.format(self.destination))
-                    logger.info('Transfer pipeline ended without transfer')
-                    try:
-                        shutil.rmtree(self.destination)
-                    except OSError:
-                        logger.warn('Could not remove destination {}'.format(self.destination))
-                    return False
-                else:
-                    logger.info('Forcing transfer to happen anyway')
+                logger.debug('Removing processed folder {}'.format(self.destination))
+                logger.info('Transfer pipeline ended without transfer')
+                try:
+                    shutil.rmtree(self.destination)
+                except OSError:
+                    logger.warn('Could not remove destination {}'.format(self.destination))
+                return False
         return True
 
     def _execute_tasks(self):
@@ -428,12 +428,12 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         new_experiment = 'catFR' + experiment[-1]
 
     if 'groups' in kwargs:
-        no_group_kwargs = {k:v for k,v in kwargs if k not in ('groups', )}
+        no_group_kwargs = {k:v for k,v in kwargs.items() if k not in ('groups', )}
     else:
         no_group_kwargs = kwargs
 
     new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         TRANSFER_INPUTS['behavioral'], 'conversion', no_group_kwargs)
+                                         TRANSFER_INPUTS['behavioral'], 'conversion', **no_group_kwargs)
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
     new_experiment = new_experiment if not new_experiment is None else experiment

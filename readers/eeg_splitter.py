@@ -661,7 +661,7 @@ class EEG_splitter_model():
         'session'
     ]
 
-    OUTPUT_JSON_JACKSHEET = True
+    OUTPUT_JSON_JACKSHEET = False
     OUTPUT_TXT_JACKSHEET = True
 
     JACKSHEET_JSON = 'jacksheet.json'

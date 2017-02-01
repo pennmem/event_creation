@@ -244,7 +244,7 @@ class MatlabEEGExtractor(object):
         event_reader = BaseEventReader(filename=str(files['matlab_events']),
                                        common_root=paths.db_root)
         mat_events = event_reader.read()
-        sess_events = mat_events[mat_events.session == original_session]
+        sess_events = mat_events[mat_events.session == int(original_session)]
         self._mat_events = sess_events
 
 
@@ -570,7 +570,14 @@ class YCMatConverter(BaseMatConverter):
                                              include_stim_params=True)
         filename = str(files['matlab_events'])
         mat_events = loadmat(filename, squeeze_me=True)['events']
-        sess_events = mat_events[mat_events['session'] == original_session]
+
+        sess_mask = mat_events['session'] == int(original_session)
+
+        sess_events = mat_events[sess_mask]
+        if len(sess_events) == 0:
+
+            raise Exception("No events with session {}. Options are {}".format(original_session,
+                                                                               np.unique(mat_events['session'])))
         self.max_path_entries = max([e['Path'].item()[0].shape[0] for e in sess_events])
         self.events_for_path = sess_events
 

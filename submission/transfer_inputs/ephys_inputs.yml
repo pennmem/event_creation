@@ -96,6 +96,7 @@ files:
   - name: elec_file
     <<: *FILE
     groups: [ r1, transfer ]
+    multiple: true
     required: false
     origin_directory: *RAW_DIR
     origin_file: '*.21[eE]'

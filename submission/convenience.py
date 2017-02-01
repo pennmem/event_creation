@@ -239,6 +239,7 @@ def attempt_importers(importers, force):
     success = False
     i=0
     for i, importer in enumerate(importers):
+        logger.set_label(importer.label)
         logger.info("Attempting {}".format(importer.label))
         if importer.should_transfer() or force:
             importer.run(force)
@@ -251,6 +252,7 @@ def attempt_importers(importers, force):
     if not success:
         descriptions = [importer.describe_errors() for importer in importers]
         logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
+
     return success, importers[:i+1]
 
 
@@ -280,6 +282,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
             events_importers.append(events_builder)
 
     if do_convert:
+        logger.debug("Initializing converters")
         ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
         events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
         if ephys_converter.initialized or not do_import:
@@ -288,7 +291,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
             else:
                 ephys_importers.append(ephys_converter)
 
-        if events_converter.initialized or not do_import:
+        if events_converter.initialized or not do_import or len(events_importers) == 0:
             if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
                 events_importers = [events_converter] + events_importers
             else:
@@ -297,10 +300,14 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     ephys_success, attempted_ephys = attempt_importers(ephys_importers, force_eeg)
 
     if ephys_success:
+        logger.debug("Attempting events importers")
         events_success, attempted_events = attempt_importers(events_importers, force_events)
         logger.unset_subject()
         return events_success and ephys_success, ImporterCollection(attempted_ephys + attempted_events)
     else:
+        logger.debug("Ephys failed.")
+        for importer in events_importers:
+            importer.remove()
         logger.unset_subject()
         return ephys_success, ImporterCollection(attempted_ephys)
 

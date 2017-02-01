@@ -224,6 +224,7 @@ class TransferFile(object):
         for origin, destination_dir in zip(self.origin_paths, self.destination_directories):
 
             destination_filename = os.path.split(origin)[-1] if self.multiple else self._destination
+            logger.debug('destination_filename:%s'%destination_filename)
 
             destination_path= os.path.join(root, destination_dir, destination_filename)
 
