@@ -17,6 +17,7 @@ class LTPAligner:
 
         :param events: The events structure to be aligned (np.recarray).
         :param files:  The output of a Transferer -- a dictionary mapping file name to file location.
+        :param behav_dir: The path to the current session's behavioral directory
 
         DATA FIELDS:
         behav_files: The list of sync pulse logs from the behavioral computer (eeg.eeglog, eeg.eeglog.up).

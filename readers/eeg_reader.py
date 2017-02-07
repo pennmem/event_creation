@@ -956,7 +956,7 @@ class EGI_reader(EEG_reader):
 
         # Run a first-order .1 Hz high pass butterworth filter on the EEG signal from each channel
         logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-        for i in range(self._data.shape[0]):
+        for i in range(self._data.shape[0] - self.header['num_events']):
             self._data[i] = butter_filt(self._data[i], .1, self.header['sample_rate'], 'highpass', 1)
         logger.debug('Done')
 
@@ -1081,7 +1081,7 @@ class EGI_reader(EEG_reader):
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.start_datetime
 
@@ -1092,7 +1092,7 @@ class EGI_reader(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.header['sample_rate']
 
@@ -1100,7 +1100,7 @@ class EGI_reader(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.header['num_samples']
 
@@ -1288,8 +1288,8 @@ class BDF_reader(EEG_reader):
 
         # Run a first-order highpass butterworth filter on each channel
         logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-        #for i in range(self._data.shape[0]):
-        #    self._data[i] = butter_filt(self._data[i], .1, self.sample_rate, 'highpass', 1)
+        for i in range(self._data.shape[0]):
+            self._data[i] = butter_filt(self._data[i], .1, self.sample_rate, 'highpass', 1)
 
         logger.debug('Done')
 
@@ -1387,7 +1387,7 @@ class BDF_reader(EEG_reader):
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.start_datetime
 
@@ -1398,7 +1398,7 @@ class BDF_reader(EEG_reader):
         return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
 
     def get_sample_rate(self):
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.sample_rate
 
@@ -1406,7 +1406,7 @@ class BDF_reader(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        if self.header is None:
+        if self.header == {}:
             self.read_header()
         return self.total_samples
 
@@ -1445,18 +1445,15 @@ class BDF_reader_new(EEG_reader):
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
                 raw = mne.io.read_raw_edf(original_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
-                                          misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel=None, montage='biosemi128',
+                                          misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
                                           preload=False)
-
                 # Pull relevant header info
                 self.sample_rate = int(raw.info['sfreq'])
                 self.start_datetime = datetime.datetime.utcfromtimestamp(raw.info['meas_date'])
                 self.names = [str(x) for x in raw.info['ch_names']]
-                self.names[-1] = 'Status'
 
-                # Extract the EEG data from the RawEDF data structure. Note that MNE gives the EEG data in volts, so we
-                # convert here to microvolts, which is a more standard unit for EEG voltage.
-                self.data = raw[:][0] * 1000000
+                # Extract the EEG data from the RawEDF data structure.
+                self.data = raw[:][0]
                 logger.debug('EEG data reading is complete.')
 
                 # Run a first-order highpass butterworth filter on each channel
@@ -1491,10 +1488,17 @@ class BDF_reader_new(EEG_reader):
 
         # Clip to within bounds of selected data format
         bounds = np.iinfo(self.DATA_FORMAT)
+        # The data produced by the MNE reader is in volts (I believe) so we need to multiply them by a large number
+        # before trying to convert the data to int16. Otherwise, every value will be 0. 100 million was chosen as the
+        # multiplier because it will rarely cause a sample to exceed the bounds of int16, yet also keeps several digits
+        # of information when we remove the decimal.
+        self.data[:-1] *= 100000000
         self.data = self.data.clip(bounds.min, bounds.max)
 
-
-        self.sync = self.data[-1] / np.max(self.data[-1])  # Clean up and separate sync pulse channel
+        # Clean up and separate sync pulse channel
+        self.data[-1] -= np.min(self.data[-1])
+        self.data[-1][np.where(self.data[-1] > 0)[0]] = 1
+        self.sync = self.data[-1]
         self.data = self.data[:-5]  # Drop EXG5 through EXG 8 and the sync channel from self._data
         self.names = self.names[:-5]
 

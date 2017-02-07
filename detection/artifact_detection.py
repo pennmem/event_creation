@@ -42,10 +42,10 @@ class ArtifactDetector:
                                         '099', '107', '113', '114', '126', '127'])
             self.blink_thresh = 100
         elif system == 'Biosemi':
-            self.num_chans = 132
+            self.num_chans = 132  # 128 EEG + 4 EOG
             self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
             self.weak_chans = np.array(['EXG1', 'EXG2', 'EXG3', 'EXG4'])
-            self.blink_thresh = 1500
+            self.blink_thresh = 100
         else:
             logger.warn('Unknown EEG system \"%s\" detected while attempting to run artifact detection!' % system)
             self.known_sys = False
