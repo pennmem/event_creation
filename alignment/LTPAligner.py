@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from loggers import logger
-from ptsa.data.align import find_needle_in_haystack
 
 
 class LTPAligner:
@@ -56,14 +55,15 @@ class LTPAligner:
         # Determine sample rate from the params.txt file
 
         eeg_params = os.path.join(self.reref_dir, 'params.txt')
-        if os.path.isfile(eeg_params):
+        try:
             with open(eeg_params) as eeg_params_file:
                 params_text = [line.split() for line in eeg_params_file.readlines()]
             self.sample_rate = int(params_text[0][1])
+            self.data_fmt = params_text[1][1]
             self.system = params_text[2][1]
-        else:
-            self.sample_rate = -999
-            self.system = ''
+        except:
+            self.sample_rate = self.data_fmt = self.system = None
+            logger.warn('Unable to read EEG parameters file at path ' + eeg_params)
 
     def align(self):
         """
@@ -77,6 +77,10 @@ class LTPAligner:
 
         :return: The updated events structure, now filled with eegfile and eegoffset information.
         """
+        if self.events.shape == () or self.sample_rate is None:
+            logger.warn('Skipping alignment due to there being no events or no EEG parameter info.')
+            return self.events
+
         logger.debug('Aligning...')
 
         # Get the behavioral sync data and create eeg.eeglog.up if necessary
@@ -120,8 +124,7 @@ class LTPAligner:
                 if oob > 0:
                     logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
 
-            except ValueError as e:
-                logger.warn(e)
+            except ValueError:
                 logger.warn('Unable to align events with EEG data!')
 
         return self.events
@@ -140,7 +143,7 @@ class LTPAligner:
             for f in self.pulse_files:
                 if f.startswith(name) and f.endswith(file_type):
                     pulse_sync_file = f
-                    eeg_samples = np.fromfile(os.path.join(self.noreref_dir, pulse_sync_file), 'int16')
+                    eeg_samples = np.fromfile(os.path.join(self.noreref_dir, pulse_sync_file), self.data_fmt)
                     self.num_samples = len(eeg_samples)
                     self.pulses = np.where(eeg_samples > 0)[0]
                     self.ephys_ms = self.pulses * 1000. / self.sample_rate
@@ -218,7 +221,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # Determine which range of samples in the ephys computer's pulse log matches the behavioral computer's sync pulse timings
     # Determine which ephys sync pulses correspond to the beginning behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
-        s_ind = find_needle_in_haystack(np.diff(ephys_ms[i:i + window]), np.diff(behav_ms), thresh_ms)
+        s_ind = match_sequence(np.diff(ephys_ms[i:i + window]), np.diff(behav_ms), thresh_ms)
         if s_ind is not None:
             start_ephys_vals = ephys_ms[i:i + window]
             start_behav_vals = behav_ms[s_ind:s_ind + window]
@@ -228,7 +231,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
 
     # Determine which ephys sync pulses correspond with the ending behavioral sync pulses
     for i in xrange(len(ephys_ms) - window):
-        e_ind = find_needle_in_haystack(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
+        e_ind = match_sequence(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
         if e_ind is not None:
             e_ind = len(behav_ms) - e_ind - window
             i = len(ephys_ms) - i - window
@@ -252,3 +255,18 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # eeg_start = np.round(eeg_start_ms*samplerate/1000.)
 
     return offsets, s_ind, e_ind
+
+
+def match_sequence(needle, haystack, maxdiff):
+    """
+    Look for a matching subsequence in a long sequence.
+    """
+    nlen = len(needle)
+    found = False
+    for i in range(len(haystack)-nlen):
+        if np.abs(haystack[i:i+nlen] - needle).max() < maxdiff:
+            found = True
+            break
+    if not found:
+        i = None
+    return i

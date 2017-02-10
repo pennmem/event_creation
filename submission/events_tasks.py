@@ -175,11 +175,11 @@ class EventCreationTask(PipelineTask):
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
         if self.protocol == 'ltp':
-            aligner = LTPAligner(unaligned_events, files, db_folder)
-            events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.system, aligner.root_names, aligner.noreref_dir,
-                                                 aligner.reref_dir, aligner.sample_rate)
-            events = artifact_detector.run()
+                aligner = LTPAligner(unaligned_events, files, db_folder)
+                events = aligner.align()
+                artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
+                                                     aligner.reref_dir)
+                events = artifact_detector.run()
         elif self.r1_sys_num in (2, 3):
             if self.r1_sys_num == 2:
                 aligner = System2Aligner(unaligned_events, files, db_folder)
@@ -202,7 +202,7 @@ class EventCreationTask(PipelineTask):
             events = aligner.align()
         else:
             raise UnProcessableException("r1_sys_num must be in (1, 3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
-        events = parser.clean_events(events)
+        events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
