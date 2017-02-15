@@ -298,7 +298,7 @@ class TransferFile(object):
         self.formatted_origin_filenames = formatted
 
         for file in self.files.values():
-            file.format()
+            file.format(**kwargs)
 
         self._valid = all(file.valid for file in self.files.values())
 
@@ -319,6 +319,7 @@ class TransferFile(object):
 
         for origin_filename in self.formatted_origin_filenames:
             origin_path = os.path.join(containing_directory, origin_filename)
+            logger.debug('Looking for {}'.format(origin_path))
             new_files = glob.glob(origin_path)
 
             if len(new_files) == 0:
