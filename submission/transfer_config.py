@@ -272,7 +272,13 @@ class TransferFile(object):
         self._checksum_calculated = True
 
     def format(self, **kwargs):
-        formatted = self.attempt_format(self.origin_directory, self.required, **kwargs)
+        new_kwargs  = dict(**kwargs)
+
+        if 'subject' in kwargs:
+            if 'protocols' in self.origin_directory:
+                new_kwargs['subject'] = kwargs['subject'].split('_')[0]
+        formatted = self.attempt_format(self.origin_directory, self.required, **new_kwargs)
+
         if formatted is None:
             self._valid = False
             logger.debug("Invalid formatting of {}".format(self.origin_directory))
@@ -286,7 +292,7 @@ class TransferFile(object):
 
         formatted = []
         for origin_file in origin_files:
-            f = self.attempt_format(origin_file, self.required, **kwargs)
+            f = self.attempt_format(origin_file, self.required, **new_kwargs)
             if f is not None:
                 formatted.append(f)
 
@@ -323,7 +329,7 @@ class TransferFile(object):
             new_files = glob.glob(origin_path)
 
             if len(new_files) == 0:
-                logger.debug("Could not find files at {}".format(origin_path))
+                logger.debug("Could not find files at {}".format(os.path.abspath(origin_path)))
 
             new_origin_paths.extend(new_files)
 
