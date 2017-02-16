@@ -115,6 +115,14 @@ files:
     origin_file: '*.ann'
     destination: 'annotations/'
 
+  - name: sound_files
+    << : *FILE
+    multiple: true
+    groups: [r1, transfer, verbal]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '*.wav'
+    destination: 'annotations/'
+
   - name: config
     << : *FILE
     groups: [r1, transfer, verbal ]
