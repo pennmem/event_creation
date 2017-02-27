@@ -34,14 +34,21 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_N_BURSTS = 1
     FR2_STIM_PULSE_WIDTH = 300
 
-    def __init__(self, protocol, subject, montage, experiment, session, files):
+    def __init__(self, protocol, subject, montage, experiment, session, files,**kwargs):
         super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
-                                                 include_stim_params=True)
+                                                 include_stim_params=True,**kwargs)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:
             wordpool_type = 'wordpool'
-        self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
+        try:
+            self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
+        except KeyError as key_error:
+            if type(self) is FRSessionLogParser:
+                raise key_error
+            else:
+                #Subclasses are allowed to not have a word pool
+                self._wordpool = None
 
         self._list = -999
         self._serialpos = -999
@@ -57,6 +64,15 @@ class FRSessionLogParser(BaseSessionLogParser):
             'pulse_width': self.FR2_STIM_PULSE_WIDTH,
             'stim_duration': self.FR2_STIM_DURATION
         }
+
+        self._recog_starttime = 0
+        self._recog_endtime = 0
+        self._recog_pres_mstime = -999
+        self._mstime_recstart = -999
+        self._recog_conf_mstime = -999
+        self._rej_mstime = -999
+
+
         self._fr2_stim_on_time = False
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
@@ -88,10 +104,18 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event,
+            VOICE=self.event_default,
+            RECOG_START=self._event_skip,
+            RECOG_END = self._event_skip,
+            RECOG_PRES = self.event_recog,
+            RECOG_FEEDBACK=self.recog_end, #TODO: add in recognition events
+
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls,
+            RECOG_START=self.end_recall,
+            RECOG_FEEDBACK=self.modify_recog,
         )
 
     @staticmethod
@@ -161,6 +185,27 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._fr2_stim_params['stim_on'] = True
         return False
 
+    def event_recog(self, split_line):
+        event = self.event_default(split_line)
+        self._recog_pres_mstime = int(split_line[0])
+        self._recog_starttime = self._recog_pres_mstime - self._mstime_recstart
+        # Determine whether the word is a target or lure
+        item_num = int(split_line[5])
+        event.type = 'RECOG_TARGET' if item_num in self._presented else 'RECOG_LURE'
+        # Fill in information available in split_line
+        event.item_name = split_line[4]
+        event.item_num = item_num
+        return event
+
+    def recog_end(self,split_line):
+        def recog_end(self, split_line):
+            self._recog_endtime = int(split_line[0]) - self._mstime_recstart
+            return False
+
+    def get_rej_mstime(self,split_line):
+        self._rej_mstime = int(split_line[0])
+        return False
+
     def modify_session(self, events):
         """
         applies session and expVersion to all previous events
@@ -220,7 +265,111 @@ class FRSessionLogParser(BaseSessionLogParser):
         event.serialpos = self._serialpos
         return event
 
-    def modify_recalls(self, events):
+    def modify_recog(self,events):
+        events = events.view(np.recarray)
+
+        is_target = True if events[-1].type == 'RECOG_TARGET' else False
+        was_recognized = False
+        item_name = events[-1].item_name
+        item_num = events[-1].item_num
+        new_events = []
+        current_block = []
+        r_ind = None
+        c_ind = None
+
+        # Ignore any responses and vocalizations that occur before the presentation of the word
+        while len(self._recog_ann) > 0 and int(self._recog_ann[0][0]) < self._recog_starttime:
+            self._recog_ann = self._recog_ann[1:]
+
+        # Get all lines from the .ann that occur between the presentation of the word and the feedback presentation
+        while len(self._recog_ann) > 0 and int(self._recog_ann[0][0]) <= self._recog_endtime:
+            current_block.append(self._recog_ann[0])
+            self._recog_ann = self._recog_ann[1:]
+
+        for i in range(len(current_block)):
+            line = current_block[i]
+            event = self._empty_event
+            event.type = 'RECOG_RESP_VV'
+            rectime = line[0]
+            resp = line[2]
+            event.msoffset = 20
+            event.rectime = rectime
+            event.mstime = self._mstime_recstart + rectime
+            event.trial = self._trial
+
+            if resp == 'Y':
+                event.recog_resp = 1
+                r_ind = len(new_events)
+                was_recognized = True
+            elif resp == 'N':
+                event.recog_resp = 0
+                r_ind = len(new_events)
+            else:
+                try:
+                    event.recog_conf = int(resp)
+                    c_ind = len(new_events)
+                except ValueError:
+                    continue
+
+            new_events.append(event)
+
+        # Mark final recog response and confidence judgment and take those responses as the participant's final answers
+        if r_ind is not None:
+            new_events[r_ind].type = 'RECOG_RESP'
+            rectime = events[r_ind].rectime
+            resp = new_events[r_ind].recog_resp
+            rt = new_events[r_ind].mstime - self._recog_pres_mstime
+            events[-1].rectime = rectime
+            events[-1].recog_resp = resp
+            events[-1].recog_rt = rt
+        if c_ind is not None:
+            new_events[c_ind].type = 'RECOG_CONF'
+            conf = new_events[c_ind].recog_conf
+            events[-1].recog_conf = conf
+            # Fill in confidence info on the recog event and recog info on the confidence event
+            if r_ind is not None:
+                events[r_ind].recog_conf = conf
+                events[c_ind].recog_resp = resp
+                events[c_ind].rt = rt
+
+        for ev in new_events:
+            ev.item_name = item_name
+            ev.item_num = item_num
+
+        # For targets, extract appropriate info from the original word presentation event
+        if is_target:
+            pres_mask = self.find_presentation(item_num, events)
+            studytrial = np.unique(events[pres_mask].trial)
+            listtype = np.unique(events[pres_mask].listtype)
+            serialpos = np.unique(events[pres_mask].serialpos)
+            task = np.unique(events[pres_mask].task)
+            resp = np.unique(events[pres_mask].resp)
+            rt = np.unique(events[pres_mask].rt)
+            recalled = np.unique(events[pres_mask].recalled)
+            intruded = np.unique(events[pres_mask].intruded)
+            final_recalled = np.unique(events[pres_mask].finalrecalled)
+
+            # Fill in this information for the recog events
+            events[-1].recalled = recalled
+            events[-1].intruded = intruded
+            events[-1].finalrecalled = final_recalled
+            for ev in [events[-1]] + new_events:
+                ev.studytrial = studytrial
+                ev.listtype = listtype
+                ev.serialpos = serialpos
+                ev.task = task
+                ev.resp = resp
+                ev.rt = rt
+
+            # Log in the word presentation event whether the word was recognized, even if the participant changed their
+            # answer to no after already having said yes.
+            events.recognized[pres_mask] = True if was_recognized else False
+
+        # Add new events to the end of the events list
+        for ev in new_events:
+            events = np.append(events, ev)
+
+    def modify_recalls(self, events): # TODO: include recognition words
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         ann_outputs = self._parse_ann_file(str(self._list - 1) if self._list > 0 else 'p')
@@ -267,6 +416,18 @@ class FRSessionLogParser(BaseSessionLogParser):
 
         return events
 
+    def end_recall(self, events):
+        """
+        Records that the recall portion of the session has ended, and resets the trial counter for the beginning of the
+        recog portion of the session. Note that trial is set to 0 because it will be increased to 1 when the first recog
+        list begins. The events list is not used, but must be passed through in order to match the format of a "modify"
+        style function.
+        """
+        self._is_finished_recall = True
+        self._trial = 0
+        return events
+
+
     @staticmethod
     def find_presentation(word, events):
         events = events.view(np.recarray)
@@ -275,9 +436,9 @@ class FRSessionLogParser(BaseSessionLogParser):
 
 if __name__ == '__main__':
     files = {
-        'session_log':'/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/session_0/session.log',
-        'wordpool': '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/FR1/RAM_wordpool.txt'
+        'session_log':'/Volumes/PATRIOT/R1999X/behavioral/FR1/session_0/session.log',
+        'wordpool': '/Volumes/PATRIOT/R1999X/behavioral/FR1/RAM_wordpool.txt'
     }
 
-    frslp = FRSessionLogParser('r1', 'R9999X', 0.0, 'FR1', 0, files)
-    frslp.parse()
+    frslp = FRSessionLogParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
+    events=  frslp.parse()

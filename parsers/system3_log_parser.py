@@ -1,4 +1,5 @@
-from base_log_parser import BaseLogParser
+from base_log_parser import BaseLogParser,BaseSys3LogParser
+from fr_log_parser import FRSessionLogParser
 from electrode_config_parser import ElectrodeConfig
 import numpy as np
 from copy import deepcopy
@@ -172,13 +173,28 @@ class System3LogParser:
                                                 **stim_params)
         return stim_event
 
+
+class VocalizationParser(BaseSys3LogParser,FRSessionLogParser):
+    def __init__(self,protocol, subject, montage, experiment, session, files):
+        super(VocalizationParser,self).__init__(protocol, subject, montage, experiment, session, files,
+                                                primary_log='event_log',allow_unparsed_events=True)
+
+        self._type_to_new_event = {
+            'VOCALIZATION':self.event_default
+        }
+
+
 if __name__ == '__main__':
 
     import os
     from viewers.view_recarray import pprint_rec as ppr
-    d = '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/PS2/session_37/host_pc/123_45_6788'
-    event_log = os.path.join(d, 'event_log.json')
-    conf = os.path.join(d, 'config_files', 'SubjID_TwoStimChannels.csv')
-
-    s3lp = System3LogParser([event_log], [conf])
-    ppr(s3lp.stim_events.view(np.recarray).stim_params[:,0])
+    # d = '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/PS2/session_37/host_pc/123_45_6788'
+    # event_log = os.path.join(d, 'event_log.json')
+    # conf = os.path.join(d, 'config_files', 'SubjID_TwoStimChannels.csv')
+    #
+    # s3lp = System3LogParser([event_log], [conf])
+    # ppr(s3lp.stim_events.view(np.recarray).stim_params[:,0])
+    event_log = ['/Users/leond/Desktop/event_log_copy.json']
+    VP = VocalizationParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log})
+    events = VP.parse()
+    pass

@@ -9,7 +9,7 @@ from loggers import logger
 import matplotlib.pyplot as plt
 
 from system1 import UnAlignableEEGException
-from parsers.system3_log_parser import System3LogParser
+from parsers.system3_log_parser import System3LogParser,VocalizationParser
 
 from configuration import config
 
@@ -35,7 +35,13 @@ class System3Aligner(object):
         self.plot_save_dir = plot_save_dir
 
         self.events = events
-        self.merged_events = events
+        session_attrs={prop:events[0][prop] for prop in ['protocol','session','experiment','subject','montage']}
+        session_attrs['files'] = files
+        vocalization_events = VocalizationParser(**session_attrs).parse()
+        if vocalization_events.shape:
+            self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
+        else:
+            self.merged_events = self.events
 
 
         for label, rate in self.FROM_LABELS:
@@ -264,3 +270,10 @@ class System3Aligner(object):
         plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
                                                                                 ext='.png')))
         plt.show()
+
+if __name__ == '__main__':
+    files = {
+        'electrode_config' : '/Volumes/PATRIOT/R1999X/behavioral/FR1/host_pc/session_0/20170210_105441/config_files/R1170J_ALLCHANNELSSTIM.csv',
+        'event_log' : ['/Volumes/PATRIOT/R1999X/behavioral/FR1/host_pc/session_0/20170210_105441/data_incremental/event_log.json']
+             }
+    aligner = System3Aligner(events=None,files=files)
