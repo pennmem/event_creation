@@ -71,9 +71,7 @@ class MathLogParser(BaseSessionLogParser):
 
     def event_start(self, split_line):
         if self._list == -999:
-            self._list = -1
-        elif self._list== -1:
-            self._list =1
+            self._list = 1
         else:
             self._list += 1
         return self.event_default(split_line)
