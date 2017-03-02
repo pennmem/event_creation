@@ -1,3 +1,4 @@
+protocols/
 .DS_STORE
 *.pyc
 tests/test_data

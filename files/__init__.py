@@ -1,10 +1,10 @@
 import os
 
 def mkdir(path):
-    os.mkdir(path, 0755)
+    os.mkdir(path, 0o755)
 
 def makedirs(path, **kwargs):
-    os.makedirs(path, 0755, **kwargs)
+    os.makedirs(path, 0o755, **kwargs)
 
 class open_with_perms():
 
@@ -21,4 +21,4 @@ class open_with_perms():
     def __exit__(self, exception_type, exception_value, traceback):
         self.file.close()
         if self.mode == 'w':
-            os.chmod(self.filename, 0644)
+            os.chmod(self.filename, 0o644)
