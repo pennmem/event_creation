@@ -4,7 +4,8 @@ import copy
 from collections import defaultdict
 from transferer import UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
-                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
+                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline, \
+    build_wav_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
 from configuration import paths
@@ -60,6 +61,7 @@ class Importer(object):
     CONVERT_EVENTS = 4
     CONVERT_EPHYS = 5
     LOCALIZATION = 6
+    MOVE_WAV = 7
 
     PIPELINE_BUILDERS = {
         MONTAGE: build_import_montage_pipeline,
@@ -67,7 +69,8 @@ class Importer(object):
         BUILD_EVENTS: build_events_pipeline,
         BUILD_EPHYS: build_split_pipeline,
         CONVERT_EVENTS: build_convert_events_pipeline,
-        CONVERT_EPHYS: build_convert_eeg_pipeline
+        CONVERT_EPHYS: build_convert_eeg_pipeline,
+        MOVE_WAV: build_wav_pipeline
     }
     LABELS = {
         MONTAGE: 'Montage Importer',
@@ -75,7 +78,8 @@ class Importer(object):
         BUILD_EVENTS: 'Events Builder',
         BUILD_EPHYS: 'Ephys Builder',
         CONVERT_EVENTS: 'Events Converter',
-        CONVERT_EPHYS: 'Ephys Converter'
+        CONVERT_EPHYS: 'Ephys Converter',
+        MOVE_WAV: '.wav Importer'
     }
 
     def __init__(self, type, *args, **kwargs):
@@ -103,7 +107,8 @@ class Importer(object):
             self.initialized = False
 
     def remove(self):
-        self.pipeline.on_failure()
+        if self.initialized:
+            self.pipeline.on_failure()
 
     def previous_transfer_type(self):
         if self.pipeline:
@@ -168,6 +173,7 @@ class Importer(object):
             statuses.append(error_status)
 
         return '\n'.join(statuses)
+
 
     def describe_errors(self):
         errors = []

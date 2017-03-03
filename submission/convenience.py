@@ -241,7 +241,7 @@ def attempt_importers(importers, force):
     for i, importer in enumerate(importers):
         logger.set_label(importer.label)
         logger.info("Attempting {}".format(importer.label))
-        if importer.should_transfer() or force:
+        if importer.should_transfer() or (force and importer.initialized):
             importer.run(force)
 
         if not importer.errored:
@@ -256,6 +256,22 @@ def attempt_importers(importers, force):
     return success, importers[:i+1]
 
 
+def run_wav_import(kwargs,force=False):
+    '''
+    :param kwargs:
+    :return: (success [t/f], attempted pipelines)
+    '''
+    logger.set_label('.wav Importer')
+    logger.set_subject(kwargs['subject'],kwargs['protocol'])
+    wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
+    success, importers = attempt_importers([wav_importer],force)
+    if not success:
+        logger.info('.wav transfer failed')
+        wav_importer.remove()
+    else:
+        return success,ImporterCollection(importers)
+
+
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
     """
     :param kwargs:
@@ -268,48 +284,88 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Session Importer')
 
-    ephys_importers = []
-    events_importers = []
+    # ephys_importers = []
+    # events_importers = []
+    attempted_importers = []
 
     if do_import:
-        ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
-        events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
-        if ephys_builder.initialized or not do_convert: # Attempt the importer even if it failed if it's the only option
-            ephys_importers.append(ephys_builder)
+        ephys_builder = Importer(Importer.BUILD_EPHYS,**kwargs)
+        success,attempts = attempt_importers([ephys_builder],force_eeg)
+        attempted_importers.extend(attempts)
+        if success:
+            events_builder = Importer(Importer.BUILD_EVENTS,**kwargs)
+            success,attempts = attempt_importers([events_builder],force_events)
+            attempted_importers.extend(attempts)
+            if success:
+                return success, ImporterCollection(attempted_importers)
+            else:
+                logger.info('Events builder failed')
+                events_builder.remove()
+
         else:
-            logger.warn("Could not initialize ephys builder")
-        if events_builder.initialized or not do_convert:
-            events_importers.append(events_builder)
+            logger.info('Ephys builder failed.')
+            ephys_builder.remove()
+        logger.info('Unwinding.')
 
     if do_convert:
-        logger.debug("Initializing converters")
-        ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
-        events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
-        if ephys_converter.initialized or not do_import:
-            if ephys_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-                ephys_importers = [ephys_converter] + ephys_importers
-            else:
-                ephys_importers.append(ephys_converter)
-
-        if events_converter.initialized or not do_import or len(events_importers) == 0:
-            if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-                events_importers = [events_converter] + events_importers
-            else:
-                events_importers.append(events_converter)
-
-    ephys_success, attempted_ephys = attempt_importers(ephys_importers, force_eeg)
-
-    if ephys_success:
-        logger.debug("Attempting events importers")
-        events_success, attempted_events = attempt_importers(events_importers, force_events)
-        logger.unset_subject()
-        return events_success and ephys_success, ImporterCollection(attempted_ephys + attempted_events)
+        ephys_converter = Importer(Importer.CONVERT_EPHYS,**kwargs)
+        ephys_success,attempts = attempt_importers([ephys_converter],force_eeg)
+        attempted_importers.extend(attempts)
+        if ephys_success:
+            events_converter = Importer(Importer.CONVERT_EVENTS,**kwargs)
+            events_success,attempts = attempt_importers([events_converter],force_events)
+            attempted_importers.extend(attempts)
+            if not events_success:
+                logger.info('Event Conversion failed. Unwinding.')
+                events_converter.remove()
+        else:
+            logger.info('Events %s conversion failed')
+            ephys_converter.remove()
+        return ((ephys_success and events_success),ImporterCollection(attempted_importers))
     else:
-        logger.debug("Ephys failed.")
-        for importer in events_importers:
-            importer.remove()
-        logger.unset_subject()
-        return ephys_success, ImporterCollection(attempted_ephys)
+        return success,ImporterCollection(attempted_importers)
+
+
+    # if do_import:
+    #     ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
+    #     events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
+    #     if ephys_builder.initialized or not do_convert: # Attempt the importer even if it failed if it's the only option
+    #         ephys_importers.append(ephys_builder)
+    #     else:
+    #         logger.warn("Could not initialize ephys builder")
+    #     if events_builder.initialized or not do_convert:
+    #         events_importers.append(events_builder)
+    #
+    # if do_convert:
+    #     logger.debug("Initializing converters")
+    #     ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
+    #     events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
+    #     if ephys_converter.initialized or not do_import:
+    #         if ephys_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+    #             ephys_importers = [ephys_converter] + ephys_importers
+    #         else:
+    #             ephys_importers.append(ephys_converter)
+    #
+    #     if events_converter.initialized or not do_import or len(events_importers) == 0:
+    #         if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
+    #             events_importers = [events_converter] + events_importers
+    #         else:
+    #             events_importers.append(events_converter)
+    #
+    # ephys_success, attempted_ephys = attempt_importers(ephys_importers, force_eeg)
+    #
+    # if ephys_success:
+    #     logger.debug("Attempting events importers")
+    #     events_success, attempted_events = attempt_importers(events_importers, force_events)
+    #     if attempted_events[-1].
+    #     logger.unset_subject()
+    #     return events_success and ephys_success, ImporterCollection(attempted_ephys + attempted_events)
+    # else:
+    #     logger.debug("Ephys failed.")
+    #     for importer in events_importers:
+    #         importer.remove()
+    #     logger.unset_subject()
+    #     return ephys_success, ImporterCollection(attempted_ephys)
 
 
 def run_montage_import(kwargs, force=False):
@@ -858,18 +914,22 @@ if __name__ == '__main__':
 
     inputs = prompt_for_session_inputs(**config.options)
 
-    if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
-        if not confirm('{subject} {new_experiment} session {session} already exists. '
-                       'Continue and overwrite? '.format(**inputs)):
-            print('Import aborted! Exiting.')
-            exit(0)
-    print('Importing session')
-    success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
+    if config.wav_only:
+        print 'Importing .wav files'
+        success,importers = run_wav_import(inputs)
+
+    else:
+        if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
+            if not confirm('{subject} {new_experiment} session {session} already exists. '
+                           'Continue and overwrite? '.format(**inputs)):
+                print('Import aborted! Exiting.')
+                exit(0)
+        print('Importing session')
+        success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
                                             config.force_eeg)
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
     print('Success:' if success else "Failed:")
     print(importers.describe())
-
     exit(0)
