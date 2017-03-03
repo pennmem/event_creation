@@ -4,8 +4,8 @@ import copy
 from collections import defaultdict
 from transferer import UnTransferrableException
 from pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
-                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline, \
-    build_wav_pipeline
+                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
+    # build_wav_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
 from loggers import logger
 from configuration import paths
@@ -70,7 +70,7 @@ class Importer(object):
         BUILD_EPHYS: build_split_pipeline,
         CONVERT_EVENTS: build_convert_events_pipeline,
         CONVERT_EPHYS: build_convert_eeg_pipeline,
-        MOVE_WAV: build_wav_pipeline
+        # MOVE_WAV: build_wav_pipeline
     }
     LABELS = {
         MONTAGE: 'Montage Importer',
