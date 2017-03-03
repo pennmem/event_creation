@@ -70,6 +70,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             'pulse_width': self.CATFR2_STIM_PULSE_WIDTH,
             'stim_duration': self.CATFR2_STIM_DURATION
         }
+        self._is_fr2 = False
         self._add_fields(*self._catfr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
@@ -106,6 +107,15 @@ class CatFRSessionLogParser(BaseSessionLogParser):
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls
         )
+
+    @staticmethod
+    def persist_fields_during_stim(event):
+        if event['type'] == 'WORD':
+            return ('list', 'serialpos', 'item_name', 'item_num', 'recalled',
+                    'intrusion', 'stim_list', 'subject', 'session', 'eegfile',
+                    'rectime')
+        else:
+            return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
 
     def _set_stim_params(self, split_line):
         """
@@ -220,7 +230,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         event = self.apply_word(event)
         event.serialpos = self._serialpos
         event.is_stim = split_line[6] == 'STIM'
-        if event.is_stim:
+        if event.is_stim & self._is_fr2:
             self.set_event_stim_params(event, jacksheet=self._jacksheet, **self._catfr2_stim_params)
         event.category_num = split_line[7]
         event.category = split_line[8]
