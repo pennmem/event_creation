@@ -206,6 +206,8 @@ class EventCreationTask(PipelineTask):
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
+class NoEventsError(Exception):
+    pass
 
 class PruneEventsTask(PipelineTask):
     def __init__(self,cond):
@@ -216,7 +218,11 @@ class PruneEventsTask(PipelineTask):
         event_files = glob.glob(os.path.join(db_folder,'*_events.json'))
         for fid in event_files:
             events = from_json(fid)
-            events = events[self.filter(events)]
+            filtered_events = events[self.filter(events)]
+            if len(filtered_events) == 0 or events is None:
+                logger.info('No events for this experiment. If there are subsequent PS4 sessions, do not panic.')
+                raise NoEventsError()
+            events = to_json(events)
             self.create_file(fid,events,os.path.splitext(os.path.basename(fid))[0])
 
 
