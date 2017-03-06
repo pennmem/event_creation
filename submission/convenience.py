@@ -9,6 +9,8 @@ import traceback
 import files
 from collections import defaultdict
 from configuration import config, paths
+from copy import  deepcopy
+
 
 if __name__ == '__main__':
     config.parse_args()
@@ -281,23 +283,50 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     :param force_eeg:
     :return: (success (t/f), attempted pipelines)
     """
+
+    attempted_importers = []
+    successes = [True]
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
+    logger.set_label('PS4 session importer')
+
+
+    if kwargs['PS4']:
+        ps4_kwargs = deepcopy(kwargs)
+        ps4_kwargs['new_experiment'] = 'PS4'
+
+        ephys_builder = Importer(Importer.BUILD_EPHYS,**ps4_kwargs)
+        success, attempts = attempt_importers([ephys_builder],force_eeg)
+        attempted_importers.extend(attempts)
+        successes.append(success)
+        if success:
+            events_builder = Importer(Importer.BUILD_EVENTS,**ps4_kwargs)
+            events_success, attempts = attempt_importers([events_builder],force_events)
+            attempted_importers.extend([attempts])
+            successes.append(events_success)
+            if not events_success:
+                logger.info('PS4 Events builder failed')
+                events_builder.remove()
+        else:
+            logger.info('PS4 Ephys builder failed')
+            ephys_builder.remove()
+
+
     logger.set_label('Session Importer')
 
     # ephys_importers = []
     # events_importers = []
-    attempted_importers = []
 
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS,**kwargs)
         success,attempts = attempt_importers([ephys_builder],force_eeg)
         attempted_importers.extend(attempts)
+        successes.append(success)
         if success:
             events_builder = Importer(Importer.BUILD_EVENTS,**kwargs)
             success,attempts = attempt_importers([events_builder],force_events)
             attempted_importers.extend(attempts)
             if success:
-                return success, ImporterCollection(attempted_importers)
+                return all(successes), ImporterCollection(attempted_importers)
             else:
                 logger.info('Events builder failed')
                 events_builder.remove()
@@ -311,22 +340,22 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
         ephys_converter = Importer(Importer.CONVERT_EPHYS,**kwargs)
         ephys_success,attempts = attempt_importers([ephys_converter],force_eeg)
         attempted_importers.extend(attempts)
+        successes.append(ephys_success)
         if ephys_success:
             events_converter = Importer(Importer.CONVERT_EVENTS,**kwargs)
             events_success,attempts = attempt_importers([events_converter],force_events)
             attempted_importers.extend(attempts)
+            successes.append(events_success)
             if not events_success:
                 logger.info('Event Conversion failed. Unwinding.')
                 events_converter.remove()
         else:
             logger.info('Events %s conversion failed')
             ephys_converter.remove()
-        return ((ephys_success and events_success),ImporterCollection(attempted_importers))
-    else:
-        return success,ImporterCollection(attempted_importers)
+    return all(successes), ImporterCollection(attempted_importers)
 
 
-    # if do_import:
+            # if do_import:
     #     ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
     #     events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
     #     if ephys_builder.initialized or not do_convert: # Attempt the importer even if it failed if it's the only option
@@ -713,6 +742,13 @@ def prompt_for_session_inputs(inputs, **opts):
         else:
             ram_experiment = 'RAM_{}'.format(experiment)
 
+    is_PS4 = opts.get('PS4',False)
+    if (not is_PS4) and experiment.endswith('5') and not experiment.startswith('PS'):
+        is_PS4 = confirm('Is this a PS4 session? [y/n]')
+
+    if is_PS4:
+        groups += ('ps4',)
+
     inputs = dict(
         protocol=protocol,
         subject=subject,
@@ -729,7 +765,8 @@ def prompt_for_session_inputs(inputs, **opts):
         original_session=original_session,
         groups=groups,
         attempt_import=attempt_import,
-        attempt_conversion=attempt_conversion
+        attempt_conversion=attempt_conversion,
+        PS4 = is_PS4
     )
     
     if opts.get('sys2', False):

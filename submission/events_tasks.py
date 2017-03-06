@@ -206,6 +206,20 @@ class EventCreationTask(PipelineTask):
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
+
+class PruneEventsTask(PipelineTask):
+    def __init__(self,cond):
+        super(PruneEventsTask,self).__init__()
+        self.filter = cond
+
+    def _run(self,files,db_folder):
+        event_files = glob.glob(os.path.join(db_folder,'*_events.json'))
+        for fid in event_files:
+            events = from_json(fid)
+            events = events[self.filter(events)]
+            self.create_file(fid,events,os.path.splitext(os.path.basename(fid))[0])
+
+
 class EventCombinationTask(PipelineTask):
 
     COMBINED_LABEL='all'

@@ -19,13 +19,14 @@ from parsers.base_log_parser import get_version_num
 
 from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  MontageLinkerTask
+                  MontageLinkerTask, PruneEventsTask
 
 from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
 
 from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file,\
+                       generate_wav_transferer
 
 GROUPS = {
     'FR': ('verbal', 'stim'),
@@ -37,6 +38,8 @@ GROUPS = {
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
+
+N_PS4_SESSIONS = 10
 
 def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, *args, **kwargs):
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
@@ -303,7 +306,10 @@ class TransferPipeline(object):
             self.on_failure()
             raise
 
-
+def build_wav_pipeline(subject,experiment,session,protocol,**kwargs):
+    transferer = generate_wav_transferer(subject,experiment,session,protocol,code=subject)
+    transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
+    return TransferPipeline(transferer)
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
@@ -346,7 +352,11 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
+    def is_ps4_experiment_type(exp):
+        return exp.endswith('5')
+
     logger.set_label("Building Event Creator")
+
 
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
@@ -385,6 +395,13 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', MathLogParser, critical=False))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
+
+    if is_ps4_experiment_type(experiment):
+        if kwargs.get('new_experiment')=='PS4':
+            comparator = lambda events: events.list<N_PS4_SESSIONS
+        else:
+            comparator = lambda events: events.list>= N_PS4_SESSIONS
+        tasks.append(PruneEventsTask(comparator))
 
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,
