@@ -836,12 +836,6 @@ class EGI_reader(EEG_reader):
         :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
         parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
 
-
-
-
-        ADD DATA FIELDS HERE
-
-
         """
         self.raw_filename = raw_filename
         self.basename = ''
@@ -869,9 +863,9 @@ class EGI_reader(EEG_reader):
         Note that the data in the .raw files is in uV, and the mne package converts the data to volts when reading the
         file.
         """
-        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
+        logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if True:  # os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
+        if os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
             original_path = original_path[:-4]  # remove '.bz2' from end of file name
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
@@ -897,7 +891,7 @@ class EGI_reader(EEG_reader):
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            # os.system('rm ' + original_path)
+            os.system('rm ' + original_path)
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
@@ -1066,7 +1060,7 @@ class BDF_reader(EEG_reader):
         """
         # logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if True:  # os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
+        if os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
             original_path = original_path[:-4]  # remove '.bz2' from end of file name
 
             try:
@@ -1094,7 +1088,7 @@ class BDF_reader(EEG_reader):
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            # os.system('rm ' + original_path)
+            os.system('rm ' + original_path)
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
