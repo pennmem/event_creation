@@ -301,7 +301,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
         if success:
             events_builder = Importer(Importer.BUILD_EVENTS,**ps4_kwargs)
             events_success, attempts = attempt_importers([events_builder],force_events)
-            attempted_importers.extend([attempts])
+            attempted_importers.extend(attempts)
             successes.append(events_success)
             if not events_success:
                 logger.info('PS4 Events builder failed')
