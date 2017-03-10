@@ -865,7 +865,7 @@ class EGI_reader(EEG_reader):
         """
         logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path) == 0:
+        if os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
             unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
@@ -888,7 +888,7 @@ class EGI_reader(EEG_reader):
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            os.system('rm ' + unzip_path)
+            os.system('rm ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
@@ -1057,7 +1057,7 @@ class BDF_reader(EEG_reader):
         """
         # logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path) == 0:
+        if os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
             unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
 
             try:
@@ -1084,7 +1084,7 @@ class BDF_reader(EEG_reader):
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            os.system('rm ' + unzip_path)
+            os.system('rm ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
