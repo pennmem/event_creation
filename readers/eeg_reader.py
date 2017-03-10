@@ -857,41 +857,38 @@ class EGI_reader(EEG_reader):
     def get_data(self):
         """
         Unpacks the binary in the raw data file to get the voltage data from all channels. We use the built-in functions
-        of the MNE package to parse the .raw file into a channels x samples data matrix. A first-order .1 Hz highpass
+        of the MNE package to parse the .raw file into a channels x samples data matrix. A .1 Hz highpass
         filter is then run on all EEG/EOG channels to eliminate drift.
 
         Note that the data in the .raw files is in uV, and the mne package converts the data to volts when reading the
-        file.
+        file. We convert it back to uV before saving it out to individual channel files.
         """
         logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
-            original_path = original_path[:-4]  # remove '.bz2' from end of file name
+        if os.system('bunzip2 -k ' + original_path) == 0:
+            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
-                raw = mne.io.read_raw_egi(original_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=False)
+                raw = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=False)
+                logger.debug('Finished parsing EEG data.')
+                picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
+                logger.debug('Running .1 Hz highpass filter on all channels.')
+                raw.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double', l_trans_bandwidth='auto', h_trans_bandwidth='auto')
+
                 # Pull relevant header info
                 self.sample_rate = int(raw.info['sfreq'])
                 self.start_datetime = datetime.datetime.utcfromtimestamp(raw.info['meas_date'])
                 self.chans = raw.info['chs']
 
-                # Extract the EEG data from the RawEDF data structure.
+                # Extract the EEG data from the RawEDF data structure and convert all non-sync pulse channels to uV.
                 self.data = raw[:][0]
-                logger.debug('EEG data reading is complete.')
-
-                # Run a first-order highpass butterworth filter on each EEG and EOG channel
-                logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-                for i in range(self.data.shape[0]):
-                    if self.chans[i]['kind'] in (2, 202):  # 2 indicates eeg, 202 indicates eog
-                        self.data[i] = butter_filt(self.data[i], .1, self.sample_rate, 'highpass', 1)
-                        # MNE readers convert data to volts, so we convert volts to uV by multiplying by 1000000
-                        self.data[i] *= 1000000
+                self.data[:picks_eeg_eog.size] *= 1000000
 
             except Exception as e:
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            os.system('rm ' + original_path)
+            os.system('rm ' + unzip_path)
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
@@ -1060,35 +1057,34 @@ class BDF_reader(EEG_reader):
         """
         # logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path + ' > ' + self.noreref_loc) == 0:
-            original_path = original_path[:-4]  # remove '.bz2' from end of file name
+        if os.system('bunzip2 -k ' + original_path) == 0:
+            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
 
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
-                raw = mne.io.read_raw_edf(original_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
+                raw = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
                                           misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
                                           preload=False)
+
+                logger.debug('Finished parsing EEG data.')
+                picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
+                logger.debug('Running .1 Hz highpass filter on all channels.')
+                raw.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double', l_trans_bandwidth='auto', h_trans_bandwidth='auto')
+
                 # Pull relevant header info
                 self.sample_rate = int(raw.info['sfreq'])
                 self.start_datetime = datetime.datetime.utcfromtimestamp(raw.info['meas_date'])
                 self.names = [str(x) for x in raw.info['ch_names']]
 
-                # Extract the EEG data from the RawEDF data structure.
+                # Extract the EEG data from the RawEDF data structure and convert all non-sync pulse channels to uV.
                 self.data = raw[:][0]
-                logger.debug('EEG data reading is complete.')
-
-                # Run a first-order highpass butterworth filter on each channel
-                logger.debug('Running first-order .1 Hz highpass filter on all channels.')
-                for i in range(self.data.shape[0] - 1):
-                    self.data[i] = butter_filt(self.data[i], .1, self.sample_rate, 'highpass', 1)
-                    # MNE readers convert data to volts, so we convert volts to uV by multiplying by 1000000
-                    self.data[i] *= 1000000
+                self.data[:picks_eeg_eog.size] *= 1000000
 
             except Exception as e:
                 logger.warn('Unable to parse EEG data file!')
                 logger.warn(e)
 
-            os.system('rm ' + original_path)
+            os.system('rm ' + unzip_path)
             logger.debug('Finished getting EEG data.')
         else:
             logger.warn('Unzipping failed! Unable to parse data file!')
