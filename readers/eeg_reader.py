@@ -869,7 +869,7 @@ class EGI_reader(EEG_reader):
             unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
-                raw = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=False)
+                raw = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
                 logger.debug('Finished parsing EEG data.')
                 picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
                 logger.debug('Running .1 Hz highpass filter on all channels.')
@@ -886,7 +886,6 @@ class EGI_reader(EEG_reader):
 
             except Exception as e:
                 logger.warn('Unable to parse EEG data file!')
-                logger.warn(e)
 
             os.system('rm ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
@@ -1064,7 +1063,7 @@ class BDF_reader(EEG_reader):
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
                 raw = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
                                           misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
-                                          preload=False)
+                                          preload=True)
 
                 logger.debug('Finished parsing EEG data.')
                 picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
@@ -1082,7 +1081,6 @@ class BDF_reader(EEG_reader):
 
             except Exception as e:
                 logger.warn('Unable to parse EEG data file!')
-                logger.warn(e)
 
             os.system('rm ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
