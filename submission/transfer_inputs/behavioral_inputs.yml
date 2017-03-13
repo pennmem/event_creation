@@ -160,7 +160,7 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups: [r1, transfer, FR]
+    groups: [r1, transfer, FR, '!system_3']
     origin_directory: *BEH_EXP_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
@@ -237,32 +237,32 @@ files:
       - name: event_log
         << : *FILE
         origin_directory: *SYS3_HOST_DIR
-        origin_file: event_log.json
+        origin_file: '*/event_log.json'
         destination: event_log.json
 
       - name: experiment_config
         << : *FILE
         origin_directory: *SYS3_HOST_DIR
-        origin_file: experiment_config.json
+        origin_file: '*/experiment_config.json'
         destination: experiment_config.json
 
       - name : output_log
         << : *FILE
         required: false
         origin_directory: "."
-        origin_file: output.log
+        origin_file: '*/output.log'
         destination: unused/output.log
 
       - name: electrode_config
         << : *FILE
-        origin_directory: "./config_files"
+        origin_directory: "*/config_files"
         origin_file: '*.csv'
         destination: electrode_config.csv
 
       - name: electrode_binary
         << : *FILE
         required: false
-        origin_directory: './config_files'
+        origin_directory: '*/config_files'
         origin_file: '*.bin'
         destination: unused/electrode_config.bin
 

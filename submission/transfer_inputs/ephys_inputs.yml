@@ -85,12 +85,12 @@ files:
         <<: *FILE
         checksum_contents: false
         origin_directory: *SYS3_HOST_DIR
-        origin_file: '*.h5'
+        origin_file: '*/*.h5'
         destination: eeg_timeseries.h5
       - name: experiment_config
         << : *FILE
         origin_directory: *SYS3_HOST_DIR
-        origin_file: experiment_config.json
+        origin_file: '*/experiment_config.json'
         destination: experiment_config.json
 
   - name: elec_file
