@@ -25,8 +25,8 @@ from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, Cal
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
 
 from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file,\
-                       generate_wav_transferer
+                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
+                       # generate_wav_transferer
 
 GROUPS = {
     'FR': ('verbal', 'stim'),
@@ -353,7 +353,8 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
     def is_ps4_experiment_type(exp):
-        return exp.endswith('5')
+        # return exp.endswith('5')
+        return True
 
     logger.set_label("Building Event Creator")
 
