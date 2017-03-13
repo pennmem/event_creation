@@ -75,6 +75,9 @@ options:
   - dest: view_only
     arg: view-only
     help: 'View information about already-submitted subjects'
+  - dest: wav_only
+    arg: wav-only
+    help: 'Only import .wav files.'
   - dest: show_plots
     arg: show-plots
     help: 'Show plots of fit and residuals when aligning data (not available when running with sudo)'
