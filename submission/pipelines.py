@@ -353,8 +353,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
     def is_ps4_experiment_type(exp):
-        # return exp.endswith('5')
-        return True
+        return exp.endswith('5') and not experiment.startswith('PS')
 
     logger.set_label("Building Event Creator")
 
