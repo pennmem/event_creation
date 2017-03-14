@@ -5,9 +5,10 @@ import numpy as np
 from copy import deepcopy
 import json
 from loggers import logger
+from collections import defaultdict
 
 
-class System3LogParser:
+class System3LogParser(object):
 
     _LABEL_FIELD = 'event_label'
     _VALUE_FIELD = 'event_value'
@@ -184,8 +185,76 @@ class VocalizationParser(BaseSys3LogParser,FRSessionLogParser):
         }
 
 
-if __name__ == '__main__':
+class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
+    ITEM_FIELD = 'item'
 
+    def event_default(self, event_json):
+        event = super(FRSys3LogParser,self).event_default(event_json)
+        event.list = self._list
+        event.stim_list = self._stim_list
+        return event
+
+
+    def __init__(self,protocol, subject, montage, experiment, session, files):
+        super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
+                                        primary_log='event_log',allow_unparsed_events=True)
+        self._list = -999
+        self._stim_list = False
+        self._on = False
+
+        self._type_to_new_event= defaultdict(lambda: self.event_default,
+                                             COUNTDOWN=self.event_reset_serialpos,
+                                             WORD = self.event_word
+                                             )
+        self._type_to_new_event.update({
+            'NON-STIM ENCODING' : self.event_trial,
+            # 'NON-STIM RETRIEVAL': self.event_trial,
+            'STIM ENCODING' : self.event_trial,
+            'ENCODING' : self.event_trial
+            # 'STIM RETRIEVAL' : self.event_trial,
+            # 'RETRIEVAL' : self.event_trial
+        })
+
+        self._add_type_to_modify_events(
+            RETRIEVAL=self.modify_recalls
+        )
+
+
+    def event_trial(self, event_json):
+        self._on = not self._on
+        if self._on:
+            if self._list==-999:
+                self._list=-1
+            elif self._list == -1:
+                self._list =1
+            else:
+                self._list+=1
+        self._stim_list = not ( 'NON_STIM' in self._get_raw_event_type(event_json))
+        event = self.event_default(event_json)
+        return event
+
+    def event_word(self, event_json):
+        self._serialpos +=1
+        event = self.event_default(event_json)
+        try:
+            self._word = event_json[self.ITEM_FIELD]
+            event = self.apply_word(event)
+        except:
+            event.item_name = 'placeholder'
+        event.serialpos = self._serialpos
+        return event
+
+
+
+
+
+
+
+
+
+
+if __name__ == '__main__':
+    import glob
     import os
     from viewers.view_recarray import pprint_rec as ppr
     # d = '/Users/iped/event_creation/tests/test_input/R9999X/behavioral/PS2/session_37/host_pc/123_45_6788'
@@ -194,7 +263,10 @@ if __name__ == '__main__':
     #
     # s3lp = System3LogParser([event_log], [conf])
     # ppr(s3lp.stim_events.view(np.recarray).stim_params[:,0])
-    event_log = ['/Users/leond/Desktop/event_log_copy.json']
-    VP = VocalizationParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log})
-    events = VP.parse()
+    event_log = ['/Volumes/rhino_root/data/eeg/R1286J/behavioral/FR1/session_0/host_pc/20170312_160338/event_log.json']
+    ann_files = glob.glob('/Volumes/rhino_root/data/eeg/R1286J/behavioral/FR1/session_0/*.ann')
+    # VP = VocalizationParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log, 'annotations':ann_files})
+    # events = VP.parse()
+    FRP = FRSys3LogParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log,'annotations':ann_files})
+    fr_events = FRP.parse()
     pass
