@@ -6,7 +6,7 @@ from copy import deepcopy
 import json
 from loggers import logger
 from collections import defaultdict
-
+from functools import wraps
 
 class System3LogParser(object):
 
@@ -185,8 +185,40 @@ class VocalizationParser(BaseSys3LogParser,FRSessionLogParser):
         }
 
 
+def mark_beginning(suffix='START'):
+    def with_beginning_marked(f):
+        def new_f(parser,event_json):
+            event = f(parser,event_json)
+            try:
+                if event_json['value']:
+                    event.type = event.type+'_%s'%suffix
+            except KeyError:
+                pass
+            return event
+        return new_f
+    return with_beginning_marked
+
+def mark_end(suffix='END'):
+    def with_beginning_marked(f):
+        def new_f(parser,event_json):
+            event = f(parser,event_json)
+            try:
+                if not event_json['value']:
+                    event.type = event.type+'_%s'%suffix
+            except KeyError:
+                pass
+            return event
+        return new_f
+    return with_beginning_marked
+
+
+
+
 class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
-    ITEM_FIELD = 'item'
+    _ITEM_FIELD = 'item'
+    _PHASE_TYPE_FIELD = 'phase_type'
+    _SERIAL_POS_FIELD = 'serialpos'
+    _STIM_PARAMS_FIELD = 'msg_stub'
 
     def event_default(self, event_json):
         event = super(FRSys3LogParser,self).event_default(event_json)
@@ -202,53 +234,76 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         self._stim_list = False
         self._on = False
 
-        self._type_to_new_event= defaultdict(lambda: self.event_default,
-                                             COUNTDOWN=self.event_reset_serialpos,
-                                             WORD = self.event_word
-                                             )
-        self._type_to_new_event.update({
-            'NON-STIM ENCODING' : self.event_trial,
-            # 'NON-STIM RETRIEVAL': self.event_trial,
-            'STIM ENCODING' : self.event_trial,
-            'ENCODING' : self.event_trial
-            # 'STIM RETRIEVAL' : self.event_trial,
-            # 'RETRIEVAL' : self.event_trial
-        })
+        self._type_to_new_event= defaultdict(lambda: self.marked_default,
+                                             WORD = self.event_word,
+                                             VOCALIZATION = self.event_vocalization,
+                                             ENCODING = self.event_trial,
+                                             RETRIEVAL = self.event_recall,
+                                             # Stim events will *still* get added later, in alignment
+                                             # Why are we doing alignment separately when we have everything needed right here?
+                                             # A good question.
+                                             STIM=self._event_skip
 
+                                             )
         self._add_type_to_modify_events(
             RETRIEVAL=self.modify_recalls
         )
 
+    @mark_end('OFF')
+    def event_vocalization(self,event_json):
+        return self.event_default(event_json)
+
+    @mark_beginning()
+    @mark_end()
+    def marked_default(self,event_json):
+        return self.event_default(event_json)
+
+    @mark_beginning()
+    @mark_end()
+    def event_reset_serialpos(self, split_line):
+        return super(FRSys3LogParser, self).event_reset_serialpos(split_line)
+
+    @mark_beginning()
+    @mark_end()
+    def event_recall(self,event_json):
+        event = self.event_default(event_json)
+        event.type = 'REC'
+        return  event
+
+    @mark_beginning('ON')
+    @mark_end('OFF')
+    def event_stim(self,event_json):
+        event = self.event_default(event_json)
+        stim_params = event_json[self._STIM_PARAMS_FIELD]
+        event.stim_params.amplitude = stim_params['amplitude']
+        event.stim_params.frequency = stim_params['pulse_freq']/1000
+        event.stim_params.anode,event.stim_params.cathode = stim_params['stim_pair']
+
 
     def event_trial(self, event_json):
-        self._on = not self._on
-        if self._on:
+        if event_json['value']:
             if self._list==-999:
                 self._list=-1
             elif self._list == -1:
                 self._list =1
             else:
                 self._list+=1
-        self._stim_list = not ( 'NON_STIM' in self._get_raw_event_type(event_json))
+        self._stim_list = event_json[self._PHASE_TYPE_FIELD]=='STIM'
         event = self.event_default(event_json)
+        event.type='TRIAL'
         return event
 
+    @mark_end('OFF')
     def event_word(self, event_json):
-        self._serialpos +=1
         event = self.event_default(event_json)
+        event.serialpos  = event_json[self._SERIAL_POS_FIELD]
+        event.list = self._list
         try:
-            self._word = event_json[self.ITEM_FIELD]
+            self._word = event_json[self._ITEM_FIELD]
             event = self.apply_word(event)
         except:
             event.item_name = 'placeholder'
-        event.serialpos = self._serialpos
         return event
-
-
-
-
-
-
 
 
 
@@ -263,10 +318,10 @@ if __name__ == '__main__':
     #
     # s3lp = System3LogParser([event_log], [conf])
     # ppr(s3lp.stim_events.view(np.recarray).stim_params[:,0])
-    event_log = ['/Volumes/rhino_root/data/eeg/R1286J/behavioral/FR1/session_0/host_pc/20170312_160338/event_log.json']
-    ann_files = glob.glob('/Volumes/rhino_root/data/eeg/R1286J/behavioral/FR1/session_0/*.ann')
+    event_log = ['/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/host_pc/20170314_165146/event_log.json']
+    ann_files = glob.glob('/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/*.ann')
     # VP = VocalizationParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log, 'annotations':ann_files})
     # events = VP.parse()
-    FRP = FRSys3LogParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log,'annotations':ann_files})
+    FRP = FRSys3LogParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log,}) #'annotations':ann_files})
     fr_events = FRP.parse()
     pass
