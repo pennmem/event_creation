@@ -229,6 +229,8 @@ class BaseLogParser(object):
         for param, value in params.items():
             if param == 'amplitude' and value < 5:
                 value *= 1000  # Put in uA. Ugly fix...
+            if param == 'pulse_freq' and value>np.iinfo(event.stim_params[index][param].dtype).max:
+                value /=1000 # same fix, but for Hz
             event.stim_params[index][param] = value
 
         if 'anode_label' in params and 'anode_number' not in params:
@@ -328,17 +330,19 @@ class BaseLogParser(object):
             this_type = self._get_raw_event_type(raw_event)
 
             # Check if the line is parseable
-            if this_type in self._type_to_new_event:
+            try:
                 new_event = self._type_to_new_event[this_type](raw_event)
                 if not isinstance(new_event, np.recarray) and not (new_event is False):
                     raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
                 elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
-            elif self._allow_unparsed_events:
-                # Fine to skip lines if specified
-                pass
-            else:
-                raise UnparsableLineException("Event type %s not parseable" % this_type)
+            except KeyError as ke:
+                print ke
+                if self._allow_unparsed_events:
+                    # Fine to skip lines if specified
+                    pass
+                else:
+                    raise UnparsableLineException("Event type %s not parseable" % this_type)
 
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
