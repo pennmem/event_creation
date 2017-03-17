@@ -18,6 +18,7 @@ from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
 from parsers.ps_log_parser import PSLogParser
 from parsers.th_log_parser import THSessionLogParser
+from parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
@@ -148,7 +149,8 @@ class EventCreationTask(PipelineTask):
         'catFR': CatFRSessionLogParser,
         'math': MathLogParser,
         'PS': PSLogParser,
-        'TH': THSessionLogParser
+        'TH': THSessionLogParser,
+        'THR': THRSessionLogParser
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num=0, event_label='task',
