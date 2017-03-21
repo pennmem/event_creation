@@ -263,15 +263,16 @@ def run_wav_import(kwargs,force=False):
     :param kwargs:
     :return: (success [t/f], attempted pipelines)
     '''
-    logger.set_label('.wav Importer')
-    logger.set_subject(kwargs['subject'],kwargs['protocol'])
-    wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
-    success, importers = attempt_importers([wav_importer],force)
-    if not success:
-        logger.info('.wav transfer failed')
-        wav_importer.remove()
-    else:
-        return success,ImporterCollection(importers)
+    # logger.set_label('.wav Importer')
+    # logger.set_subject(kwargs['subject'],kwargs['protocol'])
+    # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
+    # success, importers = attempt_importers([wav_importer],force)
+    # if not success:
+    #     logger.info('.wav transfer failed')
+    #     wav_importer.remove()
+    # else:
+    #     return success,ImporterCollection(importers)
+    raise NotImplementedError
 
 
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):

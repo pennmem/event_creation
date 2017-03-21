@@ -17,7 +17,8 @@ TRANSFER_INPUTS = {
     'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.yml'),
     'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.yml'),
     'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.yml'),
-    'localization': os.path.join(TRANSFER_INPUTS_DIR, 'localization_inputs.yml')
+    'localization': os.path.join(TRANSFER_INPUTS_DIR, 'localization_inputs.yml'),
+    # 'wav':os.path.join(TRANSFER_INPUTS_DIR,'wav_inputs.yml')
 }
 
 
@@ -219,6 +220,19 @@ def find_sync_file(subject, experiment, session):
         return noreref_dir, sync_files[0]
     raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
 
+
+def generate_wav_transferer(subject,experiment,session,protocol='r1',groups=('r1'),
+                            original_session=None,new_experiment=None,**kwargs):
+    cfg_file = TRANSFER_INPUTS['wav']
+    dest = os.path.join(paths.db_root,'protocols',protocol,'subjects',subject,'experiments',experiment,
+                        'sessions',str(session),'behavioral')
+    original_session = session if original_session is None else original_session
+    new_experiment = experiment if new_experiment is None else new_experiment
+
+    return Transferer(cfg_file,groups,dest,
+                      protocol=protocol,subject=subject,experiment=experiment, session = session,
+                      original_session=original_session,new_experiment = new_experiment,
+                      data_root=paths.data_root,db_root=paths.db_root,events_root=paths.events_root,**kwargs)
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
                               code=None, original_session=None, new_experiment=None, **kwargs):

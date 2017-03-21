@@ -71,6 +71,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._mstime_recstart = -999
         self._recog_conf_mstime = -999
         self._rej_mstime = -999
+        self._presented = False
 
 
         self._fr2_stim_on_time = False
@@ -98,6 +99,8 @@ class FRSessionLogParser(BaseSessionLogParser):
             ORIENT_OFF=self.event_default,
             WORD=self.event_word,
             WORD_OFF=self.event_word_off,
+            WORD_START =self.event_word,
+            WORD_END = self.event_word_off,
             REC_START=self.event_default,
             REC_END=self.event_default,
             SESS_END=self.event_default,

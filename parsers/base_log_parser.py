@@ -328,7 +328,6 @@ class BaseLogParser(object):
         # Loop over the contents of the log file
         for raw_event in self._contents:
             this_type = self._get_raw_event_type(raw_event)
-
             # Check if the line is parseable
             try:
                 new_event = self._type_to_new_event[this_type](raw_event)
@@ -337,7 +336,6 @@ class BaseLogParser(object):
                 elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
             except KeyError as ke:
-                print ke
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
                     pass
@@ -476,6 +474,7 @@ class BaseSys3LogParser(BaseLogParser):
     _STIME_FIELD = 't_event'
     _TYPE_FIELD = 'event_label'
     _EEG_OFFSET_FIELD = 'offset'
+
 
     def _read_primary_log(self):
         contents = []
@@ -750,6 +749,7 @@ class EventCombiner(object):
             return []
         elif isinstance(instance, dict):
             return {}
+
 
     def combine(self):
         """

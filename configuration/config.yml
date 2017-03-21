@@ -1,9 +1,9 @@
 
 paths : &PATHS
-  rhino_root     : &RHINO '/'
+  rhino_root     : &RHINO '/Volumes/rhino_root'
   data_root      : !join [*RHINO, 'data/eeg']
   loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
-  db_root        : *RHINO
+  db_root        : '/Users/leond'
   events_root    : !join [*RHINO, 'data/events']
   freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
 
@@ -17,6 +17,7 @@ inputs: &INPUTS
   original_experiment :
   session :
   original_session :
+  PS4 :
 
 
 options:
@@ -91,3 +92,7 @@ options:
     action: append
     help: 'Override the path set in configuration file (KEY=VALUE).'
     options: *PATHS
+  - dest: PS4
+    arg: PS4
+    help: 'Indicates if a session is also a PS4 session'
+

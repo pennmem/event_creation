@@ -6,7 +6,6 @@ from copy import deepcopy
 import json
 from loggers import logger
 from collections import defaultdict
-from functools import wraps
 
 class System3LogParser(object):
 
@@ -14,6 +13,7 @@ class System3LogParser(object):
     _VALUE_FIELD = 'event_value'
     _DEST_SORT_FIELD = 'mstime'
     _STIM_CHANNEL_FIELD = 'stim_pair'
+    _ID_FIELD = 'hashtag'
 
     _STIM_LABEL = 'STIM'
     _STIM_ON_VALUE = 'ON'
@@ -22,6 +22,7 @@ class System3LogParser(object):
 
     _SYS3_FIELDS = BaseLogParser._STIM_FIELDS + (
         ('host_time', -1, 'int64'),
+        ('id','','S40')
     )
 
     _DICT_TO_FIELD = {
@@ -39,16 +40,25 @@ class System3LogParser(object):
 
 
     def __init__(self, event_logs, electrode_config_files):
+        self._allow_unparsed_events = True
         self.source_time_field = self.SOURCE_TIME_FIELD
         self.source_time_multiplier = self.SOURCE_TIME_MULTIPLIER
+
+        self.make_event = defaultdict(lambda:(lambda *_:None), **{
+            'STIM':self.make_stim_event,
+            'BIOMARKER': self.make_biomarker_event,
+        })
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
             event_dict = json.load(open(log))['events']
+
             stim_dicts = [event for event in event_dict if event[self._LABEL_FIELD]==self._STIM_LABEL]
 
-            for stim_dict in stim_dicts:
-                new_event = self.make_stim_event(stim_dict, electrode_config)
+            for event_json in stim_dicts:
+
+                new_event = self.make_stim_event(event_json, electrode_config)
+
                 stim_events = np.append(stim_events, new_event)
 
         self._stim_events = stim_events[1:] if stim_events.shape else stim_events
@@ -65,6 +75,28 @@ class System3LogParser(object):
     @classmethod
     def empty_stim_params(cls):
         return BaseLogParser.event_from_template(cls._SYS3_FIELDS).view(np.recarray)
+
+    @staticmethod
+    def event_skip(*args):
+        return False
+
+    def make_biomarker_event(self,event_json,electrode_config):
+        params_dict = event_json[self._STIM_PARAMS_FIELD]
+        biomarker_dict_to_field = {
+            'biomarker_value':'biomarker_value',
+            self._ID_FIELD:'id'
+        }
+        event=self.event_default(event_json)
+        for k,v in biomarker_dict_to_field.items():
+            event.stim_params[v] = params_dict[k]
+        event.stim_params['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'NONE' # Need stim event following it to
+                                                                                          # tell if biomarker creation is pre-stim
+        event.stim_params = event.stim_params.view(np.recarray)
+        return event.view(np.recarray)
+
+
+
+
 
     @classmethod
     def stim_params_template(cls):
@@ -88,7 +120,7 @@ class System3LogParser(object):
         for i, stim_event in enumerate(self.stim_events):
 
             # Get the mstime for this host event
-            sort_value = event_to_sort_value(stim_event[0])
+            sort_value = event_to_sort_value(stim_event.stim_params[0])
 
             # Determine where to insert it in the full events structure
             after_events = (merged_events[self._DEST_SORT_FIELD] > sort_value)
@@ -104,7 +136,10 @@ class System3LogParser(object):
                 event_to_copy = BaseLogParser.event_from_template(event_template)
             new_event = self.partial_copy(event_to_copy, event_template, persistent_field_fn)
 
-            new_event.type = 'STIM_ON' if stim_event.stim_params['n_pulses'][0] > 1 else 'STIM_SINGLE_PULSE'
+            if 'type' in stim_event.dtype.names:
+                new_event.type=stim_event['type']
+            else:
+                new_event.type = 'STIM_ON' if stim_event.stim_params['n_pulses'][0] > 1 else 'STIM_SINGLE_PULSE'
             new_event.stim_params = stim_event.stim_params
 
             new_event[self._DEST_SORT_FIELD] = sort_value
@@ -113,7 +148,7 @@ class System3LogParser(object):
             merged_events = np.append(merged_events[:insert_index],
                                       np.append(new_event, merged_events[insert_index:]))
 
-            if stim_event.stim_params['n_pulses'][0] > 1:
+            if new_event.type=='STIM_ON':
                 # Do the same for the stim_off_event
                 stim_off_sub_event = deepcopy(stim_event.stim_params).view(np.recarray)
                 stim_off_sub_event.stim_on = False
@@ -157,7 +192,10 @@ class System3LogParser(object):
         stim_params['host_time'] = stim_dict[self.source_time_field] * self.source_time_multiplier
 
         for input, param in self._DICT_TO_FIELD.items():
-            stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
+            try:
+                stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
+            except KeyError: #
+                logger.debug('Field %s is missing'%input)
 
         stim_params['pulse_width'] = stim_dict['pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
         stim_params['n_pulses'] = self.get_n_pulses(stim_params)
@@ -175,135 +213,130 @@ class System3LogParser(object):
         return stim_event
 
 
-class VocalizationParser(BaseSys3LogParser,FRSessionLogParser):
-    def __init__(self,protocol, subject, montage, experiment, session, files):
-        super(VocalizationParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                                                primary_log='event_log',allow_unparsed_events=True)
 
-        self._type_to_new_event = {
-            'VOCALIZATION':self.event_default
+class Sys3EventsParser(BaseSys3LogParser):
+    _STIM_FIELDS =System3LogParser._SYS3_FIELDS + (
+        ('biomarker_value',-1,'float64'),
+        ('position','','S10')
+
+    )
+
+    _ID_FIELD = 'hashtag'
+
+    def __init__(self,protocol,subject,montage,experiment,session,files):
+        super(Sys3EventsParser,self).__init__(protocol,subject,montage,experiment,session,files,
+                                              primary_log='event_log',allow_unparsed_events=True,include_stim_params=True)
+        self.electrode_config = ElectrodeConfig(files['electrode_config'][0])
+        self.stim_parser = System3LogParser(event_logs=files['event_log'],electrode_config_files=files['electrode_config'])
+        self.stim_parser._DICT_TO_FIELD.update({
+            self._ID_FIELD:'id',
+        })
+        self._type_to_new_event={
+            'STIM':self.stim_event,
+            'BIOMARKER':self.biomarker_event,
+            'VOCALIZATION': self.event_default
         }
 
-
-def mark_beginning(suffix='START'):
-    def with_beginning_marked(f):
-        def new_f(parser,event_json):
-            event = f(parser,event_json)
-            try:
-                if event_json['value']:
-                    event.type = event.type+'_%s'%suffix
-            except KeyError:
-                pass
-            return event
-        return new_f
-    return with_beginning_marked
-
-def mark_end(suffix='END'):
-    def with_beginning_marked(f):
-        def new_f(parser,event_json):
-            event = f(parser,event_json)
-            try:
-                if not event_json['value']:
-                    event.type = event.type+'_%s'%suffix
-            except KeyError:
-                pass
-            return event
-        return new_f
-    return with_beginning_marked
-
-
-
-
-class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
-    _ITEM_FIELD = 'item'
-    _PHASE_TYPE_FIELD = 'phase_type'
-    _SERIAL_POS_FIELD = 'serialpos'
-    _STIM_PARAMS_FIELD = 'msg_stub'
+        self._type_to_modify_events = {
+            'STIM':self.modify_pre_stim
+        }
 
     def event_default(self, event_json):
-        event = super(FRSys3LogParser,self).event_default(event_json)
-        event.list = self._list
-        event.stim_list = self._stim_list
+        event = super(Sys3EventsParser,self).event_default(event_json=event_json)
+        event.host_time=event.mstime
         return event
 
-
-    def __init__(self,protocol, subject, montage, experiment, session, files):
-        super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                                        primary_log='event_log',allow_unparsed_events=True)
-        self._list = -999
-        self._stim_list = False
-        self._on = False
-
-        self._type_to_new_event= defaultdict(lambda: self.marked_default,
-                                             WORD = self.event_word,
-                                             VOCALIZATION = self.event_vocalization,
-                                             ENCODING = self.event_trial,
-                                             RETRIEVAL = self.event_recall,
-                                             # Stim events will *still* get added later, in alignment
-                                             # Why are we doing alignment separately when we have everything needed right here?
-                                             # A good question.
-                                             STIM=self._event_skip
-
-                                             )
-        self._add_type_to_modify_events(
-            RETRIEVAL=self.modify_recalls
-        )
-
-    @mark_end('OFF')
-    def event_vocalization(self,event_json):
-        return self.event_default(event_json)
-
-    @mark_beginning()
-    @mark_end()
-    def marked_default(self,event_json):
-        return self.event_default(event_json)
-
-    @mark_beginning()
-    @mark_end()
-    def event_reset_serialpos(self, split_line):
-        return super(FRSys3LogParser, self).event_reset_serialpos(split_line)
-
-    @mark_beginning()
-    @mark_end()
-    def event_recall(self,event_json):
-        event = self.event_default(event_json)
-        event.type = 'REC'
-        return  event
-
-    @mark_beginning('ON')
-    @mark_end('OFF')
-    def event_stim(self,event_json):
-        event = self.event_default(event_json)
-        stim_params = event_json[self._STIM_PARAMS_FIELD]
-        event.stim_params.amplitude = stim_params['amplitude']
-        event.stim_params.frequency = stim_params['pulse_freq']/1000
-        event.stim_params.anode,event.stim_params.cathode = stim_params['stim_pair']
-
-
-    def event_trial(self, event_json):
-        if event_json['value']:
-            if self._list==-999:
-                self._list=-1
-            elif self._list == -1:
-                self._list =1
-            else:
-                self._list+=1
-        self._stim_list = event_json[self._PHASE_TYPE_FIELD]=='STIM'
-        event = self.event_default(event_json)
-        event.type='TRIAL'
+    def biomarker_event(self,event_json):
+        params_dict = event_json[self.stim_parser._STIM_PARAMS_FIELD]
+        biomarker_dict_to_field = {
+            'biomarker_value':'biomarker_value',
+            self._ID_FIELD:'id'
+        }
+        event=self.event_default(event_json)
+        for k,v in biomarker_dict_to_field.items():
+            event.stim_params[v] = params_dict[k]
+        event.stim_params['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'NONE' # Need stim event following it to
+                                                                                          # tell if biomarker creation is pre-stim
+        event.stim_params = event.stim_params.view(np.recarray)
         return event
 
-    @mark_end('OFF')
-    def event_word(self, event_json):
-        event = self.event_default(event_json)
-        event.serialpos  = event_json[self._SERIAL_POS_FIELD]
-        event.list = self._list
-        try:
-            self._word = event_json[self._ITEM_FIELD]
-            event = self.apply_word(event)
-        except:
-            event.item_name = 'placeholder'
-        return event
+    def stim_event(self,event_json):
+        stim_on_event = self.event_default(event_json)
+        stim_params_subevent = self.stim_parser.make_stim_event(event_json,self.electrode_config)
+        stim_on_event.stim_params=stim_params_subevent.stim_params.view(np.recarray)
+        stim_on_event.type='STIM_ON'
+        # stim_off_event= deepcopy(stim_on_event)
+        # stim_off_event.stim_params['host_time']+=stim_off_event.stim_params.stim_duration
+        # stim_off_event.stim_params['stim_on']=False
+        # stim_off_event[self.stim_parser._DEST_SORT_FIELD]=stim_off_event.stim_params['host_time'][0]
+        # stim_off_event['host_time'] = stim_off_event.stim_params['host_time'][0]
+        # stim_off_event.type='STIM_OFF'
+        # return np.append(stim_on_event,stim_off_event).view(np.recarray)
+        return stim_on_event
+
+    def modify_pre_stim(self,events):
+        if events.shape:
+            stim_event = events[-1]
+            pre_stim_biomarker_events = events[((events['stim_params']['id']==stim_event['stim_params']['id'])[:,0]) & (events.type=='BIOMARKER')]
+            if len(pre_stim_biomarker_events):
+                pre_stim_biomarker_events.stim_params.position='PRE'
+                events[((events['stim_params']['id']==stim_event['stim_params']['id'])[:,0]) & (events.type=='BIOMARKER')]= pre_stim_biomarker_events
+        return events
+
+    def parse(self):
+        events = BaseSys3LogParser.parse(self).view(np.recarray)
+        events.sort(order='mstime')
+        for stim_event in events[events.type=='STIM_ON']:
+            matched_events = events[((events.stim_params.id == stim_event.stim_params['id'])[:,0]) & (events.type=='BIOMARKER')]
+            stim_fields = list(self.stim_parser.empty_stim_params().dtype.names)
+            for field in ['host_time','stim_on','stim_duration']:
+                stim_fields.remove(field)
+            for field in stim_fields:
+                matched_events.stim_params[field]=stim_event.stim_params[field]
+            events[((events.stim_params.id == stim_event.stim_params['id'])[:,0]) & (events.type=='BIOMARKER')] = matched_events
+        return events
+
+
+#
+# class VocalizationParser(BaseSys3LogParser,FRSessionLogParser):
+#     def __init__(self,protocol, subject, montage, experiment, session, files):
+#         super(VocalizationParser,self).__init__(protocol, subject, montage, experiment, session, files,
+#                                                 primary_log='event_log',allow_unparsed_events=True)
+#
+#         self._type_to_new_event = {
+#             'VOCALIZATION':self.event_default
+#         }
+#
+# class BiomarkerParser(BaseSys3LogParser,FRSessionLogParser):
+#     STIM_PARAMS_FIELD= 'msg_stub'
+#     BIOMARKER_FIELD = 'biomarker_value'
+#     ID_FIELD = 'hashtag'
+#     POSITION_FIELD ='buffer_name'
+#
+#     _STIM_FIELDS = BaseLogParser._STIM_FIELDS + (
+#             ('biomarker_value',-1.,'float64'),
+#             ('id','','S40'),
+#             ('pre_stim',True,'bool')
+#         )
+#
+#     def __init__(self,*args):
+#         super(BiomarkerParser,self).__init__(*args,primary_log='event_log',allow_unparsed_events=True)
+#
+#         self._type_to_new_event = {
+#             'BIOMARKER':self.event_biomarker
+#         }
+#
+#     def event_biomarker(self,event_json):
+#         event= self.event_default(event_json)
+#         json_stim_params=event_json[self.STIM_PARAMS_FIELD]
+#         event.stim_params.biomarker_value = json_stim_params[self.BIOMARKER_FIELD]
+#         event.stim_params.id = json_stim_params[self.ID_FIELD]
+#         event.stim_params.pre_stim = 'post' not in json_stim_params[self.POSITION_FIELD]
+#         return event
+#
+#
+
+
 
 
 
@@ -318,10 +351,11 @@ if __name__ == '__main__':
     #
     # s3lp = System3LogParser([event_log], [conf])
     # ppr(s3lp.stim_events.view(np.recarray).stim_params[:,0])
-    event_log = ['/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/host_pc/20170314_165146/event_log.json']
-    ann_files = glob.glob('/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/*.ann')
+    event_log = ['/Users/leond/Downloads/event_log.json.txt']
+    # ann_files = glob.glob('/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/*.ann')
     # VP = VocalizationParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log, 'annotations':ann_files})
     # events = VP.parse()
-    FRP = FRSys3LogParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log,}) #'annotations':ann_files})
-    fr_events = FRP.parse()
+    conf = '/Volumes/rhino_root/data/eeg/R1286J/behavioral/catFR3/session_0/host_pc/20170314_165146/config_files/R1286J_14MAR2017L1M1STIM.csv'
+    parser = Sys3EventsParser('r1','R1999X','0.0','FR5','0',{'event_log':event_log,'electrode_config':[conf]}) #'annotations':ann_files})
+    events = parser.parse()
     pass

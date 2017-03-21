@@ -9,9 +9,10 @@ from loggers import logger
 import matplotlib.pyplot as plt
 
 from system1 import UnAlignableEEGException
-from parsers.system3_log_parser import System3LogParser,VocalizationParser
+from parsers.system3_log_parser import System3LogParser,Sys3EventsParser
 
 from configuration import config
+
 
 class System3Aligner(object):
 
@@ -35,13 +36,13 @@ class System3Aligner(object):
         self.plot_save_dir = plot_save_dir
 
         self.events = events
-        session_attrs={prop:events[0][prop] for prop in ['protocol','session','experiment','subject','montage']}
-        session_attrs['files'] = files
-        vocalization_events = VocalizationParser(**session_attrs).parse()
-        if vocalization_events.shape:
-            self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
-        else:
-            self.merged_events = self.events
+        self.session_attrs={prop:events[0][prop] for prop in ['protocol','session','experiment','subject','montage']}
+        self.session_attrs['files'] = files
+        # vocalization_events = VocalizationParser(**session_attrs).parse()
+        # if vocalization_events.shape:
+        #     self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
+        # else:
+        self.merged_events = self.events
 
 
         for label, rate in self.FROM_LABELS:
@@ -70,7 +71,10 @@ class System3Aligner(object):
 
     def stim_event_to_mstime(self, event):
 
-        host_time = event['host_time'][0]
+        if event['host_time'].shape:
+            host_time = event['host_time'][0]
+        else:
+            host_time = event['host_time']
 
         coef_inds = np.where(host_time <= self.host_ends)[0]
 
@@ -91,6 +95,7 @@ class System3Aligner(object):
 
         logger.debug("Generating system 3 log parser")
         s3lp = System3LogParser(self.events_logs, self.electrode_config)
+        s3lp._stim_events = Sys3EventsParser(**self.session_attrs).parse()
         logger.debug("Merging events")
         self.merged_events = s3lp.merge_events(self.events, event_template, self.stim_event_to_mstime, persistent_fields)
 

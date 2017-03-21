@@ -13,6 +13,7 @@ from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from submission.transfer_config import TransferConfig
 
+
 from tasks import ImportJsonMontageTask, CleanLeafTask
 
 from parsers.base_log_parser import get_version_num
@@ -119,7 +120,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
         #         else:
         #             groups += ('system_1',)
 
-        if experiment.endswith("3"):
+        if experiment.endswith("3") or experiment.endswith("5"):
             groups += ("stim", )
     return groups
 
@@ -306,10 +307,10 @@ class TransferPipeline(object):
             self.on_failure()
             raise
 
-def build_wav_pipeline(subject,experiment,session,protocol,**kwargs):
-    transferer = generate_wav_transferer(subject,experiment,session,protocol,code=subject)
-    transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
-    return TransferPipeline(transferer)
+# def build_wav_pipeline(subject,experiment,session,protocol,**kwargs):
+#     transferer = generate_wav_transferer(subject,experiment,session,protocol,code=subject)
+#     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
+#     return TransferPipeline(transferer)
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
@@ -378,7 +379,6 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
-
 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system))
     elif protocol == 'ltp':

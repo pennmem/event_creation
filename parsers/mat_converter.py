@@ -19,7 +19,7 @@ from scipy.io import loadmat
 import files
 from files import open_with_perms
 from configuration import paths
-
+from loggers import logger
 class BaseMatConverter(object):
     """
     Base class to convert .mat files to record arrays
@@ -277,6 +277,7 @@ class MatlabEEGExtractor(object):
                         data = data * params['gain']
                         data = data.astype(params['data_format'])
                         out_file = os.path.join(noreref, os.path.basename(eeg_filename))
+                        logger.debug('transfering channel {}'.format(os.path.splitext(out_file)[-1]))
                         data.tofile(out_file)
                         os.chmod(out_file, 0446)
                         n_samples = len(data)
