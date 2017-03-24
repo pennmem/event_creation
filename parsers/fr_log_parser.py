@@ -4,7 +4,9 @@ from viewers.view_recarray import strip_accents
 import numpy as np
 import os
 import re
-
+import json
+import pandas as pd
+import sqlite3
 
 class FRSessionLogParser(BaseSessionLogParser):
 
@@ -222,7 +224,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def apply_word(self, event):
         event.item_name = self._word
-        if (self._wordpool == self._word).any():
+        if self._wordpool == self._word:
             wordno = np.where(self._wordpool == self._word)
             event.item_num = wordno[0] + 1
         else:
@@ -429,6 +431,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def parse(self):
         events = super(FRSessionLogParser,self).parse()
+        events = events.view(np.recarray)
         return self.add_baseline_events(events)
 
     @staticmethod
@@ -466,7 +469,7 @@ class FRSessionLogParser(BaseSessionLogParser):
                 is_match_tmp[i, ...] = False
                 good_locs = np.where(is_match_tmp & (~full_match_accum))
                 if len(good_locs[0]):
-                    choice_position = np.random.choice(len(good_locs[0]))
+                    choice_position = np.argmin(np.mod(good_locs[0] - i, len(good_locs[0])))
                     choice_inds = (good_locs[0][choice_position], good_locs[1][choice_position])
                     full_match_accum[choice_inds] = True
         matching_epochs = epochs[full_match_accum]
@@ -485,7 +488,6 @@ class FRSessionLogParser(BaseSessionLogParser):
                 merged_events[i].eegoffset = merged_events[i - 1].eegoffset + (
                 merged_events[i].mstime - merged_events[i - 1].mstime)
         return merged_events
-
 
     @staticmethod
     def find_presentation(word, events):
@@ -543,18 +545,29 @@ def free_epochs(times, duration, pre, post, start=None, end=None):
 
 
 
+class FRSys31SessionParser(BaseSessionLogParser):
+    def __init__(self, protocol, subject, montage, experiment, session, files,
+                 allow_unparsed_events=False, include_stim_params=False):
+        super(FRSys31SessionParser,self).__init__(protocol, subject, montage, experiment, session, files,
+                 allow_unparsed_events=False, include_stim_params=False,primary_log='session_sql')
 
+    # def _get_raw_event_type(self, split_line):
 
-
-
-
+    def _read_primary_log(self):
+        # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
+        conn = sqlite3.connect(self._primary_log)
+        query = 'SELECT msg FROM logs WHERE name = "events"'
+        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,
+                                                             conn).msg.values]
+        return msgs
 
 
 if __name__ == '__main__':
     files = {
-        'session_log':'/Volumes/PATRIOT/R1999X/behavioral/FR1/session_0/session.log',
-        'wordpool': '/Volumes/PATRIOT/R1999X/behavioral/FR1/RAM_wordpool.txt'
+        'session_log':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.log',
+        'wordpool': '/Users/leond/Documents/PS4_FR5/task/R1234M/RAM_wordpool.txt',
+        'session_sql':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.sqlite'
     }
 
-    frslp = FRSessionLogParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
+    frslp = FRSys31SessionParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
     events=  frslp.parse()

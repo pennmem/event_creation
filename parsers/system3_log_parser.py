@@ -149,7 +149,7 @@ class System3LogParser(object):
                                       np.append(new_event, merged_events[insert_index:]))
 
             if new_event.type=='STIM_ON':
-                # Do the same for the stim_off_event
+                # Do the same to create the stim_off_event
                 stim_off_sub_event = deepcopy(stim_event.stim_params).view(np.recarray)
                 stim_off_sub_event.stim_on = False
                 stim_off_sub_event['host_time'] += stim_off_sub_event.stim_duration

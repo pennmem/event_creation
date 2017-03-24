@@ -227,11 +227,11 @@ files:
   # System 3
 
   - name: session_sql
-  << : *FILE
-  groups: [r1,transfer, system_3]
-  origin_directory: *BEH_SESS_DIR
-  origin_file: 'session.sqlite'
-  destination: logs/session.sqlite
+    << : *FILE
+    groups: [r1,transfer, system_3]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: 'session.sqlite'
+    destination: logs/session.sqlite
 
   - name: host_pc_logs
     << : *DIR
@@ -263,7 +263,7 @@ files:
       - name: electrode_config
         << : *FILE
         origin_directory: "*/config_files"
-        origin_file: '*.csv'
+        origin_file: 'contacts*.csv'
         destination: electrode_config.csv
 
       - name: electrode_binary

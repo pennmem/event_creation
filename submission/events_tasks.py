@@ -3,6 +3,7 @@ import os
 import numpy as np
 import glob
 import traceback
+from collections import defaultdict
 
 from ptsa.data.readers import BaseEventReader
 
@@ -11,6 +12,7 @@ from alignment.system2 import System2Aligner
 from alignment.system3 import System3Aligner
 from alignment.LTPAligner import LTPAligner
 
+from parsers.base_log_parser import BaseSessionLogParser
 from parsers.fr_log_parser import FRSessionLogParser
 from parsers.pal_log_parser import PALSessionLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
@@ -22,6 +24,7 @@ from parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
+from parsers.FRSys3LogParser import FRSys3LogParser
 
 from readers.eeg_reader import get_eeg_reader
 
@@ -144,20 +147,35 @@ class MatlabEEGConversionTask(PipelineTask):
 class EventCreationTask(PipelineTask):
 
     PARSERS = {
-        'FR': FRSessionLogParser,
-        'PAL': PALSessionLogParser,
-        'catFR': CatFRSessionLogParser,
-        'math': MathLogParser,
-        'PS': PSLogParser,
-        'TH': THSessionLogParser,
-        'THR': THRSessionLogParser
+        0:defaultdict(lambda :BaseSessionLogParser),
+        1:{
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        2:{
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        3:{
+            'FR': FRSys3LogParser
+        }
     }
 
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num=0, event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
-        self.parser_type = parser_type or self.PARSERS[re.sub(r'\d', '', experiment)]
+        self.parser_type = parser_type or self.PARSERS[r1_sys_num][re.sub(r'\d', '', experiment)]
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
@@ -188,7 +206,7 @@ class EventCreationTask(PipelineTask):
             else:
                 aligner = System3Aligner(unaligned_events, files, db_folder)
 
-            if self.event_label != 'math':
+            if self.event_label not in  ['math','recog']:
                 logger.debug("Adding stimulation events")
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
@@ -224,8 +242,16 @@ class PruneEventsTask(PipelineTask):
             if len(filtered_events) == 0 or events is None:
                 logger.info('No events for this experiment. If there are subsequent PS4 sessions, do not panic.')
                 raise NoEventsError()
-            events = to_json(events)
-            self.create_file(fid,events,os.path.splitext(os.path.basename(fid))[0])
+            filtered_events = to_json(filtered_events)
+            self.create_file(fid,filtered_events,os.path.splitext(os.path.basename(fid))[0])
+
+
+class RecognitionFlagTask(PipelineTask):
+    def _run(self, files, db_folder):
+        event_file = os.path.join(db_folder, 'task_events.json')
+        events = from_json(event_file)
+        self.pipeline.register_info('Recognition', any(['RECOG' in tipe for tipe in np.unique(events.type)]))
+
 
 
 class EventCombinationTask(PipelineTask):

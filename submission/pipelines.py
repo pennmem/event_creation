@@ -20,7 +20,7 @@ from parsers.base_log_parser import get_version_num
 
 from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  MontageLinkerTask, PruneEventsTask
+                  MontageLinkerTask, PruneEventsTask,RecognitionFlagTask
 
 from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
@@ -51,6 +51,11 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
     groups += (exp_type, experiment)
 
     groups += tuple(args)
+
+    if 'PS4' in experiment:
+        groups += ('PS4',)
+    if protocol == 'r1' and experiment.endswith('5') and 'PS4' not in groups:
+        groups += ('recog',)
 
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
         kwargs['original_session'] = session
@@ -353,8 +358,6 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
-    def is_ps4_experiment_type(exp):
-        return exp.endswith('5') and not experiment.startswith('PS')
 
     logger.set_label("Building Event Creator")
 
@@ -396,12 +399,15 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                        'math', MathLogParser, critical=False))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
-    if is_ps4_experiment_type(experiment):
+    if 'ps4' in groups:
         if kwargs.get('new_experiment')=='PS4':
             comparator = lambda events: events.list<N_PS4_SESSIONS
         else:
             comparator = lambda events: events.list>= N_PS4_SESSIONS
         tasks.append(PruneEventsTask(comparator))
+
+    if 'recog' in groups:
+        tasks.append(RecognitionFlagTask(critical=False))
 
     if do_compare:
         tasks.append(CompareEventsTask(subject, montage, experiment, session, protocol, code, original_session,

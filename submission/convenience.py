@@ -305,10 +305,10 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
             attempted_importers.extend(attempts)
             successes.append(events_success)
             if not events_success:
-                logger.info('PS4 Events builder failed')
+                logger.info('PS4 Events builder failed. Unwinding.')
                 events_builder.remove()
         else:
-            logger.info('PS4 Ephys builder failed')
+            logger.info('PS4 Ephys builder failed. Unwinding.')
             ephys_builder.remove()
 
 

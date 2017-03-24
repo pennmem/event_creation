@@ -497,6 +497,25 @@ class BaseSys3LogParser(BaseLogParser):
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
+
+
+class RecogParser(BaseSessionLogParser):
+    def __init__(self,protocol, subject, montage, experiment, session, files):
+        super(RecogParser,self).__init__(protocol,subject,montage,experiment,session,files,allow_unparsed_events=True)
+        self._add_type_to_new_event(
+            RECOG_WORD = self.event_recog
+            #other event types?
+        )
+        self._add_fields(
+            ('item_name','','S12'),
+            ('recognized',-1,'int'),
+            ('rejected', -1,'int')
+        )
+
+    def event_recog(self,split_line):
+        raise NotImplementedError
+
+
 class EventComparator:
     """
     Compares two sets of np.recarray events, comparing events with matching types and mstimes and producing a list of
