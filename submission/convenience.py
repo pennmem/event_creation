@@ -290,7 +290,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     logger.set_label('PS4 session importer')
 
 
-    if kwargs['PS4']:
+    if not kwargs['protocol']=='ltp' and kwargs['PS4']:
         ps4_kwargs = deepcopy(kwargs)
         ps4_kwargs['new_experiment'] = 'PS4'
 
@@ -515,8 +515,6 @@ def session_inputs_from_json(filename):
                 info = sessions[session]
                 info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
-                if info['protocol'] == 'ltp':
-                    info['PS4'] = False
                 yield inputs
 
 
