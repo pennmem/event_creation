@@ -226,6 +226,13 @@ files:
 
   # System 3
 
+  - name: session_sql
+  << : *FILE
+  groups: [r1,transfer, system_3]
+  origin_directory: *BEH_SESS_DIR
+  origin_file: 'session.sqlite'
+  destination: logs/session.sqlite
+
   - name: host_pc_logs
     << : *DIR
     groups: [ r1, transfer, system_3]
