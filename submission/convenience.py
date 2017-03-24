@@ -498,8 +498,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None,
-                    PS4=False
+                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 )
                 completed_codes.add(code)
                 yield inputs
@@ -516,6 +515,8 @@ def session_inputs_from_json(filename):
                 info = sessions[session]
                 info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
+                if info['protocol'] == 'ltp':
+                    info['PS4'] = False
                 yield inputs
 
 
