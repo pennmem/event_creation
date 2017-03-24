@@ -118,7 +118,8 @@ class System3LogParser(object):
             return merged_events
 
         for i, stim_event in enumerate(self.stim_events):
-
+            if stim_event.type=='BIOMARKER':
+                pass
             # Get the mstime for this host event
             sort_value = event_to_sort_value(stim_event.stim_params[0])
 
@@ -244,6 +245,7 @@ class Sys3EventsParser(BaseSys3LogParser):
     def event_default(self, event_json):
         event = super(Sys3EventsParser,self).event_default(event_json=event_json)
         event.host_time=event.mstime
+        event.stim_params['host_time']=event.host_time
         return event
 
     def biomarker_event(self,event_json):

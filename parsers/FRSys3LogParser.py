@@ -42,6 +42,14 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         ('position','','S64')
     )
 
+    _BASE_FIELDS = FRSessionLogParser._BASE_FIELDS + (
+        ('phase','','S64'),
+    )
+
+    @staticmethod
+    def persist_fields_during_stim(event):
+        return FRSessionLogParser.persist_fields_during_stim(event)+('phase',)
+
 
     _STIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
@@ -63,7 +71,8 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
 
     def event_default(self, event_json):
         event = self._empty_event
-        event.mstime = event_json[self._STIME_FIELD] * 1000
+        event.mstime = event_json[self._STIME_FIELD]
+        event.phase = event_json[self._PHASE_TYPE_FIELD]
         event.type = event_json[self._TYPE_FIELD]
         event.list = self._list
         event.stim_list = self._stim_list
