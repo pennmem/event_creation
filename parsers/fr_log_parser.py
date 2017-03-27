@@ -21,11 +21,11 @@ class FRSessionLogParser(BaseSessionLogParser):
             ('item_name', 'X', 'S64'),
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
-            ('rectime', -999, 'int16'),
             ('intrusion', -999, 'int16'),
             ('exp_version', '', 'S64'),
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
+            ('rectime',-999,'int16'),
         )
 
     # FR2 specific fields
@@ -109,15 +109,10 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event,
-            VOICE=self.event_default,
-            KEYPRESS = self.event_recog
-
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls,
-            RECOGNITION=self.end_recall,
-            KEYPRESS=self.modify_recog,
         )
 
     @staticmethod

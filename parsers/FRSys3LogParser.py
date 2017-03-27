@@ -3,6 +3,7 @@ from fr_log_parser import FRSessionLogParser
 from base_log_parser import BaseLogParser
 from collections import defaultdict
 import json,sqlite3
+import numpy as np
 import pandas as pd
 
 def mark_beginning(suffix='START'):
@@ -44,6 +45,9 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
 
     _BASE_FIELDS = FRSessionLogParser._BASE_FIELDS + (
         ('phase','','S64'),
+        ('recognized',-999,'int16'),
+        ('rejected',-999,'int16'),
+        ('recog_resp',-999,'int16'),
     )
 
     @staticmethod
@@ -53,11 +57,12 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
 
     _STIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
-    _ITEM_FIELD = 'item'
+    _ITEM_FIELD = 'word'
     _PHASE_TYPE_FIELD = 'phase_type'
     _SERIAL_POS_FIELD = 'serialpos'
     _ONSET_FIELD = 'start_offset'
     _ID_FIELD = 'hashsum'
+    _RESPONSE_FIELD = 'yes'
 
     def _read_primary_log(self):
         # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
@@ -72,7 +77,8 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
     def event_default(self, event_json):
         event = self._empty_event
         event.mstime = event_json[self._STIME_FIELD]
-        event.phase = event_json[self._PHASE_TYPE_FIELD]
+        if self._PHASE_TYPE_FIELD in event_json:
+            event.phase = event_json[self._PHASE_TYPE_FIELD]
         event.type = event_json[self._TYPE_FIELD]
         event.list = self._list
         event.stim_list = self._stim_list
@@ -86,6 +92,8 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         self._list = -999
         self._stim_list = False
         self._on = False
+        self._recognition = False
+        self._was_recognized = False
 
         self._type_to_new_event= defaultdict(lambda: self.event_default,
                                              WORD_START = self.event_word,
@@ -93,11 +101,35 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
                                              TRIAL = self.event_trial,
                                              ENCODING_END = self.event_reset_serialpos,
                                              RETRIEVAL_START = self.event_recall_start,
-                                             RETRIEVAL_END = self.event_recall_end
+                                             RETRIEVAL_END = self.event_recall_end,
+                                             RECOGNITION_START = self._begin_recognition,
+                                             KEYPRESS = self.event_recog,
                                              )
         self._add_type_to_modify_events(
-            RETRIEVAL_START=self.modify_recalls
+            RETRIEVAL_START=self.modify_recalls,
+            KEYPRESS = self.modify_recog,
         )
+
+    def modify_recog(self,events):
+        events = events.view(np.recarray)
+        recog_event = events[-1]
+        recog_word = recog_event.item_name
+        rejected = not self._was_recognized if recog_event.phase =='LURE' else -999
+        recognized = self._was_recognized if recog_event.phase != 'LURE' else -999
+        word_mask = events.item_name==recog_word
+        events[word_mask].recog_resp = self._was_recognized
+        events[word_mask].rejected=rejected
+        events[word_mask].recognized = recognized
+        events[word_mask].rectime = self._recog_endtime
+        return events
+
+    def event_recog(self, event_json):
+        self._was_recognized = event_json[self._RESPONSE_FIELD]
+        return False
+
+    def _begin_recognition(self,event_json):
+        self._recognition = True
+        return self.event_default(event_json)
 
     def event_reset_serialpos(self, split_line):
         return super(FRSys3LogParser, self).event_reset_serialpos(split_line)
@@ -129,14 +161,27 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         event.serialpos  = event_json[self._SERIAL_POS_FIELD]
         self._word = event_json[self._ITEM_FIELD]
         event = self.apply_word(event)
-        event.type = 'WORD'
+        if self._recognition:
+            self._recog_pres_mstime = event_json[self._STIME_FIELD]
+            if event_json[self._PHASE_TYPE_FIELD] == 'LURE':
+                event.type = 'RECOG_LURE'
+            else:
+                event.type = 'RECOG_TARGET'
+        else:
+            event.type='WORD'
         return event
 
     def event_word_off(self, event_json):
-        event = super(FRSys3LogParser,self).event_word_off(event_json)
-        event.type = 'WORD_OFF'
+        event = self.event_default(event_json)
+        event.serialpos  = event_json[self._SERIAL_POS_FIELD]
+        self._word = event_json[self._ITEM_FIELD]
+        event = self.apply_word(event)
+        if self._recognition:
+            event.type = 'RECOG_WORD_OFF'
+            self._recog_endtime = event_json[self._STIME_FIELD]-self._recog_pres_mstime
+        else:
+            event.type = 'WORD_OFF'
         return event
-
 
 class RecognitionParser(BaseSys3LogParser):
 
@@ -163,9 +208,9 @@ class RecognitionParser(BaseSys3LogParser):
 
 if __name__ == '__main__':
     files = {
-        'session_log':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.log',
-        'wordpool': '/Users/leond/Documents/PS4_FR5/task/R1234M/RAM_wordpool.txt',
-        'session_sql':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.sqlite'
+        'session_log':'/Users/leond/Documents/R1111M/behavioral/FR5/session_0/session.log',
+        'wordpool': '/Users/leond/Documents/R1111M/behavioral/FR5/RAM_wordpool.txt',
+        'session_sql':'/Users/leond/Documents/R1111M/behavioral/FR5/session_0/session.sqlite'
     }
 
     frslp = FRSys3LogParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
