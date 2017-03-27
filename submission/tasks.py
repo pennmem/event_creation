@@ -212,8 +212,11 @@ class IndexAggregatorTask(PipelineTask):
     def run(self, *_):
         for protocol in self.PROTOCOLS:
             index = self.build_index(protocol)
-            with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w') as f:
-                json.dump(index, f, sort_keys=True, indent=2)
+            try:
+                with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w') as f:
+                    json.dump(index, f, sort_keys=True, indent=2)
+            except IOError:
+                logger.warn('Unable to open file ' + os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)) + ' with write permissions.')
 
     def run_single_subject(self, subject, protocol):
         try:
