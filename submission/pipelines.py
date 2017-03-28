@@ -12,7 +12,7 @@ from parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from parsers.mat_converter import MathMatConverter
 from parsers.math_parser import MathLogParser
 from submission.transfer_config import TransferConfig
-
+from parsers.ps_log_parser import PS4Sys3LogParser
 
 from tasks import ImportJsonMontageTask, CleanLeafTask
 
@@ -67,9 +67,9 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3')
+        systems = ('system_1', 'system_2', 'system_3_0','system_3_1')
 
-        for sys in ('system_1', 'system_2', 'system_3'):
+        for sys in systems:
             try:
                 print "I AM HERE!"
                 logger.info("Checking if this system is {}".format(sys))
@@ -159,13 +159,13 @@ def r1_system_match(experiment, transfer_cfg, sys):
                 logger.debug("The version number in session_log is {}".format(version))
                 if version >= 3:
                     logger.debug("This appears to be system_3 due to version number")
-                    return sys == 'system_3'
+                    return sys == 'system_3_0'
                 elif version >= 2:
                     logger.debug("This appears to be system_2 due to version number")
                     return sys == 'system_2'
             except Exception as e:
                 logger.debug("Error trying to get version number: {}".format(e))
-                pass
+                return sys=='system_3_1'
 
     return True
 
@@ -378,12 +378,17 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                              code=code, **kwargs)
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
 
-    system = 3 if 'system_3' in groups else 2 if 'system_2' in groups else 1 if 'system_1' in groups else 0
+    system = [x for x in groups if 'system' in x][0]
+    system = system.partition('_')[-1]
 
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
 
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system))
+        if kwargs.get('new_experiment')=='PS4':
+            parser_type = PS4Sys3LogParser
+        else:
+            parser_type = None
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,parser_type=parser_type))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]

@@ -219,7 +219,11 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def apply_word(self, event):
         event.item_name = self._word
-        if self._wordpool == self._word:
+        try:
+            in_wordpool = bool((self._wordpool==self._word))
+        except ValueError:
+            in_wordpool = (self._wordpool==self._word).any()
+        if in_wordpool:
             wordno = np.where(self._wordpool == self._word)
             event.item_num = wordno[0] + 1
         else:
@@ -424,10 +428,10 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._trial = 0
         return events
 
-    def parse(self):
-        events = super(FRSessionLogParser,self).parse()
-        events = events.view(np.recarray)
-        return self.add_baseline_events(events)
+    # def parse(self):
+    #     events = super(FRSessionLogParser,self).parse()
+    #     events = events.view(np.recarray)
+    #     return self.add_baseline_events(events)
 
     @staticmethod
     def add_baseline_events(sess_events):

@@ -5,6 +5,8 @@ from collections import defaultdict
 import json,sqlite3
 import numpy as np
 import pandas as pd
+import os
+
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -64,14 +66,26 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
     _ID_FIELD = 'hashsum'
     _RESPONSE_FIELD = 'yes'
 
-    def _read_primary_log(self):
-        # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
-        conn = sqlite3.connect(self._primary_log)
-        query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,
-                                                             conn).msg.values]
+    def _read_sql_logs(self):
+        msgs = []
+        for log in self._primary_log:
+            msgs += self._read_sql_log(log)
         return msgs
 
+    @staticmethod
+    def _read_sql_log(log):
+        conn = sqlite3.connect(log)
+        query = 'SELECT msg FROM logs WHERE name = "events"'
+        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,conn).msg.values]
+        return msgs
+
+
+    def _read_primary_log(self):
+        log = self._primary_log[0] if isinstance(self._primary_log,list) else self._primary_log
+        if log is self._primary_log:
+            return self._read_sql_log(log)
+        else:
+            return self._read_sql_logs()
 
 
     def event_default(self, event_json):
@@ -87,7 +101,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
 
     def __init__(self,protocol, subject, montage, experiment, session, files):
         super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                                        primary_log='session_sql',allow_unparsed_events=True)
+                                        primary_log='session_log',allow_unparsed_events=True)
 
         self._list = -999
         self._stim_list = False

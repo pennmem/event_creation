@@ -18,7 +18,7 @@ from parsers.pal_log_parser import PALSessionLogParser
 from parsers.catfr_log_parser import CatFRSessionLogParser
 from parsers.math_parser import MathLogParser
 from parsers.base_log_parser import EventComparator
-from parsers.ps_log_parser import PSLogParser
+from parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
 from parsers.th_log_parser import THSessionLogParser
 from parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
@@ -147,8 +147,7 @@ class MatlabEEGConversionTask(PipelineTask):
 class EventCreationTask(PipelineTask):
 
     PARSERS = {
-        0:defaultdict(lambda :BaseSessionLogParser),
-        1:{
+        '1':{
             'FR': FRSessionLogParser,
             'PAL': PALSessionLogParser,
             'catFR': CatFRSessionLogParser,
@@ -157,7 +156,7 @@ class EventCreationTask(PipelineTask):
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser
         },
-        2:{
+        '2':{
             'FR': FRSessionLogParser,
             'PAL': PALSessionLogParser,
             'catFR': CatFRSessionLogParser,
@@ -166,12 +165,22 @@ class EventCreationTask(PipelineTask):
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser
         },
-        3:{
-            'FR': FRSys3LogParser
+        '3_0': {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        '3_1':{
+            'FR': FRSys3LogParser,
+            'PS': PS4Sys3LogParser,
         }
     }
 
-    def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num=0, event_label='task',
+    def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
@@ -200,13 +209,13 @@ class EventCreationTask(PipelineTask):
                 artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
                                                      aligner.reref_dir)
                 events = artifact_detector.run()
-        elif self.r1_sys_num in (2, 3):
-            if self.r1_sys_num == 2:
+        elif self.r1_sys_num in ('2','3_0','3_1'):
+            if self.r1_sys_num == '2':
                 aligner = System2Aligner(unaligned_events, files, db_folder)
             else:
                 aligner = System3Aligner(unaligned_events, files, db_folder)
 
-            if self.event_label not in  ['math','recog']:
+            if self.event_label not in  ['math'] and self.parser_type is not PS4Sys3LogParser:
                 logger.debug("Adding stimulation events")
                 aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
@@ -217,7 +226,7 @@ class EventCreationTask(PipelineTask):
             else:
                 start_type = "SESS_START"
             events = aligner.align(start_type)
-        elif self.r1_sys_num == 1:
+        elif self.r1_sys_num == '1':
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
         else:

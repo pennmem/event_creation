@@ -44,10 +44,6 @@ class System3LogParser(object):
         self.source_time_field = self.SOURCE_TIME_FIELD
         self.source_time_multiplier = self.SOURCE_TIME_MULTIPLIER
 
-        self.make_event = defaultdict(lambda:(lambda *_:None), **{
-            'STIM':self.make_stim_event,
-            'BIOMARKER': self.make_biomarker_event,
-        })
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
@@ -118,8 +114,6 @@ class System3LogParser(object):
             return merged_events
 
         for i, stim_event in enumerate(self.stim_events):
-            if stim_event.type=='BIOMARKER':
-                pass
             # Get the mstime for this host event
             sort_value = event_to_sort_value(stim_event.stim_params[0])
 

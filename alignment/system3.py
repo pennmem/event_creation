@@ -9,7 +9,7 @@ from loggers import logger
 import matplotlib.pyplot as plt
 
 from system1 import UnAlignableEEGException
-from parsers.system3_log_parser import System3LogParser,Sys3EventsParser
+from parsers.system3_log_parser import System3LogParser
 
 from configuration import config
 
@@ -95,7 +95,6 @@ class System3Aligner(object):
 
         logger.debug("Generating system 3 log parser")
         s3lp = System3LogParser(self.events_logs, self.electrode_config)
-        s3lp._stim_events = Sys3EventsParser(**self.session_attrs).parse()
         logger.debug("Merging events")
         self.merged_events = s3lp.merge_events(self.events, event_template, self.stim_event_to_mstime, persistent_fields)
 

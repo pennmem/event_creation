@@ -62,7 +62,7 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer, '!system_3']
+    groups: [ r1, transfer, '!system_3_0', '!system_3_1']
     checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:
@@ -71,28 +71,27 @@ files:
       - '*.eeg'
       - '*.EEG'
       - '*.ns*'
+      - '*/*.ns*'
     destination: raw_eeg/
 
   - name: host_pc_files
     << : *DIR
-    groups: [ r1, transfer, system_3]
+    groups: [ r1, transfer, '!system_1', '!system_2']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
-    origin_file: '/'
+    origin_file: '*'
     destination: 'host_pc/'
     files:
       - name: raw_eeg
         <<: *FILE
         checksum_contents: false
-        origin_directory: *SYS3_HOST_DIR
-        origin_file:
-        - '*/*.h5'
-        - '*.h5'
+        origin_directory: ''
+        origin_file: '*.h5'
         destination: eeg_timeseries.h5
       - name: experiment_config
         << : *FILE
-        origin_directory: *SYS3_HOST_DIR
-        origin_file: '*/experiment_config.json'
+        origin_directory: ''
+        origin_file: 'experiment_config.json'
         destination: experiment_config.json
 
   - name: elec_file
@@ -113,7 +112,7 @@ files:
 
   - name: contacts
     <<: *LINK
-    groups: [ r1, transfer, 'system_3' ]
+    groups: [ r1, transfer, '!system_1', '!system_2' ]
     required: false
     origin_directory: *CURR_MONT
     origin_file: contacts.json

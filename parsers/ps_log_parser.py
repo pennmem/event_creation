@@ -4,6 +4,7 @@ import numpy as np
 import re
 import json
 from files import open_with_perms
+from electrode_config_parser import ElectrodeConfig
 
 
 def PSLogParser(protocol, subject, montage, experiment, session,  files):
@@ -398,6 +399,119 @@ class PSSys3LogParser(BaseSys3LogParser):
         event = self.event_default(event_json)
         event.type = 'AD_CHECK'
         return event
+
+
+class PS4Sys3LogParser(BaseSys3LogParser):
+
+    _frequency = 200
+    _ID_FIELD = 'hashtag'
+    _STIM_PARAMS_FIELD = 'msg_stub'
+    _DELTA_CLASSIFIER_FIELD = 'stim_delta_classifier'
+
+    _DECISION_FIELDS = (
+        ('p_val',-999.0, 'float64'),
+        ('t_stat',-999.0,'float64'),
+        ('best_location','','S16'),
+        ('tie',-1,'int16')
+    )
+
+    _BASE_FIELDS = BaseSys3LogParser._BASE_FIELDS + (
+        ('id','XXX','S64'),
+        ('list',-999,'int16'),
+        ('biomarker_value',-99.99,'float64'),
+        ('position','None','S10'),
+        ('delta_classifier',-99.99,'float64'),
+        ('decision',BaseSessionLogParser.event_from_template(_DECISION_FIELDS),BaseSessionLogParser.dtype_from_template(_DECISION_FIELDS)),
+    )
+
+
+    def __init__(self,protocol,subject,montage,experiment,session,files,
+                 primary_log = 'event_log',allow_unparsed_events=True,include_stim_params=True):
+        super(PS4Sys3LogParser,self).__init__(
+            protocol,subject,montage,experiment,session,files,primary_log,allow_unparsed_events,include_stim_params)
+        electrode_config_files = files['electrode_config']
+        if not isinstance(electrode_config_files,list):
+            electrode_config_files = [electrode_config_files]
+        self._electrode_config = ElectrodeConfig(electrode_config_files[0])
+        self._add_type_to_new_event(
+            BIOMARKER= self.event_biomarker,
+            OPTIMIZATION = self.event_optimization,
+            OPTIMIZATION_DECISION = self.event_decision,
+            STIM=self.event_stim, # Skip because it is added later with alignment
+            TRIAL  = self.event_trial,
+        )
+        self._add_type_to_modify_events(
+
+        )
+
+        self._list = -999
+
+
+    def apply_stim_params(self,event):
+        event.anode_label  = self._anode
+        event.cathode_label = self._cathode
+        event.anode_num = self._anode_num
+        event.cathode_num = self._cathode_num
+        event.amplitude = self._amplitude
+        event.frequency = self._frequency
+
+    def event_default(self, event_json):
+        event  = super(PS4Sys3LogParser,self).event_default(event_json)
+        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
+        event.list = self._list
+        return event
+
+
+    def event_biomarker(self,event_json):
+        params_dict = event_json[self._STIM_PARAMS_FIELD]
+        biomarker_dict_to_field = {
+            'biomarker_value':'biomarker_value',
+            self._ID_FIELD:'id'
+        }
+        event=self.event_default(event_json)
+        for k,v in biomarker_dict_to_field.items():
+            event[v] = params_dict[k]
+        event['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
+        return event.view(np.recarray)
+
+
+    def event_optimization(self,event_json):
+        event=self.event_default(event_json)
+        event.delta_classifier = event_json[self._STIM_PARAMS_FIELD][self._DELTA_CLASSIFIER_FIELD]
+        return event
+
+    def event_stim(self,event_json):
+        if event_json['event_value']:
+            stim_params_dict = event_json[self._STIM_PARAMS_FIELD]
+            self._amplitude = stim_params_dict['amplitude']
+            self._frequency = stim_params_dict['pulse_freq'] /1000
+            stim_pair = stim_params_dict['stim_pair']
+            self._anode,self._cathode = stim_pair.split('_')
+            self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
+        event = self.event_default(event_json)
+        event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
+        return event
+
+    def event_decision(self,event_json):
+        event = self.event_default(event_json)
+        decision_dict_from_fields = {
+            'p_val':'p_val','t_stat':'t_stat','best_location':'best_location_name','tie':'Tie'
+        }
+        for k,v in decision_dict_from_fields.items():
+            event.decision[k] = event_json[self._STIM_PARAMS_FIELD]['decision'][v]
+        return event
+
+    def event_trial(self,event_json):
+        if self._list == -999:
+            self._list = -1
+        elif self._list == -1:
+            self._list = 1
+        else:
+            self._list +=1
+        return False
+
+
+
 
 if __name__ == '__main__':
 
