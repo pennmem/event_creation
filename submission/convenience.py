@@ -291,7 +291,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     logger.set_label('PS4 session importer')
 
 
-    if kwargs['PS4']:
+    if not kwargs['protocol']=='ltp' and kwargs['PS4']:
         ps4_kwargs = deepcopy(kwargs)
         ps4_kwargs['new_experiment'] = 'PS4'
 

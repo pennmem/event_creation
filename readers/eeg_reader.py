@@ -12,13 +12,13 @@ from readers.nsx_utility.brpylib import NsxFile
 import struct
 import datetime
 import sys
-import bz2
+#import bz2
 import files
 import tables
 import mne
 from loggers import logger
 from shutil import copy
-from helpers.butter_filt import butter_filt
+#from helpers.butter_filt import butter_filt
 
 class UnSplittableEEGFileException(Exception):
     pass
@@ -865,8 +865,10 @@ class EGI_reader(EEG_reader):
         """
         logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
+        unzip_path = original_path[:-4]
+        already_unzipped = os.path.isfile(unzip_path)
+        # If data file is already unzipped, use it; otherwise unzip the file for reading
+        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
                 raw = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
@@ -885,12 +887,15 @@ class EGI_reader(EEG_reader):
                 self.data[:picks_eeg_eog.size] *= 1000000
 
             except Exception as e:
-                logger.warn('Unable to parse EEG data file!')
+                logger.critical('Unable to parse EEG data file!')
 
-            os.system('rm ' + unzip_path.replace(' ', '\ '))
+            if os.path.isfile(original_path):  # Remove unzipped file if zipped version exists
+                os.system('rm ' + unzip_path.replace(' ', '\ '))
+            else:  # Zip file if only unzipped version exists
+                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
         else:
-            logger.warn('Unzipping failed! Unable to parse data file!')
+            logger.critical('Unzipping failed! Unable to parse data file!')
 
     def _split_data(self, location, basename):
         """
@@ -1056,9 +1061,10 @@ class BDF_reader(EEG_reader):
         """
         # logger.debug('Unzipping EEG data file ' + self.raw_filename)
         original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        if os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
-
+        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
+        already_unzipped = os.path.isfile(unzip_path)
+        # If data file is already unzipped, use it; otherwise unzip the file for reading
+        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
                 raw = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
@@ -1080,12 +1086,15 @@ class BDF_reader(EEG_reader):
                 self.data[:picks_eeg_eog.size] *= 1000000
 
             except Exception as e:
-                logger.warn('Unable to parse EEG data file!')
+                logger.critical('Unable to parse EEG data file!')
 
-            os.system('rm ' + unzip_path.replace(' ', '\ '))
+            if os.path.isfile(original_path):  # Remove unzipped file if zipped version exists
+                os.system('rm ' + unzip_path.replace(' ', '\ '))
+            else:  # Zip file if only unzipped version exists
+                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
         else:
-            logger.warn('Unzipping failed! Unable to parse data file!')
+            logger.critical('Unzipping failed! Unable to parse data file!')
 
     def _split_data(self, location, basename):
         """
