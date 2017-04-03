@@ -180,6 +180,13 @@ class EventCreationTask(PipelineTask):
         }
     }
 
+    @property
+    def r1_sys_num(self):
+        if not self._r1_sys_num:
+            return 0.0
+        return float(self._r1_sys_num.replace('_','.'))
+
+
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
@@ -190,7 +197,7 @@ class EventCreationTask(PipelineTask):
         self.montage = montage
         self.experiment = experiment
         self.session = session
-        self.r1_sys_num = r1_sys_num
+        self._r1_sys_num = r1_sys_num
         self.kwargs = kwargs
         self.event_label = event_label
         self.filename = '{label}_events.json'.format(label=event_label)
@@ -203,14 +210,15 @@ class EventCreationTask(PipelineTask):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
+        self.pipeline.register_info('system_version',self.r1_sys_num)
         if self.protocol == 'ltp':
                 aligner = LTPAligner(unaligned_events, files, db_folder)
                 events = aligner.align()
                 artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
                                                      aligner.reref_dir)
                 events = artifact_detector.run()
-        elif self.r1_sys_num in ('2','3_0','3_1'):
-            if self.r1_sys_num == '2':
+        elif self.r1_sys_num in (2.0,3.0,3.1):
+            if self.r1_sys_num == 2.0:
                 aligner = System2Aligner(unaligned_events, files, db_folder)
             else:
                 aligner = System3Aligner(unaligned_events, files, db_folder)
@@ -226,11 +234,11 @@ class EventCreationTask(PipelineTask):
             else:
                 start_type = "SESS_START"
             events = aligner.align(start_type)
-        elif self.r1_sys_num == '1':
+        elif self.r1_sys_num == 1.0:
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
         else:
-            raise UnProcessableException("r1_sys_num must be in (1, 3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+            raise UnProcessableException("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
