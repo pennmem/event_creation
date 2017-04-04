@@ -459,10 +459,11 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         self._amplitude = -999
 
     def modify_with_stim_params(self,events):
-        event_id = events[-1]['id']
-        matches = [events['id']==event_id]
-        new_events = self.apply_stim_params(events[matches])
-        events[matches] = new_events
+        if events.shape:
+            event_id = events[-1]['id']
+            matches = [events['id']==event_id]
+            new_events = self.apply_stim_params(events[matches])
+            events[matches] = new_events
         return events
 
 

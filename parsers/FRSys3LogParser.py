@@ -130,11 +130,13 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         recog_word = recog_event.item_name
         rejected = not self._was_recognized if recog_event.phase =='LURE' else -999
         recognized = self._was_recognized if recog_event.phase != 'LURE' else -999
-        word_mask = events.item_name==recog_word
-        events[word_mask].recog_resp = self._was_recognized
-        events[word_mask].rejected=rejected
-        events[word_mask].recognized = recognized
-        events[word_mask].rectime = self._recog_endtime
+        word_mask = np.where(events.item_name==recog_word)
+        new_events= events[word_mask]
+        new_events.recog_resp = self._was_recognized
+        new_events.rejected=rejected
+        new_events.recognized = recognized
+        new_events.rectime = self._recog_endtime
+        events[word_mask]=new_events
         return events
 
     def event_recog(self, event_json):

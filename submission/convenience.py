@@ -294,6 +294,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     if not kwargs['protocol']=='ltp' and kwargs['PS4']:
         ps4_kwargs = deepcopy(kwargs)
         ps4_kwargs['new_experiment'] = 'PS4'
+        ps4_kwargs['do_math']=False
 
         ephys_builder = Importer(Importer.BUILD_EPHYS,**ps4_kwargs)
         success, attempts = attempt_importers([ephys_builder],force_eeg)
