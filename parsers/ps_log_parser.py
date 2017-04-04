@@ -418,9 +418,14 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     _BASE_FIELDS = BaseSys3LogParser._BASE_FIELDS + (
         ('id','XXX','S64'),
         ('list',-999,'int16'),
-        ('biomarker_value',-99.99,'float64'),
+        ('biomarker_value',-999,'float64'),
         ('position','None','S10'),
-        ('delta_classifier',-99.99,'float64'),
+        ('delta_classifier',-999,'float64'),
+        ('anode_label','','S20'),
+        ('cathode_label','','S20'),
+        ('anode_num',-999,'int16'),
+        ('cathode_num',-999,'int16'),
+        ('amplitude',-999,'int16'),
         ('decision',BaseSessionLogParser.event_from_template(_DECISION_FIELDS),BaseSessionLogParser.dtype_from_template(_DECISION_FIELDS)),
     )
 
@@ -437,14 +442,29 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
-            STIM=self.event_stim, # Skip because it is added later with alignment
+            STIM=self.event_stim,
             TRIAL  = self.event_trial,
         )
         self._add_type_to_modify_events(
-
+            STIM = self.modify_with_stim_params,
+            BIOMARKER = self.modify_with_stim_params,
+            OPTIMIZATION = self.modify_with_stim_params
         )
 
         self._list = -999
+        self._anode = ''
+        self._cathode = ''
+        self._anode_num = -999
+        self._cathode_num = -999
+        self._amplitude = -999
+
+    def modify_with_stim_params(self,events):
+        event_id = events[-1]['id']
+        matches = [events['id']==event_id]
+        new_events = self.apply_stim_params(events[matches])
+        events[matches] = new_events
+        return events
+
 
 
     def apply_stim_params(self,event):
@@ -454,6 +474,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         event.cathode_num = self._cathode_num
         event.amplitude = self._amplitude
         event.frequency = self._frequency
+        return event
 
     def event_default(self, event_json):
         event  = super(PS4Sys3LogParser,self).event_default(event_json)
@@ -471,6 +492,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         event=self.event_default(event_json)
         for k,v in biomarker_dict_to_field.items():
             event[v] = params_dict[k]
+        event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
         event['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
         return event.view(np.recarray)
 

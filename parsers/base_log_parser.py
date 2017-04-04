@@ -491,7 +491,7 @@ class BaseSys3LogParser(BaseLogParser):
         event = self._empty_event
         event.mstime = event_json[self._STIME_FIELD] * 1000
         event.type = event_json[self._TYPE_FIELD]
-        event.eeg_offset = event_json[self._EEG_OFFSET_FIELD]
+        event.eegoffset = event_json[self._EEG_OFFSET_FIELD]
         return event
 
     def _get_raw_event_type(self, event_json):

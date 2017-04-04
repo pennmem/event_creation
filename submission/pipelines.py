@@ -67,7 +67,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_0','system_3_1')
+        systems = ('system_1', 'system_2', 'system_3_1','system_3_0')
 
         for sys in systems:
             try:
@@ -404,12 +404,12 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                        'math', MathLogParser, critical=False))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
-    if 'ps4' in groups:
-        if kwargs.get('new_experiment')=='PS4':
-            comparator = lambda events: events.list<N_PS4_SESSIONS
-        else:
-            comparator = lambda events: events.list>= N_PS4_SESSIONS
-        tasks.append(PruneEventsTask(comparator))
+    # if 'ps4' in groups:
+    #     if kwargs.get('new_experiment')=='PS4':
+    #         comparator = lambda events: events.list<N_PS4_SESSIONS
+    #     else:
+    #         comparator = lambda events: events.list>= N_PS4_SESSIONS
+    #     tasks.append(PruneEventsTask(comparator))
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))
