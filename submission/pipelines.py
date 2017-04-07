@@ -384,11 +384,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage)]
 
-        if kwargs.get('new_experiment')=='PS4':
-            parser_type = PS4Sys3LogParser
-        else:
-            parser_type = None
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,parser_type=parser_type))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -399,10 +395,20 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     else:
         raise Exception('Unknown protocol %s' % protocol)
 
+    other_events = ()
+
+    if 'ps4' in groups:
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
+                                       'ps4',parser_type=PS4Sys3LogParser))
+        other_events+=('ps4',)
+
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', MathLogParser, critical=False))
-        tasks.append(EventCombinationTask(('task', 'math'), critical=False))
+        other_events+=('math',)
+
+    if other_events:
+        tasks.append(EventCombinationTask(('task',)+other_events, critical=False))
 
     # if 'ps4' in groups:
     #     if kwargs.get('new_experiment')=='PS4':

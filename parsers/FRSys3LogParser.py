@@ -218,13 +218,13 @@ class catFRSys3LogParser(FRSys3LogParser):
     def event_word(self, event_json):
         event = super(catFRSys3LogParser,self).event_word(event_json)
         event.category = event_json[self._CATEGORY]
-        event.category_num = event_json[self._CATEGORY_NUM]
+        event.category_num = event_json[self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
         return event
 
     def event_word_off(self, event_json):
         event = super(catFRSys3LogParser,self).event_word_off(event_json)
         event.category = event_json[self._CATEGORY]
-        event.category_num = event_json[self._CATEGORY_NUM]
+        event.category_num = event_json[self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
         return event
 
 class RecognitionParser(BaseSys3LogParser):

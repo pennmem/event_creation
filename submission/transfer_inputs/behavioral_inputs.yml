@@ -146,7 +146,9 @@ files:
     << : *FILE
     groups: [r1, transfer, catFR]
     origin_directory: *BEH_EXP_DIR
-    origin_file: CatFR_WORDS.txt
+    origin_file:
+    - CatFR_WORDS.txt
+    - RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: no_accent_wordpool
