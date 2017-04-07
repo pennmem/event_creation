@@ -24,7 +24,7 @@ from parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter
-from parsers.FRSys3LogParser import FRSys3LogParser
+from parsers.FRSys3LogParser import FRSys3LogParser,catFRSys3LogParser
 
 from readers.eeg_reader import get_eeg_reader
 
@@ -176,6 +176,7 @@ class EventCreationTask(PipelineTask):
         },
         '3_1':{
             'FR': FRSys3LogParser,
+            'catFR': catFRSys3LogParser,
             'PS': PS4Sys3LogParser,
         }
     }

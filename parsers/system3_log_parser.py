@@ -33,7 +33,7 @@ class System3LogParser(object):
 
     _STIM_ON_FIELD = 'stim_on'
 
-    _DEFAULT_PULSE_WIDTH = 300
+    _DEFAULT_PULSE_WIDTH = 200
 
     SOURCE_TIME_FIELD = 't_event'
     SOURCE_TIME_MULTIPLIER = 1000

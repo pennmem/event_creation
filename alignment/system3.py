@@ -131,7 +131,7 @@ class System3Aligner(object):
             coefs.append(scipy.stats.linregress(froms, tos)[:2])
             ends.append(froms[-1])
 
-            self.plot_fit(froms, tos, coefs[-1], '.', 'fit{}'.format(i))
+            self.plot_fit(froms, tos, coefs[-1], '.', 'fit_{}_{}_{}'.format(from_label,to_label,i))
             self.check_fit(froms, tos, coefs[-1])
 
         if len(coefs) == 0:

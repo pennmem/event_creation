@@ -112,7 +112,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         self._type_to_new_event= defaultdict(lambda: self.event_default,
                                              WORD_START = self.event_word,
                                              WORD_END = self.event_word_off,
-                                             TRIAL = self.event_trial,
+                                             TRIAL_START = self.event_trial,
                                              ENCODING_END = self.event_reset_serialpos,
                                              RETRIEVAL_START = self.event_recall_start,
                                              RETRIEVAL_END = self.event_recall_end,
@@ -197,6 +197,34 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
             self._recog_endtime = event_json[self._STIME_FIELD]-self._recog_pres_mstime
         else:
             event.type = 'WORD_OFF'
+        return event
+
+
+
+class catFRSys3LogParser(FRSys3LogParser):
+    _BASE_FIELDS = FRSys3LogParser._BASE_FIELDS + (
+        ('category','X','S64'),
+        ('category_num',-999,'int16')
+    )
+
+    _CATEGORY = 'category'
+    _CATEGORY_NUM = 'category_num'
+
+
+    def __init__(self,*args,**kwargs):
+        super(catFRSys3LogParser,self).__init__(*args,**kwargs)
+        pass
+
+    def event_word(self, event_json):
+        event = super(catFRSys3LogParser,self).event_word(event_json)
+        event.category = event_json[self._CATEGORY]
+        event.category_num = event_json[self._CATEGORY_NUM]
+        return event
+
+    def event_word_off(self, event_json):
+        event = super(catFRSys3LogParser,self).event_word_off(event_json)
+        event.category = event_json[self._CATEGORY]
+        event.category_num = event_json[self._CATEGORY_NUM]
         return event
 
 class RecognitionParser(BaseSys3LogParser):
