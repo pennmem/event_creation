@@ -339,6 +339,7 @@ class MatlabEventConversionTask(PipelineTask):
         'catFR': CatFRMatConverter,
         'PS': PSMatConverter,
         'YC': YCMatConverter,
+        'TH': THMatConverter,
     }
 
     def __init__(self, protocol, subject, montage, experiment, session,

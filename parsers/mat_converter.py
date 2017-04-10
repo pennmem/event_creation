@@ -675,6 +675,142 @@ class YCMatConverter(BaseMatConverter):
         py_events = self.clean_events(py_events.view(np.recarray))
         return py_events[1:]
 
+class THMatConverter(BaseMatConverter):
+
+    TH_FIELD_CONVERSION = {
+        'trial': 'trial',
+        'item': 'item_name',
+        'chestNum': 'chestNum',
+        'block': 'block',
+        'locationX': 'locationX',
+        'locationY': 'locationY',
+        'chosenLocationX': 'chosenLocationX',
+        'chosenLocationY': 'chosenLocationY',
+        'navStartLocationX': 'navStartLocationX',
+        'navStartLocationY': 'navStartLocationY',
+        'recStartLocationX': 'recStartLocationX',
+        'recStartLocationY': 'recStartLocationY',
+        'isRecFromNearSide': 'isRecFromNearSide',
+        'isRecFromStartSide': 'isRecFromStartSide',
+        'reactionTime': 'reactionTime',
+        'confidence': 'confidence',
+        'radius_size': 'radius_size',
+        'listLength': 'listLength',
+        'distErr': 'distErr',
+        'recalled': 'recalled',
+        'expVersion': 'exp_version',
+        'isStim': 'is_stim',
+        'stimList': 'stim_list',
+        'isStim': 'is_stim',
+    }
+
+    def get_th_fields(self):
+        return (
+            ('trial', -999, 'int16'),
+            ('item_name', '', 'S64'),
+            ('chestNum', -999, 'int16'),
+            ('block', -999, 'int16'),
+            ('locationX', -999, 'float64'),
+            ('locationY', -999, 'float64'),
+            ('chosenLocationX', -999, 'float64'),
+            ('chosenLocationY', -999, 'float64'),
+            ('navStartLocationX', -999, 'float64'),
+            ('navStartLocationY', -999, 'float64'),
+            ('recStartLocationX', -999, 'float64'),
+            ('recStartLocationY', -999, 'float64'),
+            ('isRecFromNearSide', False, 'b1'),
+            ('isRecFromStartSide', False, 'b1'),
+            ('reactionTime', -999, 'float64'),
+            ('confidence', -999, 'int16'),
+            ('radius_size', -999, 'float64'),
+            ('listLength', -999, 'int16'),
+            ('distErr', -999, 'float64'),
+            ('normErr', -999, 'float64'),
+            ('recalled', False, 'b1'),
+            ('exp_version', '', 'S64'),
+            ('stim_list', False, 'b1'),
+            ('is_stim', False, 'b1'),
+        )
+
+    def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
+        """
+        Constructor
+        :param protocol: New protocol for the events
+        :param subject: New subject...
+        :param montage: New montage number...
+        :param experiment: New experiment...
+        :param session: New session...
+        :param original_session: Original session (used to parse old events to specific session)
+        :param files: Output of Transferer instance
+        """
+        super(THMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,
+                                             include_stim_params=True)
+        filename = str(files['matlab_events'])
+        mat_events = loadmat(filename, squeeze_me=True)['events']
+
+        sess_mask = mat_events['session'] == int(original_session)
+
+        sess_events = mat_events[sess_mask]
+        if len(sess_events) == 0:
+
+            raise Exception("No events with session {}. Options are {}".format(original_session,
+                                                                               np.unique(mat_events['session'])))
+
+        self._add_fields(*self.get_th_fields())
+        self._add_field_conversion(**self.TH_FIELD_CONVERSION)
+
+    def convert_fields(self, mat_event, i):
+        """
+        Converts the fields for a given matlab event to the record array, ignoring special rules
+        :param mat_event: the matlab event to convert
+        :return: the record array event
+        """
+        py_event = self._empty_event
+        for mat_field, py_field in self._field_conversion.items():
+            if mat_field in mat_event.dtype.names:
+                if isinstance(mat_event[mat_field], basestring):
+                    py_event[py_field] = strip_accents(mat_event[mat_field])
+                elif mat_field == 'item':
+                    py_event[py_field] = ''
+                else:
+                    py_event[py_field] = mat_event[mat_field]
+        return py_event
+
+    def convert_single_event(self, mat_event, i):
+        """
+        Converts a single matlab event to a python event, applying the specified conversions
+        :param mat_event: The matlab event
+        :return: The record array event
+        """
+        # Can implement a specific conversion based on type
+        if mat_event.type in self._type_conversion:
+            py_event = self._type_conversion[mat_event.type](mat_event)
+        else:
+            # Otherwise it undergoes the default conversion
+            py_event = self.convert_fields(mat_event, i)
+            for key, value in self._value_converion.items():
+                mat_field = self._reverse_field_conversion[key]
+                if isinstance(mat_event[mat_field], np.ndarray):
+                    mat_item = mat_event[mat_field].item()
+                else:
+                    mat_item = mat_event[mat_field]
+                if mat_item in value:
+                    py_event[key] = value[mat_item]
+        return py_event
+
+    def convert(self):
+        """
+        Converts all matlab events to record-array events
+        :return: The record array events
+        """
+        py_events = self._empty_event
+        for i, mat_event in enumerate(self._mat_events):
+            new_py_event = self.convert_single_event(mat_event, i)
+            if new_py_event:
+                py_events = np.append(py_events, new_py_event)
+        py_events = self.clean_events(py_events.view(np.recarray))
+        return py_events[1:]
+
 class MathMatConverter(BaseMatConverter):
 
     _MATH_FIELD_CONVERSION = {
@@ -1188,7 +1324,8 @@ CONVERTERS = {
     'catFR': CatFRMatConverter,
     'PAL': PALMatConverter,
     'PS': PSMatConverter,
-    'YC': YCMatConverter
+    'YC': YCMatConverter,
+    'TH': THMatConverter
 }
 
 test_sessions = (
