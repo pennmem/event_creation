@@ -177,6 +177,35 @@ files:
     destination: experiment_files/wordpool_no_accent.txt
 
   # TH specific
+  - name: sound_files
+    << : *FILE
+    multiple: true
+    groups: [r1, transfer, THR ]
+    origin_directory: !join [*BEH_SESS_DIR, 'audio']
+    origin_file: '*.wav'
+    destination: 'annotations/'
+
+  - name: annotations
+    << : *FILE
+    multiple: true
+    groups: [r1, transfer, THR ]
+    origin_directory: !join [*BEH_SESS_DIR, 'audio']
+    origin_file: '*.ann'
+    destination: 'annotations/'
+
+  - name: session_log
+    << : *FILE
+    groups : [r1, transfer, THR ]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '{code}Log.txt'
+    destination: logs/session_log.txt
+
+  - name: eeg_log
+    << : *FILE
+    groups: [ r1, transfer, THR, system_1 ]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: 'eeg.eeglog.up'
+    destination: logs/eeg.eeglog
 
   - name: session_log
     << : *FILE

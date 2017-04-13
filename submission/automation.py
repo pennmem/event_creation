@@ -234,7 +234,7 @@ class Automator(object):
     EXPERIMENTS = {'r1': ('FR1', 'FR2', 'FR3',
                           'catFR1', 'catFR2', 'catFR3',
                           'PAL1', 'PAL2', 'PAL3',
-                          'TH1', 'TH2', 'TH3',
+                          'TH1', 'TH2', 'TH3', 'THR',
                           'PS1', 'PS2', 'PS3')}
     MATH_TASKS = ('FR1', 'FR2', 'FR3', 'catFR1', 'catFR2', 'catFR3', 'PAL1', 'PAL2', 'PAL3', 'ltpFR', 'ltpFR2')
 
