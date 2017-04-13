@@ -209,15 +209,12 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         return event
 
     def event_trial(self, event_json):
-        if event_json[self._PHASE_TYPE_FIELD]=='PRACTICE':
-            self._list=-1
-        elif self._list == -1:
-            self._list =1
+        list = event_json['listno']
+        if list ==0:
+            self._list = -1
         else:
-            self._list+=1
-        self._stim_list = event_json[self._PHASE_TYPE_FIELD]=='STIM'
+            self._list = list
         event = self.event_default(event_json)
-        event.type='TRIAL'
         return event
 
     def event_word(self, event_json):
