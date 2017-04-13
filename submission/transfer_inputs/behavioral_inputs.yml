@@ -289,8 +289,8 @@ files:
         << : *FILE
         origin_directory: 'config_files'
         origin_file:
-        - 'contacts*.csv'
-#        - '{subject}*.csv'
+#        - 'contacts*.csv'
+        - '{subject}*.csv'
         destination: electrode_config.csv
 
       - name: electrode_binary
