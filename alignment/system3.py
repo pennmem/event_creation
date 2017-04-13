@@ -237,7 +237,7 @@ class System3Aligner(object):
             logger.error("Maximum residual of fit ({}) "
                          "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
 
-            max_index = np.where(residuals == max(residuals))[0]
+            max_index = np.where(residuals == max(residuals))[0][0]
 
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)

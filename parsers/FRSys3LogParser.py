@@ -139,6 +139,54 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         events[word_mask]=new_events
         return events
 
+    def modify_recalls(self, events):
+        rec_start_event = events[-1]
+        rec_start_time = rec_start_event.mstime
+        ann_outputs = self._parse_ann_file(str(self._list) if self._list > 0 else '0')
+        for recall in ann_outputs:
+            word = recall[-1]
+
+            new_event = self._empty_event
+            new_event.list = self._list
+            new_event.stim_list = self._stim_list
+            new_event.exp_version = self._version
+            new_event.rectime = float(recall[0])
+            new_event.mstime = rec_start_time + new_event.rectime
+            new_event.msoffset = 20
+            new_event.item_name = word
+            new_event.item_num = recall[1]
+
+            # If vocalization
+            if word == '<>' or word == 'V' or word == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
+
+            # If XLI
+            if recall[1] == -1:
+                new_event.intrusion = -1
+            else:  # Correct recall or PLI or XLI from latter list
+                pres_mask = self.find_presentation(word, events)
+                pres_list = np.unique(events[pres_mask].list)
+                pres_mask = np.logical_and(pres_mask, events.list == self._list)
+
+                # Correct recall or PLI
+                if len(pres_list) >= 1:
+                    new_event.intrusion = self._list - max(pres_list)
+                    if new_event.intrusion == 0:
+                        new_event.serial_pos = np.unique(events[pres_mask].serialpos)
+                        new_event.recalled = True
+                        if not any(events.recalled[pres_mask]):
+                            events.recalled[pres_mask] = True
+                            events.rectime[pres_mask] = new_event.rectime
+                else:  # XLI
+                    new_event.intrusion = -1
+
+            events = np.append(events, new_event).view(np.recarray)
+
+        return events
+
+
     def event_recog(self, event_json):
         self._was_recognized = event_json[self._RESPONSE_FIELD]
         return False
@@ -224,7 +272,7 @@ class catFRSys3LogParser(FRSys3LogParser):
     def event_word_off(self, event_json):
         event = super(catFRSys3LogParser,self).event_word_off(event_json)
         event.category = event_json[self._CATEGORY]
-        event.category_num = event_json[self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
+        event.category_num = event_json[self._CATEGORY_NUM]
         return event
 
 class RecognitionParser(BaseSys3LogParser):

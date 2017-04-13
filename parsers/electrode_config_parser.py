@@ -247,13 +247,20 @@ class ElectrodeConfig(object):
         self.subject_id = line.split(',')[1].strip()
         return next(file)
 
+    # def parse_contacts(self, line, file):
+    #     line = next(file).strip()
+    #     split_line = line.split(',')
+    #     while (len(split_line) == 5):
+    #         self.contacts[split_line[0]] = Contact(*split_line)
+    #         line = next(file).strip()
+    #         split_line = line.split(',')
+    #     return line
     def parse_contacts(self, line, file):
         line = next(file).strip()
-        split_line = line.split(',')
-        while (len(split_line) == 5):
-            self.contacts[split_line[0]] = Contact(*split_line)
-            line = next(file).strip()
+        while ':' not in line:
             split_line = line.split(',')
+            self.contacts[split_line[0]] = Contact(*split_line[:5])
+            line = next(file).strip()
         return line
 
     def parse_sense_subclasses(self, line, file):
@@ -262,12 +269,11 @@ class ElectrodeConfig(object):
 
     def parse_sense_channels(self, line, file):
         line = next(file).strip()
-        split_line = line.split(',')
-        while (len(split_line) == 6):
-            self.sense_channels[split_line[1]] = \
-                SenseChannel(self.contacts[split_line[0]], *split_line[1:])
-            line = next(file).strip()
+        while ':' not in line:
             split_line = line.split(',')
+            self.sense_channels[split_line[1]] = \
+                SenseChannel(self.contacts[split_line[0]], *split_line[1:6])
+            line = next(file).strip()
         return line
 
     def parse_stim_subclasses(self, line, file):
