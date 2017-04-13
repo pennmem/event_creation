@@ -525,12 +525,12 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         return event
 
     def event_trial(self,event_json):
-        if self._list == -999:
-            self._list = -1
-        elif self._list == -1:
-            self._list = 1
-        else:
-            self._list +=1
+        if event_json['event_value']:
+            list = event_json[self._STIM_PARAMS_FIELD]['data']['listno']
+            if list==0:
+                self._list = -1
+            else:
+                self._list = list
         return False
 
 
