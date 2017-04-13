@@ -50,6 +50,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         ('recognized',-999,'int16'),
         ('rejected',-999,'int16'),
         ('recog_resp',-999,'int16'),
+        ('recog_rt',-999,'int16'),
     )
 
     @staticmethod
@@ -135,7 +136,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         new_events.recog_resp = self._was_recognized
         new_events.rejected=rejected
         new_events.recognized = recognized
-        new_events.rectime = self._recog_endtime
+        new_events.recog_rt = self._recog_endtime
         events[word_mask]=new_events
         return events
 
