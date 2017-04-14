@@ -210,7 +210,7 @@ class ElectrodeConfig(object):
         with open(config_filename, 'r') as config_file:
             line = next(config_file)
             while (line != False):
-                line = line.strip()
+                line = line.strip().rstrip(',')
                 label = line.split(':')[0]
                 if label not in self.parse_fields:
                     raise UnparseableConfigException("Could not parse line {}".format(line))
