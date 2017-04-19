@@ -6,7 +6,8 @@ import json,sqlite3
 import numpy as np
 import pandas as pd
 import os
-
+# from readers.eeg_reader import read_jacksheet
+# from loggers import logger
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -101,6 +102,12 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
 
 
     def __init__(self,protocol, subject, montage, experiment, session, files):
+        # if 'contacts' in files:
+        #     try:
+        #         read_jacksheet(files['contacts'])
+        #     except Exception as e:
+        #         logger.warn('Exception while reading {}:\n\t {}'.format(files['contacts'],e.message))
+        #         _ = files.pop('contacts')
         super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
                                         primary_log='session_log',allow_unparsed_events=True)
 

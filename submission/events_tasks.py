@@ -25,7 +25,7 @@ from parsers.base_log_parser import StimComparator, EventCombiner
 from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
-from parsers.FRSys3LogParser import FRSys3LogParser,catFRSys3LogParser
+from parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 
 from readers.eeg_reader import get_eeg_reader
 

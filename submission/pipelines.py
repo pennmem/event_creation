@@ -382,7 +382,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     system = system.partition('_')[-1]
 
     if protocol == 'r1':
-        tasks = [MontageLinkerTask(protocol, subject, montage)]
+        tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,))
     elif protocol == 'ltp':

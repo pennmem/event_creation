@@ -126,6 +126,10 @@ class HD5_reader(EEG_reader):
             self._h5file = tables.open_file(self.raw_filename, mode='r')
         return self._h5file
 
+    @property
+    def by_row(self):
+        return ('orient' in self.h5file.root.timeseries.attrs) and (self.h5file.root.timeseries.orient=='row')
+
     def get_start_time(self):
         return datetime.datetime.utcfromtimestamp(self.h5file.root.start_ms.read()/1000.)
 
@@ -136,13 +140,16 @@ class HD5_reader(EEG_reader):
         return self.raw_filename
 
     def get_n_samples(self):
-        return self.h5file.root.timeseries.shape[1]
+        if self.by_row:
+            return self.h5file.root.timeseries.shape[0]
+        else:
+            return self.h5file.root.timeseries.shape[1]
 
     def _split_data(self, location, basename):
         ports = self.h5file.root.ports
         for i, port in enumerate(ports):
             filename = os.path.join(location, basename + ('.%03d' % port))
-            data = self.h5file.root.timeseries[i, :]
+            data = self.h5file.root.timeseries[:,i] if self.by_row else self.h5file.root.timeseries[i, :]
             logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
             data.tofile(filename)
 
