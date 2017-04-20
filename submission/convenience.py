@@ -728,7 +728,12 @@ def prompt_for_session_inputs(inputs, **opts):
                 groups += ('system_2',)
                 original_experiment = 'PS21'
         elif experiment.startswith('PS'):
-            original_experiment = 'PS'
+            if '_' not in experiment:
+                original_experiment = 'PS'
+            else:
+                original_experiment = experiment
+                experiment = experiment.split('_')[-1]
+                groups += ('ps4',)
         else:
             original_experiment = experiment
 
@@ -744,12 +749,7 @@ def prompt_for_session_inputs(inputs, **opts):
         else:
             ram_experiment = 'RAM_{}'.format(experiment)
 
-    is_PS4 = opts.get('PS4',False)
-    if (not is_PS4) and experiment.endswith('5') and not experiment.startswith('PS'):
-        is_PS4 = confirm('Is this a PS4 session? [y/n]')
 
-    if is_PS4:
-        groups += ('ps4',)
 
     inputs = dict(
         protocol=protocol,
@@ -768,7 +768,7 @@ def prompt_for_session_inputs(inputs, **opts):
         groups=groups,
         attempt_import=attempt_import,
         attempt_conversion=attempt_conversion,
-        PS4 = is_PS4
+        PS4 = ('ps4' in groups)
     )
     
     if opts.get('sys2', False):
