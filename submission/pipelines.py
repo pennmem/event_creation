@@ -384,7 +384,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
 
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,**kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -399,16 +399,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if 'ps4' in groups:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'ps4',parser_type=PS4Sys3LogParser))
+                                       'ps4',parser_type=PS4Sys3LogParser,**kwargs))
         other_events+=('ps4',)
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', MathLogParser, critical=False))
+                                       'math', MathLogParser, critical=False,**kwargs))
         other_events+=('math',)
 
     if other_events:
-        tasks.append(EventCombinationTask(('task',)+other_events, critical=False))
+        tasks.append(EventCombinationTask(('task',)+other_events, critical=False,))
 
     # if 'ps4' in groups:
     #     if kwargs.get('new_experiment')=='PS4':
