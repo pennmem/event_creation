@@ -222,6 +222,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
             self._list = -1
         else:
             self._list = list
+        self._stim_list = event_json[self._PHASE_TYPE_FIELD] in ['STIM','PS']
         event = self.event_default(event_json)
         return event
 
