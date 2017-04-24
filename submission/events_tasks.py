@@ -220,6 +220,8 @@ class EventCreationTask(PipelineTask):
                 artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
                                                      aligner.reref_dir)
                 events = artifact_detector.run()
+        elif self.event_label == 'ps4':
+            events = unaligned_events
         elif self.r1_sys_num in (2.0,3.0,3.1):
             if self.r1_sys_num == 2.0:
                 aligner = System2Aligner(unaligned_events, files, db_folder)

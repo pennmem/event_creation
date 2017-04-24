@@ -5,6 +5,7 @@ import re
 import json
 from files import open_with_perms
 from electrode_config_parser import ElectrodeConfig
+from alignment.system3 import System3Aligner
 
 
 def PSLogParser(protocol, subject, montage, experiment, session,  files):
@@ -408,11 +409,27 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     _STIM_PARAMS_FIELD = 'msg_stub'
     _DELTA_CLASSIFIER_FIELD = 'stim_delta_classifier'
 
+    _LOC_FIELDS = (
+        ('loc_name','','S16'),
+        ('amplitude',-999,'float64'),
+        ('delta_classifier',-999,'float64'),
+        ('sem',-999,'float64'),
+        ('snr',-999,'float64')
+    )
+
+    _SHAM_FIELDS = (
+        ('delta_classifier',-999,'float64'),
+        ('sem',-999,'float64'),
+        ('p_val',-999,'float64',),
+        ('t_stat',-999,'float64',),
+    )
+
     _DECISION_FIELDS = (
         ('p_val',-999.0, 'float64'),
         ('t_stat',-999.0,'float64'),
         ('best_location','','S16'),
-        ('tie',-1,'int16')
+        ('tie',-1,'int16'),
+
     )
 
     _BASE_FIELDS = BaseSys3LogParser._BASE_FIELDS + (
@@ -426,7 +443,14 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         ('anode_num',-999,'int16'),
         ('cathode_num',-999,'int16'),
         ('amplitude',-999,'int16'),
-        ('decision',BaseSessionLogParser.event_from_template(_DECISION_FIELDS),BaseSessionLogParser.dtype_from_template(_DECISION_FIELDS)),
+        ('loc1', BaseSessionLogParser.event_from_template(_LOC_FIELDS),
+         BaseSessionLogParser.dtype_from_template(_LOC_FIELDS)),
+        ('loc2', BaseSessionLogParser.event_from_template(_LOC_FIELDS),
+         BaseSessionLogParser.dtype_from_template(_LOC_FIELDS)),
+        ('sham', BaseSessionLogParser.event_from_template(_SHAM_FIELDS),
+         BaseSessionLogParser.dtype_from_template(_SHAM_FIELDS)),
+        ('decision',BaseSessionLogParser.event_from_template(_DECISION_FIELDS),BaseSessionLogParser.dtype_from_template(_DECISION_FIELDS))
+
     )
 
 
@@ -434,11 +458,13 @@ class PS4Sys3LogParser(BaseSys3LogParser):
                  primary_log = 'event_log',allow_unparsed_events=True,include_stim_params=True):
         super(PS4Sys3LogParser,self).__init__(
             protocol,subject,montage,experiment,session,files,primary_log,allow_unparsed_events,include_stim_params)
+        self._files = files
         electrode_config_files = files['electrode_config']
         if not isinstance(electrode_config_files,list):
             electrode_config_files = [electrode_config_files]
         self._electrode_config = ElectrodeConfig(electrode_config_files[0])
         self._add_type_to_new_event(
+            FEATURES = self.event_features,
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
@@ -457,6 +483,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         self._anode_num = -999
         self._cathode_num = -999
         self._amplitude = -999
+
 
     def modify_with_stim_params(self,events):
         if events.shape:
@@ -479,18 +506,27 @@ class PS4Sys3LogParser(BaseSys3LogParser):
 
     def event_default(self, event_json):
         event  = super(PS4Sys3LogParser,self).event_default(event_json)
-        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         event.list = self._list
+        return event
+
+    def event_features(self,event_json):
+        event = self.event_default(event_json)
+        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
+        params_dict = event_json[self._STIM_PARAMS_FIELD]
+        event.position = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
+        event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
         return event
 
 
     def event_biomarker(self,event_json):
+
         params_dict = event_json[self._STIM_PARAMS_FIELD]
         biomarker_dict_to_field = {
             'biomarker_value':'biomarker_value',
             self._ID_FIELD:'id'
         }
         event=self.event_default(event_json)
+        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         for k,v in biomarker_dict_to_field.items():
             event[v] = params_dict[k]
         event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
@@ -500,6 +536,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
 
     def event_optimization(self,event_json):
         event=self.event_default(event_json)
+        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         event.delta_classifier = event_json[self._STIM_PARAMS_FIELD][self._DELTA_CLASSIFIER_FIELD]
         return event
 
@@ -512,11 +549,32 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             self._anode,self._cathode = stim_pair.split('_')
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
         event = self.event_default(event_json)
+        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
         return event
 
     def event_decision(self,event_json):
         event = self.event_default(event_json)
+        loc_dict_to_field={
+            'sem':'sem',
+            'SNR':'snr',
+            'best_amplitude':'amplitude',
+            'best_delta_classifier':'delta_classifier'
+        }
+        for i,k in enumerate(event_json[self._STIM_PARAMS_FIELD]['loc_info_list']):
+            v = 'loc1' if i==1 else 'loc2'
+            for dk in loc_dict_to_field:
+                event[v][loc_dict_to_field[dk]] = event_json[self._STIM_PARAMS_FIELD]['loc_info_list'][k][dk]
+
+        sham_dict_to_field = {
+            'sham_delta_classifier':'delta_classifier',
+            'sham_sem':'sem',
+            'p_val_champ_sham':'p_val',
+            't_stat_champ_sham':'t_stat',
+        }
+        for d in sham_dict_to_field:
+            event.sham[sham_dict_to_field[d]]=event_json[self._STIM_PARAMS_FIELD]['decision'][d]
+
         decision_dict_from_fields = {
             'p_val':'p_val','t_stat':'t_stat','best_location':'best_location_name','tie':'Tie'
         }
@@ -532,6 +590,12 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             else:
                 self._list = list
         return False
+
+    def clean_events(self, events):
+        aligner = System3Aligner(events,self._files)
+        events['mstime'] =aligner.apply_coefficients_backwards(events['eegoffset'],aligner.task_to_ens_coefs[0])
+        aligner.apply_eeg_file(events)
+        return events
 
 
 

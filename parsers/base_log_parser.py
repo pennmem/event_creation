@@ -328,6 +328,8 @@ class BaseLogParser(object):
         # Loop over the contents of the log file
         for raw_event in self._contents:
             this_type = self._get_raw_event_type(raw_event)
+            if this_type=='OPTIMIZATION_DECISION':
+                pass
             # Check if the line is parseable
             try:
                 new_event = self._type_to_new_event[this_type](raw_event)
@@ -335,6 +337,7 @@ class BaseLogParser(object):
                     raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
                 elif isinstance(new_event, np.recarray):
                     events = np.append(events, new_event)
+
             except KeyError as ke:
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
