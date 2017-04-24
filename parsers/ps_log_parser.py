@@ -443,6 +443,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         ('anode_num',-999,'int16'),
         ('cathode_num',-999,'int16'),
         ('amplitude',-999,'int16'),
+        ('list_phase','','S16'),
         ('loc1', BaseSessionLogParser.event_from_template(_LOC_FIELDS),
          BaseSessionLogParser.dtype_from_template(_LOC_FIELDS)),
         ('loc2', BaseSessionLogParser.event_from_template(_LOC_FIELDS),
@@ -515,6 +516,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         params_dict = event_json[self._STIM_PARAMS_FIELD]
         event.position = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
         event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
+        event.list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
         return event
 
 
@@ -531,6 +533,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             event[v] = params_dict[k]
         event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
         event['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
+        event.list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
         return event.view(np.recarray)
 
 
@@ -551,6 +554,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         event = self.event_default(event_json)
         event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
+        event.list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
         return event
 
     def event_decision(self,event_json):
