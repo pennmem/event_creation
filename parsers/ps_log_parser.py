@@ -569,6 +569,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             v = 'loc1' if i==1 else 'loc2'
             for dk in loc_dict_to_field:
                 event[v][loc_dict_to_field[dk]] = event_json[self._STIM_PARAMS_FIELD]['loc_info_list'][k][dk]
+            event[v]['loc_name']=k
 
         sham_dict_to_field = {
             'sham_delta_classifier':'delta_classifier',
