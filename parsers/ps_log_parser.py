@@ -469,6 +469,9 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
+            ENCODING = self.encoding,
+            DISTRACT = self.distract,
+            RETRIEVAL = self.retrieval,
             STIM=self.event_stim,
             TRIAL  = self.event_trial,
         )
@@ -479,6 +482,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         )
 
         self._list = -999
+        self._list_phase = 'INSTRUCT'
         self._anode = ''
         self._cathode = ''
         self._anode_num = -999
@@ -508,7 +512,20 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     def event_default(self, event_json):
         event  = super(PS4Sys3LogParser,self).event_default(event_json)
         event.list = self._list
+        event.list_phase = self._list_phase
         return event
+
+    def encoding(self,event_json):
+        self._list_phase = 'ENCODING'
+        return False
+
+    def distract(self,event_json):
+        self._list_phase = 'DISTRACT'
+        return False
+
+    def retrieval(self,event_json):
+        self._list_phase = 'RETRIEVAL'
+        return False
 
     def event_features(self,event_json):
         event = self.event_default(event_json)
