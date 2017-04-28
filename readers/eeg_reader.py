@@ -128,10 +128,13 @@ class HD5_reader(EEG_reader):
 
     @property
     def by_row(self):
-        return ('orient' in self.h5file.root.timeseries.attrs) and (self.h5file.root.timeseries.orient=='row')
+         return 'orient' in self.h5file.root.timeseries.attrs and  self.h5file.root.timeseries.attrs['orient']=='row'
 
     def get_start_time(self):
-        return datetime.datetime.utcfromtimestamp(self.h5file.root.start_ms.read()/1000.)
+        try:
+            return datetime.datetime.utcfromtimestamp(self.h5file.root.start_ms.read()/1000.)
+        except TypeError:
+            return datetime.datetime.utcfromtimestamp(self.h5file.root.start_ms.read()[0]/1000.)
 
     def get_sample_rate(self):
         return self.sample_rate
