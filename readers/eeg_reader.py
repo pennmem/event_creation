@@ -619,7 +619,8 @@ class NSx_reader(EEG_reader):
     N_CHANNELS = 128
 
     SAMPLE_RATES = {
-        '.ns2': 1000
+        '.ns2': 1000,
+        '.ns5': 30000,
     }
 
 
