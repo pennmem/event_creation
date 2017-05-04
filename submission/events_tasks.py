@@ -26,6 +26,7 @@ from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConv
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
 from parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from parsers.pal_sys3_log_parser import PALSys3LogParser
 
 from readers.eeg_reader import get_eeg_reader
 
@@ -155,7 +156,7 @@ class EventCreationTask(PipelineTask):
             'math': MathLogParser,
             'PS': PSLogParser,
             'TH': THSessionLogParser,
-            'THR': THRSessionLogParser
+            'THR': THRSessionLogParser,
         },
         '2':{
             'FR': FRSessionLogParser,
@@ -179,6 +180,7 @@ class EventCreationTask(PipelineTask):
             'FR': FRSys3LogParser,
             'catFR': catFRSys3LogParser,
             'PS': PS4Sys3LogParser,
+            'PAL': PALSys3LogParser,
         }
     }
 
@@ -378,7 +380,7 @@ class ImportEventsTask(PipelineTask):
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
         'math': MathLogParser,
-        'PS': PSLogParser
+        'PS': PSLogParser,
     }
 
     CONVERTERS = {
