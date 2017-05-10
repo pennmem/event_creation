@@ -1,7 +1,8 @@
 from .base_log_parser import BaseSys3LogParser
 from .pal_log_parser import PALSessionLogParser
 from collections import defaultdict
-
+import sqlite3,json
+import pandas as pd
 
 class PALSys3LogParser(BaseSys3LogParser,PALSessionLogParser):
     def __init__(self,protocol, subject, montage, experiment, session, files):
@@ -15,11 +16,31 @@ class PALSys3LogParser(BaseSys3LogParser,PALSessionLogParser):
                                               PROBE_START = self.event_test_probe,
                                               PROBE_END = self.event_test_probe,
                                               TRIAL = self.event_set_trial,
-                                              WAITING_START = self.begin_trial,
-
                                               )
 
         self._list = -999
+
+
+    def _read_sql_logs(self):
+        msgs = []
+        for log in self._primary_log:
+            msgs += self._read_sql_log(log)
+        return msgs
+
+    @staticmethod
+    def _read_sql_log(log):
+        conn = sqlite3.connect(log)
+        query = 'SELECT msg FROM logs WHERE name = "events"'
+        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,conn).msg.values]
+        return msgs
+
+
+    def _read_primary_log(self):
+        log = self._primary_log[0] if isinstance(self._primary_log,list) else self._primary_log
+        if log is self._primary_log:
+            return self._read_sql_log(log)
+        else:
+            return self._read_sql_logs()
 
 
     def event_study_pair(self, event_json):
