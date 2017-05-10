@@ -93,8 +93,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
     def event_default(self, event_json):
         event = self._empty_event
         event.mstime = event_json[self._STIME_FIELD]
-        if self._PHASE_TYPE_FIELD in event_json:
-            event.phase = event_json[self._PHASE_TYPE_FIELD]
+        event.phase = self._phase
         event.type = event_json[self._TYPE_FIELD]
         event.list = self._list
         event.stim_list = self._stim_list
@@ -116,6 +115,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         self._on = False
         self._recognition = False
         self._was_recognized = False
+        self._phase = ''
 
         self._type_to_new_event= defaultdict(lambda: self.event_default,
                                              WORD_START = self.event_word,
@@ -163,6 +163,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
             new_event.msoffset = 20
             new_event.item_name = word
             new_event.item_num = recall[1]
+            new_event.phase = self._phase
 
             # If vocalization
             if word == '<>' or word == 'V' or word == '!':
@@ -223,6 +224,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         else:
             self._list = list
         self._stim_list = event_json[self._PHASE_TYPE_FIELD] in ['STIM','PS']
+        self._phase = event_json[self._PHASE_TYPE_FIELD]
         event = self.event_default(event_json)
         return event
 
