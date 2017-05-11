@@ -183,7 +183,7 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
                 if len(pres_list) >= 1:
                     new_event.intrusion = self._list - max(pres_list)
                     if new_event.intrusion == 0:
-                        new_event.serial_pos = np.unique(events[pres_mask].serialpos)
+                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
                         new_event.recalled = True
                         if not any(events.recalled[pres_mask]):
                             events.recalled[pres_mask] = True
