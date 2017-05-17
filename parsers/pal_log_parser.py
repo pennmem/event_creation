@@ -10,7 +10,7 @@ class PALSessionLogParser(BaseSessionLogParser):
     @classmethod
     def _pal_fields(cls):
         """
-        Returns the template for a new FR field
+        Returns the template for a new PAL field
         Has to be a method because of call to empty_stim_params, unfortunately
         :return:
         """

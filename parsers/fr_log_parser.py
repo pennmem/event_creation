@@ -37,8 +37,9 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_PULSE_WIDTH = 300
 
     def __init__(self, protocol, subject, montage, experiment, session, files,**kwargs):
+        kwargs['include_stim_params'] = True
         super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
-                                                 include_stim_params=True,**kwargs)
+                                                 **kwargs)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
         else:

@@ -1,11 +1,8 @@
 from system3_log_parser import BaseSys3LogParser
 from fr_log_parser import FRSessionLogParser
-from base_log_parser import BaseLogParser
+from base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
-import json,sqlite3
 import numpy as np
-import pandas as pd
-import os
 # from readers.eeg_reader import read_jacksheet
 # from loggers import logger
 
@@ -38,7 +35,7 @@ def mark_end(suffix='END'):
 
 
 
-class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
+class FRSys3LogParser(BaseSys3_1LogParser,FRSessionLogParser):
 
     _STIM_FIELDS = BaseLogParser._STIM_FIELDS + (
         ('biomarker_value',-1,'float64'),
@@ -59,42 +56,16 @@ class FRSys3LogParser(BaseSys3LogParser,FRSessionLogParser):
         return FRSessionLogParser.persist_fields_during_stim(event)+('phase',)
 
 
-    _STIME_FIELD = 'timestamp'
-    _TYPE_FIELD = 'event'
     _ITEM_FIELD = 'word'
-    _PHASE_TYPE_FIELD = 'phase_type'
     _SERIAL_POS_FIELD = 'serialpos'
     _ONSET_FIELD = 'start_offset'
     _ID_FIELD = 'hashsum'
     _RESPONSE_FIELD = 'yes'
 
-    def _read_sql_logs(self):
-        msgs = []
-        for log in self._primary_log:
-            msgs += self._read_sql_log(log)
-        return msgs
-
-    @staticmethod
-    def _read_sql_log(log):
-        conn = sqlite3.connect(log)
-        query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,conn).msg.values]
-        return msgs
-
-
-    def _read_primary_log(self):
-        log = self._primary_log[0] if isinstance(self._primary_log,list) else self._primary_log
-        if log is self._primary_log:
-            return self._read_sql_log(log)
-        else:
-            return self._read_sql_logs()
 
 
     def event_default(self, event_json):
-        event = self._empty_event
-        event.mstime = event_json[self._STIME_FIELD]
-        event.phase = self._phase
-        event.type = event_json[self._TYPE_FIELD]
+        event = BaseSys3_1LogParser.event_default(self,event_json)
         event.list = self._list
         event.stim_list = self._stim_list
         return event
