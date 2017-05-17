@@ -6,8 +6,9 @@ import re
 from loggers import logger
 import codecs
 import json
-import copy
 from parsers.electrode_config_parser import ElectrodeConfig, UnparseableConfigException
+import sqlite3
+import pandas as pd
 
 class UnparsableLineException(Exception):
     pass
@@ -328,8 +329,6 @@ class BaseLogParser(object):
         # Loop over the contents of the log file
         for raw_event in self._contents:
             this_type = self._get_raw_event_type(raw_event)
-            if this_type=='OPTIMIZATION_DECISION':
-                pass
             # Check if the line is parseable
             try:
                 new_event = self._type_to_new_event[this_type](raw_event)
@@ -344,7 +343,8 @@ class BaseLogParser(object):
                     pass
                 else:
                     raise UnparsableLineException("Event type %s not parseable" % this_type)
-
+            if events.dtype==np.object:
+                pass
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
@@ -499,6 +499,62 @@ class BaseSys3LogParser(BaseLogParser):
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
+
+class BaseSys3_1LogParser(BaseSessionLogParser):
+
+
+    _STIME_FIELD = 'timestamp'
+    _TYPE_FIELD = 'event'
+    _PHASE_TYPE_FIELD = 'phase_type'
+
+    _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase','','<S16'),)
+
+
+    def __init__(self,protocol, subject, montage, experiment, session, files, primary_log='session_log',
+                 allow_unparsed_events=False, include_stim_params=False):
+        BaseSessionLogParser.__init__(self,protocol, subject, montage, experiment, session, files,primary_log=primary_log,
+                 allow_unparsed_events=allow_unparsed_events, include_stim_params=include_stim_params)
+        self._files = files
+        self._phase = ''
+
+    def _get_raw_event_type(self, event_json):
+        return event_json[self._TYPE_FIELD]
+
+    @staticmethod
+    def _read_sql_log(log):
+        conn = sqlite3.connect(log)
+        query = 'SELECT msg FROM logs WHERE name = "events"'
+        msgs = [json.loads(msg) for msg in pd.read_sql_query(query, conn).msg.values]
+        conn.close()
+        return msgs
+
+    def _read_primary_log(self):
+        msgs = []
+        if isinstance(self._primary_log,str):
+            msgs = self._read_sql_log(self._primary_log)
+        else:
+            for log in self._primary_log:
+                msgs += self._read_sql_log(log)
+        return msgs
+
+    def event_default(self, event_json):
+        event= self._empty_event
+        event.mstime = event_json[self._STIME_FIELD]
+        event.type = event_json[self._TYPE_FIELD]
+        event.phase = self._phase
+
+        return event
+
+    def clean_events(self, events):
+        # Add in experiment version
+        events = super(BaseSys3_1LogParser,self).clean_events(events)
+        with open(self._files['event_log'][0],'r') as event_log:
+            version_info = json.load(event_log)['versions']
+        events.exp_version = version_info['task']['version']
+        return events
+
+
+
 
 
 
