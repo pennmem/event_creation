@@ -102,6 +102,9 @@ class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
         event.probepos = self._probepos
         event.serialpos = split_line['serialpos']
         self._serialpos = split_line['serialpos']
+        self._probe_word = event.probe_word
+        self._expecting_word = event.expecting_word
+        self._cue_direction = event.cue_direction
         return event
 
     def event_trial(self,event_json):
@@ -137,7 +140,7 @@ class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
     def modify_recalls(self, events):
         rec_start_event = events[-1]
         rec_start_time = float(rec_start_event.mstime)
-        list_str = str(self._list-1)
+        list_str = str(self._list) if self._list>0 else '0'
         ann_file = list_str + '_' + str(self._probepos-1)
         try:
             ann_outputs = self._parse_ann_file(ann_file)
@@ -171,9 +174,7 @@ class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
             new_event.study_1 = self._study_1
             new_event.study_2 = self._study_2
             new_event.resp_word = word
-            new_event.stim_type = self._stim_type
             new_event.stim_list = self._stim_list
-            new_event.exp_version = self._version
             new_event.RT = recall[0]
             new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
@@ -255,8 +256,10 @@ class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
 
 if __name__ == '__main__':
     files = {
-        'session_log':['/Users/leond/PAL5/R1293P/session_0/session.sqlite']
+        'session_log':['/Users/leond/PAL5/R1293P/session_0/session.sqlite'],
+        'annotations':['/Users/leond/PAL5/R1293P/session_0/0_0.ann']
     }
     parser = PALSys3LogParser('r1','R9999M',0.0,'PAL1',0,files)
     events =  parser.parse()
+    events = parser.clean_events(events)
     pass
