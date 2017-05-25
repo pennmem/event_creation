@@ -196,7 +196,7 @@ class EventCreationTask(PipelineTask):
         super(EventCreationTask, self).__init__(critical)
         new_experiment = kwargs.get('new_experiment') or experiment
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp= new_experiment, sess=session)
-        self.parser_type = parser_type or self.PARSERS[r1_sys_num][re.sub(r'\d', '', new_experiment)]
+        self.parser_type = parser_type or self.PARSERS[r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
