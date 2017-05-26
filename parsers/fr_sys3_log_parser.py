@@ -35,7 +35,7 @@ def mark_end(suffix='END'):
 
 
 
-class FRSys3LogParser(BaseSys3_1LogParser,FRSessionLogParser):
+class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
     _STIM_FIELDS = BaseLogParser._STIM_FIELDS + (
         ('biomarker_value',-1,'float64'),
@@ -80,6 +80,13 @@ class FRSys3LogParser(BaseSys3_1LogParser,FRSessionLogParser):
         #         _ = files.pop('contacts')
         super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
                                         primary_log='session_log',allow_unparsed_events=True)
+
+        if 'no_accent_wordpool' in files:
+            wordpool_type = 'no_accent_wordpool'
+        else:
+            wordpool_type = 'wordpool'
+        self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
+
 
         self._list = -999
         self._stim_list = False

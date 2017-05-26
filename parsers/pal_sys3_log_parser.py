@@ -1,11 +1,11 @@
-from base_log_parser import BaseSys3LogParser,BaseSys3_1LogParser
+from base_log_parser import BaseSys3_1LogParser
 from pal_log_parser import PALSessionLogParser
 from collections import defaultdict
 import warnings
 import numpy as np
 
 
-class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
+class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
 
     _BASE_FIELDS = PALSessionLogParser._BASE_FIELDS + (('phase','','<S64'),)
 
@@ -29,8 +29,6 @@ class PALSys3LogParser(BaseSys3_1LogParser,PALSessionLogParser):
                                               DISTRACT_END = self.event_distract_end,
 
                                               )
-
-        self._add_fields(*self._pal_fields())
 
         self._type_to_modify_events = {
             'PROBE_START': self.modify_recalls,
