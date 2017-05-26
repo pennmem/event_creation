@@ -119,8 +119,9 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
     for events_file in events_files:
         subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
         subject_no_montage = subject.split('_')[0]
-        if '_' in subject and not include_montage_changes:
-            continue
+        if '_' in subject:
+            if not include_montage_changes:
+                continue
         mat_events_reader = BaseEventReader(filename=events_file, common_root=paths.data_root)
         logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
         try:
@@ -194,7 +195,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
 
 
 def build_sharing_import_database():
-    subjects_for_export = [x.strip() for x in open('subjects_for_export.txt').readlines() if len(x.strip()) > 0 ]
+    subjects_for_export = [x.strip() for x in open(os.path.join(os.path.dirname(__file__),'subjects_for_export.txt')).readlines() if len(x.strip()) > 0 ]
     experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2')
     build_json_import_db('export_sessions.json', experiments, [], subjects_for_export, 'r1', True)
 
