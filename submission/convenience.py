@@ -20,7 +20,7 @@ if __name__ == '__main__':
 
 # FIXME: rearrange, use relative imports
 from tasks import CleanDbTask, IndexAggregatorTask
-from loggers import logger
+from .loggers import logger
 from automation import Importer, ImporterCollection
 from ptsa.data.readers.IndexReader import JsonIndexReader
 

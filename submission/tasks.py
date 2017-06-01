@@ -6,7 +6,7 @@ import shutil
 
 # TODO: rearrange, use relative imports
 import files
-from loggers import logger
+from .loggers import logger
 from configuration import paths
 
 try:

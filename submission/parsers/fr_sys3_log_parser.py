@@ -1,6 +1,6 @@
-from system3_log_parser import BaseSys3LogParser
-from fr_log_parser import FRSessionLogParser
-from base_log_parser import BaseLogParser, BaseSys3_1LogParser
+from .system3_log_parser import BaseSys3LogParser
+from .fr_log_parser import FRSessionLogParser
+from .base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
 import numpy as np
 # from readers.eeg_reader import read_jacksheet

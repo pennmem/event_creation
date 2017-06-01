@@ -1,17 +1,17 @@
-import numpy as np
-import scipy.stats
-import os
-# this makes matplotlib independent of the X server - comes handy on clusters
-import matplotlib
-import matplotlib.pyplot as plt
-from readers.eeg_reader import NSx_reader
-from copy import deepcopy
-from readers.eeg_reader import read_jacksheet
-from parsers.system2_log_parser import System2LogParser
-from alignment.system1 import UnAlignableEEGException
 import itertools
 import json
-from loggers import logger
+import os
+from copy import deepcopy
+
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy.stats
+
+from alignment.system1 import UnAlignableEEGException
+from readers.eeg_reader import NSx_reader
+from readers.eeg_reader import read_jacksheet
+from submission.loggers import logger
+from submission.parsers import System2LogParser
 
 
 def System2Aligner(events, files, plot_save_dir=None):

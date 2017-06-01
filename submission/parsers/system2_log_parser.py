@@ -1,4 +1,4 @@
-from base_log_parser import BaseSessionLogParser
+from .base_log_parser import BaseSessionLogParser
 import numpy as np
 from copy import deepcopy
 

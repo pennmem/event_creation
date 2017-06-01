@@ -1,10 +1,10 @@
-from base_log_parser import BaseLogParser,BaseSys3LogParser
-from fr_log_parser import FRSessionLogParser
-from electrode_config_parser import ElectrodeConfig
+from .base_log_parser import BaseLogParser,BaseSys3LogParser
+from .fr_log_parser import FRSessionLogParser
+from .electrode_config_parser import ElectrodeConfig
 import numpy as np
 from copy import deepcopy
 import json
-from loggers import logger
+from ..loggers import logger
 from collections import defaultdict
 
 class System3LogParser(object):

@@ -7,7 +7,7 @@ from pipelines import build_events_pipeline, build_split_pipeline, build_convert
                       build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
     # build_wav_pipeline
 from ptsa.data.readers.IndexReader import JsonIndexReader
-from loggers import logger
+from .loggers import logger
 from configuration import paths
 import traceback
 

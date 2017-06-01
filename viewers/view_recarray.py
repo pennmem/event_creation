@@ -3,7 +3,6 @@ import numpy as np
 import json
 import numpy
 import unicodedata
-#from loggers import log
 from collections import defaultdict
 import re
 
@@ -12,7 +11,6 @@ PPRINT_PADDING = 2
 
 def pprint_rec(arr, recurse=True):
     print(pformat_rec(arr, recurse))
-    #log(pformat_rec(arr, recurse))
 
 
 def pformat_rec(arr, recurse=True, init_indent=0):
@@ -40,7 +38,6 @@ def describe_recarray(arr):
     for name, padding in zip(names, paddings):
         shape = arr[name].shape
         print('%s:%s%s' % (name, ' '*padding,shape))
-        #log('%s:%s%s' % (name, ' '*padding,shape))
 
 
 def _format_and_indent(this_input, indent):

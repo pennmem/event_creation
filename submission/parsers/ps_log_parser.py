@@ -1,5 +1,5 @@
-from base_log_parser import BaseSessionLogParser, UnparsableLineException, BaseSys3LogParser
-from system2_log_parser import System2LogParser
+from .base_log_parser import BaseSessionLogParser, UnparsableLineException, BaseSys3LogParser
+from .system2_log_parser import System2LogParser
 import numpy as np
 import re
 import json

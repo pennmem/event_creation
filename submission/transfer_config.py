@@ -9,7 +9,7 @@ import files
 import shutil
 from configuration import paths
 from collections import defaultdict
-from loggers import logger
+from .loggers import logger
 
 class ImproperConfigException(Exception):
     pass

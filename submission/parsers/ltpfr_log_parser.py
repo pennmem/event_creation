@@ -1,7 +1,6 @@
-from base_log_parser import BaseSessionLogParser
+from .base_log_parser import BaseSessionLogParser
 import numpy as np
 from ast import literal_eval
-from loggers import logger
 
 
 class LTPFRSessionLogParser(BaseSessionLogParser):

@@ -1,14 +1,16 @@
-import numpy as np
-from viewers.view_recarray import pformat_rec, to_dict, from_dict
-from readers.eeg_reader import read_jacksheet
-import os
-import re
-from loggers import logger
 import codecs
 import json
-from parsers.electrode_config_parser import ElectrodeConfig, UnparseableConfigException
+import os
+import re
 import sqlite3
+
+import numpy as np
 import pandas as pd
+from ..loggers import logger
+
+from readers.eeg_reader import read_jacksheet
+from viewers.view_recarray import pformat_rec, to_dict, from_dict
+
 
 class UnparsableLineException(Exception):
     pass

@@ -1,9 +1,9 @@
-from base_log_parser import BaseSessionLogParser
-from fr_log_parser import FRSessionLogParser
-from catfr_log_parser import CatFRSessionLogParser
-from pal_log_parser import PALSessionLogParser
-from math_parser import MathLogParser
-from ps_log_parser import PSSessionLogParser
+from .base_log_parser import BaseSessionLogParser
+from .fr_log_parser import FRSessionLogParser
+from .catfr_log_parser import CatFRSessionLogParser
+from .pal_log_parser import PALSessionLogParser
+from .math_parser import MathLogParser
+from .ps_log_parser import PSSessionLogParser
 import numpy as np
 import re
 import os
@@ -19,7 +19,7 @@ from scipy.io import loadmat
 import files
 from files import open_with_perms
 from configuration import paths
-from loggers import logger
+from ..loggers import logger
 class BaseMatConverter(object):
     """
     Base class to convert .mat files to record arrays

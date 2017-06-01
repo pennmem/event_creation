@@ -2,9 +2,8 @@ import numpy as np
 import scipy.stats
 import os
 
-from nose.tools import raises
 import json
-from loggers import logger
+from submission.loggers import logger
 
 
 class UnAlignableEEGException(Exception):

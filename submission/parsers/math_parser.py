@@ -1,5 +1,5 @@
-from base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
-from system2_log_parser import System2LogParser
+from .base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
+from .system2_log_parser import System2LogParser
 import numpy as np
 import os
 

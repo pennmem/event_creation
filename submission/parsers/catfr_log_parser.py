@@ -1,4 +1,4 @@
-from base_log_parser import BaseSessionLogParser
+from .base_log_parser import BaseSessionLogParser
 from viewers.view_recarray import strip_accents
 import numpy as np
 import re

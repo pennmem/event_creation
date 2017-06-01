@@ -1,5 +1,5 @@
-from base_log_parser import BaseSys3_1LogParser
-from pal_log_parser import PALSessionLogParser
+from .base_log_parser import BaseSys3_1LogParser
+from .pal_log_parser import PALSessionLogParser
 from collections import defaultdict
 import warnings
 import numpy as np
