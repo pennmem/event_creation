@@ -1,11 +1,10 @@
 import os
 
-from tasks import PipelineTask
-
-from .loggers import logger
-
 from neurorad.localization import Localization
 from neurorad import vox_mother_converter, calculate_transformation, add_locations
+
+from .loggers import logger
+from .tasks import PipelineTask
 
 
 class LoadVoxelCoordinatesTask(PipelineTask):

@@ -1,7 +1,11 @@
 import sys
+from threading import Timer
+import os
+import glob
+import numpy as np
+
 from PyQt4.QtGui import *
 from PyQt4 import QtCore
-from threading import Timer
 
 import matplotlib
 matplotlib.use("Qt4Agg")
@@ -13,13 +17,7 @@ from matplotlib.widgets import RectangleSelector
 import matplotlib
 matplotlib.rcParams['agg.path.chunksize'] = 10000
 
-import glob
-
-import numpy as np
-
-import os
-
-from eeg_reader import NK_reader, EDF_reader
+from .eeg_reader import NK_reader, EDF_reader
 
 class LabeledEditLayout(QHBoxLayout):
 

@@ -1,10 +1,10 @@
 from .base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
 from .system2_log_parser import System2LogParser
-from viewers.view_recarray import strip_accents
+from ..viewers.view_recarray import strip_accents
 from copy import deepcopy
 import numpy as np
 import os
-import files
+from .. import files
 
 
 class THSessionLogParser(BaseSessionLogParser):

@@ -1,25 +1,31 @@
-from .base_log_parser import BaseSessionLogParser
-from .fr_log_parser import FRSessionLogParser
-from .catfr_log_parser import CatFRSessionLogParser
-from .pal_log_parser import PALSessionLogParser
-from .math_parser import MathLogParser
-from .ps_log_parser import PSSessionLogParser
 import numpy as np
 import re
 import os
 import json
 import glob
 import datetime
-from readers import eeg_reader
-from readers.eeg_reader import read_jacksheet
-from ptsa.data.readers.BaseEventReader import BaseEventReader
-from configuration import paths
-from viewers.view_recarray import strip_accents
 from scipy.io import loadmat
-import files
-from files import open_with_perms
-from configuration import paths
+
+from ptsa.data.readers.BaseEventReader import BaseEventReader
+
+from .base_log_parser import BaseSessionLogParser
+from .fr_log_parser import FRSessionLogParser
+from .catfr_log_parser import CatFRSessionLogParser
+from .pal_log_parser import PALSessionLogParser
+from .math_parser import MathLogParser
+from .ps_log_parser import PSSessionLogParser
+
+from ..readers import eeg_reader
+from ..readers.eeg_reader import read_jacksheet
+from ..viewers.view_recarray import strip_accents
+
+from .. import files
+from ..files import open_with_perms
+
+from ..configuration import paths
 from ..loggers import logger
+
+
 class BaseMatConverter(object):
     """
     Base class to convert .mat files to record arrays

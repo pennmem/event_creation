@@ -1,28 +1,30 @@
 from __future__ import print_function
 import warnings
-try:
-    import pyedflib
-except ImportError:
-    warnings.warn("pyEDFlib not available")
+import struct
+import datetime
+import sys
+
 import os
 import re
 import numpy as np
 import json
-from readers.nsx_utility.brpylib import NsxFile
-import struct
-import datetime
-import sys
-#import bz2
-import files
+from shutil import copy
+
 import tables
 import mne
-from loggers import logger
-from shutil import copy
-#from helpers.butter_filt import butter_filt
+
+try:
+    import pyedflib
+except ImportError:
+    warnings.warn("pyEDFlib not available")
+
+from .. import files
+from ..loggers import logger
+from .nsx_utility.brpylib import NsxFile
+
 
 class UnSplittableEEGFileException(Exception):
     pass
-
 
 
 class EEG_reader:

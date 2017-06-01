@@ -6,10 +6,10 @@ import sqlite3
 
 import numpy as np
 import pandas as pd
-from ..loggers import logger
 
-from readers.eeg_reader import read_jacksheet
-from viewers.view_recarray import pformat_rec, to_dict, from_dict
+from ..loggers import logger
+from ..readers.eeg_reader import read_jacksheet
+from ..viewers.view_recarray import pformat_rec, to_dict, from_dict
 
 
 class UnparsableLineException(Exception):

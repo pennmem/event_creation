@@ -3,9 +3,8 @@ from .system2_log_parser import System2LogParser
 import numpy as np
 import re
 import json
-from files import open_with_perms
-from electrode_config_parser import ElectrodeConfig
-from alignment.system3 import System3Aligner
+from .electrode_config_parser import ElectrodeConfig
+from ..alignment.system3 import System3Aligner
 
 
 def PSLogParser(protocol, subject, montage, experiment, session,  files):

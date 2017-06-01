@@ -6,31 +6,34 @@ import traceback
 import numpy as np
 from ptsa.data.readers import BaseEventReader
 
-from alignment.LTPAligner import LTPAligner
-from alignment.system1 import System1Aligner
-from alignment.system2 import System2Aligner
-from alignment.system3 import System3Aligner
-from configuration import paths
-from detection.artifact_detection import ArtifactDetector
-from parsers.base_log_parser import EventComparator
-from parsers.base_log_parser import StimComparator, EventCombiner
-from parsers.catfr_log_parser import CatFRSessionLogParser
-from parsers.fr_log_parser import FRSessionLogParser
-from parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
-from parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
-                                  CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
-                                  THMatConverter
-from parsers.pal_log_parser import PALSessionLogParser
-from parsers.pal_sys3_log_parser import PALSys3LogParser
-from parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
-from parsers.th_log_parser import THSessionLogParser
-from parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from readers.eeg_reader import get_eeg_reader
-from submission.parsers.math_parser import MathLogParser
-from tasks import PipelineTask, UnProcessableException
+# FIXME: move tests into package
 from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
-from viewers.view_recarray import to_json, from_json
+
+from .alignment.LTPAligner import LTPAligner
+from .alignment.system1 import System1Aligner
+from .alignment.system2 import System2Aligner
+from .alignment.system3 import System3Aligner
+from .configuration import paths
+from .detection.artifact_detection import ArtifactDetector
+from .parsers.base_log_parser import EventComparator
+from .parsers.base_log_parser import StimComparator, EventCombiner
+from .parsers.catfr_log_parser import CatFRSessionLogParser
+from .parsers.fr_log_parser import FRSessionLogParser
+from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
+                                  CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
+                                  THMatConverter
+from .parsers.pal_log_parser import PALSessionLogParser
+from .parsers.pal_sys3_log_parser import PALSys3LogParser
+from .parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
+from .parsers.th_log_parser import THSessionLogParser
+from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
+from .parsers.math_parser import MathLogParser
+from .readers.eeg_reader import get_eeg_reader
+from .tasks import PipelineTask, UnProcessableException
+
+from .viewers.view_recarray import to_json, from_json
 from .loggers import logger
 
 

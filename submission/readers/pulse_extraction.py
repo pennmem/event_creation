@@ -1,5 +1,10 @@
 import sys
-from configuration import config, paths
+import os
+from threading import Timer
+import glob
+import numpy as np
+
+from ..configuration import config, paths
 
 if __name__ == '__main__':
     config.parse_args()
@@ -11,7 +16,6 @@ if __name__ == '__main__':
 
 from PyQt4.QtGui import *
 from PyQt4 import QtCore
-from threading import Timer
 
 import matplotlib
 matplotlib.use('Qt4Agg')
@@ -20,11 +24,6 @@ from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as Navigatio
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 from matplotlib.widgets import RectangleSelector
-import glob
-
-import numpy as np
-
-import os
 
 
 class LabeledEditLayout(QHBoxLayout):

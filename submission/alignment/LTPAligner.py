@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from submission.loggers import logger
+from ..loggers import logger
 
 
 class LTPAligner:

@@ -5,9 +5,10 @@ import glob
 import numpy as np
 import collections
 import traceback
-import files
 from collections import defaultdict
-from configuration import config, paths
+
+from . import files
+from .configuration import config, paths
 
 
 if __name__ == '__main__':

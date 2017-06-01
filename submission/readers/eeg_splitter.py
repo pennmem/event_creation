@@ -1,7 +1,11 @@
 import sys
+from traceback import print_exc
+import re
+import json
+import os
+import glob
 
-from configuration import config, paths
-
+from ..configuration import config, paths
 if __name__ == '__main__':
     config.parse_args()
     import matplotlib
@@ -12,14 +16,8 @@ if __name__ == '__main__':
 
 from PyQt4 import QtCore
 from PyQt4.QtGui import *
-from eeg_reader import EDF_reader, NK_reader, NSx_reader
-from traceback import print_exc
-import re
-import json
-import os
-import glob
-import shutil
 
+from .eeg_reader import EDF_reader, NK_reader, NSx_reader
 
 
 class DeleteableListWidget(QListWidget):

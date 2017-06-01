@@ -2,8 +2,8 @@ from __future__ import print_function
 import logging
 import os
 import logging.handlers
-import files
-from configuration import paths
+from .. import files
+from ..configuration import paths
 
 # TODO: REPLACE WITH PYTHON LOGGING MODULE
 

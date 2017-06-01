@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 
-from alignment.system1 import UnAlignableEEGException
-from readers.eeg_reader import NSx_reader
-from readers.eeg_reader import read_jacksheet
-from submission.loggers import logger
-from submission.parsers import System2LogParser
+from .system1 import UnAlignableEEGException
+from ..readers.eeg_reader import NSx_reader
+from ..readers.eeg_reader import read_jacksheet
+from ..loggers import logger
+from ..parsers.system2_log_parser import System2LogParser
 
 
 def System2Aligner(events, files, plot_save_dir=None):

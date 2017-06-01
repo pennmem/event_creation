@@ -4,26 +4,24 @@ import re
 import shutil
 import traceback
 
-import files
-from configuration import paths
-from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+from . import files
+from .configuration import paths
+from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
                   MontageLinkerTask, RecognitionFlagTask
-from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
+from .neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
-from parsers.base_log_parser import get_version_num
-from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
-from parsers.ltpfr_log_parser import LTPFRSessionLogParser
-from parsers.mat_converter import MathMatConverter
-from parsers.ps_log_parser import PS4Sys3LogParser
-from submission.parsers.math_parser import MathLogParser
-from submission.transfer_config import TransferConfig
-from tasks import ImportJsonMontageTask, CleanLeafTask
-from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
+from .parsers.base_log_parser import get_version_num
+from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
+from .parsers.mat_converter import MathMatConverter
+from .parsers.ps_log_parser import PS4Sys3LogParser
+from .parsers.math_parser import MathLogParser
+from .transfer_config import TransferConfig
+from .tasks import ImportJsonMontageTask, CleanLeafTask
+from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
                        generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
 from .loggers import logger
-
-# generate_wav_transferer
 
 GROUPS = {
     'FR': ('verbal', 'stim'),

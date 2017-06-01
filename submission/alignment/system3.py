@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 
-from submission.loggers import logger
-from submission.parsers import System3LogParser
-from system1 import UnAlignableEEGException
+from ..loggers import logger
+from ..parsers.system3_log_parser import System3LogParser
+from .system1 import UnAlignableEEGException
 
 
 class System3Aligner(object):

@@ -7,8 +7,9 @@ import yaml
 import hashlib
 import files
 import shutil
-from configuration import paths
 from collections import defaultdict
+
+from .configuration import paths
 from .loggers import logger
 
 class ImproperConfigException(Exception):

@@ -1,7 +1,8 @@
-from .base_log_parser import BaseSessionLogParser
-from viewers.view_recarray import strip_accents
-import numpy as np
 import re
+import numpy as np
+
+from .base_log_parser import BaseSessionLogParser
+from ..viewers.view_recarray import strip_accents
 
 class CatFRSessionLogParser(BaseSessionLogParser):
     """

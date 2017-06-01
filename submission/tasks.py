@@ -4,10 +4,9 @@ import json
 import traceback
 import shutil
 
-# TODO: rearrange, use relative imports
 import files
 from .loggers import logger
-from configuration import paths
+from .configuration import paths
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader

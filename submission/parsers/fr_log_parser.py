@@ -1,12 +1,15 @@
-from .base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
-from .system2_log_parser import System2LogParser
-from viewers.view_recarray import strip_accents
-import numpy as np
 import os
 import re
 import json
-import pandas as pd
 import sqlite3
+
+import numpy as np
+import pandas as pd
+
+from .base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
+from .system2_log_parser import System2LogParser
+from ..viewers.view_recarray import strip_accents
+
 
 class FRSessionLogParser(BaseSessionLogParser):
 
