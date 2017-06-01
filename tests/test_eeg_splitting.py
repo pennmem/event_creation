@@ -1,4 +1,4 @@
-from readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, UnSplittableEEGFileException, NK_reader, read_text_jacksheet, EGI_reader
+from submission.readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, UnSplittableEEGFileException, NK_reader, read_text_jacksheet, EGI_reader
 import numpy as np
 import os
 import glob

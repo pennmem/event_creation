@@ -1,10 +1,10 @@
 import os
 
 import numpy as np
-from parsers.base_log_parser import StimComparator
-from parsers.catfr_log_parser import CatFRSessionLogParser
-from parsers.fr_log_parser import FRSessionLogParser
-from parsers.pal_log_parser import PALSessionLogParser
+from submission.parsers.base_log_parser import StimComparator
+from submission.parsers.catfr_log_parser import CatFRSessionLogParser
+from submission.parsers.fr_log_parser import FRSessionLogParser
+from submission.parsers.pal_log_parser import PALSessionLogParser
 
 from submission.parsers.math_parser import MathLogParser
 
