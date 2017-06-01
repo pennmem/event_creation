@@ -3,4 +3,4 @@ USR=`logname`
 
 source ~/.bashrc
 source activate event_creation
-python -m readers.pulse_extraction_2 "$@"
+python -m submission.readers.pulse_extraction_2 "$@"

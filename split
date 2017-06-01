@@ -3,4 +3,4 @@ USR=`logname`
 
 source ~/.bashrc
 source activate event_creation
-python -m readers.eeg_splitter "$@"
+python -m submission.readers.eeg_splitter "$@"
