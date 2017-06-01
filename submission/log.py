@@ -2,8 +2,8 @@ import os
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
-from .. import fileutil
-from ..configuration import paths
+from . import fileutil
+from .configuration import paths
 
 
 class Logger(object):
@@ -90,3 +90,5 @@ class Logger(object):
 
     def critical(self, msg):
         self._logger.critical(self._format_msg(" ********************* " + msg, subject=self.subject, label=self.label))
+
+logger = Logger()

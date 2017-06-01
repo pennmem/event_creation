@@ -19,7 +19,7 @@ except ImportError:
     warnings.warn("pyEDFlib not available")
 
 from .. import fileutil
-from ..loggers import logger
+from ..log import logger
 from .nsx_utility.brpylib import NsxFile
 
 

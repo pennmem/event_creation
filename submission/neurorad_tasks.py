@@ -3,7 +3,7 @@ import os
 from neurorad.localization import Localization
 from neurorad import vox_mother_converter, calculate_transformation, add_locations
 
-from .loggers import logger
+from .log import logger
 from .tasks import PipelineTask
 
 

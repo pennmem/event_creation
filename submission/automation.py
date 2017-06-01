@@ -9,7 +9,7 @@ from ptsa.data.readers.IndexReader import JsonIndexReader
 from .transferer import UnTransferrableException
 from .pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
                       build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
-from .loggers import logger
+from .log import logger
 from .configuration import paths
 
 

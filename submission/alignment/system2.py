@@ -10,7 +10,7 @@ import scipy.stats
 from .system1 import UnAlignableEEGException
 from ..readers.eeg_reader import NSx_reader
 from ..readers.eeg_reader import read_jacksheet
-from ..loggers import logger
+from ..log import logger
 from ..parsers.system2_log_parser import System2LogParser
 
 

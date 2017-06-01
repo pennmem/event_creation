@@ -21,7 +21,7 @@ from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
                        generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
-from .loggers import logger
+from .log import logger
 
 GROUPS = {
     'FR': ('verbal', 'stim'),

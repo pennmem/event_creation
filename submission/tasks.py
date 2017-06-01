@@ -5,7 +5,7 @@ import traceback
 import shutil
 
 import fileutil
-from .loggers import logger
+from .log import logger
 from .configuration import paths
 
 try:

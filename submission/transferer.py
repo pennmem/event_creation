@@ -8,7 +8,7 @@ import yaml
 
 from . import fileutil
 from .configuration import paths
-from .loggers import logger
+from .log import logger
 from .transfer_config import TransferConfig
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')

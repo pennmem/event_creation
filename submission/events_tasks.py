@@ -34,7 +34,7 @@ from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask, UnProcessableException
 
 from .viewers.view_recarray import to_json, from_json
-from .loggers import logger
+from .log import logger
 
 
 class SplitEEGTask(PipelineTask):

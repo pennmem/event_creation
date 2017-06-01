@@ -23,7 +23,7 @@ from .. import fileutil
 from ..fileutil import open_with_perms
 
 from ..configuration import paths
-from ..loggers import logger
+from ..log import logger
 
 
 class BaseMatConverter(object):

@@ -3,7 +3,7 @@ import scipy.stats
 import os
 
 import json
-from ..loggers import logger
+from ..log import logger
 
 
 class UnAlignableEEGException(Exception):

@@ -10,7 +10,7 @@ import shutil
 from collections import defaultdict
 
 from .configuration import paths
-from .loggers import logger
+from .log import logger
 
 class ImproperConfigException(Exception):
     pass
