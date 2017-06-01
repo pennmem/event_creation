@@ -113,4 +113,4 @@ class Configuration(object):
 if __name__ == '__main__':
     config = Configuration()
     config.parse_args(['--path','rhino_root=abc'])
-    print config
+    print(config)

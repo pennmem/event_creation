@@ -1,40 +1,17 @@
-from __future__ import print_function
-import logging
 import os
-import logging.handlers
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
 from .. import fileutil
 from ..configuration import paths
 
-# TODO: REPLACE WITH PYTHON LOGGING MODULE
-
-def error_swallower(fn):
-    def wrapper(*args, **kwargs):
-        if Logger.SWALLOW_ERRORS:
-            try:
-                return fn(*args, **kwargs)
-            except Exception as e:
-                try:
-                    Logger.last_log._log('SWALLOWING ERROR {}'.format(e.message))
-                except Exception:
-                    pass
-        else:
-            return fn(*args, **kwargs)
-
-    return wrapper
 
 class Logger(object):
-
-    SWALLOW_ERRORS = True
-    last_log = None
-    MSG_FORMAT = '{subject} - {label} - {msg}'
-
-    def __init__(self, do_print=True, swallow_errors=True, label=None):
-        self.do_print = do_print
-        self.SWALLOW_ERRORS = swallow_errors
-        self.last_log = self
-        self.label = None
-        self.subject = None
-        self.protocol = None
+    def __init__(self):
+        self.label = None  # type: str
+        self.subject = None  # type: str
+        self.protocol = None  # type: str
+        self.subject_handler = None  # type: logging.Handler
 
         self._logger = logging.getLogger('submission')
         self._logger.setLevel(logging.DEBUG)
@@ -51,17 +28,18 @@ class Logger(object):
             fileutil.makedirs(os.path.join(paths.db_root, 'protocols'))
 
         self.master_file_handler = logging.handlers.TimedRotatingFileHandler(
-            os.path.join(paths.db_root, 'protocols', 'log.txt'), 'D', 30)
+            os.path.join(paths.db_root, 'protocols', 'log.txt'),
+            'D', 30, backupCount=1)
         self.master_file_handler.setLevel(logging.INFO)
         self.master_file_handler.setFormatter(self.formatter)
         self._logger.addHandler(self.master_file_handler)
 
-        self.subject_handler = None
-
     def set_stdout_level(self, level):
+        """Set the log level for the stream handler."""
         self.stdout_handler.setLevel(level)
 
-    def set_subject_handler(self):
+    def _set_subject_handler(self):
+        """Add a file handler to log to the subject directory."""
         if self.subject_handler:
             self._logger.removeHandler(self.subject_handler)
         filename = os.path.join(paths.db_root,
@@ -77,34 +55,38 @@ class Logger(object):
         self.debug("Log file {} opened".format(filename))
 
     def set_label(self, label):
+        """Set the label to be attached to log messages."""
         self.label = label
 
     def set_subject(self, subject, protocol):
+        """Set the subject to be attached to log messages."""
         self.subject = subject
         self.protocol = protocol
-        self.set_subject_handler()
+        self._set_subject_handler()
 
     def unset_subject(self):
+        """Unset the current subject."""
         self.subject = None
         self.protocol = None
         if self.subject_handler:
             self._logger.removeHandler(self.subject_handler)
             self.subject_handler = None
 
-    def format_msg(self, msg, **kwargs):
-        return self.MSG_FORMAT.format(msg=msg, **kwargs)
+    @staticmethod
+    def _format_msg(msg, **kwargs):
+        return '{subject} - {label} - {msg}'.format(msg=msg, **kwargs)
 
     def debug(self, msg):
-        self._logger.debug(self.format_msg(msg, subject=self.subject, label=self.label))
+        self._logger.debug(self._format_msg(msg, subject=self.subject, label=self.label))
 
     def info(self, msg):
-        self._logger.info(self.format_msg(msg, subject=self.subject, label=self.label))
+        self._logger.info(self._format_msg(msg, subject=self.subject, label=self.label))
 
     def warn(self, msg):
-        self._logger.warn(self.format_msg(" ****** " + msg, subject=self.subject, label=self.label))
+        self._logger.warn(self._format_msg(" ****** " + msg, subject=self.subject, label=self.label))
 
     def error(self, msg):
-        self._logger.error(self.format_msg(" ************ " + msg, subject=self.subject, label=self.label))
+        self._logger.error(self._format_msg(" ************ " + msg, subject=self.subject, label=self.label))
 
     def critical(self, msg):
-        self._logger.critical(self.format_msg(" ********************* " + msg, subject=self.subject, label=self.label))
+        self._logger.critical(self._format_msg(" ********************* " + msg, subject=self.subject, label=self.label))

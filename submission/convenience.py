@@ -256,10 +256,10 @@ def attempt_importers(importers, force):
 
 
 def run_wav_import(kwargs,force=False):
-    '''
+    """
     :param kwargs:
     :return: (success [t/f], attempted pipelines)
-    '''
+    """
     # logger.set_label('.wav Importer')
     # logger.set_subject(kwargs['subject'],kwargs['protocol'])
     # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
