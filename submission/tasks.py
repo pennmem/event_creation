@@ -11,10 +11,8 @@ from configuration import paths
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
-    PTSA_LOADED = True
 except:
     logger.warn('PTSA NOT LOADED')
-    PTSA_LOADED = False
 
 
 class PipelineTask(object):
