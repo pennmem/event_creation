@@ -4,7 +4,7 @@ import re
 import shutil
 import traceback
 
-from . import files
+from . import fileutil
 from .configuration import paths
 from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
@@ -180,7 +180,7 @@ class TransferPipeline(object):
         self.destination = os.path.join(self.destination_root, self.processed_label)
         self.current_dir = os.path.join(self.destination_root, self.CURRENT_PROCESSED_DIRNAME)
         if not os.path.exists(self.destination):
-            files.makedirs(self.destination)
+            fileutil.makedirs(self.destination)
         for task in self.pipeline_tasks:
             task.set_pipeline(self)
         self.log_filenames = [
@@ -230,12 +230,12 @@ class TransferPipeline(object):
         if len(self.output_info) > 0:
             index['info'] = self.output_info
         if len(index) > 0:
-            with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
+            with fileutil.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
                 json.dump(index, f, indent=2, sort_keys=True)
 
     def _initialize(self, force=False):
         if not os.path.exists(self.destination):
-            files.makedirs(self.destination)
+            fileutil.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
 
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))

@@ -6,7 +6,7 @@ import traceback
 
 import yaml
 
-from . import files
+from . import fileutil
 from .configuration import paths
 from .loggers import logger
 from .transfer_config import TransferConfig
@@ -102,11 +102,11 @@ class Transferer(object):
 
     def write_transferred_index(self):
         index = self.transferred_index()
-        with files.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
+        with fileutil.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
 
     def write_transfer_type(self):
-        with files.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
+        with fileutil.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
             type_file.write(self.transfer_type)
 
     def previous_transfer_type(self):
@@ -134,7 +134,7 @@ class Transferer(object):
 
     def _transfer_files(self):
         if not os.path.exists(self.destination_root):
-            files.makedirs(self.destination_root)
+            fileutil.makedirs(self.destination_root)
 
         logger.info('Transferring into {}'.format(self.destination_root))
 

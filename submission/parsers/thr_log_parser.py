@@ -4,7 +4,7 @@ from ..viewers.view_recarray import strip_accents
 from copy import deepcopy
 import numpy as np
 import os
-from .. import files
+from .. import fileutil
 
 
 class THSessionLogParser(BaseSessionLogParser):

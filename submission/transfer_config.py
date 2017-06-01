@@ -5,7 +5,7 @@ import glob
 import os
 import yaml
 import hashlib
-import files
+import fileutil
 import shutil
 from collections import defaultdict
 
@@ -215,7 +215,7 @@ class TransferFile(object):
         containing_dir = self.destination_containing_directory(root)
 
         if not os.path.exists(containing_dir):
-            files.makedirs(containing_dir)
+            fileutil.makedirs(containing_dir)
 
         if self.type == 'directory':
             for file in self.files.values():

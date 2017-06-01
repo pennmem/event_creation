@@ -4,7 +4,7 @@ import json
 import traceback
 import shutil
 
-import files
+import fileutil
 from .loggers import logger
 from .configuration import paths
 
@@ -33,7 +33,7 @@ class PipelineTask(object):
         self.pipeline = pipeline
 
     def create_file(self, filename, contents, label, index_file=True):
-        with files.open_with_perms(os.path.join(self.destination, filename), 'w') as f:
+        with fileutil.open_with_perms(os.path.join(self.destination, filename), 'w') as f:
             f.write(contents)
         if index_file:
             self.pipeline.register_output(filename, label)
@@ -224,7 +224,7 @@ class IndexAggregatorTask(PipelineTask):
         for protocol in self.PROTOCOLS:
             index = self.build_index(protocol)
             try:
-                with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)),'w') as f:
+                with fileutil.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
                     json.dump(index, f, sort_keys=True, indent=2)
             except IOError:
                 logger.warn('Unable to open file ' + os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)) + ' with write permissions.')
@@ -240,7 +240,7 @@ class IndexAggregatorTask(PipelineTask):
         for subj_index_file in subj_index_files:
             self.build_single_file_index(subj_index_file, index)
 
-        with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
+        with fileutil.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
             json.dump(index, f, sort_keys=True, indent=2)
 
     # FIXME: is this intentionally defined within another class??

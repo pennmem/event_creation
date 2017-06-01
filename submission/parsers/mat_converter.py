@@ -19,8 +19,8 @@ from ..readers import eeg_reader
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.view_recarray import strip_accents
 
-from .. import files
-from ..files import open_with_perms
+from .. import fileutil
+from ..fileutil import open_with_perms
 
 from ..configuration import paths
 from ..loggers import logger
@@ -265,7 +265,7 @@ class MatlabEEGExtractor(object):
         info = {}
         noreref = os.path.join(destination, 'noreref')
         if not os.path.exists(noreref):
-            files.makedirs(noreref)
+            fileutil.makedirs(noreref)
 
         # For each unique eeg location:
         for eeg_location in eeg_locations:

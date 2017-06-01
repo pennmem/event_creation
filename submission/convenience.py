@@ -7,7 +7,7 @@ import collections
 import traceback
 from collections import defaultdict
 
-from . import files
+from . import fileutil
 from .configuration import config, paths
 
 
@@ -186,7 +186,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                 session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][new_experiment][session] = session_dict
-    with files.open_with_perms(out_file, 'w') as f:
+    with fileutil.open_with_perms(out_file, 'w') as f:
         json.dump(subjects, f, indent=2, sort_keys=True)
 
 
@@ -578,7 +578,7 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
         sorted_failures = sorted(montage_failures, key=importer_sort_key)
         sorted_successes = sorted(montage_successes, key=importer_sort_key)
 
-    with files.open_with_perms(log_file, 'w') as output:
+    with fileutil.open_with_perms(log_file, 'w') as output:
         output.write("Successful imports: {}\n".format(len(sorted_successes)))
         output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
         output.write("###### FAILURES #####\n")

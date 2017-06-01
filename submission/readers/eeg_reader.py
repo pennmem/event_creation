@@ -18,7 +18,7 @@ try:
 except ImportError:
     warnings.warn("pyEDFlib not available")
 
-from .. import files
+from .. import fileutil
 from ..loggers import logger
 from .nsx_utility.brpylib import NsxFile
 
@@ -71,13 +71,13 @@ class EEG_reader:
             'data_format': self.DATA_FORMAT
         }
 
-        with files.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
+        with fileutil.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
             json.dump(sources, source_file, indent=2, sort_keys=True)
 
     def split_data(self, location, basename):
         noreref_location = os.path.join(location, 'noreref')
         if not os.path.exists(noreref_location):
-            files.makedirs(noreref_location)
+            fileutil.makedirs(noreref_location)
         logger.info("Splitting data into {}/{}".format(noreref_location, basename))
         self._split_data(noreref_location, basename)
         self.write_sources(location, basename)
@@ -541,7 +541,7 @@ class NK_reader(EEG_reader):
 
     def _split_data(self, location, basename):
         if not os.path.exists(location):
-            files.makedirs(location)
+            fileutil.makedirs(location)
         if not self.jacksheet:
             raise UnSplittableEEGFileException('Jacksheet not specified')
         data = self.get_data(self.jacksheet, self.channel_map)
@@ -606,7 +606,7 @@ class Multi_NSx_reader(EEG_reader):
                  }
             })
 
-        with files.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
+        with fileutil.open_with_perms(os.path.join(location, 'sources.json'), 'w') as source_file:
             json.dump(sources, source_file, indent=2, sort_keys=True)
 
     def _split_data(self, location, basename):
@@ -929,7 +929,7 @@ class EGI_reader(EEG_reader):
 
         # Create directory if needed
         if not os.path.exists(location):
-            files.makedirs(location)
+            fileutil.makedirs(location)
 
         # Write EEG channel files
         for i in range(self.data.shape[0]):
@@ -946,10 +946,10 @@ class EGI_reader(EEG_reader):
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.DATA_FORMAT + '\nsystem EGI'
-        with files.open_with_perms(paramfile, 'w') as f:
+        with fileutil.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
-        with files.open_with_perms(paramfile, 'w') as f:
+        with fileutil.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         logger.debug('Done.')
 
@@ -963,7 +963,7 @@ class EGI_reader(EEG_reader):
         """
         # Create directory if needed
         if not os.path.exists(location):
-            files.makedirs(location)
+            fileutil.makedirs(location)
 
         logger.debug('Rerefencing data...')
 
@@ -1137,7 +1137,7 @@ class BDF_reader(EEG_reader):
 
         # Create directory if needed
         if not os.path.exists(location):
-            files.makedirs(location)
+            fileutil.makedirs(location)
 
         # Write EEG channel files
         for i in range(self.data.shape[0]):
@@ -1160,10 +1160,10 @@ class BDF_reader(EEG_reader):
         logger.debug('Writing param files.')
         paramfile = os.path.join(location, 'params.txt')
         params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.DATA_FORMAT + '\nsystem Biosemi'
-        with files.open_with_perms(paramfile, 'w') as f:
+        with fileutil.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         paramfile = os.path.join(location, basename + '.params.txt')
-        with files.open_with_perms(paramfile, 'w') as f:
+        with fileutil.open_with_perms(paramfile, 'w') as f:
             f.write(params)
         logger.debug('Done.')
 
@@ -1177,7 +1177,7 @@ class BDF_reader(EEG_reader):
         """
         # Create directory if needed
         if not os.path.exists(location):
-            files.makedirs(location)
+            fileutil.makedirs(location)
 
         logger.debug('Rerefencing data...')
 
