@@ -1,3 +1,7 @@
- - Some subjects were missing channels of EEG data. This has been resolved.
- - Stimulation voltage in PS was sometimes reported in uA, and sometimes in mA. Now they will all be in uA
- - PS events were occasionally out of order
+2016-10-12
+==========
+
+- Some subjects were missing channels of EEG data. This has been resolved.
+- Stimulation voltage in PS was sometimes reported in uA, and sometimes in mA.
+  Now they will all be in uA
+- PS events were occasionally out of order
