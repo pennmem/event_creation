@@ -3,13 +3,11 @@ import os
 import json
 import glob
 import numpy as np
-import argparse
 import collections
 import traceback
 import files
 from collections import defaultdict
 from configuration import config, paths
-from copy import  deepcopy
 
 
 if __name__ == '__main__':
@@ -20,7 +18,7 @@ if __name__ == '__main__':
     else:
         matplotlib.use('Qt4Agg')
 
-from submission.pipelines import MATLAB_CONVERSION_TYPE
+# FIXME: rearrange, use relative imports
 from tasks import CleanDbTask, IndexAggregatorTask
 from loggers import logger
 from automation import Importer, ImporterCollection
