@@ -1,16 +1,13 @@
 import os
-
 import re
 import json
 import traceback
-
 import shutil
 
+# TODO: rearrange, use relative imports
 import files
-
 from loggers import logger
 from configuration import paths
-import shutil
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -19,8 +16,16 @@ except:
     logger.warn('PTSA NOT LOADED')
     PTSA_LOADED = False
 
-class PipelineTask(object):
 
+class PipelineTask(object):
+    """Base class for running tasks in a pipeline.
+
+    Parameters
+    ----------
+    critical : bool
+       TODO: what does this mean?
+
+    """
     def __init__(self, critical=True):
         self.critical = critical
         self.name = str(self)
@@ -51,7 +56,9 @@ class PipelineTask(object):
 
 
 class ImportJsonMontageTask(PipelineTask):
+    """
 
+    """
     def __init__(self, subject, montage, critical=True):
         super(ImportJsonMontageTask, self).__init__(critical)
         self.name = 'Importing {subj} montage {montage}'.format(subj=subject, montage=montage)
@@ -63,8 +70,11 @@ class ImportJsonMontageTask(PipelineTask):
                 output = json.load(f)
                 self.create_file(filename, json.dumps(output, indent=2, sort_keys=True), file, False)
 
-class CleanDbTask(PipelineTask):
 
+class CleanDbTask(PipelineTask):
+    """
+
+    """
     SOURCE_REGEX = '^\d{8}\.\d{6}$'
     PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
 
@@ -96,9 +106,11 @@ class CleanDbTask(PipelineTask):
                         logger.warn("Removing {} in {}".format(dir, root))
                         shutil.rmtree(os.path.join(root, dir))
 
+
 class CleanLeafTask(PipelineTask):
+    """
 
-
+    """
     SOURCE_REGEX = '^\d{8}\.\d{6}$'
     PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
 
@@ -137,8 +149,11 @@ class CleanLeafTask(PipelineTask):
                 logger.debug("Stopped cleaning due to contents {}".format(contents))
                 break
 
-class IndexAggregatorTask(PipelineTask):
 
+class IndexAggregatorTask(PipelineTask):
+    """
+
+    """
     PROTOCOLS_DIR = os.path.join(paths.db_root, 'protocols')
     PROTOCOLS = ('r1', 'ltp')
     PROCESSED_DIRNAME = 'current_processed'
@@ -151,7 +166,6 @@ class IndexAggregatorTask(PipelineTask):
         for index_file in index_files:
             cls.build_single_file_index(index_file, d)
         return d
-
 
     @classmethod
     def find_index_files(cls, root_dir):
@@ -232,7 +246,7 @@ class IndexAggregatorTask(PipelineTask):
         with files.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
             json.dump(index, f, sort_keys=True, indent=2)
 
-
+    # FIXME: is this intentionally defined within another class??
     class ImportWavFilesTask(PipelineTask):
         def _run(self,files,db_folder):
             for fid in files:
@@ -249,9 +263,16 @@ class IndexAggregatorTask(PipelineTask):
 
 
 class UnProcessableException(Exception):
-    pass
+    """Raised when something cannot be processed."""
+
 
 def change_current(source_folder, *args):
+    """
+
+    :param source_folder:
+    :param args:
+    :return:
+    """
     destination_directory = os.path.join(paths.db_root, *args)
     destination_source = os.path.join(destination_directory, source_folder)
     destination_processed = os.path.join(destination_directory, '{}_processed'.format(source_folder))
