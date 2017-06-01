@@ -2,7 +2,7 @@ import os
 import glob
 import numpy as np
 from ..log import logger
-from ..helpers.butter_filt import butter_filt
+from ..helpers import butter_filt
 
 
 class ArtifactDetector:
