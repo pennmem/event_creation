@@ -617,37 +617,3 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         events['mstime'] =aligner.apply_coefficients_backwards(events['eegoffset'],aligner.task_to_ens_coefs[0])
         aligner.apply_eeg_file(events)
         return events
-
-
-
-
-if __name__ == '__main__':
-
-    import os
-    from viewers.view_recarray import pprint_rec as ppr, to_json
-    from alignment.system3 import System3Aligner
-
-    d = '/Users/leond/ps2-saline-2017-02-14'
-
-    files = dict(
-        event_log=[os.path.join(d, 'event_log.json')] ,
-        electrode_config=[os.path.join(d, 'config_files', 'R1170J_ALLCHANNELSSTIM.csv')],
-        eeg_sources=os.path.join(d, 'eeg_sources.json')
-    )
-
-    pslp = PSSys3LogParser('r1', 'R9999X', 0.0, 'PS2', 37, files)
-
-    events = pslp.parse()
-
-    aligner = System3Aligner(events, files)
-
-    aligner.add_stim_events(pslp.event_template, pslp.persist_fields_during_stim)
-
-    aligned_events = aligner.align()
-
-    aligned_events = pslp.clean_events(aligned_events)
-
-    import pprint
-    with open('/Users/leond/ps_saline_events.json','w') as json_events:
-        print>>json_events,to_json(aligned_events)
-

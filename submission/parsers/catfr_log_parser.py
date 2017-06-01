@@ -2,7 +2,7 @@ import re
 import numpy as np
 
 from .base_log_parser import BaseSessionLogParser
-from ..viewers.view_recarray import strip_accents
+from ..viewers.recarray import strip_accents
 
 class CatFRSessionLogParser(BaseSessionLogParser):
     """

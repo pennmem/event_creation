@@ -1,6 +1,6 @@
 from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
 from .system2_log_parser import System2LogParser
-from ..viewers.view_recarray import strip_accents
+from ..viewers.recarray import strip_accents
 import numpy as np
 import os
 from .. import fileutil

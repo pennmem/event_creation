@@ -10,7 +10,7 @@ import pandas as pd
 from ..log import logger
 from ..exc import LogParseError, UnknownExperimentError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
-from ..viewers.view_recarray import pformat_rec, to_dict, from_dict
+from ..viewers.recarray import pformat_rec, to_dict, from_dict
 
 
 class BaseLogParser(object):

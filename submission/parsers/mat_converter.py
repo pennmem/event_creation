@@ -17,7 +17,7 @@ from .ps_log_parser import PSSessionLogParser
 
 from ..readers import eeg_reader
 from ..readers.eeg_reader import read_jacksheet
-from ..viewers.view_recarray import strip_accents
+from ..viewers.recarray import strip_accents, pprint_rec as ppr
 
 from .. import fileutil
 from ..fileutil import open_with_perms
@@ -1375,7 +1375,7 @@ def test_fr_mat_converter():
         converter = converter_type('r1', subject, 0.0, new_exp, new_sess, orig_sess, files)
         py_events = converter.convert()
 
-        from viewers.view_recarray import to_json, from_json
+        from ..viewers.recarray import to_json, from_json
         with open_with_perms('test_{}_events.json'.format(subject), 'w') as f:
             to_json(py_events, f)
 
@@ -1405,7 +1405,6 @@ def compare_converted_events(new_events, old_events):
             print '.',
 
 
-from viewers.view_recarray import pprint_rec as ppr
 def compare_single_event(new_event, old_event):
     names = new_event.dtype.names
     is_bad = False

@@ -33,7 +33,7 @@ from .parsers.math_parser import MathLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 
-from .viewers.view_recarray import to_json, from_json
+from .viewers.recarray import to_json, from_json
 from .log import logger
 from .exc import NoEventsError, ProcessingError
 
