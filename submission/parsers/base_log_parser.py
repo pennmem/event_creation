@@ -8,20 +8,9 @@ import numpy as np
 import pandas as pd
 
 from ..log import logger
+from ..exc import LogParseError, UnknownExperimentError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.view_recarray import pformat_rec, to_dict, from_dict
-
-
-class UnparsableLineException(Exception):
-    pass
-
-
-class UnknownExperimentTypeException(Exception):
-    pass
-
-
-class IncomparableFieldException(Exception):
-    pass
 
 
 class BaseLogParser(object):
@@ -344,7 +333,7 @@ class BaseLogParser(object):
                     # Fine to skip lines if specified
                     pass
                 else:
-                    raise UnparsableLineException("Event type %s not parseable" % this_type)
+                    raise LogParseError("Event type %s not parseable" % this_type)
             if events.dtype==np.object:
                 pass
             # Modify existing events if necessary
@@ -611,11 +600,11 @@ class EventComparator:
         # Make sure we can compare the events
         for name in ev1_names:
             if name not in ev2_names and name not in field_switch and name not in field_ignore:
-                raise IncomparableFieldException(name)
+                raise EventFieldError(name)
 
         for name in ev2_names:
             if name not in ev1_names and name not in field_switch.values() and name not in field_ignore:
-                raise IncomparableFieldException(name)
+                raise EventFieldError(name)
 
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:

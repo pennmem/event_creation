@@ -31,10 +31,11 @@ from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathLogParser
 from .readers.eeg_reader import get_eeg_reader
-from .tasks import PipelineTask, UnProcessableException
+from .tasks import PipelineTask
 
 from .viewers.view_recarray import to_json, from_json
 from .log import logger
+from .exc import NoEventsError, ProcessingError
 
 
 class SplitEEGTask(PipelineTask):
@@ -119,7 +120,7 @@ class SplitEEGTask(PipelineTask):
             num_split_files = len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
 
         if num_split_files == 0:
-            raise UnProcessableException(
+            raise ProcessingError(
                 'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
                     db_folder))
 
@@ -237,13 +238,11 @@ class EventCreationTask(PipelineTask):
             aligner = System1Aligner(unaligned_events, files)
             events = aligner.align()
         else:
-            raise UnProcessableException("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+            raise ProcessingError("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
-class NoEventsError(Exception):
-    pass
 
 class PruneEventsTask(PipelineTask):
     def __init__(self,cond):
@@ -259,7 +258,7 @@ class PruneEventsTask(PipelineTask):
                 logger.info('No events for this experiment. If there are subsequent PS4 sessions, do not panic.')
                 raise NoEventsError()
             filtered_events = to_json(filtered_events)
-            self.create_file(fid,filtered_events,os.path.splitext(os.path.basename(fid))[0])
+            self.create_file(fid, filtered_events, os.path.splitext(os.path.basename(fid))[0])
 
 
 class RecognitionFlagTask(PipelineTask):
@@ -267,7 +266,6 @@ class RecognitionFlagTask(PipelineTask):
         event_file = os.path.join(db_folder, 'task_events.json')
         events = from_json(event_file)
         self.pipeline.register_info('Recognition', any(['RECOG' in tipe for tipe in np.unique(events.type)]))
-
 
 
 class EventCombinationTask(PipelineTask):
@@ -325,7 +323,7 @@ class MontageLinkerTask(PipelineTask):
         for name, file in self.FILES.items():
             fullfile = os.path.join(montage_path, file)
             if not os.path.exists(os.path.join(paths.db_root, fullfile)):
-                raise UnProcessableException("Cannot find montage for {} in {}".format(self.subject, fullfile))
+                raise ProcessingError("Cannot find montage for {} in {}".format(self.subject, fullfile))
             logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
 

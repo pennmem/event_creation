@@ -1,4 +1,5 @@
-from submission.readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, UnSplittableEEGFileException, NK_reader, read_text_jacksheet, EGI_reader
+from submission.readers.eeg_reader import EDF_reader, NSx_reader, convert_nk_to_edf, NK_reader, read_text_jacksheet, EGI_reader
+from submission.exc import EEGError
 import numpy as np
 import os
 import glob
@@ -74,8 +75,8 @@ def xtest_nk_converter():
             new_data = np.fromfile(test_file, 'int16')
 
             if not (abs(old_data-new_data) < 2).all():
-                raise UnSplittableEEGFileException('old data does not match new data : max diff %.1f' %
-                                                   max(abs(old_data-new_data)))
+                raise EEGError('old data does not match new data : max diff %.1f' %
+                               max(abs(old_data-new_data)))
 
 ns2_subjects = (('R1170J_1', 'FR3_0/20160516-144520/20160516-144520-001.ns2', 'R1170J_1_FR3_0_16May16_1845'),
                 ('R1196N', 'PAL1_2/20160712-102704/20160712-102704-001.ns2', 'R1196N_PAL1_2_12Jul16_1427'),)
@@ -109,8 +110,8 @@ def xtest_nsx_split():
             new_data = np.fromfile(test_file, 'int16')
 
             if not (abs(old_data - new_data) < 2).all():
-                raise UnSplittableEEGFileException('old data does not match new data : max diff %.1f' %
-                                                   max(abs(old_data - new_data)))
+                raise EEGError('old data does not match new data : max diff %.1f' %
+                               max(abs(old_data - new_data)))
 
 nk_subjects = (('R1083J', 'FR1_0/RA2350UO.EEG', ''),
                ('R1008J', 'YC1_0/CA2417MP.EEG', 'R1008J_21Nov14_1037'),

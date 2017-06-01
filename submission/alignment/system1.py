@@ -3,11 +3,8 @@ import scipy.stats
 import os
 
 import json
+from ..exc import AlignmentError
 from ..log import logger
-
-
-class UnAlignableEEGException(Exception):
-    pass
 
 
 class System1Aligner:
@@ -39,7 +36,7 @@ class System1Aligner:
         self.eeg_pulse_file = files['sync_pulses']
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
-            raise UnAlignableEEGException('Cannot align EEG with %d sources' % len(eeg_sources))
+            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
         self.eeg_file_stem = eeg_sources.keys()[0]
         eeg_source = eeg_sources.values()[0]
         eeg_dir = os.path.dirname(self.eeg_pulse_file)
@@ -65,7 +62,7 @@ class System1Aligner:
                                      self.events[self.EEG_TIME_FIELD] > self.n_samples)
         n_out_of_range = np.count_nonzero(out_of_range)
         if n_out_of_range == self.events.size:
-            raise UnAlignableEEGException('Could not align any events.')
+            raise AlignmentError('Could not align any events.')
         elif n_out_of_range:
             logger.warn('{} events out of range of eeg'.format(n_out_of_range))
 
@@ -212,7 +209,7 @@ class System1Aligner:
         if not task_start_ind:
             # If the window gets too small, raise an error
             if alignment_window - cls.ALIGNMENT_WINDOW_STEP < cls.MIN_ALIGNMENT_WINDOW:
-                raise UnAlignableEEGException("Could not align window")
+                raise AlignmentError("Could not align window")
             else:
                 logger.warn('Reducing align window to {}'.format(alignment_window - cls.ALIGNMENT_WINDOW_STEP))
                 return cls.find_matching_window(eeg_diff, task_diff, from_front,
@@ -243,5 +240,5 @@ class System1Aligner:
 
         # Raise an exception if we've found more than one
         if len(ind) > 1:
-            raise UnAlignableEEGException("Multiple matching windows. Lower threshold or increase window.")
+            raise AlignmentError("Multiple matching windows. Lower threshold or increase window.")
         return ind[0]

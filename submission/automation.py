@@ -6,7 +6,7 @@ import traceback
 
 from ptsa.data.readers.IndexReader import JsonIndexReader
 
-from .transferer import UnTransferrableException
+from .transferer import TransferError
 from .pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
                       build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
 from .log import logger
@@ -86,7 +86,7 @@ class Importer(object):
 
     def __init__(self, type, *args, **kwargs):
         if type not in self.PIPELINE_BUILDERS:
-            raise UnTransferrableException("Cannot build importer for type {}".format(type))
+            raise TransferError("Cannot build importer for type {}".format(type))
         self.label = self.LABELS[type]
         self.args = args
         self.kwargs = kwargs
@@ -224,7 +224,7 @@ class Importer(object):
             self.set_error('processing', e)
             self.pipeline.on_failure()
             raise
-        except UnTransferrableException as e:
+        except TransferError as e:
             self.set_error('transfer', e)
             self.pipeline.on_failure()
         except Exception as e:

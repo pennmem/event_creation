@@ -5,6 +5,7 @@ import glob
 import numpy as np
 
 from ..configuration import config, paths
+from ..exc import PeakFindingError
 
 if __name__ == '__main__':
     config.parse_args()
@@ -296,7 +297,7 @@ class SyncPulseExtractor(QWidget):
             self.figure.canvas.draw()
             Timer(.1, self.enable_blit).start()
 
-        except UnFindablePeaksException:
+        except PeakFindingError:
             self.status_text.setText("Cannot properly locate peaks! Select again!")
 
     def clear_peaks(self):
@@ -340,9 +341,6 @@ class SyncPulseExtractor(QWidget):
         self.zoom_ax.get_xaxis().set_ticks(data_range)
         self.zoom_ax.get_yaxis().set_ticks([])
 
-
-class UnFindablePeaksException(Exception):
-    pass
 
 class SyncPulseExtractionModel(object):
 
@@ -497,7 +495,7 @@ class SyncPulseExtractionModel(object):
         min_y = min(y1, y2)
         max_y = max(y1, y2)
         if (data < min_y).any() and (data > max_y).any():
-            raise UnFindablePeaksException()
+            raise PeakFindingError()
 
         if (data < min_y).any():
             in_border = min_y

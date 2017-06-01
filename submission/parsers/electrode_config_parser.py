@@ -1,9 +1,6 @@
 from collections import OrderedDict
 import numpy as np
-
-
-class UnparseableConfigException(Exception):
-    pass
+from ..exc import ConfigurationError
 
 
 class Contact():
@@ -122,7 +119,7 @@ class ElectrodeConfig(object):
 
     def as_csv(self):
         if not self.initialized:
-            raise UnparseableConfigException("Config not initialized!")
+            raise ConfigurationError("Config not initialized!")
         return self.CSV_FORMAT.format(
             contacts_csv=self.contacts_csv,
             sense_channels_csv=self.sense_channels_csv,
@@ -213,7 +210,7 @@ class ElectrodeConfig(object):
                 line = line.strip().rstrip(',')
                 label = line.split(':')[0]
                 if label not in self.parse_fields:
-                    raise UnparseableConfigException("Could not parse line {}".format(line))
+                    raise ConfigurationError("Could not parse line {}".format(line))
                 parser = self.parse_fields[label]
                 line = parser(line, config_file)
 
@@ -292,24 +289,24 @@ class ElectrodeConfig(object):
         line = next(file)
         split_line = line.split(':')
         if split_line[0] != 'Anodes':
-            raise UnparseableConfigException("Expected \"Anodes\", found {}".format(split_line[0]))
+            raise ConfigurationError("Expected \"Anodes\", found {}".format(split_line[0]))
         split_line = line.split(',')
         anodes = split_line[1:-1]
         if len(anodes) == 0:
-            raise UnparseableConfigException("Found no anodes for stim channel {}".format(name))
+            raise ConfigurationError("Found no anodes for stim channel {}".format(name))
 
         # Get cathodes
         line = next(file)
         split_line = line.split(':')
         if split_line[0] != "Cathodes":
-            raise UnparseableConfigException("Expected \"Cathodes\", found {}".format(split_line[0]))
+            raise ConfigurationError("Expected \"Cathodes\", found {}".format(split_line[0]))
         split_line = line.split(',')
         cathodes = split_line[1:-1]
         if len(cathodes) == 0:
-            raise UnparseableConfigException("Found no cathodes for stim channel {}".format(name))
+            raise ConfigurationError("Found no cathodes for stim channel {}".format(name))
 
         if len(cathodes) != len(anodes):
-            raise UnparseableConfigException("Number of anodes ({}) "
+            raise ConfigurationError("Number of anodes ({}) "
                                              "did not match number of cathodes ({})".format(len(anodes), len(cathodes)))
 
         self.stim_channels[name] = StimChannel(name, anodes, cathodes, comment)

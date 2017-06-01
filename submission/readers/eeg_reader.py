@@ -21,10 +21,7 @@ except ImportError:
 from .. import fileutil
 from ..log import logger
 from .nsx_utility.brpylib import NsxFile
-
-
-class UnSplittableEEGFileException(Exception):
-    pass
+from ..exc import EEGError
 
 
 class EEG_reader:
@@ -202,7 +199,7 @@ class NK_reader(EEG_reader):
             new_format = device_type[:9] == 'EEG-1200A'
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
-                raise UnSplittableEEGFileException('%s EEG2 Control blocks detected' % number_of_blocks)
+                raise EEGError('%s EEG2 Control blocks detected' % number_of_blocks)
             block_address = self.int32(f)
             _ = f.read(16)  # EEG control block name
 
@@ -212,7 +209,7 @@ class NK_reader(EEG_reader):
             _ = f.read(16)  # Data format
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
-                raise UnSplittableEEGFileException('%d waveform blocks detected' % number_of_blocks)
+                raise EEGError('%d waveform blocks detected' % number_of_blocks)
             block_address = self.int32(f)
             _ = self.char_(f)  # Name of waveform block
 
@@ -328,7 +325,7 @@ class NK_reader(EEG_reader):
             new_format = device_type[:9] == 'EEG-1200A'
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
-                raise UnSplittableEEGFileException('%s EEG2 Control blocks detected' % number_of_blocks)
+                raise EEGError('%s EEG2 Control blocks detected' % number_of_blocks)
             block_address = self.int32(f)
             _ = f.read(16)  # EEG control block name
 
@@ -338,7 +335,7 @@ class NK_reader(EEG_reader):
             _ = f.read(16)  # Data format
             number_of_blocks = self.uint8(f)
             if number_of_blocks > 1:
-                raise UnSplittableEEGFileException('%d waveform blocks detected' % number_of_blocks)
+                raise EEGError('%d waveform blocks detected' % number_of_blocks)
             block_address = self.int32(f)
             _ = f.read(16)  # Name of waveform block
 
@@ -375,7 +372,7 @@ class NK_reader(EEG_reader):
                 actual_sample_rate = sample_rate_conversion[sample_rate]
                 self.sample_rate = actual_sample_rate
             else:
-                raise UnSplittableEEGFileException('Unknown sample rate')
+                raise EEGError('Unknown sample rate')
 
             num_100_ms_blocks = self.uint32(f)
             logger.debug('Length of session: %2.2f hours\n' % (num_100_ms_blocks / 10. / 3600.))
@@ -388,9 +385,9 @@ class NK_reader(EEG_reader):
             num_channels = self.uint8(f)
 
             if (num_channels == 1 and num_samples - actual_sample_rate == 0) and not new_format:
-                raise UnSplittableEEGFileException('Expecting old format, but 1 channel for 1 second')
+                raise EEGError('Expecting old format, but 1 channel for 1 second')
             elif num_channels > 1 and new_format:
-                raise UnSplittableEEGFileException('Expecting new format, but > 1 channel')
+                raise EEGError('Expecting new format, but > 1 channel')
 
             if new_format:
                 logger.debug('NEW FORMAT...')
@@ -498,7 +495,7 @@ class NK_reader(EEG_reader):
                 gain[i] = cal_conversion[raw_cal] / float(ad_val)
 
             if not len(np.unique(gain)) == 1:
-                raise UnSplittableEEGFileException('All channels do not have the same gain')
+                raise EEGError('All channels do not have the same gain')
             self.gain = gain[0]
 
             if not (np.count_nonzero(data_num_to_21e_index != -1) == len(nums_21e_filtered)):
@@ -507,7 +504,7 @@ class NK_reader(EEG_reader):
                 good_names = names_21e_filtered[np.logical_not(np.array(bad_indices))]
                 unique_bad_names = bad_names[np.array([bad_name not in good_names for bad_name in bad_names])]
                 if len(unique_bad_names) > 0:
-                    raise UnSplittableEEGFileException('Could not find recording for channels:\n%s' % unique_bad_names)
+                    raise EEGError('Could not find recording for channels:\n%s' % unique_bad_names)
 
             # Get the data!
             logger.debug('Reading...')
@@ -535,7 +532,7 @@ class NK_reader(EEG_reader):
     def channel_data(self, channel):
         if not self._data:
             if not self.jacksheet:
-                raise UnSplittableEEGFileException("Cannot split EEG without jacksheet")
+                raise EEGError("Cannot split EEG without jacksheet")
             self._data = self.get_data(self.jacksheet, self.channel_map)
         return self._data[channel]
 
@@ -543,10 +540,10 @@ class NK_reader(EEG_reader):
         if not os.path.exists(location):
             fileutil.makedirs(location)
         if not self.jacksheet:
-            raise UnSplittableEEGFileException('Jacksheet not specified')
+            raise EEGError('Jacksheet not specified')
         data = self.get_data(self.jacksheet, self.channel_map)
         if not self.sample_rate:
-            raise UnSplittableEEGFileException('Sample rate not determined')
+            raise EEGError('Sample rate not determined')
 
         sys.stdout.flush()
         for channel, channel_data in data.items():
@@ -572,7 +569,7 @@ class Multi_NSx_reader(EEG_reader):
     def get_sample_rate(self):
         sample_rates = np.array([reader.get_sample_rate() for reader in self.readers])
         if len(np.unique(sample_rates)) != 1:
-            raise UnSplittableEEGFileException('Cannot split files with multiple sample rates together: {}'.format(sample_rates))
+            raise EEGError('Cannot split files with multiple sample rates together: {}'.format(sample_rates))
         return sample_rates[0]
 
     def get_n_samples(self):
@@ -718,7 +715,7 @@ class NSx_reader(EEG_reader):
             logger.debug('%s: %s' % (label, channel))
             data = self.data['data'][channels==recording_channel, :].astype(self.DATA_FORMAT)
             if len(data) == 0:
-                raise UnSplittableEEGFileException("EEG File {} contains no data "
+                raise EEGError("EEG File {} contains no data "
                                                    "for channel {}".format(self.raw_filename, recording_channel))
             data = np.concatenate((np.ones((1, buffer_size), self.DATA_FORMAT) * data[0,0], data), 1)
             data.tofile(filename)
@@ -755,7 +752,7 @@ class EDF_reader(EEG_reader):
         n_samples = np.unique(self.reader.getNSamples())
         n_samples = n_samples[n_samples != 0]
         if len(n_samples) != 1:
-            raise UnSplittableEEGFileException('Could not determine number of samples in file %s' % self.raw_filename)
+            raise EEGError('Could not determine number of samples in file %s' % self.raw_filename)
         return n_samples[0]
 
     def set_jacksheet(self, jacksheet_filename):
@@ -783,7 +780,7 @@ class EDF_reader(EEG_reader):
                 if not sample_rate:
                     sample_rate = header['sample_rate']
                 elif sample_rate != header['sample_rate']:
-                    raise UnSplittableEEGFileException('Different sample rates for recorded channels')
+                    raise EEGError('Different sample rates for recorded channels')
         return sample_rate
 
     @property

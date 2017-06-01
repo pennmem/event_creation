@@ -9,6 +9,7 @@ from collections import defaultdict
 
 from . import fileutil
 from .configuration import config, paths
+from .exc import MontageError
 
 
 if __name__ == '__main__':
@@ -31,10 +32,6 @@ except:
     logger.warn('PTSA NOT LOADED')
 
 
-class UnknownMontageException(Exception):
-    pass
-
-
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
     montage_file = os.path.join(paths.db_root, 'protocols', protocol, 'montages', code, 'info.json')
     if os.path.exists(montage_file):
@@ -43,7 +40,7 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
     elif '_' not in code:
         return '0.0'
     elif not allow_new:
-        raise UnknownMontageException('Could not determine montage for {}'.format(code))
+        raise MontageError('Could not determine montage for {}'.format(code))
     else:
         montage_code = int(code.split('_')[1])
         ref_localized_file = os.path.join(paths.data_root, code, 'ref_localized.txt')

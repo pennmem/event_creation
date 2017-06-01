@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats
 
-from .system1 import UnAlignableEEGException
+from ..exc import AlignmentError
 from ..readers.eeg_reader import NSx_reader
 from ..readers.eeg_reader import read_jacksheet
 from ..log import logger
@@ -170,7 +170,7 @@ class System2TaskAligner(object):
         # Gotta try every combination of NSx files
         nsx_file_combinations = list(itertools.combinations(self.all_nsx_info, len(self.host_time_np_starts)))
         if len(nsx_file_combinations) == 0:
-            raise UnAlignableEEGException('Could not assign eegfile with {} recordings and {} np resets'.format(
+            raise AlignmentError('Could not assign eegfile with {} recordings and {} np resets'.format(
                 len(self.all_nsx_info), len(self.host_time_np_starts)))
 
         # Will hold the difference between the start of the recordings as seen by NP and Host
@@ -192,12 +192,12 @@ class System2TaskAligner(object):
         if errors[best_index] == 'NaN':
             logger.debug("nsx file lengths: {}".format([nsx_file['n_samples'] * float(nsx_file['sample_rate'] / 1000) for nsx_file in self.all_nsx_info]))
             logger.debug("host time start differences: {}".format([x for x in diff_np_starts]))
-            raise UnAlignableEEGException('Could not find recording long enough to match events')
+            raise AlignmentError('Could not find recording long enough to match events')
 
         if len(self.host_time_np_starts) > 1:
             min_errors = errors[best_index]
             if min_errors > 10000:
-                raise UnAlignableEEGException('Guess at beginning of recording inaccurate by over ten seconds (%d ms)' % min_errors)
+                raise AlignmentError('Guess at beginning of recording inaccurate by over ten seconds (%d ms)' % min_errors)
             plt.clf()
             fig, ax = plt.subplots()
             error_indices = np.arange(len(min_errors)) if isinstance(min_errors, list) else 1
@@ -488,7 +488,7 @@ class System2HostAligner(System2TaskAligner):
                 break
 
         if not host_offset:
-            raise UnAlignableEEGException('Could not align host times')
+            raise AlignmentError('Could not align host times')
 
         return host_offset
 

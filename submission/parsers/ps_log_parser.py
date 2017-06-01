@@ -1,4 +1,4 @@
-from .base_log_parser import BaseSessionLogParser, UnparsableLineException, BaseSys3LogParser
+from .base_log_parser import BaseSessionLogParser, LogParseError, BaseSys3LogParser
 from .system2_log_parser import System2LogParser
 import numpy as np
 import re
@@ -158,7 +158,7 @@ class PSSessionLogParser(BaseSessionLogParser):
         params['stim_duration'] = int(split_line[5])
 
         if not self._stim_anode_label or not self._stim_cathode_label:
-            raise UnparsableLineException('Stim occurred prior to defining stim pairs!')
+            raise LogParseError('Stim occurred prior to defining stim pairs!')
 
         #params['anode_number'] = self._stim_anode
         #params['cathode_number'] = self._stim_cathode
@@ -181,7 +181,7 @@ class PSSessionLogParser(BaseSessionLogParser):
         event = self.event_default(split_line)
         event.is_stim = True
         if not self._stim_anode_label or not self._stim_cathode_label:
-            raise UnparsableLineException('Stim occurred prior to defining stim pairs!')
+            raise LogParseError('Stim occurred prior to defining stim pairs!')
 
         self.set_event_stim_params(event, self._jacksheet,
                                    anode_label=self._stim_anode_label,
@@ -265,7 +265,7 @@ class PSHostLogParser(BaseSessionLogParser):
                 self.host_offset = np_start_host - np_earliest_start
                 break
         if not self.host_offset:
-            raise UnparsableLineException("Cannot determine host offset")
+            raise LogParseError("Cannot determine host offset")
 
         self._add_fields(*self._PS_FIELDS)
 

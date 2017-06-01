@@ -20,7 +20,7 @@ from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
+                       generate_montage_transferer, TransferError, TRANSFER_INPUTS, find_sync_file
 from .log import logger
 
 GROUPS = {
@@ -244,7 +244,7 @@ class TransferPipeline(object):
             logger.warn("Missing files {}. "
                          "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}: '
+            raise TransferError('Missing file {}: '
                                            'expected in {}'.format(missing_files[0].name,
                                                                    missing_files[0].formatted_origin_dir))
 

@@ -7,6 +7,7 @@ import traceback
 import yaml
 
 from . import fileutil
+from .exc import TransferError
 from .configuration import paths
 from .log import logger
 from .transfer_config import TransferConfig
@@ -27,8 +28,6 @@ def yml_join(loader, node):
 
 yaml.add_constructor('!join', yml_join)
 
-class UnTransferrableException(Exception):
-    pass
 
 class Transferer(object):
 
@@ -141,7 +140,7 @@ class Transferer(object):
         if len(self.transfer_config.located_files()) == 0:
             logger.info("No files to transfer.")
             self.transfer_aborted = True
-            raise UnTransferrableException("No files to transfer")
+            raise TransferError("No files to transfer")
 
         for file in self.transfer_config.located_files():
             file.transfer(self.destination_labelled)
@@ -218,7 +217,7 @@ def find_sync_file(subject, experiment, session):
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
-    raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
+    raise TransferError("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
 
 
 def generate_wav_transferer(subject,experiment,session,protocol='r1',groups=('r1'),
@@ -317,7 +316,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
         try:
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
-        except UnTransferrableException:
+        except TransferError:
             logger.warn("******* Could not find syncs! Will likely fail soon!")
 
     if not new_experiment:

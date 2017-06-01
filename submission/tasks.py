@@ -7,6 +7,7 @@ import shutil
 import fileutil
 from .log import logger
 from .configuration import paths
+from .exc import ProcessingError
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
@@ -259,10 +260,6 @@ class IndexAggregatorTask(PipelineTask):
                 self.pipeline.register_output(dest,label)
 
 
-class UnProcessableException(Exception):
-    """Raised when something cannot be processed."""
-
-
 def change_current(source_folder, *args):
     """
 
@@ -274,9 +271,9 @@ def change_current(source_folder, *args):
     destination_source = os.path.join(destination_directory, source_folder)
     destination_processed = os.path.join(destination_directory, '{}_processed'.format(source_folder))
     if not os.path.exists(destination_source):
-        raise UnProcessableException('Source folder {} does not exist'.format(destination_source))
+        raise ProcessingError('Source folder {} does not exist'.format(destination_source))
     if not os.path.exists(destination_processed):
-        raise UnProcessableException('Processed folder {} does not exist'.format(destination_processed))
+        raise ProcessingError('Processed folder {} does not exist'.format(destination_processed))
 
     current_source = os.path.join(destination_directory, 'current_source')
     current_processed = os.path.join(destination_directory, 'current_processed')

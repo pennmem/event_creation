@@ -6,7 +6,7 @@ import sqlite3
 import numpy as np
 import pandas as pd
 
-from .base_log_parser import BaseSessionLogParser, UnknownExperimentTypeException
+from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
 from .system2_log_parser import System2LogParser
 from ..viewers.view_recarray import strip_accents
 

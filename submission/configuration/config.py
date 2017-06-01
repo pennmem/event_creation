@@ -1,18 +1,17 @@
-
 import os
 import yaml
 import matplotlib
 import argparse
 import copy
+from ..exc import ConfigurationError
 
 MPL_BACKEND = matplotlib.get_backend()
+
 
 def yml_join(loader, node):
     return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
 yaml.add_constructor('!join', yml_join)
 
-class ConfigurationException(Exception):
-    pass
 
 class ConfigOption(object):
 
@@ -23,8 +22,8 @@ class ConfigOption(object):
 
     def set(self, k, v):
         if k not in self.options:
-            raise ConfigurationException("Attempted to set invalid option {}. "
-                                         "Valid options are {}".format(k, self.options.keys()))
+            raise ConfigurationError("Attempted to set invalid option {}. "
+                                     "Valid options are {}".format(k, self.options.keys()))
         self.options[k] = v
         setattr(self, k, v)
 
@@ -36,6 +35,7 @@ class ConfigOption(object):
 
     def __contains__(self, item):
         return item in self.options
+
 
 class Configuration(object):
 

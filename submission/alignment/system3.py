@@ -8,7 +8,7 @@ import scipy.stats
 
 from ..log import logger
 from ..parsers.system3_log_parser import System3LogParser
-from .system1 import UnAlignableEEGException
+from ..exc import AlignmentError
 
 
 class System3Aligner(object):
@@ -54,7 +54,7 @@ class System3Aligner(object):
                     raise
                 logger.debug("Couldn't find coefficient with label {}".format(label))
                 continue
-            except UnAlignableEEGException:
+            except AlignmentError:
                 logger.debug("Couldn't find coefficient with label {}".format(label))
                 continue
             self.from_label = label
@@ -62,7 +62,7 @@ class System3Aligner(object):
             break
 
         else:
-            raise UnAlignableEEGException("Could not find sortable label in events")
+            raise AlignmentError("Could not find sortable label in events")
 
         self.eeg_info = json.load(open(files['eeg_sources']))
 
@@ -132,7 +132,7 @@ class System3Aligner(object):
             self.check_fit(froms, tos, coefs[-1])
 
         if len(coefs) == 0:
-            raise UnAlignableEEGException("Could not find enough events to determine coefficients!")
+            raise AlignmentError("Could not find enough events to determine coefficients!")
 
         return coefs, ends
 
@@ -196,7 +196,7 @@ class System3Aligner(object):
                 dest[np.isnan(dest)] = -1
             else:
                 logger.error("Events {} could not be aligned! Session starts at event {}".format(still_nans, align_start_index))
-                raise UnAlignableEEGException('Could not convert {} times past start of session'.format(len(still_nans)))
+                raise AlignmentError('Could not convert {} times past start of session'.format(len(still_nans)))
         return dest
 
 
@@ -226,7 +226,7 @@ class System3Aligner(object):
         fit = coefficients[0] * np.array(x) + coefficients[1]
         residuals = np.array(y) - fit
         if abs(1 - coefficients[0]) > .05:
-            raise UnAlignableEEGException(
+            raise AlignmentError(
                 "Maximum deviation from slope is .1, current slope is {}".format(coefficients[0])
             )
 
@@ -239,7 +239,7 @@ class System3Aligner(object):
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
             ))
-            raise UnAlignableEEGException(
+            raise AlignmentError(
                 "Maximum residual of fit ({}) "
                 "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
     @classmethod

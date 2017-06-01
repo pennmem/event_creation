@@ -18,6 +18,7 @@ import matplotlib
 matplotlib.rcParams['agg.path.chunksize'] = 10000
 
 from .eeg_reader import NK_reader, EDF_reader
+from ..exc import PeakFindingError
 
 class LabeledEditLayout(QHBoxLayout):
 
@@ -303,7 +304,7 @@ class SyncPulseExtractor(QWidget):
             self.figure.canvas.draw()
             self.figure.canvas.flush_events()
 
-        except UnFindablePeaksException:
+        except PeakFindingError:
             self.status_text.setText("Cannot properly locate peaks! Select again!")
 
     def clear_peaks(self):
@@ -363,9 +364,6 @@ class SyncPulseExtractor(QWidget):
         self.zoom_ax.get_xaxis().set_ticks(data_range)
         self.zoom_ax.get_yaxis().set_ticks([])
 
-
-class UnFindablePeaksException(Exception):
-    pass
 
 class SyncPulseExtractionModel(object):
 
@@ -513,13 +511,12 @@ class SyncPulseExtractionModel(object):
         self.selected_x_peaks = np.concatenate([self.selected_x_peaks, new_peaks])
         return new_peaks, np.array(peaks_y)
 
-
     @staticmethod
     def find_peaks_in_selection(data, y1, y2):
         min_y = min(y1, y2)
         max_y = max(y1, y2)
         if (data < min_y).any() and (data > max_y).any():
-            raise UnFindablePeaksException()
+            raise PeakFindingError()
 
         if (data < min_y).any():
             in_border = min_y
@@ -549,10 +546,6 @@ class SyncPulseExtractionModel(object):
             return zip(*peaks)
         else:
             return [], []
-
-
-
-
 
 
 if __name__ == '__main__':
