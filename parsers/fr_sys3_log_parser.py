@@ -208,7 +208,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
     def event_word(self, event_json):
         event = self.event_default(event_json)
-        event.serialpos  = event_json[self._SERIAL_POS_FIELD]
+        event.serialpos  = event_json[self._SERIAL_POS_FIELD]+1
         self._word = event_json[self._ITEM_FIELD]
         event = self.apply_word(event)
         if self._recognition:
@@ -223,7 +223,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
     def event_word_off(self, event_json):
         event = self.event_default(event_json)
-        event.serialpos  = event_json[self._SERIAL_POS_FIELD]
+        event.serialpos  = event_json[self._SERIAL_POS_FIELD]+1
         self._word = event_json[self._ITEM_FIELD]
         event = self.apply_word(event)
         if self._recognition:

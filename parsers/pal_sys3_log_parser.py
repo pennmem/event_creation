@@ -84,7 +84,7 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
         event=self.event_default(event_json)
         event.study_1=event_json['word1']
         event.study_2=event_json['word2']
-        event.serialpos=event_json['serialpos']
+        event.serialpos=event_json['serialpos']+1
         event.type='STUDY_PAIR_OFF' if str(event.type).endswith('END') else 'STUDY_PAIR'
         return event
 
@@ -98,8 +98,8 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
         event.study_1 = event.expecting_word if split_line['direction'] else event.probe_word
         event.study_2  = event.probe_word if split_line['direction'] else event.expecting_word
         event.probepos = self._probepos
-        event.serialpos = split_line['serialpos']
-        self._serialpos = split_line['serialpos']
+        event.serialpos = split_line['serialpos']+1
+        self._serialpos = split_line['serialpos']+1
         self._probe_word = event.probe_word
         self._expecting_word = event.expecting_word
         self._cue_direction = event.cue_direction
