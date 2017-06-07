@@ -111,10 +111,20 @@ files:
   - name: annotations
     << : *FILE
     multiple: true
-    groups: [r1, transfer, verbal ]
+    groups: [r1, transfer, verbal, "!ps4"]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
+
+   - name: annotations
+    << : *FILE
+    multiple: true
+    required: false
+    groups: [r1, transfer, verbal, ps4]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '*.ann'
+    destination: 'annotations/'
+
 
   - name: sound_files
     << : *FILE
