@@ -384,7 +384,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     if protocol == 'r1':
         tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
 
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,**kwargs))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,critical=('ps4' not in groups),**kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
