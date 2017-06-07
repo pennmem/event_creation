@@ -27,7 +27,8 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
                                               VOCALIZATION_END = self.event_vocalization,
                                               DISTRACT_START = self.event_distract_start,
                                               DISTRACT_END = self.event_distract_end,
-
+                                              Logging = self._event_skip,
+                                              SESSION_SKIPPED = self._event_skip,
                                               )
 
         self._type_to_modify_events = {

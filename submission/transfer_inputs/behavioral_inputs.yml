@@ -95,7 +95,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ transfer, verbal, '!system_3_1']
+    groups: [ transfer, verbal,]
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.log'
@@ -310,13 +310,13 @@ files:
         origin_file: '*.bin'
         destination: unused/electrode_config.bin
 
-  - name: session_log
+  - name: session_sql
     << : *FILE
     groups: [ transfer, verbal, system_3_1]
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.sqlite'
-    destination: logs/session.log
+    destination: logs/session.sqlite
 
 
   ### LTP
