@@ -116,7 +116,7 @@ files:
     origin_file: '*.ann'
     destination: 'annotations/'
 
-   - name: annotations
+  - name: annotations
     << : *FILE
     multiple: true
     required: false
