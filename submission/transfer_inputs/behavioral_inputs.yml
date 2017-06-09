@@ -173,7 +173,7 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups: [r1, transfer, FR, '!system_3']
+    groups: [r1, transfer, FR]
     origin_directory: *BEH_EXP_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt

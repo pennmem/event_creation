@@ -42,20 +42,24 @@ SOURCE_IMPORT_TYPE = 'IMPORT'
 
 N_PS4_SESSIONS = 10
 
-def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, *args, **kwargs):
+def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
+    groups = (protocol,)
+
+    if 'PS4' in full_experiment:
+        groups += ('PS4',)
+        experiment = full_experiment.partition('_')[-1]
+    else:
+        experiment = full_experiment
+    if protocol == 'r1' and experiment.endswith('5') and 'PS4' not in groups:
+        groups += ('recog',)
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
-    groups = (protocol,)
     if exp_type in GROUPS:
         groups += GROUPS[exp_type]
     groups += (exp_type, experiment)
 
     groups += tuple(args)
 
-    if 'PS4' in experiment:
-        groups += ('PS4',)
-    if protocol == 'r1' and experiment.endswith('5') and 'PS4' not in groups:
-        groups += ('recog',)
 
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
         kwargs['original_session'] = session
@@ -63,7 +67,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
                       subject=subject,
                       code=subject,
                       session=session,
-                      experiment=experiment,
+                      experiment=full_experiment,
                       **kwargs)
         inputs.update(**paths.options)
 
@@ -83,7 +87,7 @@ def determine_groups(protocol, subject, experiment, session, transfer_cfg_file, 
                     logger.info("Determined due to missing files ({}) that this system is not {}".format(names, sys))
                     continue
 
-                match = r1_system_match(experiment, transfer_cfg, sys)
+                match = r1_system_match(full_experiment, transfer_cfg, sys)
 
                 if match:
                     logger.info("Making a very educated guess that this system is {}".format(sys))
