@@ -537,7 +537,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         with open(log) as logfile:
             lines = [x.strip().split('\t') for x in logfile.readlines() if len(x.split('\t'))>1]
         event_jsons= [load_json(x[-1].partition(' ')[-1]) for x  in lines]
-        mstimes = [x[0] for x in lines]
+        mstimes = [int(x[0]) for x in lines]
         types = [x[-1].partition(' ')[0] for x in lines]
         for i in range(len(event_jsons)):
             event_jsons[i][self._STIME_FIELD] = mstimes[i]
