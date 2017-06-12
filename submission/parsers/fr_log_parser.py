@@ -125,7 +125,8 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event,
-            TASK_PAUSED=self.event_default  # RAA only
+            TASK_PAUSED=self.event_default,  # RAA only
+            TASK_RESUMED=self.event_default  # RAA only
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
