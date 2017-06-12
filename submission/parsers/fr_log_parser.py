@@ -130,6 +130,11 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls,
         )
+        # RAA logs have connection events with multi-word names, so will not word with self._add_type_to_new_event()
+        # We add these events to the parser here
+        RAA_connecting_events = ('Connecting to EEG UI', 'Connecting to EEG Panel', 'Connecting Text')
+        for evtype in RAA_connecting_events:
+            self._type_to_new_event[evtype] = self._event_skip
 
     @staticmethod
     def persist_fields_during_stim(event):
