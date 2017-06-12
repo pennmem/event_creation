@@ -510,7 +510,9 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
-
+    # TODO: ADD LOGIC TO CONTROL WHETHER SESSION.SQLITE OR SESSION.LOG IS USED?
+    # TODO: DECIDE WHETHER SESSION.LOG IS USABLE -- NOT ALWAYS CONSISTENT WITH SESSION.SQLITE
+    #    AND THE INCONSISTENCIES ARE PROBLEMATIC
     @staticmethod
     def _read_sql_log(log):
         conn = sqlite3.connect(log)
@@ -541,8 +543,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     def _read_primary_log(self):
         msgs = []
         if isinstance(self._primary_log,str):
-            # msgs = self._read_sql_log(self._primary_log)
-            msgs = self._read_session_log(self._primary_log)
+            msgs = self._read_sql_log(self._primary_log)
+            # msgs = self._read_session_log(self._primary_log)
         else:
             for log in self._primary_log:
                 msgs += self._read_session_log(log)

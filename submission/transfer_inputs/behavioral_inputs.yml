@@ -310,7 +310,7 @@ files:
         origin_file: '*.bin'
         destination: unused/electrode_config.bin
 
-  - name: session_sql
+  - name: session_log
     << : *FILE
     groups: [ transfer, verbal, system_3_1]
     origin_directory: *BEH_SESS_DIR
