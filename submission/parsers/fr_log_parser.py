@@ -48,6 +48,16 @@ class FRSessionLogParser(BaseSessionLogParser):
         else:
             wordpool_type = 'wordpool'
 
+        try:
+            with open(files[wordpool_type]) as wordpool:
+                self._wordpool = np.array([x.strip() for x in wordpool])
+        except KeyError as key_error:
+            if type(self) is FRSessionLogParser:
+                raise key_error
+            else:
+                #Subclasses are allowed to not have a word pool
+                self._wordpool = None
+
         self._list = -999
         self._serialpos = -999
         self._stim_list = False
