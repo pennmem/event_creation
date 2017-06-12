@@ -95,6 +95,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
+            BONUS_VIDEO=self.event_bonus_video,
             SESS_START=self.event_sess_start,
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
@@ -166,6 +167,14 @@ class FRSessionLogParser(BaseSessionLogParser):
             event.type = 'INSTRUCT_START'
         else:
             event.type = 'INSTRUCT_END'
+        return event
+
+    def event_bonus_video(self, split_line):  # Remembering Across America only
+        event = self.event_default(split_line)
+        if split_line[4] == 'ON':
+            event.type = 'BONUS_VIDEO_START'
+        else:
+            event.type = 'BONUS_VIDEO_END'
         return event
 
     def event_sess_start(self, split_line):
