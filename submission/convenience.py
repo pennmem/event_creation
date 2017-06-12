@@ -1,3 +1,12 @@
+from .configuration import config
+if __name__ == '__main__':
+    config.parse_args()
+    import matplotlib
+    if not config.show_plots:
+        matplotlib.use('agg')
+    else:
+        matplotlib.use('Qt4Agg')
+
 import re
 import os
 import json
@@ -8,19 +17,12 @@ import traceback
 from collections import defaultdict
 
 from . import fileutil
-from .configuration import config, paths
+from .configuration import  paths
 from .exc import MontageError
 from .tasks import CleanDbTask, IndexAggregatorTask
 from .log import logger
 from .automation import Importer, ImporterCollection
 
-if __name__ == '__main__':
-    config.parse_args()
-    import matplotlib
-    if not config.show_plots:
-        matplotlib.use('agg')
-    else:
-        matplotlib.use('Qt4Agg')
 
 from ptsa.data.readers.IndexReader import JsonIndexReader
 
