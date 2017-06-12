@@ -3,14 +3,16 @@ import os
 import json
 import glob
 import numpy as np
-import argparse
 import collections
 import traceback
-import files
 from collections import defaultdict
-from configuration import config, paths
-from copy import  deepcopy
 
+from . import fileutil
+from .configuration import config, paths
+from .exc import MontageError
+from .tasks import CleanDbTask, IndexAggregatorTask
+from .log import logger
+from .automation import Importer, ImporterCollection
 
 if __name__ == '__main__':
     config.parse_args()
@@ -20,23 +22,12 @@ if __name__ == '__main__':
     else:
         matplotlib.use('Qt4Agg')
 
-from submission.pipelines import MATLAB_CONVERSION_TYPE
-from tasks import CleanDbTask, IndexAggregatorTask
-from loggers import logger
-from automation import Importer, ImporterCollection
 from ptsa.data.readers.IndexReader import JsonIndexReader
 
 try:
     from ptsa.data.readers.BaseEventReader import BaseEventReader
-    PTSA_LOADED=True
 except:
     logger.warn('PTSA NOT LOADED')
-    PTSA_LOADED=False
-
-
-
-class UnknownMontageException(Exception):
-    pass
 
 
 def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip=False):
@@ -47,7 +38,7 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
     elif '_' not in code:
         return '0.0'
     elif not allow_new:
-        raise UnknownMontageException('Could not determine montage for {}'.format(code))
+        raise MontageError('Could not determine montage for {}'.format(code))
     else:
         montage_code = int(code.split('_')[1])
         ref_localized_file = os.path.join(paths.data_root, code, 'ref_localized.txt')
@@ -190,7 +181,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                 session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][new_experiment][session] = session_dict
-    with files.open_with_perms(out_file, 'w') as f:
+    with fileutil.open_with_perms(out_file, 'w') as f:
         json.dump(subjects, f, indent=2, sort_keys=True)
 
 
@@ -260,10 +251,10 @@ def attempt_importers(importers, force):
 
 
 def run_wav_import(kwargs,force=False):
-    '''
+    """
     :param kwargs:
     :return: (success [t/f], attempted pipelines)
-    '''
+    """
     # logger.set_label('.wav Importer')
     # logger.set_subject(kwargs['subject'],kwargs['protocol'])
     # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
@@ -582,7 +573,7 @@ def run_json_import(filename, do_import, do_convert, force_events=False, force_e
         sorted_failures = sorted(montage_failures, key=importer_sort_key)
         sorted_successes = sorted(montage_successes, key=importer_sort_key)
 
-    with files.open_with_perms(log_file, 'w') as output:
+    with fileutil.open_with_perms(log_file, 'w') as output:
         output.write("Successful imports: {}\n".format(len(sorted_successes)))
         output.write("Failed imports: {}\n\n".format(len(sorted_failures)))
         output.write("###### FAILURES #####\n")

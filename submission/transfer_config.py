@@ -5,16 +5,13 @@ import glob
 import os
 import yaml
 import hashlib
-import files
+import fileutil
 import shutil
-from configuration import paths
 from collections import defaultdict
-from loggers import logger
 
-class ImproperConfigException(Exception):
-    pass
-
-
+from .configuration import paths
+from .log import logger
+from .exc import ConfigurationError
 
 
 def build_group_index(input, groups):
@@ -84,7 +81,7 @@ class TransferConfig(object):
                     logger.debug("File {} located".format(file.name))
                 else:
                     logger.debug("Could not locate {}".format(file.name))
-            except ImproperConfigException:
+            except ConfigurationError:
                 logger.debug("Could not locate {}".format(file.name))
 
     def missing_files(self):
@@ -92,7 +89,7 @@ class TransferConfig(object):
         for file in self.valid_files:
             try:
                 file.locate()
-            except ImproperConfigException:
+            except ConfigurationError:
                 missing_files.append(file)
         return missing_files
 
@@ -103,7 +100,7 @@ class TransferConfig(object):
                 if not file.located:
                     try:
                         file.locate()
-                    except ImproperConfigException:
+                    except ConfigurationError:
                         pass
                 if not file.located:
                     logger.debug("Required file {file.name} is missing".format(file=file))
@@ -122,7 +119,7 @@ class TransferFile(object):
 
         for name in self.REQUIRED_PROPERTIES:
             if name not in kwargs:
-                raise ImproperConfigException("Property {} not provided for transfer configuration entry {}".format(name, kwargs))
+                raise ConfigurationError("Property {} not provided for transfer configuration entry {}".format(name, kwargs))
             setattr(self, '_'+name, kwargs[name])
 
         for name in self.OPTIONAL_PROPERTIES:
@@ -130,7 +127,7 @@ class TransferFile(object):
 
         for name in kwargs:
             if name not in self.REQUIRED_PROPERTIES and name not in self.OPTIONAL_PROPERTIES:
-                raise ImproperConfigException("Unknown property {} provided in configuration entry {}".format(name, kwargs))
+                raise ConfigurationError("Unknown property {} provided in configuration entry {}".format(name, kwargs))
 
         self._expanded_files = None
         self.formatted_origin_dir = ''
@@ -214,7 +211,7 @@ class TransferFile(object):
         containing_dir = self.destination_containing_directory(root)
 
         if not os.path.exists(containing_dir):
-            files.makedirs(containing_dir)
+            fileutil.makedirs(containing_dir)
 
         if self.type == 'directory':
             for file in self.files.values():
@@ -243,7 +240,7 @@ class TransferFile(object):
                 logger.debug("Linked successfully")
                 self._transferred_files.append(destination_path)
             else:
-                raise ImproperConfigException("File type {} not known. Must be 'file', 'directory', or 'link'".format(self.type))
+                raise ConfigurationError("File type {} not known. Must be 'file', 'directory', or 'link'".format(self.type))
 
 
     @property
@@ -349,12 +346,12 @@ class TransferFile(object):
                 file.locate(path)
 
         if self.required and len(new_origin_paths) == 0:
-            raise ImproperConfigException("File {} is required, but cannot be found. "
+            raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
 
         if len(new_origin_paths) > 1 and not self.multiple:
-            raise ImproperConfigException("Multiple files matching {} found in {}/{} "
+            raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,
                                                                        containing_directory))
 
@@ -372,7 +369,7 @@ class TransferFile(object):
         except KeyError as e:
             if required:
                 logger.debug("Keyword error {} for {}".format(e, to_format))
-                raise ImproperConfigException("Could not find keyword {} for {}".format(e, to_format))
+                raise ConfigurationError("Could not find keyword {} for {}".format(e, to_format))
             else:
                 logger.debug("Could not format {}".format(to_format))
         return formatted

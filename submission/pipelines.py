@@ -4,30 +4,24 @@ import re
 import shutil
 import traceback
 
-import files
-from configuration import paths
-from loggers import logger
-from parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
-from parsers.ltpfr_log_parser import LTPFRSessionLogParser
-from parsers.mat_converter import MathMatConverter
-from parsers.math_parser import MathLogParser
-from submission.transfer_config import TransferConfig
-from parsers.ps_log_parser import PS4Sys3LogParser
-
-from tasks import ImportJsonMontageTask, CleanLeafTask
-
-from parsers.base_log_parser import get_version_num
-
-from events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
+from . import fileutil
+from .configuration import paths
+from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
-                  MontageLinkerTask, PruneEventsTask,RecognitionFlagTask
-
-from neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
+                  MontageLinkerTask, RecognitionFlagTask
+from .neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
-
-from transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, UnTransferrableException, TRANSFER_INPUTS, find_sync_file
-                       # generate_wav_transferer
+from .parsers.base_log_parser import get_version_num
+from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
+from .parsers.mat_converter import MathMatConverter
+from .parsers.ps_log_parser import PS4Sys3LogParser
+from .parsers.math_parser import MathLogParser
+from .transfer_config import TransferConfig
+from .tasks import ImportJsonMontageTask, CleanLeafTask
+from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
+                       generate_montage_transferer, TransferError, TRANSFER_INPUTS, find_sync_file
+from .log import logger
 
 GROUPS = {
     'FR': ('verbal', 'stim'),
@@ -190,7 +184,7 @@ class TransferPipeline(object):
         self.destination = os.path.join(self.destination_root, self.processed_label)
         self.current_dir = os.path.join(self.destination_root, self.CURRENT_PROCESSED_DIRNAME)
         if not os.path.exists(self.destination):
-            files.makedirs(self.destination)
+            fileutil.makedirs(self.destination)
         for task in self.pipeline_tasks:
             task.set_pipeline(self)
         self.log_filenames = [
@@ -240,12 +234,12 @@ class TransferPipeline(object):
         if len(self.output_info) > 0:
             index['info'] = self.output_info
         if len(index) > 0:
-            with files.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
+            with fileutil.open_with_perms(os.path.join(self.current_dir, self.INDEX_FILE), 'w') as f:
                 json.dump(index, f, indent=2, sort_keys=True)
 
     def _initialize(self, force=False):
         if not os.path.exists(self.destination):
-            files.makedirs(self.destination)
+            fileutil.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
 
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))
@@ -254,7 +248,7 @@ class TransferPipeline(object):
             logger.warn("Missing files {}. "
                          "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
-            raise UnTransferrableException('Missing file {}: '
+            raise TransferError('Missing file {}: '
                                            'expected in {}'.format(missing_files[0].name,
                                                                    missing_files[0].formatted_origin_dir))
 

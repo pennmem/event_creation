@@ -6,10 +6,11 @@ import traceback
 
 import yaml
 
-import files
-from configuration import paths
-from loggers import logger
-from submission.transfer_config import TransferConfig
+from . import fileutil
+from .exc import TransferError
+from .configuration import paths
+from .log import logger
+from .transfer_config import TransferConfig
 
 TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
 
@@ -27,8 +28,6 @@ def yml_join(loader, node):
 
 yaml.add_constructor('!join', yml_join)
 
-class UnTransferrableException(Exception):
-    pass
 
 class Transferer(object):
 
@@ -102,11 +101,11 @@ class Transferer(object):
 
     def write_transferred_index(self):
         index = self.transferred_index()
-        with files.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
+        with fileutil.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
 
     def write_transfer_type(self):
-        with files.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
+        with fileutil.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
             type_file.write(self.transfer_type)
 
     def previous_transfer_type(self):
@@ -134,14 +133,14 @@ class Transferer(object):
 
     def _transfer_files(self):
         if not os.path.exists(self.destination_root):
-            files.makedirs(self.destination_root)
+            fileutil.makedirs(self.destination_root)
 
         logger.info('Transferring into {}'.format(self.destination_root))
 
         if len(self.transfer_config.located_files()) == 0:
             logger.info("No files to transfer.")
             self.transfer_aborted = True
-            raise UnTransferrableException("No files to transfer")
+            raise TransferError("No files to transfer")
 
         for file in self.transfer_config.located_files():
             file.transfer(self.destination_labelled)
@@ -218,7 +217,7 @@ def find_sync_file(subject, experiment, session):
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
-    raise UnTransferrableException("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
+    raise TransferError("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
 
 
 def generate_wav_transferer(subject,experiment,session,protocol='r1',groups=('r1'),
@@ -317,7 +316,7 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
         try:
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
-        except UnTransferrableException:
+        except TransferError:
             logger.warn("******* Could not find syncs! Will likely fail soon!")
 
     if not new_experiment:
