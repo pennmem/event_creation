@@ -95,7 +95,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
-            BONUS_VIDEO=self.event_bonus_video,
+            BONUS_VIDEO=self.event_bonus_video,  # RAA only
             SESS_START=self.event_sess_start,
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
@@ -125,6 +125,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event,
+            TASK_PAUSED=self.event_default  # RAA only
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
