@@ -95,6 +95,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
+            BONUS_VIDEO=self.event_bonus_video,  # RAA only
             SESS_START=self.event_sess_start,
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
@@ -124,11 +125,18 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event,
+            TASK_PAUSED=self.event_default,  # RAA only
+            TASK_RESUMED=self.event_default  # RAA only
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls,
         )
+        # RAA logs have connection events with multi-word names, so will not word with self._add_type_to_new_event()
+        # We add these events to the parser here
+        RAA_connecting_events = ('Connecting to EEG UI', 'Connecting to EEG Panel', 'Connecting Text')
+        for evtype in RAA_connecting_events:
+            self._type_to_new_event[evtype] = self._event_skip
 
     @staticmethod
     def persist_fields_during_stim(event):
@@ -166,6 +174,14 @@ class FRSessionLogParser(BaseSessionLogParser):
             event.type = 'INSTRUCT_START'
         else:
             event.type = 'INSTRUCT_END'
+        return event
+
+    def event_bonus_video(self, split_line):  # Remembering Across America only
+        event = self.event_default(split_line)
+        if split_line[4] == 'ON':
+            event.type = 'BONUS_VIDEO_START'
+        else:
+            event.type = 'BONUS_VIDEO_END'
         return event
 
     def event_sess_start(self, split_line):
