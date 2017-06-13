@@ -112,11 +112,12 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
     def modify_recog(self,events):
         events = events.view(np.recarray)
-        recog_event = events[-1]
-        recog_word = recog_event.item_name
-        rejected = not self._was_recognized if recog_event.phase =='LURE' else -999
-        recognized = self._was_recognized if recog_event.phase != 'LURE' else -999
-        word_mask = np.where(events.item_name==recog_word)
+        recog_off_event = events[-1]
+        recog_word = recog_off_event.item_name
+        word_mask = events.item_name==recog_word
+        recog_event = events[word_mask & ((events.type=='RECOG_TARGET') | (events.type=='RECOG_LURE'))][0]
+        rejected = not self._was_recognized if recog_event.type =='RECOG_LURE' else -999
+        recognized = self._was_recognized if recog_event.type == 'RECOG_TARGET' else -999
         new_events= events[word_mask]
         new_events.recog_resp = self._was_recognized
         new_events.rejected=rejected
