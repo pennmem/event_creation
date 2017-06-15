@@ -398,7 +398,7 @@ class RAASessionLogParser(BaseSessionLogParser):
     def modify_recalls(self, events): # TODO: include recognition words
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-        ann_outputs = self._parse_ann_file(str(self._list) if self._list > 0 else 'p')
+        ann_outputs = self._parse_ann_file(str(self._list) if self._list >= 0 else 'p')
         for recall in ann_outputs:
             word = recall[-1]
 
