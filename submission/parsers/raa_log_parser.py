@@ -1,17 +1,12 @@
-import os
 import re
-import json
-import sqlite3
 
 import numpy as np
-import pandas as pd
 
-from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
-from .system2_log_parser import System2LogParser
+from .base_log_parser import BaseSessionLogParser
 from ..viewers.recarray import strip_accents
 
 
-class FRSessionLogParser(BaseSessionLogParser):
+class RAASessionLogParser(BaseSessionLogParser):
 
     @classmethod
     def _fr_fields(cls):
@@ -41,7 +36,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files,**kwargs):
         kwargs['include_stim_params'] = True
-        super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
+        super(RAASessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                  **kwargs)
         if 'no_accent_wordpool' in files:
             wordpool_type = 'no_accent_wordpool'
@@ -51,7 +46,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             with open(files[wordpool_type]) as wordpool:
                 self._wordpool = np.array([x.strip() for x in wordpool])
         except KeyError as key_error:
-            if type(self) is FRSessionLogParser:
+            if type(self) is RAASessionLogParser:
                 raise key_error
             else:
                 #Subclasses are allowed to not have a word pool
@@ -61,7 +56,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             with open(files[wordpool_type]) as wordpool:
                 self._wordpool = np.array([x.strip() for x in wordpool])
         except KeyError as key_error:
-            if type(self) is FRSessionLogParser:
+            if type(self) is RAASessionLogParser:
                 raise key_error
             else:
                 #Subclasses are allowed to not have a word pool
@@ -90,11 +85,11 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._rej_mstime = -999
         self._presented = False
 
-
         self._fr2_stim_on_time = False
         self._add_fields(*self._fr_fields())
         self._add_type_to_new_event(
             INSTRUCT_VIDEO=self.event_instruct_video,
+            BONUS_VIDEO=self.event_bonus_video,  # RAA only
             SESS_START=self.event_sess_start,
             MIC_TEST=self.event_default,
             PRACTICE_TRIAL=self.event_practice_trial,
@@ -123,12 +118,19 @@ class FRSessionLogParser(BaseSessionLogParser):
             SESS_END=self.event_default,
             SESSION_SKIPPED=self.event_default,
             STIM_PARAMS=self.stim_params_event,
-            STIM_ON=self.stim_on_event
+            STIM_ON=self.stim_on_event,
+            TASK_PAUSED=self.event_default,  # RAA only
+            TASK_RESUMED=self.event_default  # RAA only
         )
         self._add_type_to_modify_events(
             SESS_START=self.modify_session,
             REC_START=self.modify_recalls,
         )
+        # RAA logs have connection events with multi-word names, so will not word with self._add_type_to_new_event()
+        # We add these events to the parser here
+        RAA_connecting_events = ('Connecting to EEG UI', 'Connecting to EEG Panel', 'Connecting Text')
+        for evtype in RAA_connecting_events:
+            self._type_to_new_event[evtype] = self._event_skip
 
     @staticmethod
     def persist_fields_during_stim(event):
@@ -166,6 +168,14 @@ class FRSessionLogParser(BaseSessionLogParser):
             event.type = 'INSTRUCT_START'
         else:
             event.type = 'INSTRUCT_END'
+        return event
+
+    def event_bonus_video(self, split_line):  # Remembering Across America only
+        event = self.event_default(split_line)
+        if split_line[4] == 'ON':
+            event.type = 'BONUS_VIDEO_START'
+        else:
+            event.type = 'BONUS_VIDEO_END'
         return event
 
     def event_sess_start(self, split_line):
@@ -388,7 +398,7 @@ class FRSessionLogParser(BaseSessionLogParser):
     def modify_recalls(self, events): # TODO: include recognition words
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-        ann_outputs = self._parse_ann_file(str(self._list - 1) if self._list > 0 else 'p')
+        ann_outputs = self._parse_ann_file(str(self._list) if self._list > 0 else 'p')
         for recall in ann_outputs:
             word = recall[-1]
 
@@ -442,11 +452,6 @@ class FRSessionLogParser(BaseSessionLogParser):
         self._is_finished_recall = True
         self._trial = 0
         return events
-
-    # def parse(self):
-    #     events = super(FRSessionLogParser,self).parse()
-    #     events = events.view(np.recarray)
-    #     return self.add_baseline_events(events)
 
     @staticmethod
     def add_baseline_events(sess_events):
@@ -555,33 +560,3 @@ def free_epochs(times, duration, pre, post, start=None, end=None):
         epoch_array[i, :len(epoch)] = epoch
     return epoch_array
 
-
-
-
-
-class FRSys31SessionParser(BaseSessionLogParser):
-    def __init__(self, protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False):
-        super(FRSys31SessionParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False,primary_log='session_sql')
-
-    # def _get_raw_event_type(self, split_line):
-
-    def _read_primary_log(self):
-        # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
-        conn = sqlite3.connect(self._primary_log)
-        query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,
-                                                             conn).msg.values]
-        return msgs
-
-
-if __name__ == '__main__':
-    files = {
-        'session_log':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.log',
-        'wordpool': '/Users/leond/Documents/PS4_FR5/task/R1234M/RAM_wordpool.txt',
-        'session_sql':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.sqlite'
-    }
-
-    frslp = FRSys31SessionParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
-    events=  frslp.parse()
