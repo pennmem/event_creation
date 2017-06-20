@@ -117,7 +117,7 @@ class CreateMontageTask(PipelineTask):
         self.read_jacksheet(files['jacksheet'])
         self.load_localization(files['localization'])
         self.build_contacts_dict(db_folder)
-        self.build_pairs_dict(db_folder)
+        # self.build_pairs_dict(db_folder)
         # raise NotImplementedError
 
 
@@ -148,8 +148,11 @@ class CreateMontageTask(PipelineTask):
             )
             types.update({x['name']:leads[lead]['type'] for x in leads[lead]['contacts']})
         for label in self.labels_to_nums:
-            contacts[label]['channel'] = self.labels_to_nums[label]
-            contacts[label]['type'] = types[label]
+            if label not in contacts:
+                logger.warn('Contact %s missing from localization.json'%label)
+            else:
+                contacts[label]['channel'] = self.labels_to_nums[label]
+                contacts[label]['type'] = types[label]
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
                          json.dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',True)
