@@ -1,4 +1,7 @@
 directories:
+  db_dir          : &DB '{db_root}'
+  db_loc_dir      : &DB_LOC !join [*DB, 'subjects/{subject}/localizations/{localization}']
+  rhino_doc_dir   : &RHINO_DIR '{data_root}/{subject}/docs'
   loc_db_dir      : &LOC_DB '{loc_db_root}'
   protocol_loc_db : &LOC_PROTOCOL !join [*LOC_DB, 'protocols/{protocol}']
   code_loc_db     : &LOC_CODE !join [*LOC_PROTOCOL, 'codes/{code}']
@@ -11,6 +14,22 @@ default_file: &FILE
   checksum_contents: true
 
 files:
+
+  ## Creation
+
+  - name: localization
+    <<: *FILE
+    groups: [r1, '!json_import' ]
+    origin_directory: *DB_LOC
+    origin_file: localization.json
+    destination: localization.json
+
+  - name: jacksheet
+    <<: *FILE
+    groups: [r1, '!json_import' ]
+    origin_directory: *RHINO_DIR
+    origin_file: jacksheet.txt
+    destination: jacksheet.txt
 
   ## Conversion
 

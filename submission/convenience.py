@@ -269,6 +269,7 @@ def run_wav_import(kwargs,force=False):
     raise NotImplementedError
 
 
+
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
     """
     :param kwargs:
@@ -397,17 +398,19 @@ def run_montage_import(kwargs, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
 
-    importer = Importer(Importer.MONTAGE, **kwargs)
+    importer = Importer(Importer.CONVERT_MONTAGE, **kwargs)
     success, importers = attempt_importers([importer], force)
     return success, ImporterCollection(importers)
 
 def run_localization_import(kwargs, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
+    localization_kwargs = {k:kwargs[k] for k in ['subject','protocol','localization','code']}
 
-    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **kwargs)
-    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **kwargs)
-    success, importers = attempt_importers([new_importer, old_importer], force)
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **localization_kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **localization_kwargs)
+    montage_importer  =Importer(Importer.CREATE_MONTAGE,**kwargs)
+    success, importers = attempt_importers([new_importer, old_importer,montage_importer], force)
     if success:
         used_importers = [importer for importer in importers if not importer.errored]
     else:
@@ -813,11 +816,15 @@ def prompt_for_localization_inputs():
     localization = ''
     while not localization.isdigit():
         localization = raw_input("Enter localization number: ")
+    montage = ''
+    while not montage.isdigit():
+        montage = raw_input("Enter montage number: ")
 
     inputs = dict(
         code = code,
         subject = subject,
         localization = localization,
+        montage=montage,
         protocol = 'r1'
     )
 

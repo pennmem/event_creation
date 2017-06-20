@@ -8,7 +8,8 @@ from ptsa.data.readers.IndexReader import JsonIndexReader
 
 from .transferer import TransferError
 from .pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
-                      build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline
+                       build_convert_eeg_pipeline, build_import_montage_pipeline, build_import_localization_pipeline,\
+                       build_create_montage_pipeline
 from .log import logger
 from .configuration import paths
 
@@ -57,7 +58,9 @@ class ImporterCollection(object):
 
 class Importer(object):
 
-    MONTAGE = 1
+
+    CREATE_MONTAGE =  0
+    CONVERT_MONTAGE = 1
     BUILD_EVENTS = 2
     BUILD_EPHYS = 3
     CONVERT_EVENTS = 4
@@ -66,16 +69,17 @@ class Importer(object):
     MOVE_WAV = 7
 
     PIPELINE_BUILDERS = {
-        MONTAGE: build_import_montage_pipeline,
+        CREATE_MONTAGE: build_create_montage_pipeline,
+        CONVERT_MONTAGE: build_import_montage_pipeline,
         LOCALIZATION: build_import_localization_pipeline,
         BUILD_EVENTS: build_events_pipeline,
         BUILD_EPHYS: build_split_pipeline,
         CONVERT_EVENTS: build_convert_events_pipeline,
         CONVERT_EPHYS: build_convert_eeg_pipeline,
-        # MOVE_WAV: build_wav_pipeline
     }
     LABELS = {
-        MONTAGE: 'Montage Importer',
+        CREATE_MONTAGE: 'Montage Importer',
+        CONVERT_MONTAGE: 'Montage Importer',
         LOCALIZATION: 'Localization importer',
         BUILD_EVENTS: 'Events Builder',
         BUILD_EPHYS: 'Ephys Builder',
@@ -258,7 +262,7 @@ class Automator(object):
             montages = self.index.montages(subject=subject)
             for montage in montages:
                 code = self.index.get_value('subject_alias', subject=subject, montage=montage.split('.')[1])
-                importer = Importer(Importer.MONTAGE,
+                importer = Importer(Importer.CONVERT_MONTAGE,
                                     subject=subject, montage=montage, protocol=self.protocol, code=code)
                 if importer.check() or importer.errored or self.INCLUDE_TRANSFERRED:
                     self.importers.append(importer)

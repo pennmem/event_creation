@@ -228,7 +228,7 @@ their destination directories, and will roll back the transfer entirely if it
 fails at any point.
 
 Functions that instantiate different types of Transferers are located in 
- `submission.transferer` (`generate_ephys_transferer()`, `generate_montage_transferer()`,
+ `submission.transferer` (`generate_ephys_transferer()`, `generate_import_montage_transferer()`,
  `genereate_session_transferer()`)
 
 ### Processing

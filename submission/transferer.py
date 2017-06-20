@@ -277,7 +277,7 @@ def generate_localization_transferer(subject, protocol, localization, code, is_n
                       data_root=paths.data_root, db_root=paths.db_root)
 
 
-def generate_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
+def generate_import_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
     groups = groups + ('r1', 'json_import',)
     cfg_file = TRANSFER_INPUTS['montage']
@@ -296,6 +296,28 @@ def generate_montage_transferer(subject, montage, protocol, code=None, groups=tu
     transferer = Transferer(cfg_file, groups, destination, protocol=protocol, subject=subject, code=code,
                             loc_db_root=paths.loc_db_root)
     return transferer
+
+
+def generate_create_montage_transferer(subject,montage,protocol,code=None,groups=tuple(),**kwargs):
+    groups += ('r1',)
+    cfg_file = TRANSFER_INPUTS['montage']
+    code = code or subject
+
+    localization = montage.split('.')[0]
+    montage_num = montage.split('.')[1]
+
+    destination = os.path.join(paths.db_root,
+                               'protocols', protocol,
+                               'subjects', subject,
+                               'localizations', localization,
+                               'montages', montage_num,
+                               'neuroradiology')
+
+    transferer = Transferer(cfg_file, groups, destination, protocol=protocol, subject=subject, code=code,
+                            localization=localization,montage=montage,
+                            loc_db_root=paths.loc_db_root,data_root=paths.data_root,db_root=paths.db_root)
+    return transferer
+
 
 
 def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
