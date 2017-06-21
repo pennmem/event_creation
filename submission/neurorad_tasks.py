@@ -52,7 +52,7 @@ class CorrectCoordinatesTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(dir=db_folder),fsfolder=self.freesurfer_dir)
+        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(),fsfolder=self.freesurfer_dir)
 
 class AddContactLabelsTask(PipelineTask):
 
