@@ -1,7 +1,8 @@
 import os
+import tempfile
 
 from neurorad.localization import Localization
-from neurorad import vox_mother_converter, calculate_transformation, add_locations
+from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct
 
 from .log import logger
 from .tasks import PipelineTask
@@ -45,11 +46,12 @@ class CorrectCoordinatesTask(PipelineTask):
     def __init__(self, subject, localization, critical=False):
         super(CorrectCoordinatesTask, self).__init__(critical)
         self.name = 'Correcting coordinates {} loc {}'.format(subject, localization)
+        self.subject=subject
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        # TODO : Dysktra method here
+        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(dir=db_folder),fsfolder=files['freesurfer'])
 
 class AddContactLabelsTask(PipelineTask):
 
