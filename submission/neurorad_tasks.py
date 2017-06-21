@@ -47,11 +47,12 @@ class CorrectCoordinatesTask(PipelineTask):
         super(CorrectCoordinatesTask, self).__init__(critical)
         self.name = 'Correcting coordinates {} loc {}'.format(subject, localization)
         self.subject=subject
+        self.freesurfer_dir = '/data/eeg/freesurfer/subjects/{subject}'.format(subject=subject)
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(dir=db_folder),fsfolder=files['freesurfer'])
+        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(dir=db_folder),fsfolder=self.freesurfer_dir)
 
 class AddContactLabelsTask(PipelineTask):
 
