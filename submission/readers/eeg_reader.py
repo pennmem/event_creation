@@ -1127,10 +1127,10 @@ class BDF_reader(EEG_reader):
         self.data = self.data.clip(self.bounds.min, self.bounds.max)
         self.data = self.data.astype(self.DATA_FORMAT)
 
-        # Separate sync pulse channel and drop EXG5 through EXG8, as we only use 4 of the 8 facial leads
+        # Separate sync pulse channel and drop all channels after EXG4
         self.sync = self.data[-1]
-        self.data = self.data[:-5]
-        self.names = self.names[:-5]
+        self.data = self.data[:132]
+        self.names = self.names[:132]
 
         # Create directory if needed
         if not os.path.exists(location):
