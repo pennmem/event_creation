@@ -4,8 +4,8 @@ paths : &PATHS
   data_root      : !join [*RHINO, 'data/eeg']
 #  data_root      : /Users/leond/Documents
   loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
-#  db_root        : /home1/leond
-  db_root        : *RHINO
+  db_root        : /home1/leond
+#  db_root        : *RHINO
   events_root    : !join [*RHINO, 'data/events']
   freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
 

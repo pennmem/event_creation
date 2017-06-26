@@ -299,8 +299,8 @@ class NK_reader(EEG_reader):
         nums_21e = np.array([int(n) for n in nums_21e])
         names_21e = np.array(names_21e)
 
-        channel_order = range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] + \
-                        range(100, 254) + [50, 51]
+        channel_order = (range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] +
+                        range(100, 254) +range(256,321)+ [50, 51])
 
         channels = []
         for channel in channel_order:

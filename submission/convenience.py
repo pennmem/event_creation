@@ -404,6 +404,7 @@ def run_montage_import(kwargs, force=False):
 def run_localization_import(kwargs, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
+    kwargs['overwrite']=force
 
     new_importer = Importer(Importer.LOCALIZATION, is_new=True, **kwargs)
     old_importer = Importer(Importer.LOCALIZATION, is_new=False, **kwargs)

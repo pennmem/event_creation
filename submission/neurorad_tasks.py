@@ -43,16 +43,21 @@ class CalculateTransformsTask(PipelineTask):
 
 class CorrectCoordinatesTask(PipelineTask):
 
-    def __init__(self, subject, localization, critical=False):
+    def __init__(self, subject, localization, overwrite=False,critical=False):
         super(CorrectCoordinatesTask, self).__init__(critical)
         self.name = 'Correcting coordinates {} loc {}'.format(subject, localization)
         self.subject=subject
         self.freesurfer_dir = '/data/eeg/freesurfer/subjects/{subject}'.format(subject=subject)
+        self.outfolder = '/home1/leond/temp' # TODO: fix this
+        self.overwrite=overwrite
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        brainshift_correct.brainshift_correct(localization,self.subject,outfolder=tempfile.mkdtemp(dir=db_folder),fsfolder=self.freesurfer_dir)
+        fsfolder = outfolder = os.path.join(self.pipeline.source_dir)
+        brainshift_correct.brainshift_correct(localization,self.subject,
+                                              outfolder=outfolder,fsfolder=fsfolder,
+                                              overwrite=self.overwrite)
 
 class AddContactLabelsTask(PipelineTask):
 
