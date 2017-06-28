@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 from neurorad.localization import Localization
 from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct
@@ -54,7 +53,7 @@ class CorrectCoordinatesTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        fsfolder = outfolder = os.path.join(self.pipeline.source_dir)
+        fsfolder = outfolder = self.pipeline.source_dir
         brainshift_correct.brainshift_correct(localization,self.subject,
                                               outfolder=outfolder,fsfolder=fsfolder,
                                               overwrite=self.overwrite)
