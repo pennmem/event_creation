@@ -31,7 +31,7 @@ class LoadVoxelCoordinatesTask(PipelineTask):
 
 class CalculateTransformsTask(PipelineTask):
 
-    def __init__(self, subject, localization, critical=True):
+    def __init__(self, subject, localization, critical=False):
         super(CalculateTransformsTask, self).__init__(critical)
         self.name = 'Calculate transformations {} loc: {}'.format(subject, localization)
 
@@ -91,7 +91,7 @@ class WriteFinalLocalizationTask(PipelineTask):
         localization = self.pipeline.retrieve_object('localization')
 
         logger.info("Writing localization.json file")
-        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', True)
+        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', False)
 
 
 class CreateMontageTask(PipelineTask):
@@ -165,7 +165,7 @@ class CreateMontageTask(PipelineTask):
                 contacts[contact]['type'] = types[contact]
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
-                         json.dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',True)
+                         json.dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
 
     def build_pairs_dict(self,db_folder):
         leads = self.localization['leads']
@@ -177,8 +177,8 @@ class CreateMontageTask(PipelineTask):
         for pair in pairs.keys():
             (name1,name2) = [x.upper() for x in pairs[pair]['names']]
             if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
-                pairs[pair]['channel_1'] =self.labels_to_nums[pairs[pair]['names'][0].upper()]
-                pairs[pair]['channel_2'] = self.labels_to_nums[pairs[pair]['names'][1]]
+                pairs[pair]['channel_1'] =self.labels_to_nums[name1]
+                pairs[pair]['channel_2'] = self.labels_to_nums[name2]
                 pairs[pair]['type']=types[pair]
             else:
                 logger.warn('Pair %s not found in localization'%pair)
@@ -187,7 +187,7 @@ class CreateMontageTask(PipelineTask):
         self.pairs_dict[self.subject] = {'pairs':pairs}
         self.create_file(os.path.join(db_folder,'pairs.json'),
                          contents=json.dumps(self.pairs_dict,indent=2,sort_keys=True),
-                         label='pairs',index_file=True)
+                         label='pairs',index_file=False)
 
 
 
