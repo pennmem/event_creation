@@ -150,6 +150,7 @@ class CreateMontageTask(PipelineTask):
 
         for contact in contacts.keys():
             if 'channel' not in contacts[contact]:
+                logger.warn('Contact %s not found in localization'%contact)
                 contacts[contact] = {}
                 del contacts[contact]
             else:
@@ -173,6 +174,7 @@ class CreateMontageTask(PipelineTask):
                 pairs[pair]['channel_2'] = self.labels_to_nums[pairs[pair]['names'][1]]
                 pairs[pair]['type']=types[pair]
             else:
+                logger.warn('Pair %s not found in localization'%pair)
                 pairs[pair]={}
                 del pairs[pair]
         self.pairs_dict[self.subject] = {'pairs':pairs}
