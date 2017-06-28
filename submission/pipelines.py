@@ -512,7 +512,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     return TransferPipeline(transferer, *tasks, **info)
 
-def build_import_localization_pipeline(subject, protocol, localization, code, is_new):
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new,overwrite=False):
 
     logger.set_label("Building Localization Creator")
 
@@ -520,8 +520,8 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
-        # CalculateTransformsTask(subject, localization),
-        CorrectCoordinatesTask(subject, localization),
+        CalculateTransformsTask(subject, localization),
+        CorrectCoordinatesTask(subject, localization,overwrite),
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization),
         WriteFinalLocalizationTask()

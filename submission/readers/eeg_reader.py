@@ -299,8 +299,8 @@ class NK_reader(EEG_reader):
         nums_21e = np.array([int(n) for n in nums_21e])
         names_21e = np.array(names_21e)
 
-        channel_order = range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] + \
-                        range(100, 254) + [50, 51]
+        channel_order = (range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] +
+                        range(100, 254) +range(256,321)+ [50, 51])
 
         channels = []
         for channel in channel_order:
@@ -1127,10 +1127,10 @@ class BDF_reader(EEG_reader):
         self.data = self.data.clip(self.bounds.min, self.bounds.max)
         self.data = self.data.astype(self.DATA_FORMAT)
 
-        # Separate sync pulse channel and drop EXG5 through EXG8, as we only use 4 of the 8 facial leads
+        # Separate sync pulse channel and drop all channels after EXG4
         self.sync = self.data[-1]
-        self.data = self.data[:-5]
-        self.names = self.names[:-5]
+        self.data = self.data[:132]
+        self.names = self.names[:132]
 
         # Create directory if needed
         if not os.path.exists(location):

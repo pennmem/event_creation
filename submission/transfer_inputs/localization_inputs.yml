@@ -62,7 +62,7 @@ files:
     << : *FILE
     origin_directory: *FS_MRI
     origin_file: 'orig.mgz'
-    destination: 'orig_mri.mgz'
+    destination: 'mri/orig.mgz'
 
   - name: vox_mom
     <<: *FILE
@@ -84,3 +84,70 @@ files:
     origin_directory: *TAL_DIR
     origin_file: 'voxel_coordinates.json'
     destination: 'voxel_coordinates.json'
+
+  - name: tal_xfm
+    <<: *FILE
+    groups: [ 'old' ]
+    origin_directory: !join [*FS_MRI, 'transforms']
+    origin_file: 'talairach.xfm'
+    destination: 'mri/transforms/talairach.xfm'
+
+  - name: vertices
+    <<: *DIR
+    groups: [ 'old' ]
+    origin_directory: *FS_SUBJ
+    origin_file: 'surf/'
+    destination: 'surf/'
+    files:
+      - name: right_pial
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'rh.pial'
+        destination: 'rh.pial'
+
+      - name: left_pial
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'lh.pial'
+        destination: 'lh.pial'
+
+      - name: left_dural
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'lh.pial-outer-smoothed'
+        destination: 'lh.pial-outer-smoothed'
+
+      - name: right_dural
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'rh.pial-outer-smoothed'
+        destination: 'rh.pial-outer-smoothed'
+
+  - name: labels
+    <<: *DIR
+    groups: ['old']
+    origin_directory: *FS_SUBJ
+    origin_file: 'label'
+    destination: 'label'
+    files:
+      - name: left_labels
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'lh.aparc.annot'
+        destination: 'lh.aparc.annot'
+
+      - name: right_labels
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'rh.aparc.annot'
+        destination: 'rh.aparc.annot'
+
+
+
+

@@ -269,7 +269,6 @@ def run_wav_import(kwargs,force=False):
     raise NotImplementedError
 
 
-
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
     """
     :param kwargs:
