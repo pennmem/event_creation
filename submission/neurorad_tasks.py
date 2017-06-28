@@ -119,6 +119,8 @@ class CreateMontageTask(PipelineTask):
         self.build_pairs_dict(db_folder)
         # raise NotImplementedError
 
+
+
     def read_jacksheet(self,jacksheet):
         nums_to_labels = {}
         labels_to_nums = {}
