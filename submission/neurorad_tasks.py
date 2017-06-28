@@ -105,10 +105,9 @@ class CreateMontageTask(PipelineTask):
             * store contacts in dictionary by contact label: contacts.json
             * ***
             * Go through leads, extract pairs
-            * pair off contacts
-            * Do something to the coordinates?
-            * This might be Dorian's method
             * store pairs in dictionary by pair label : pairs.json
+
+        This method doesn't write any new information; everything should be populated by previous tasks
 
         :param files:
         :param db_folder:
@@ -120,19 +119,18 @@ class CreateMontageTask(PipelineTask):
         self.build_pairs_dict(db_folder)
         # raise NotImplementedError
 
-
-
     def read_jacksheet(self,jacksheet):
         nums_to_labels = {}
         labels_to_nums = {}
         with open(jacksheet) as jack_file:
             for line in jack_file:
                 num,label = line.strip().split()
+                num=int(num)
+                label=label.upper()
                 nums_to_labels[num] = label
                 labels_to_nums[label] = num
         self.nums_to_labels = nums_to_labels
         self.labels_to_nums = labels_to_nums
-
 
     def load_localization(self,localization_file):
         with open(localization_file) as loc_fid:
@@ -144,20 +142,43 @@ class CreateMontageTask(PipelineTask):
         types  = {}
         for lead in leads:
             contacts.update(
-                {x['name']:x for x in leads[lead]['contacts']}
+                {x['name'].upper():x for x in leads[lead]['contacts']}
             )
-            types.update({x['name']:leads[lead]['type'] for x in leads[lead]['contacts']})
-        for label in self.labels_to_nums:
-            contacts[label]['channel'] = self.labels_to_nums[label]
-            contacts[label]['type'] = types[label]
+            types.update({x['name'].upper():leads[lead]['type'] for x in leads[lead]['contacts']})
+
+        for contact in contacts.keys():
+            if 'channel' not in contacts[contact]:
+                contacts[contact] = {}
+                del contacts[contact]
+            else:
+                contacts[contact]['channel'] = self.labels_to_nums[contact]
+                contacts[contact]['type'] = types[contact]
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
                          json.dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',True)
 
-
     def build_pairs_dict(self,db_folder):
         leads = self.localization['leads']
+        pairs = {}
+        types={}
         for lead in leads:
-            pairs  = [x['names'] for x in leads['lead']['pairs']]
+            pairs.update({'-'.join([y.upper() for y in x['names']]):x for x in leads[lead]['pairs']})
+            types.update({'-'.join([y.upper() for y in x['names']]):leads[lead]['type'] for x in leads[lead]['pairs']})
+        for pair in pairs.keys():
+            (name1,name2) = [x.upper() for x in pairs[pair]['names']]
+            if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
+                pairs[pair]['channel_1'] =self.labels_to_nums[pairs[pair]['names'][0].upper()]
+                pairs[pair]['channel_2'] = self.labels_to_nums[pairs[pair]['names'][1]]
+                pairs[pair]['type']=types[pair]
+            else:
+                pairs[pair]={}
+                del pairs[pair]
+        self.pairs_dict[self.subject] = {'pairs':pairs}
+        self.create_file(os.path.join(db_folder,'pairs.json'),
+                         contents=json.dumps(self.pairs_dict,indent=2,sort_keys=True),
+                         label='pairs',index_file=True)
+
+
+
 
 

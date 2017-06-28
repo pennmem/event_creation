@@ -410,9 +410,10 @@ def run_localization_import(kwargs, force=False):
     new_importer = Importer(Importer.LOCALIZATION, is_new=True, **localization_kwargs)
     old_importer = Importer(Importer.LOCALIZATION, is_new=False, **localization_kwargs)
     montage_importer  =Importer(Importer.CREATE_MONTAGE,**kwargs)
-    success, importers = attempt_importers([new_importer, old_importer,montage_importer], force)
+    success, importers = attempt_importers([new_importer, old_importer,], force)
     if success:
         used_importers = [importer for importer in importers if not importer.errored]
+        attempt_importers([montage_importer],force)
     else:
         used_importers = importers
     return success, ImporterCollection(used_importers)
