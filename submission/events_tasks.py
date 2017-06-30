@@ -174,6 +174,7 @@ class EventCreationTask(PipelineTask):
             'catFR': catFRSys3LogParser,
             'PS': PS4Sys3LogParser,
             'PAL': PALSys3LogParser,
+            'THR': THRSessionLogParser
         }
     }
 
