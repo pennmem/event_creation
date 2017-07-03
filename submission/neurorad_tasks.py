@@ -39,7 +39,9 @@ class CalculateTransformsTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        calculate_transformation.insert_transformed_coordinates(localization, files)
+        Torig,Norig = calculate_transformation.insert_transformed_coordinates(localization, files)
+        self.pipeline.store_object('Torig',Torig)
+        self.pipeline.store_object('Norig',Norig)
 
 
 class CorrectCoordinatesTask(PipelineTask):
@@ -48,8 +50,6 @@ class CorrectCoordinatesTask(PipelineTask):
         super(CorrectCoordinatesTask, self).__init__(critical)
         self.name = 'Correcting coordinates {} loc {}'.format(subject, localization)
         self.subject=subject
-        self.freesurfer_dir = '/data/eeg/freesurfer/subjects/{subject}'.format(subject=subject)
-        self.outfolder = '/home1/leond/temp' # TODO: fix this
         self.overwrite=overwrite
 
     def _run(self, files, db_folder):
@@ -59,6 +59,9 @@ class CorrectCoordinatesTask(PipelineTask):
         brainshift_correct.brainshift_correct(localization,self.subject,
                                               outfolder=outfolder,fsfolder=fsfolder,
                                               overwrite=self.overwrite)
+        Torig = self.pipeline.retrieve_object('Torig')
+        Norig = self.pipeline.retrieve_object('Norig')
+        calculate_transformation.invert_transformed_coords(localization,Torig,Norig)
 
 class AddContactLabelsTask(PipelineTask):
 
@@ -85,6 +88,18 @@ class AddMNICoordinatesTask(PipelineTask):
 
         logger.info("Adding MNI")
         add_locations.add_mni(files, localization)
+
+class AddManualLocalizationsTask(PipelineTask):
+    def __init__(self,subject,localization,critical=True):
+        super(AddManualLocalizationsTask, self).__init__(critical)
+        self.name = 'Add manual {} loc {}'.format(subject,localization)
+
+    def _run(self, files, db_folder):
+        logger.set_label(self.name)
+        localization = self.pipeline.retrieve_object('localization')
+
+        logger.info('Adding manual localizations')
+        add_locations.add_manual_locations(files,localization)
 
 class WriteFinalLocalizationTask(PipelineTask):
 
