@@ -232,6 +232,12 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
 
 
 def attempt_importers(importers, force):
+    """
+    Runs each importer in importers until one of them succeeds
+    :param importers: A list of importers to attempt
+    :param force: Whether to force an import when no change is found
+    :return: The importers that were attempted
+    """
     success = False
     i=0
     for i, importer in enumerate(importers):

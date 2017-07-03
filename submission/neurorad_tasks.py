@@ -88,6 +88,18 @@ class AddMNICoordinatesTask(PipelineTask):
         logger.info("Adding MNI")
         add_locations.add_mni(files, localization)
 
+class AddManualLocalizationsTask(PipelineTask):
+    def __init__(self,subject,localization,critical=True):
+        super(AddManualLocalizationsTask, self).__init__(critical)
+        self.name = 'Add manual {} loc {}'.format(subject,localization)
+
+    def _run(self, files, db_folder):
+        logger.set_label(self.name)
+        localization = self.pipeline.retrieve_object('localization')
+
+        logger.info('Adding manual localizations')
+        add_locations.add_manual_locations(files,localization)
+
 class WriteFinalLocalizationTask(PipelineTask):
 
     def _run(self, files, db_folder):
