@@ -1,5 +1,6 @@
 import os
 import json
+from neurorad.json_cleaner import clean_json_dumps
 
 from neurorad.localization import Localization
 from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct
@@ -156,16 +157,16 @@ class CreateMontageTask(PipelineTask):
             types.update({x['name'].upper():leads[lead]['type'] for x in leads[lead]['contacts']})
 
         for contact in contacts.keys():
-            if 'channel' not in contacts[contact]:
-                logger.warn('Contact %s not found in localization'%contact)
-                contacts[contact] = {}
-                del contacts[contact]
-            else:
+            try:
                 contacts[contact]['channel'] = self.labels_to_nums[contact]
                 contacts[contact]['type'] = types[contact]
+            except KeyError:
+                logger.warn('Contact %s not found in jacksheet' % contact)
+                contacts[contact] = {}
+                del contacts[contact]
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
-                         json.dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
+                         clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
 
     def build_pairs_dict(self,db_folder):
         leads = self.localization['leads']
@@ -186,7 +187,7 @@ class CreateMontageTask(PipelineTask):
                 del pairs[pair]
         self.pairs_dict[self.subject] = {'pairs':pairs}
         self.create_file(os.path.join(db_folder,'pairs.json'),
-                         contents=json.dumps(self.pairs_dict,indent=2,sort_keys=True),
+                         contents=clean_json_dumps(self.pairs_dict,indent=2,sort_keys=True),
                          label='pairs',index_file=False)
 
 
