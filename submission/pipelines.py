@@ -522,7 +522,7 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
         CalculateTransformsTask(subject, localization,critical=False),
-        CorrectCoordinatesTask(subject, localization,overwrite,critical=False),
+        CorrectCoordinatesTask(subject, localization,overwrite=False,critical=False),
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization,critical=False),
         AddManualLocalizationsTask(subject,localization),

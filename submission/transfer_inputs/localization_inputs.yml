@@ -154,7 +154,7 @@ files:
   - name: manual_loc
     <<: *FILE
     origin_directory: *SUBJ_DIR
-    origin_file: 'docs/localization/{subject} Localization.txt'
+    origin_file: 'docs/localization/{code} Localization.txt'
     destination: 'manual_localization.txt'
 
 

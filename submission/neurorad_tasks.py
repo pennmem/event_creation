@@ -24,6 +24,7 @@ class LoadVoxelCoordinatesTask(PipelineTask):
         else:
             vox_file = os.path.join(self.pipeline.source_dir, 'converted_voxel_coordinates.json')
             vox_mother_converter.convert(files, vox_file)
+            logger.debug('Loaded file %s'%vox_file)
 
         localization = Localization(vox_file)
 
@@ -55,7 +56,13 @@ class CorrectCoordinatesTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        fsfolder = outfolder = self.pipeline.source_dir
+        tc = self.pipeline.transferer.transfer_config
+        fsfolder =  self.pipeline.source_dir
+        outfolder = os.path.join( tc._raw_config['directories']['localization_db_dir'].format(**tc.kwargs),'brainshift_correction')
+        try:
+            os.mkdir(outfolder)
+        except OSError:
+            pass
         brainshift_correct.brainshift_correct(localization,self.subject,
                                               outfolder=outfolder,fsfolder=fsfolder,
                                               overwrite=self.overwrite)
@@ -140,7 +147,6 @@ class CreateMontageTask(PipelineTask):
         self.load_localization(files['localization'])
         self.build_contacts_dict(db_folder)
         self.build_pairs_dict(db_folder)
-        # raise NotImplementedError
 
 
 
@@ -173,12 +179,16 @@ class CreateMontageTask(PipelineTask):
 
         for contact in contacts.keys():
             try:
-                contacts[contact]['channel'] = self.labels_to_nums[contact]
-                contacts[contact]['type'] = types[contact]
+                contacts[contact]['channel'] = self.labels_to_nums[contact.upper()]
+                contacts[contact]['type'] = types[contact.upper()]
             except KeyError:
-                logger.warn('Contact %s not found in jacksheet' % contact)
+                logger.info('Contact %s not found in jacksheet' % contact)
                 contacts[contact] = {}
                 del contacts[contact]
+        contact_labels = [x.upper() for x in contacts]
+        for label in self.labels_to_nums:
+            if label not in contact_labels:
+                logger.info('Contact %s not found in localization'%label)
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
                          clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
@@ -190,14 +200,16 @@ class CreateMontageTask(PipelineTask):
         for lead in leads:
             pairs.update({'-'.join([y.upper() for y in x['names']]):x for x in leads[lead]['pairs']})
             types.update({'-'.join([y.upper() for y in x['names']]):leads[lead]['type'] for x in leads[lead]['pairs']})
+        logger.debug('Building pairs.json')
         for pair in pairs.keys():
-            (name1,name2) = [x.upper() for x in pairs[pair]['names']]
+            logger.debug(str(pair))
+            (name1,name2) = [x.upper() for x in pair.split('-')]
             if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
                 pairs[pair]['channel_1'] =self.labels_to_nums[name1]
                 pairs[pair]['channel_2'] = self.labels_to_nums[name2]
                 pairs[pair]['type']=types[pair]
             else:
-                logger.warn('Pair %s not found in localization'%pair)
+                logger.info('Pair %s not contained in jacksheet'%pair)
                 pairs[pair]={}
                 del pairs[pair]
         self.pairs_dict[self.subject] = {'pairs':pairs}
