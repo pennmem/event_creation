@@ -123,6 +123,10 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         new_events.rejected=rejected
         new_events.recognized = recognized
         new_events.recog_rt = self._recog_endtime
+        if (new_events.type=='WORD').any():
+            persist_fields = self.persist_fields_during_stim(new_events[0])
+            for field in persist_fields:
+                new_events[field] = new_events[new_events.type=='WORD'][field].copy()
         events[word_mask]=new_events
         return events
 
