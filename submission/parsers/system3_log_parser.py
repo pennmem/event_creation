@@ -1,9 +1,9 @@
 from copy import deepcopy
 import json
 import numpy as np
+import re
 
 from .base_log_parser import BaseLogParser,BaseSys3LogParser
-from .fr_log_parser import FRSessionLogParser
 from .electrode_config_parser import ElectrodeConfig
 from ..log import logger
 
@@ -30,6 +30,17 @@ class System3LogParser(object):
         'amplitude': 'amplitude',
         'pulse_freq': 'pulse_freq',
         'duration': 'stim_duration'
+    }
+
+    _EXPERIMENT_TO_ITEM_FIELD = {
+        'FR':'item_name',
+        'PAL': 'study_1',
+        'TH': 'item_name'
+    }
+    _EXPERIMENT_ITEM_OFF_TYPE={
+        'FR':'WORD_OFF',
+        'PAL': 'STUDY_PAIR_OFF',
+        'TH': 'CHEST'
     }
 
     _STIM_ON_FIELD = 'stim_on'
@@ -91,8 +102,17 @@ class System3LogParser(object):
         event.stim_params = event.stim_params.view(np.recarray)
         return event.view(np.recarray)
 
+    def mark_stim_items(self,events):
+        tasks = np.unique(events['experiment'])
+        task = tasks[tasks != ''][0]
+        task = re.sub(r'[\d.]', '',task)
+        item_field = self._EXPERIMENT_TO_ITEM_FIELD[task]
 
-
+        marked_stim_items = events[(events['is_stim']==True) &
+                                   (events['type']==self._EXPERIMENT_ITEM_OFF_TYPE[task])][item_field]
+        is_stim_item = np.in1d(events[item_field],marked_stim_items)
+        events['is_stim'][is_stim_item] = np.ones(events[is_stim_item].shape).astype(bool)
+        return events
 
 
     @classmethod
@@ -157,6 +177,7 @@ class System3LogParser(object):
                 # Modify the events between STIM and STIM_OFF to show that stim was applied
                 for modify_index in modify_indices:
                     merged_events[modify_index].stim_params = stim_off_sub_event
+                    merged_events[modify_index].is_stim = True
 
                 # Insert the STIM_OFF event after the modified events if any, otherwise directly after the STIM event
                 insert_index = modify_indices[-1] + 1 if len(modify_indices) > 0 else insert_index + 1
@@ -168,6 +189,7 @@ class System3LogParser(object):
                 # Merge the stim off event
                 merged_events = np.append(merged_events[:insert_index],
                                           np.append(stim_off_event, merged_events[insert_index:]))
+        merged_events = self.mark_stim_items(merged_events)
         return merged_events
 
     @staticmethod
