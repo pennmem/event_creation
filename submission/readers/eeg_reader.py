@@ -9,6 +9,7 @@ import re
 import numpy as np
 import json
 from shutil import copy
+from scipy.linalg import pinv
 
 import tables
 import mne
@@ -822,6 +823,130 @@ class EDF_reader(EEG_reader):
                     logger.critical("label {} not split! Potentially missing data!".format(label))
 
 
+class EGI_reader_new(EEG_reader):
+    def __init__(self, raw_filename, unused_jacksheet=None):
+        """
+        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
+        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
+        """
+        self.raw_filename = raw_filename
+        self.start_datetime = None
+        self.names = None
+        self.data = None
+
+    def get_data(self):
+        """
+        Unpacks the binary in the raw data file to get the voltage data from all channels.
+
+        Note that MNE converts the raw values in the .raw file to volts, and does not simply return the raw values
+        written in the data file.
+        """
+        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
+        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
+        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
+        already_unzipped = os.path.isfile(unzip_path)
+        # If data file is already unzipped, use it; otherwise unzip the file for reading
+        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
+            try:
+                logger.debug('Parsing EEG data file ' + self.raw_filename)
+                self.data = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
+                logger.debug('Finished parsing EEG data.')
+
+                # Pull relevant header info
+                self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
+                self.names = [str(x) for x in self.data.info['ch_names']]
+            except:
+                logger.critical('Unable to parse EEG data file!')
+
+            # Remove unzipped file if zipped version exists, otherwise zip the file
+            if os.path.isfile(original_path):
+                os.system('rm ' + unzip_path.replace(' ', '\ '))
+            else:
+                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
+            logger.debug('Finished getting EEG data.')
+
+        # If unzip attempt fails, return error
+        else:
+            logger.critical('Unzipping failed! Unable to read data file!')
+
+    def postprocess(self):
+        # Post-process EEG data by running a .1 Hz high pass filter, downsampling, and generating a common average
+        # re-reference projection on the mne Raw object
+        try:
+            picks_eeg_eog = mne.pick_types(self.data.info, eeg=True, eog=True)
+            logger.debug('Running .1 Hz highpass filter on all channels.')
+            self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
+                             l_trans_bandwidth='auto', h_trans_bandwidth='auto')
+            if self.data.info['sfreq'] > 1024:
+                self.data.resample(1024)
+
+            self.data.set_eeg_reference(ref_channels=None)
+        except:
+            logger.critical('Failed to post-process EEG!')
+
+    def run_ica(self, save_path):
+
+        # Apply re-reference before running ICA
+        self.data.apply_proj()
+        # Run ICA
+        ica = mne.preprocessing.ICA(method='fastica')
+        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
+        # Check for components for correlation with EOG channels (indicative of blinks/eye movements)
+        bad_ics = set()
+        for ch in ('EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'):
+            if ch in self.names:
+                bad_ics = bad_ics.union(ica.find_bads_eog(self.data, ch_name=ch, threshold=3.)[0])
+        # Mark bad components for exclusion
+        ica.exclude = list(bad_ics)
+        # Save ICA object
+        ica.save(save_path)
+        # Save the mixing matrix if we detect that it will be calculated differently upon loading
+        # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
+        if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
+            np.save(os.path.join(os.path.dirname(save_path), 'mixing_mat.npy'), ica.mixing_matrix_)
+
+    def _split_data(self, location, basename):
+        """
+        :param location: A string denoting the directory in which the channel files are to be written
+        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
+        """
+        if self.data is None:
+            self.get_data()
+        self.postprocess()
+
+        raw_filename = os.path.join(location, basename + '_raw.fif')
+        self.data.save(raw_filename, fmt='single')
+
+        ica_filename = os.path.join(location, basename + '_reref-ica.fif')
+        self.run_ica(ica_filename)
+
+    def get_start_time(self):
+        # Read header info if have not already done so, as the header contains the start time info
+        if self.start_datetime is None:
+            self.get_data()
+        return self.start_datetime
+
+    def get_start_time_string(self):
+        return self.get_start_time().strftime(self.STRFTIME)
+
+    def get_start_time_ms(self):
+        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
+
+    def get_sample_rate(self):
+        if self.data is None:
+            self.get_data()
+        return self.data.info['sfreq']
+
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_n_samples(self):
+        if self.data is None:
+            self.get_data()
+        return self.data.n_times
+
+
 class EGI_reader(EEG_reader):
     """
     Parses the EEG sample data from a .raw.bz2 file. The raw file begins with a header with a series of information
@@ -1036,7 +1161,133 @@ class EGI_reader(EEG_reader):
         return self.data.shape[1]
 
 
-class BDF_reader(EEG_reader):
+class BDF_reader_new(EEG_reader):
+    def __init__(self, raw_filename, unused_jacksheet=None):
+        """
+        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
+        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
+        """
+        self.raw_filename = raw_filename
+        self.start_datetime = None
+        self.names = None
+        self.data = None
+
+    def get_data(self):
+        """
+        Unpacks the binary in the raw data file to get the voltage data from all channels.
+
+        Note that MNE converts the raw values in the .bdf file to volts, and does not simply return the raw values
+        written in the data file.
+        """
+        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
+        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
+        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
+        already_unzipped = os.path.isfile(unzip_path)
+        # If data file is already unzipped, use it; otherwise unzip the file for reading
+        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
+            try:
+                logger.debug('Parsing EEG data file ' + self.raw_filename)
+                self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
+                                                misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
+                                                preload=True)
+                logger.debug('Finished parsing EEG data.')
+
+                # Pull relevant header info
+                self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
+                self.names = [str(x) for x in self.data.info['ch_names']]
+            except:
+                logger.critical('Unable to parse EEG data file!')
+
+            # Remove unzipped file if zipped version exists, otherwise zip the file
+            if os.path.isfile(original_path):
+                os.system('rm ' + unzip_path.replace(' ', '\ '))
+            else:
+                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
+            logger.debug('Finished getting EEG data.')
+
+        # If unzip attempt fails, return error
+        else:
+            logger.critical('Unzipping failed! Unable to read data file!')
+
+    def postprocess(self):
+        # Post-process EEG data by running a .1 Hz high pass filter, downsampling, and generating a common average
+        # re-reference projection on the mne Raw object
+        try:
+            picks_eeg_eog = mne.pick_types(self.data.info, eeg=True, eog=True)
+            logger.debug('Running .1 Hz highpass filter on all channels.')
+            self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
+                             l_trans_bandwidth='auto', h_trans_bandwidth='auto')
+            if self.data.info['sfreq'] > 1024:
+                self.data.resample(1024)
+
+            self.data.set_eeg_reference(ref_channels=None)
+        except:
+            logger.critical('Failed to post-process EEG!')
+
+    def run_ica(self, save_path):
+
+        # Apply re-reference before running ICA
+        self.data.apply_proj()
+        # Run ICA
+        ica = mne.preprocessing.ICA(method='fastica')
+        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
+        # Check for components for correlation with EOG channels (indicative of blinks/eye movements)
+        bad_ics = set()
+        for ch in ('EXG1', 'EXG2', 'EXG3', 'EXG4'):
+            if ch in self.names:
+                bad_ics = bad_ics.union(ica.find_bads_eog(self.data, ch_name=ch, threshold=3.)[0])
+        # Mark bad components for exclusion
+        ica.exclude = list(bad_ics)
+        # Save ICA object
+        ica.save(save_path)
+        # Save the mixing matrix if we detect that it will be calculated differently upon loading
+        # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
+        if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
+            np.save(os.path.join(os.path.dirname(save_path), 'mixing_mat.npy'), ica.mixing_matrix_)
+
+    def _split_data(self, location, basename):
+        """
+        :param location: A string denoting the directory in which the channel files are to be written
+        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
+        """
+        if self.data is None:
+            self.get_data()
+        self.postprocess()
+
+        raw_filename = os.path.join(location, basename + '_raw.fif')
+        self.data.save(raw_filename, fmt='single')
+
+        ica_filename = os.path.join(location, basename + '_reref-ica.fif')
+        self.run_ica(ica_filename)
+
+    def get_start_time(self):
+        # Read header info if have not already done so, as the header contains the start time info
+        if self.start_datetime is None:
+            self.get_data()
+        return self.start_datetime
+
+    def get_start_time_string(self):
+        return self.get_start_time().strftime(self.STRFTIME)
+
+    def get_start_time_ms(self):
+        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
+
+    def get_sample_rate(self):
+        if self.data is None:
+            self.get_data()
+        return self.data.info['sfreq']
+
+    def get_source_file(self):
+        return self.raw_filename
+
+    def get_n_samples(self):
+        if self.data is None:
+            self.get_data()
+        return self.data.n_times
+
+
+class BDF_reader_old(EEG_reader):
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
         :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
