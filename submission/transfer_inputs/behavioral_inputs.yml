@@ -328,6 +328,13 @@ files:
     origin_file: wasnorm_wordpool.txt
     destination: experiment_files/wordpool.txt
 
+  - name: wordpool
+    << : *FILE
+    groups: [ltp, FR]
+    origin_directory: *LTP_SUBJ_DIR
+    origin_file: RAM_wordpool.txt
+    destination: experiment_files/wordpool.txt
+
   - name: eeg_log
     << : *FILE
     groups: [ ltp ]

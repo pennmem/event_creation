@@ -1,7 +1,7 @@
 from .base_log_parser import BaseSessionLogParser
 import numpy as np
 from copy import deepcopy
-
+import re
 
 class System2LogParser:
 
@@ -26,6 +26,18 @@ class System2LogParser:
         'NPULSE': 'n_pulses',
         'WIDTH': 'pulse_width'
     }
+
+    _EXPERIMENT_TO_ITEM_FIELD = {
+        'FR':'item_name',
+        'PAL': 'study_1',
+        'TH': 'item_name'
+    }
+    _EXPERIMENT_ITEM_OFF_TYPE={
+        'FR':'WORD_OFF',
+        'PAL': 'STUDY_PAIR_OFF',
+        'TH': 'CHEST'
+    }
+
 
     def __init__(self, host_logs, jacksheet=None):
         stim_events = self._empty_event()
@@ -59,6 +71,18 @@ class System2LogParser:
     @classmethod
     def _empty_event(cls):
         return BaseSessionLogParser.event_from_template(cls.stim_params_template())
+
+    def mark_stim_items(self,events):
+        tasks = np.unique(events['experiment'])
+        task = tasks[tasks != ''][0]
+        task = re.sub(r'[\d.]', '',task)
+        item_field = self._EXPERIMENT_TO_ITEM_FIELD[task]
+
+        marked_stim_items = events[(events['is_stim']==True) &
+                                   (events['type']==self._EXPERIMENT_ITEM_OFF_TYPE[task])][item_field]
+        is_stim_item = np.in1d(events[item_field],marked_stim_items)
+        events['is_stim'][is_stim_item] = np.ones(events[is_stim_item].shape).astype(bool)
+        return events
 
     def merge_events(self, events, event_template, event_to_sort_value, persistent_field_fn):
 
@@ -115,6 +139,7 @@ class System2LogParser:
                 # Merge the stim off event
                 merged_events = np.append(merged_events[:insert_index],
                                           np.append(stim_off_event, merged_events[insert_index:]))
+        merged_events = self.mark_stim_items(merged_events)
         return merged_events
 
     @staticmethod

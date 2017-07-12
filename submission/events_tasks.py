@@ -16,6 +16,9 @@ from .alignment.system2 import System2Aligner
 from .alignment.system3 import System3Aligner
 from .configuration import paths
 from .detection.artifact_detection import ArtifactDetector
+from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
+from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
+from .parsers.raa_log_parser import RAASessionLogParser
 from .parsers.base_log_parser import EventComparator
 from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
@@ -141,42 +144,48 @@ class MatlabEEGConversionTask(PipelineTask):
 
 class EventCreationTask(PipelineTask):
 
-    PARSERS = {
-        '1':{
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
-            'PS': PSLogParser,
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser,
-        },
-        '2':{
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
-            'PS': PSLogParser,
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser
-        },
-        '3_0': {
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
-            'PS': PSLogParser,
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser
-        },
-        '3_1':{
-            'FR': FRSys3LogParser,
-            'catFR': catFRSys3LogParser,
-            'PS': PS4Sys3LogParser,
-            'PAL': PALSys3LogParser,
-            'THR': THRSessionLogParser
-        }
-    }
+    R1_PARSERS ={ '1':{
+                        'FR': FRSessionLogParser,
+                        'PAL': PALSessionLogParser,
+                        'catFR': CatFRSessionLogParser,
+                        'math': MathLogParser,
+                        'PS': PSLogParser,
+                        'TH': THSessionLogParser,
+                        'THR': THRSessionLogParser,
+                    },
+                    '2':{
+                        'FR': FRSessionLogParser,
+                        'PAL': PALSessionLogParser,
+                        'catFR': CatFRSessionLogParser,
+                        'math': MathLogParser,
+                        'PS': PSLogParser,
+                        'TH': THSessionLogParser,
+                        'THR': THRSessionLogParser
+                    },
+                    '3_0': {
+                        'FR': FRSessionLogParser,
+                        'PAL': PALSessionLogParser,
+                        'catFR': CatFRSessionLogParser,
+                        'math': MathLogParser,
+                        'PS': PSLogParser,
+                        'TH': THSessionLogParser,
+                        'THR': THRSessionLogParser
+                    },
+                    '3_1':{
+                        'FR': FRSys3LogParser,
+                        'catFR': catFRSys3LogParser,
+                        'PS': PS4Sys3LogParser,
+                        'PAL': PALSys3LogParser,
+                        'THR': THRSessionLogParser
+                    }
+                 }
+    LTP_PARSERS = {
+                    'ltpFR': LTPFRSessionLogParser,
+                    'ltpFR2': LTPFR2SessionLogParser,
+                    'FR1': FRSessionLogParser,
+                    'RAA': RAASessionLogParser,
+                  }
+
 
     @property
     def r1_sys_num(self):
@@ -184,13 +193,22 @@ class EventCreationTask(PipelineTask):
             return 0.0
         return float(self._r1_sys_num.replace('_','.'))
 
+    @property
+    def parser_type(self):
+        if self._parser_type is None:
+            if self.protocol == 'r1':
+                new_experiment = self.kwargs.get('new_experiment') or self.experiment
+                self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+            elif self.protocol == 'ltp':
+                self._parser_type = self.LTP_PARSERS[self.experiment]
+        return self._parser_type
+
 
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
         new_experiment = kwargs.get('new_experiment') or experiment
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp= new_experiment, sess=session)
-        self.parser_type = parser_type or self.PARSERS[r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
@@ -201,6 +219,7 @@ class EventCreationTask(PipelineTask):
         self.event_label = event_label
         self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
+        self._parser_type=parser_type
 
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
@@ -209,37 +228,41 @@ class EventCreationTask(PipelineTask):
         logger.set_label(self.name)
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
-        self.pipeline.register_info('system_version',self.r1_sys_num)
         if self.protocol == 'ltp':
                 aligner = LTPAligner(unaligned_events, files, db_folder)
                 events = aligner.align()
                 artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
                                                      aligner.reref_dir)
-                events = artifact_detector.run()
-        elif self.event_label == 'ps4':
-            events = unaligned_events
-        elif self.r1_sys_num in (2.0,3.0,3.1):
-            if self.r1_sys_num == 2.0:
-                aligner = System2Aligner(unaligned_events, files, db_folder)
-            else:
-                aligner = System3Aligner(unaligned_events, files, db_folder)
+                try:
+                    events = artifact_detector.run()
+                except Exception:
+                    traceback.print_exc()
+        elif self.protocol=='r1':
+            self.pipeline.register_info('system_version', self.r1_sys_num)
+            if self.event_label == 'ps4':
+                events = unaligned_events
+            elif self.r1_sys_num in (2.0,3.0,3.1):
+                if self.r1_sys_num == 2.0:
+                    aligner = System2Aligner(unaligned_events, files, db_folder)
+                else:
+                    aligner = System3Aligner(unaligned_events, files, db_folder)
 
-            if self.event_label not in  ['math'] and self.parser_type is not PS4Sys3LogParser:
-                logger.debug("Adding stimulation events")
-                aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
+                if self.event_label not in  ['math'] and self.parser_type is not PS4Sys3LogParser:
+                    logger.debug("Adding stimulation events")
+                    aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
-            if self.experiment.startswith("TH"):
-                start_type = "CHEST"
-            elif self.experiment == 'PS21':
-                start_type = 'NP_POLL'
+                if self.experiment.startswith("TH"):
+                    start_type = "CHEST"
+                elif self.experiment == 'PS21':
+                    start_type = 'NP_POLL'
+                else:
+                    start_type = "SESS_START"
+                events = aligner.align(start_type)
+            elif self.r1_sys_num == 1.0:
+                aligner = System1Aligner(unaligned_events, files)
+                events = aligner.align()
             else:
-                start_type = "SESS_START"
-            events = aligner.align(start_type)
-        elif self.r1_sys_num == 1.0:
-            aligner = System1Aligner(unaligned_events, files)
-            events = aligner.align()
-        else:
-            raise ProcessingError("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+                raise ProcessingError("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))

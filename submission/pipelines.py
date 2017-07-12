@@ -376,10 +376,10 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                              code=code, **kwargs)
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
 
-    system = [x for x in groups if 'system' in x][0]
-    system = system.partition('_')[-1]
-
+    system = None
     if protocol == 'r1':
+        system = [x for x in groups if 'system' in x][0]
+        system = system.partition('_')[-1]
         tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,critical=('ps4' not in groups),**kwargs))
@@ -389,7 +389,10 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         elif experiment == 'ltpFR2':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
         else:
-            raise Exception('Unknown experiment %s under protocol \'ltp')
+            try:
+                tasks=[EventCreationTask(protocol,subject,montage,experiment,session,False)]
+            except KeyError:
+                raise Exception('Unknown experiment %s under protocol \'ltp'%experiment)
     else:
         raise Exception('Unknown protocol %s' % protocol)
 
