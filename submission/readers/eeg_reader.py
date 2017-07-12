@@ -1287,7 +1287,7 @@ class BDF_reader_new(EEG_reader):
         return self.data.n_times
 
 
-class BDF_reader_old(EEG_reader):
+class BDF_reader(EEG_reader):
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
         :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
