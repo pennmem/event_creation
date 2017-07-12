@@ -25,7 +25,7 @@ from .nsx_utility.brpylib import NsxFile
 from ..exc import EEGError
 
 
-class EEG_reader:
+class EEG_reader(object):
 
     DATA_FORMAT = 'int16'
 
