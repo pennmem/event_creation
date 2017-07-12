@@ -144,7 +144,7 @@ class MatlabEEGConversionTask(PipelineTask):
 
 class EventCreationTask(PipelineTask):
 
-    R1_PARSERS ={ '1':{
+    R1_PARSERS ={ 1.0:{
                         'FR': FRSessionLogParser,
                         'PAL': PALSessionLogParser,
                         'catFR': CatFRSessionLogParser,
@@ -153,7 +153,7 @@ class EventCreationTask(PipelineTask):
                         'TH': THSessionLogParser,
                         'THR': THRSessionLogParser,
                     },
-                    '2':{
+                      2.0:{
                         'FR': FRSessionLogParser,
                         'PAL': PALSessionLogParser,
                         'catFR': CatFRSessionLogParser,
@@ -162,7 +162,7 @@ class EventCreationTask(PipelineTask):
                         'TH': THSessionLogParser,
                         'THR': THRSessionLogParser
                     },
-                    '3_0': {
+                    3.0: {
                         'FR': FRSessionLogParser,
                         'PAL': PALSessionLogParser,
                         'catFR': CatFRSessionLogParser,
@@ -171,7 +171,7 @@ class EventCreationTask(PipelineTask):
                         'TH': THSessionLogParser,
                         'THR': THRSessionLogParser
                     },
-                    '3_1':{
+                    3.1:{
                         'FR': FRSys3LogParser,
                         'catFR': catFRSys3LogParser,
                         'PS': PS4Sys3LogParser,
