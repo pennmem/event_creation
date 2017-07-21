@@ -6,13 +6,13 @@ directories:
   localization_db_dir : &LOC_DB !join [*SUBJ_DB, 'localizations/{localization}']
   montage_db_dir : &MONTAGE_DB !join [*LOC_DB, 'montages/{montage_num}']
 
-  current_ephys_dir   : &CURR_EPHYS !join [*SESS_DB, "ephys/current_processed"]
-  current_montage_dir : &CURR_MONT !join [*MONTAGE_DB, "neuroradiology/current_processed"]
+  current_ephys_dir   : &CURR_EPHYS !join [*SESS_DB, 'ephys/current_processed']
+  current_montage_dir : &CURR_MONT !join [*MONTAGE_DB, 'neuroradiology/current_processed']
 
   matlab_event_dir : &MLAB_EV_DIR '{events_root}/{ram_experiment}'
 
-  subject_import_dir : &SUBJ_DIR "{data_root}/{code}"
-  behavioral_dir     : &BEH_DIR !join [*SUBJ_DIR, "behavioral"]
+  subject_import_dir : &SUBJ_DIR '{data_root}/{code}'
+  behavioral_dir     : &BEH_DIR !join [*SUBJ_DIR, 'behavioral']
   beh_experiment_dir : &BEH_EXP_DIR !join [*BEH_DIR, '{experiment}']
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
   sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
@@ -20,7 +20,8 @@ directories:
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
 
-  ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
+  ltp_exp_dir  : &LTP_EXP_DIR  '{data_root}/scalp/ltp/{experiment}'
+  ltp_subj_dir : &LTP_SUBJ_DIR !join [*LTP_EXP_DIR,'{code}']
   ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
 
 
@@ -111,7 +112,7 @@ files:
   - name: annotations
     << : *FILE
     multiple: true
-    groups: [r1, transfer, verbal, "!ps4"]
+    groups: [r1, transfer, verbal, '!ps4']
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
@@ -251,7 +252,7 @@ files:
 
   - name: host_logs
     << : *FILE
-    groups: [ r1, transfer, system_2, "!PS" ]
+    groups: [ r1, transfer, system_2, '!PS' ]
     multiple: true
     origin_directory: *RAW_DIR
     origin_file: '{experiment}_{subject}_*.log'
@@ -353,7 +354,7 @@ files:
 
   - name: math_log
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp ,'!Remembering_Across_America']
     origin_directory: *LTP_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -368,14 +369,37 @@ files:
 
   - name: config
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp ,'!Remembering_Across_America']
     origin_directory: *LTP_SUBJ_DIR
     origin_file: config.py
     destination: experiment_files/config.py
 
   - name: sconfig
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp ,'!Remembering_Across_America']
     origin_directory: *LTP_SUBJ_DIR
     origin_file: sconfig.py
     destination: experiment_files/sconfig.py
+
+## RAA
+  - name: eeg_log
+    << : *FILE
+    groups: [ltp, Remembering_Across_America]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: '{subject}EEGLog.txt'
+    destination: logs/EEGLog.txt
+
+  - name: session_log
+    << : *FILE
+    groups: [ltp, Remembering_Across_America]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: '{subject}Log.txt'
+    destination: logs/Log.txt
+
+  - name: wordpool
+    << : *FILE
+    groups: [ltp, Remembering_Across_America]
+    origin_directory: *LTP_EXP_DIR
+    origin_file: 'RAM_wordpool.txt'
+    destination: experiment_files/wordpool.txt
+

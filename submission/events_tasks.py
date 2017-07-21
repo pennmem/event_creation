@@ -183,7 +183,7 @@ class EventCreationTask(PipelineTask):
                     'ltpFR': LTPFRSessionLogParser,
                     'ltpFR2': LTPFR2SessionLogParser,
                     'FR1': FRSessionLogParser,
-                    'RAA': RAASessionLogParser,
+                    'Remembering_Across_America': RAASessionLogParser,
                   }
 
 
@@ -233,10 +233,7 @@ class EventCreationTask(PipelineTask):
                 events = aligner.align()
                 artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
                                                      aligner.reref_dir)
-                try:
-                    events = artifact_detector.run()
-                except Exception:
-                    traceback.print_exc()
+                events = artifact_detector.run()
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':

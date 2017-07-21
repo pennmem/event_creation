@@ -67,6 +67,16 @@ class FRSessionLogParser(BaseSessionLogParser):
                 #Subclasses are allowed to not have a word pool
                 self._wordpool = None
 
+        if protocol == 'ltp':
+            self._add_fields(
+                ('artifactMS', -1, 'int32'),
+                ('artifactNum', -1, 'int32'),
+                ('artifactFrac', -1, 'float16'),
+                ('artifactMeanMS', -1, 'float16'),
+                ('badEvent', False, 'b1'),
+                ('badEventChannel', '', 'S8', 132)
+            )
+
         self._list = -999
         self._serialpos = -999
         self._stim_list = False

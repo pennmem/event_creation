@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from ..log import logger
-
+import pandas as pd
 
 class LTPAligner:
     """
@@ -182,8 +182,11 @@ class LTPAligner:
         :return: Numpy array containing the mstimes for the up pulses
         """
         # Load data from the eeg.eeglog file and get all rows for up pulses
-        data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
-        up_pulses = data[np.logical_or(data[:, 2] == 'CHANNEL_0_UP', data[:, 2] == 'UP')]
+        try:
+            data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
+        except Exception:
+            data = pd.read_csv(eeg_log,sep='\s+',header=None,usecols=(0,1,2,)).values
+        up_pulses = data[(data[:, 2] == 'CHANNEL_0_UP')| (data[:, 2] == 'UP')| (data[:,2]=='ON')]
         # Save the up pulses to eeg.eeglog.up
         np.savetxt(eeg_log + '.up', up_pulses, fmt='%s %s %s')
         # Return the mstimes from all up pulses

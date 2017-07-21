@@ -510,7 +510,8 @@ def session_inputs_from_json(filename):
             sessions = experiments[new_experiment]
             for session in sessions:
                 info = sessions[session]
-                info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                if 'protocol' not in info:
+                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 

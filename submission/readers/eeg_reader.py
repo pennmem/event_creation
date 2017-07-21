@@ -1329,7 +1329,8 @@ class BDF_reader(EEG_reader):
             try:
                 logger.debug('Parsing EEG data file ' + self.raw_filename)
                 raw = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
-                                          misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
+                                          misc=['EXG5', 'EXG6', 'EXG7', 'EXG8',
+                                                'GSR1', 'GSR2', 'Erg1', 'Erg2', 'Resp', 'Plet', 'Temp'], montage='biosemi128',
                                           preload=True,)
 
                 logger.debug('Finished parsing EEG data.')
@@ -1349,6 +1350,7 @@ class BDF_reader(EEG_reader):
 
             except Exception as e:
                 logger.critical('Unable to parse EEG data file!')
+                raise e
 
             if os.path.isfile(original_path):  # Remove unzipped file if zipped version exists
                 os.system('rm ' + unzip_path.replace(' ', '\ '))
@@ -1373,6 +1375,8 @@ class BDF_reader(EEG_reader):
 
         # MNE reads sync pulses as either 15 or 65551 and non-pulses as 7 or 65543
         # Here we convert the sync pulse channel to 1s for pulses and 0s for non-pulses
+        if not self.sync_nums.any():
+            self.sync_nums = []
         self.data[-1] = np.in1d(self.data[-1],self.sync_nums)
 
         # Clip to within bounds of selected data format, and change the data format

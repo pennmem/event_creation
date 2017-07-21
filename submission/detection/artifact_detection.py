@@ -231,8 +231,10 @@ class ArtifactDetector:
                 thresh_data = f.readlines()
             avg = float(thresh_data[0])
             stddev = float(thresh_data[1])
+            assert not np.isnan(avg)
+            assert not np.isnan(stddev)
             logger.debug('Loaded average voltage from file.')
-        except IOError:
+        except (IOError, AssertionError):
             logger.debug('Calculating average voltage...')
             # Get the indices of all word presentation events with eeg data
             pres_ev_ind = np.where(np.logical_and(self.events.type == 'WORD', self.events.eegfile != ''))[0]
