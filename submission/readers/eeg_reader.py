@@ -823,7 +823,7 @@ class EDF_reader(EEG_reader):
                     logger.critical("label {} not split! Potentially missing data!".format(label))
 
 
-class EGI_reader_new(EEG_reader):
+class ScalpReader(EEG_reader):
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
         :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
@@ -834,7 +834,7 @@ class EGI_reader_new(EEG_reader):
         self.start_datetime = None
         self.names = None
         self.data = None
-        self.test = None
+        self.filetype = None
 
     def get_data(self):
         """
@@ -843,25 +843,43 @@ class EGI_reader_new(EEG_reader):
         Note that MNE converts the raw values in the .raw file to volts, and does not simply return the raw values
         written in the data file.
         """
-        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
-        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
-        already_unzipped = os.path.isfile(unzip_path)
-        # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            try:
-                logger.debug('Parsing EEG data file ' + self.raw_filename)
-                self.data = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
-                logger.debug('Finished parsing EEG data.')
+        is_mff = os.path.splitext(self.raw_filename)[1].lower() == '.mff'
+        # Determine the absolute path of the EEG file before and after unzipping
+        if not is_mff:
+            original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
+            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
+            already_unzipped = os.path.isfile(unzip_path)
+            logger.debug('Unzipping EEG data file ' + self.raw_filename)
+            self.filetype = os.path.splitext(unzip_path)[1]
+        # For the few sessions which were never exported from .mff format, no zipping/unzipping is used
+        else:
+            already_unzipped = True
+            unzip_path = original_path = self.raw_filename
+            self.filetype = '.mff'
 
+        # If data file is already unzipped, use it; otherwise unzip the file for reading
+        if is_mff or already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
+            try:
+                logger.debug('Parsing EEG data file ' + self.unzip_path)
+                # Read an EGI recording
+                if self.filetype in ('.raw', '.mff'):
+                    self.data = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
+                # Read a BioSemi recording
+                elif self.filetype == 'bdf':
+                    self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=True)
+                else:
+                    logger.critical('Unsupported EEG file type for file %s!' % unzip_path)
+                logger.debug('Finished parsing EEG data.')
                 # Pull relevant header info
                 self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
                 self.names = [str(x) for x in self.data.info['ch_names']]
             except:
                 logger.critical('Unable to parse EEG data file!')
 
-            # Remove unzipped file if zipped version exists, otherwise zip the file
-            if os.path.isfile(original_path):
+            # Remove unzipped file if zipped version exists, otherwise zip the file. Leave .mff files alone.
+            if is_mff:
+                pass
+            elif os.path.isfile(original_path):
                 os.system('rm ' + unzip_path.replace(' ', '\ '))
             else:
                 os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
@@ -872,30 +890,55 @@ class EGI_reader_new(EEG_reader):
             logger.critical('Unzipping failed! Unable to read data file!')
 
     def postprocess(self):
-        # Post-process EEG data by running a .1 Hz high pass filter, downsampling, and generating a common average
-        # re-reference projection on the mne Raw object
+        """
+        Post-process EEG data. Currently, this involves the following:
+        - Running a .1 Hz high pass filter on all EEG and EOG channels
+        - Generating a common average reference projection on the MNE Raw object, which can later be used to 
+        re-reference the data
+        """
         try:
+            # Get indices of EEG and EOG channels
             picks_eeg_eog = mne.pick_types(self.data.info, eeg=True, eog=True)
+            # Run a .1 Hz high pass filter on all EEG and EOG channels
             logger.debug('Running .1 Hz highpass filter on all channels.')
             self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
                              l_trans_bandwidth='auto', h_trans_bandwidth='auto')
+            ''' 
+            # Uncomment to downsample recordings with sampling rates above 1024 Hz
             if self.data.info['sfreq'] > 1024:
                 self.data.resample(1024)
-
+            '''
+            # Set common average reference
             self.data.set_eeg_reference(ref_channels=None)
         except:
             logger.critical('Failed to post-process EEG!')
 
     def run_ica(self, save_path):
-
+        """
+        Run ICA on entire session and identify bad eyeblink/movement components based on their correlation with the EOG
+        channels. Specifically, MNE's find_bads_eog() function z-scores the correlations between components 
+        and EOG channels, removes any with a z-score greater than 3, then re-scores the correlations and repeats the
+        process until no components remain above a z-score of 3. Bad components are saved into the ICA object, and the
+        ICA solution is then saved as a .fif file.
+        :param save_path: The filepath where the ICA solution will be saved. According to MNE's documentation, this file
+        should end with "-ica.fif".
+        """
+        eog_chans = []
+        if self.filetype in ('.raw', '.mff'):
+            eog_chans = ('EEG 008', 'EEG 025', 'EEG 126', 'EEG 127')
+        elif self.filetype == '.bdf':
+            eog_chans = ('EXG1', 'EXG2', 'EXG3', 'EXG4')
+        else:
+            logger.critical('Unsupported EEG filetype!')
         # Apply re-reference before running ICA
         self.data.apply_proj()
         # Run ICA
+        logger.debug('Running ICA')
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
-        # Check for components for correlation with EOG channels (indicative of blinks/eye movements)
+        # Check components for high correlation with EOG channels (indicative of blinks/eye movements)
         bad_ics = set()
-        for ch in ('EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'):
+        for ch in eog_chans:
             if ch in self.names:
                 bad_ics = bad_ics.union(ica.find_bads_eog(self.data, ch_name=ch, threshold=3.)[0])
         # Mark bad components for exclusion
@@ -906,19 +949,26 @@ class EGI_reader_new(EEG_reader):
         # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
         if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
             np.save(os.path.join(os.path.dirname(save_path), 'mixing_mat.npy'), ica.mixing_matrix_)
+            logger.warn('Possible MNE bug detected, in which mixing matrix will change upon reloading the ICA object. '
+                        'Saving true mixing matrix separately for safety.')
 
     def _split_data(self, location, basename):
         """
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
         """
+        # Load data if we have not already done so
         if self.data is None:
             self.get_data()
+
+        # Run post-processing regimen on the loaded data
         self.postprocess()
 
+        # Save post-processed data to .fif file
         raw_filename = os.path.join(location, basename + '_raw.fif')
         self.data.save(raw_filename, fmt='single')
 
+        # Run ICA, mark bad components, and save ICA solution to file
         ica_filename = os.path.join(location, basename + '_reref-ica.fif')
         self.run_ica(ica_filename)
 
@@ -946,536 +996,6 @@ class EGI_reader_new(EEG_reader):
         if self.data is None:
             self.get_data()
         return self.data.n_times
-
-
-class EGI_reader(EEG_reader):
-    """
-    Parses the EEG sample data from a .raw.bz2 file. The raw file begins with a header with a series of information
-    such as the version number, start time, and sample rate of the recording. The data samples immediately follow the
-    header. Because the data is in compressed .bz2 format, bytes must be decompressed as the file is read using Ptyhon's
-    built-in BZ2File class. Full information on the format of EGI .raw files can be found online at:
-    https://sccn.ucsd.edu/eeglab/testfiles/EGI/NEWTESTING/rawformat.pdf
-
-    DATA FIELDS:
-    raw_filename: The path to the .raw.bz2 file containing the EEG data for the session.
-    basename: The string used to name the channel files once split (typically subj_DDMonYY_HHMM).
-    noreref_loc: The path to the noreref directory.
-    data: Holds the unpacked and split EEG data.
-    sample_rate: The sampling rate of the EEG recording.
-    chans: A list of dictionaries produced by MNE, where each dictionary contains info about one of the channels.
-    num_chans: The number of EEG and EOG channels. This does not include sync pulse channels, etc.
-    DATA_FORMAT: The format in which the split channel files will be written.
-    """
-    def __init__(self, raw_filename, unused_jacksheet=None):
-        """
-        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
-        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
-        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
-
-        """
-        self.raw_filename = raw_filename
-        self.basename = ''
-        self.noreref_loc = ''
-        self.start_datetime = None
-        self.data = None
-        self.sample_rate = None
-        self.chans = None
-        self.num_chans = 129
-        self.DATA_FORMAT = 'float16'
-        try:
-            self.bounds = np.finfo(self.DATA_FORMAT)
-        except ValueError:
-            try:
-                self.bounds = np.iinfo(self.DATA_FORMAT)
-            except ValueError:
-                logger.critical('Invalid data format. Must be an integer or float.')
-
-    def get_data(self):
-        """
-        Unpacks the binary in the raw data file to get the voltage data from all channels. We use the built-in functions
-        of the MNE package to parse the .raw file into a channels x samples data matrix. A .1 Hz highpass
-        filter is then run on all EEG/EOG channels to eliminate drift.
-
-        Note that the data in the .raw files is in uV, and the mne package converts the data to volts when reading the
-        file. We convert it back to uV before saving it out to individual channel files.
-        """
-        logger.debug('Unzipping EEG data file ' + self.raw_filename)
-        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        unzip_path = original_path[:-4]
-        already_unzipped = os.path.isfile(unzip_path)
-        # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            try:
-                logger.debug('Parsing EEG data file ' + self.raw_filename)
-                raw = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
-                logger.debug('Finished parsing EEG data.')
-                picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
-                logger.debug('Running .1 Hz highpass filter on all channels.')
-                raw.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double', l_trans_bandwidth='auto', h_trans_bandwidth='auto')
-
-                # Pull relevant header info
-                self.sample_rate = int(raw.info['sfreq'])
-                self.start_datetime = datetime.datetime.utcfromtimestamp(raw.info['meas_date'])
-                self.chans = raw.info['chs']
-
-                # Extract the EEG data from the RawEDF data structure and convert all non-sync pulse channels to uV.
-                self.data = raw[:][0]
-                self.data[:picks_eeg_eog.size] *= 1000000
-
-            except Exception as e:
-                logger.critical('Unable to parse EEG data file!')
-
-            if os.path.isfile(original_path):  # Remove unzipped file if zipped version exists
-                os.system('rm ' + unzip_path.replace(' ', '\ '))
-            else:  # Zip file if only unzipped version exists
-                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
-            logger.debug('Finished getting EEG data.')
-        else:
-            logger.critical('Unzipping failed! Unable to parse data file!')
-
-    def _split_data(self, location, basename):
-        """
-        Splits the data extracted from the raw file into each channel and writes the data for each channel
-        into a separate file. Also writes two parameter files containing the sample rate, data format, and amp gain
-        for the session.
-        :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
-        """
-        self.basename = basename
-        self.noreref_loc = location
-        if self.data is None:
-            self.get_data()
-
-        # Clip to within bounds of selected data format, and change the data format
-        self.data = self.data.clip(self.bounds.min, self.bounds.max)
-        self.data = self.data.astype(self.DATA_FORMAT)
-
-        # Create directory if needed
-        if not os.path.exists(location):
-            fileutil.makedirs(location)
-
-        # Write EEG channel files
-        for i in range(self.data.shape[0]):
-            if self.chans[i]['kind'] in (2, 202):  # EEG/EOG channels
-                filename = os.path.join(location, basename + '.' + self.chans[i]['ch_name'][-3:])
-            else:  # "Event" channels
-                filename = os.path.join(location, basename + '.' + self.chans[i]['ch_name'])
-            logger.debug(str(i+1))
-            sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event, so write each row to its own file
-            self.data[i].tofile(filename)
-
-        # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
-        logger.debug('Writing param files.')
-        paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.DATA_FORMAT + '\nsystem EGI'
-        with fileutil.open_with_perms(paramfile, 'w') as f:
-            f.write(params)
-        paramfile = os.path.join(location, basename + '.params.txt')
-        with fileutil.open_with_perms(paramfile, 'w') as f:
-            f.write(params)
-        logger.debug('Done.')
-
-    def reref(self, bad_chans, location):
-        """
-        Calculates the common average reference across all channels, then writes this average channel to a file in the
-        reref directory.
-
-        :param bad_chans: 1-D list or numpy array containing all channel numbers to be excluded from rereferencing
-        :param location: A string denoting the directory to which the reref files will be written
-        """
-        # Create directory if needed
-        if not os.path.exists(location):
-            fileutil.makedirs(location)
-
-        logger.debug('Rerefencing data...')
-
-        # Ignore bad channels for the purposes of calculating the averages for rereference
-        all_chans = np.array(range(1, self.num_chans+1))
-        good_chans = np.setdiff1d(all_chans, np.array(bad_chans))
-
-        # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
-        means = np.mean(self.data[good_chans-1], axis=0)
-        means = means.clip(self.bounds.min, self.bounds.max).astype(self.DATA_FORMAT)
-
-        logger.debug('Writing common average reference data...')
-        means.tofile(os.path.join(location, self.basename + '.ref'))
-        logger.debug('Done.')
-
-        # Copy the params.txt file from the noreref folder
-        logger.debug('Copying param file...')
-        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
-        logger.debug('Done.')
-
-        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
-        # of the common average reference
-        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
-
-    @staticmethod
-    def find_bad_chans(log, threshold):
-        """
-        Reads an artifact log to determine whether there were any bad channels during a session. A channel is considered
-        to be bad if it contained an artifact lasting longer than {threshold} milliseconds. Bad channels are excluded
-        from the rereferencing process. Note that artifact logs do not exist for any EGI sessions run 
-        :param log: The filepath to the artifact log
-        :param threshold: The minimum number of milliseconds that an artifact must last in order for a channel to be
-        declared "bad"
-        :return: A 1D numpy array containing the numbers of all bad channels
-        """
-        # Read the log
-        with open(log, 'r') as f:
-            text = f.read()
-
-        # Use regex and numpy to find all rows in the file that contain a channel number, and extract the numbers
-        chans = np.array([re.findall(r'[0-9]+', s)[0] for s in re.findall(r'Channel number: [0-9]+', text)])
-        # Find all rows in the file that contain an artifact duration, and extract the durations
-        durs = np.array([int(re.findall(r'[0-9]+', s)[0]) for s in re.findall(r'Artifact\'s duration: [0-9]+', text)])
-
-        # Get the channel numbers for any artifacts that lasted longer than the threshold
-        bad_chans = np.unique(chans[np.where(durs > threshold)])
-
-        return bad_chans
-
-    def get_start_time(self):
-        # Read header info if have not already done so, as the header contains the start time info
-        if self.start_datetime is None:
-            self.get_data()
-        return self.start_datetime
-
-    def get_start_time_string(self):
-        return self.get_start_time().strftime(self.STRFTIME)
-
-    def get_start_time_ms(self):
-        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
-
-    def get_sample_rate(self):
-        if self.sample_rate is None:
-            self.get_data()
-        return self.sample_rate
-
-    def get_source_file(self):
-        return self.raw_filename
-
-    def get_n_samples(self):
-        if self.data is None:
-            self.get_data()
-        return self.data.shape[1]
-
-
-class BDF_reader_new(EEG_reader):
-    def __init__(self, raw_filename, unused_jacksheet=None):
-        """
-        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
-        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
-        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
-        """
-        self.raw_filename = raw_filename
-        self.start_datetime = None
-        self.names = None
-        self.data = None
-
-    def get_data(self):
-        """
-        Unpacks the binary in the raw data file to get the voltage data from all channels.
-
-        Note that MNE converts the raw values in the .bdf file to volts, and does not simply return the raw values
-        written in the data file.
-        """
-        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
-        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
-        already_unzipped = os.path.isfile(unzip_path)
-        # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            try:
-                logger.debug('Parsing EEG data file ' + self.raw_filename)
-                self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
-                                                misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
-                                                preload=True)
-                logger.debug('Finished parsing EEG data.')
-
-                # Pull relevant header info
-                self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
-                self.names = [str(x) for x in self.data.info['ch_names']]
-            except:
-                logger.critical('Unable to parse EEG data file!')
-
-            # Remove unzipped file if zipped version exists, otherwise zip the file
-            if os.path.isfile(original_path):
-                os.system('rm ' + unzip_path.replace(' ', '\ '))
-            else:
-                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
-            logger.debug('Finished getting EEG data.')
-
-        # If unzip attempt fails, return error
-        else:
-            logger.critical('Unzipping failed! Unable to read data file!')
-
-    def postprocess(self):
-        # Post-process EEG data by running a .1 Hz high pass filter, downsampling, and generating a common average
-        # re-reference projection on the mne Raw object
-        try:
-            picks_eeg_eog = mne.pick_types(self.data.info, eeg=True, eog=True)
-            logger.debug('Running .1 Hz highpass filter on all channels.')
-            self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
-                             l_trans_bandwidth='auto', h_trans_bandwidth='auto')
-            if self.data.info['sfreq'] > 1024:
-                self.data.resample(1024)
-
-            self.data.set_eeg_reference(ref_channels=None)
-        except:
-            logger.critical('Failed to post-process EEG!')
-
-    def run_ica(self, save_path):
-
-        # Apply re-reference before running ICA
-        self.data.apply_proj()
-        # Run ICA
-        ica = mne.preprocessing.ICA(method='fastica')
-        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
-        # Check for components for correlation with EOG channels (indicative of blinks/eye movements)
-        bad_ics = set()
-        for ch in ('EXG1', 'EXG2', 'EXG3', 'EXG4'):
-            if ch in self.names:
-                bad_ics = bad_ics.union(ica.find_bads_eog(self.data, ch_name=ch, threshold=3.)[0])
-        # Mark bad components for exclusion
-        ica.exclude = list(bad_ics)
-        # Save ICA object
-        ica.save(save_path)
-        # Save the mixing matrix if we detect that it will be calculated differently upon loading
-        # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
-        if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
-            np.save(os.path.join(os.path.dirname(save_path), 'mixing_mat.npy'), ica.mixing_matrix_)
-
-    def _split_data(self, location, basename):
-        """
-        :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
-        """
-        if self.data is None:
-            self.get_data()
-        self.postprocess()
-
-        raw_filename = os.path.join(location, basename + '_raw.fif')
-        self.data.save(raw_filename, fmt='single')
-
-        ica_filename = os.path.join(location, basename + '_reref-ica.fif')
-        self.run_ica(ica_filename)
-
-    def get_start_time(self):
-        # Read header info if have not already done so, as the header contains the start time info
-        if self.start_datetime is None:
-            self.get_data()
-        return self.start_datetime
-
-    def get_start_time_string(self):
-        return self.get_start_time().strftime(self.STRFTIME)
-
-    def get_start_time_ms(self):
-        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
-
-    def get_sample_rate(self):
-        if self.data is None:
-            self.get_data()
-        return self.data.info['sfreq']
-
-    def get_source_file(self):
-        return self.raw_filename
-
-    def get_n_samples(self):
-        if self.data is None:
-            self.get_data()
-        return self.data.n_times
-
-
-class BDF_reader(EEG_reader):
-    def __init__(self, raw_filename, unused_jacksheet=None):
-        """
-        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
-        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
-        parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
-        """
-        self.raw_filename = raw_filename
-        self.basename = ''
-        self.noreref_loc = ''
-        self.start_datetime = None
-        self.sample_rate = None
-        self.names = None
-        self.data = None
-        self.sync = None
-        self.DATA_FORMAT = 'float16'
-        try:
-            self.bounds = np.finfo(self.DATA_FORMAT)
-        except ValueError:
-            try:
-                self.bounds = np.iinfo(self.DATA_FORMAT)
-            except ValueError:
-                logger.critical('Invalid data format. Must be an integer or float.')
-
-    def get_data(self):
-        """
-        Unpacks the binary in the raw data file to get the voltage data from all channels. We use the built-in functions
-        of the MNE package to parse the .bdf file into a channels x samples data matrix. A first-order .1 Hz highpass
-        filter is then run on all EEG/EOG channels to eliminate drift.
-
-        Note that MNE converts the raw values in the .bdf file to volts, and does not simply return the raw values
-        written in the data file.
-        """
-        # logger.debug('Unzipping EEG data file ' + self.raw_filename)
-        original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-        unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
-        already_unzipped = os.path.isfile(unzip_path)
-        # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
-            try:
-                logger.debug('Parsing EEG data file ' + self.raw_filename)
-                raw = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
-                                          misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128',
-                                          preload=True,)
-
-                logger.debug('Finished parsing EEG data.')
-                picks_eeg_eog = mne.pick_types(raw.info, eeg=True, eog=True)
-                logger.debug('Running .1 Hz highpass filter on all channels.')
-                raw.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double', l_trans_bandwidth='auto', h_trans_bandwidth='auto')
-
-                # Pull relevant header info
-                self.sample_rate = int(raw.info['sfreq'])
-                self.start_datetime = datetime.datetime.utcfromtimestamp(raw.info['meas_date'])
-                self.names = [str(x) for x in raw.info['ch_names']]
-
-                # Extract the EEG data from the RawEDF data structure and convert all non-sync pulse channels to uV.
-                self.data = raw[:][0]
-                self.data[:picks_eeg_eog.size] *= 1000000
-                self.sync_nums = np.unique(mne.find_events(raw)[:,2])
-
-            except Exception as e:
-                logger.critical('Unable to parse EEG data file!')
-
-            if os.path.isfile(original_path):  # Remove unzipped file if zipped version exists
-                os.system('rm ' + unzip_path.replace(' ', '\ '))
-            else:  # Zip file if only unzipped version exists
-                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
-            logger.debug('Finished getting EEG data.')
-        else:
-            logger.critical('Unzipping failed! Unable to parse data file!')
-
-    def _split_data(self, location, basename):
-        """
-        Splits the data extracted from the binary file into each channel, and writes the data for each into a separate
-        file. Also writes two parameter files containing the sample rate, data format, and amp gain for the session.
-
-        :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
-        """
-        self.basename = basename
-        self.noreref_loc = location
-        if self.data is None:
-            self.get_data()
-
-        # MNE reads sync pulses as either 15 or 65551 and non-pulses as 7 or 65543
-        # Here we convert the sync pulse channel to 1s for pulses and 0s for non-pulses
-        self.data[-1] = np.in1d(self.data[-1],self.sync_nums)
-
-        # Clip to within bounds of selected data format, and change the data format
-        self.data = self.data.clip(self.bounds.min, self.bounds.max)
-        self.data = self.data.astype(self.DATA_FORMAT)
-
-        # Separate sync pulse channel and drop all channels after EXG4
-        self.sync = self.data[-1]
-        self.data = self.data[:132]
-        self.names = self.names[:132]
-
-        # Create directory if needed
-        if not os.path.exists(location):
-            fileutil.makedirs(location)
-
-        # Write EEG channel files
-        for i in range(self.data.shape[0]):
-            filename = os.path.join(location, basename + ('.' + self.names[i]))
-            logger.debug(i + 1)
-            sys.stdout.flush()
-            # Each row of self._data contains all samples for one channel or event
-            self.data[i].tofile(filename)
-
-        # Write sync pulse channel file
-        filename = os.path.join(location, basename + '.Status')
-        logger.debug(i + 1)
-        sys.stdout.flush()
-        # Each row of self._data contains all samples for one channel or event
-        self.sync.tofile(filename)
-
-        logger.debug('Saved.')
-
-        # Write the sample rate, data format, and amplifier gain to two params.txt files in the noreref folder
-        logger.debug('Writing param files.')
-        paramfile = os.path.join(location, 'params.txt')
-        params = 'samplerate ' + str(self.sample_rate) + '\ndataformat ' + self.DATA_FORMAT + '\nsystem Biosemi'
-        with fileutil.open_with_perms(paramfile, 'w') as f:
-            f.write(params)
-        paramfile = os.path.join(location, basename + '.params.txt')
-        with fileutil.open_with_perms(paramfile, 'w') as f:
-            f.write(params)
-        logger.debug('Done.')
-
-    def reref(self, bad_chans, location):
-        """
-        Calculates the common average reference across all channels, then writes this average channel to a file in the
-        reref directory.
-
-        :param bad_chans: 1-D list or numpy array containing all channel numbers to be excluded from rereferencing
-        :param location: A string denoting the directory to which the reref files will be written
-        """
-        # Create directory if needed
-        if not os.path.exists(location):
-            fileutil.makedirs(location)
-
-        logger.debug('Rerefencing data...')
-
-        # Ignore bad channels for the purposes of calculating the averages for rereference (if using b.c. detection)
-        all_chans = np.array(range(1, len(self.names) + 1))
-        good_chans = np.setdiff1d(all_chans, np.array(bad_chans))
-
-        # Find the average value of each sample across all good channels (index of each channel is channel number - 1)
-        means = np.mean(self.data[good_chans - 1], axis=0)
-        means = means.clip(self.bounds.min, self.bounds.max).astype(self.DATA_FORMAT)
-
-        logger.debug('Writing common average reference data...')
-        means.tofile(os.path.join(location, self.basename + '.ref'))
-        logger.debug('Done.')
-
-        # Copy the params.txt file from the noreref folder
-        logger.debug('Copying param file...')
-        copy(os.path.join(self.noreref_loc, 'params.txt'), location)
-        logger.debug('Done.')
-
-        # Write a bad_chans.txt file in the reref folder, listing the channels that were excluded from the calculation
-        # of the common average reference
-        np.savetxt(os.path.join(location, 'bad_chans.txt'), bad_chans, fmt='%s')
-
-    def get_start_time(self):
-        # Read header info if have not already done so, as the header contains the start time info
-        if self.start_datetime is None:
-            self.get_data()
-        return self.start_datetime
-
-    def get_start_time_string(self):
-        return self.get_start_time().strftime(self.STRFTIME)
-
-    def get_start_time_ms(self):
-        return int((self.get_start_time() - self.EPOCH).total_seconds() * 1000)
-
-    def get_sample_rate(self):
-        if self.sample_rate is None:
-            self.get_data()
-        return self.sample_rate
-
-    def get_source_file(self):
-        return self.raw_filename
-
-    def get_n_samples(self):
-        if self.data is None:
-            self.get_data()
-        return self.data.shape[1]
 
 
 def read_jacksheet(filename):
@@ -1523,8 +1043,9 @@ READERS = {
     '.edf': EDF_reader,
     '.eeg': NK_reader,
     '.ns2': NSx_reader,
-    '.raw': EGI_reader,
-    '.bdf': BDF_reader,
+    '.raw': ScalpReader,
+    '.mff': ScalpReader,
+    '.bdf': ScalpReader,
     '.h5': HD5_reader
 }
 

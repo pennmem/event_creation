@@ -134,6 +134,7 @@ files:
     origin_file:
       - '*.raw.bz2'
       - '*.bdf.bz2'
+      - '*_NEVER_EXPORTED.mff'
     destination: raw_eeg/
 
   - name: artifact_log
