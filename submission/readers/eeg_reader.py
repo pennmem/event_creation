@@ -834,6 +834,7 @@ class EGI_reader_new(EEG_reader):
         self.start_datetime = None
         self.names = None
         self.data = None
+        self.test = None
 
     def get_data(self):
         """
