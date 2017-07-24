@@ -1,4 +1,6 @@
 import os
+import mne
+import glob
 import numpy as np
 from ..log import logger
 
@@ -36,24 +38,24 @@ class LTPAligner:
         alignment, but will be necessary for artifact detection afterwards.
         """
         self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        self.noreref_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed', 'noreref')
-        self.reref_dir = os.path.join(os.path.dirname(self.noreref_dir), 'reref')
-        self.pulse_files = []
-        for f in os.listdir(self.noreref_dir):
-            if f.endswith(('.Status', '.DIN1', '.DI15', '.D255')):
-                self.pulse_files.append(f)
+        #self.noreref_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed', 'noreref')
+        #self.reref_dir = os.path.join(os.path.dirname(self.noreref_dir), 'reref')
+        eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed')
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*_raw.fif'))
+
         self.root_names = []
-        for f in self.pulse_files:
+        for f in self.eeg_files:
             if f not in self.root_names:
                 self.root_names.append(os.path.splitext(os.path.basename(f))[0])
+
         self.num_samples = -999
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
-        # Determine sample rate from the params.txt file
 
+        # Determine sample rate from the params.txt file
         eeg_params = os.path.join(self.reref_dir, 'params.txt')
         try:
             with open(eeg_params) as eeg_params_file:
@@ -77,6 +79,8 @@ class LTPAligner:
 
         :return: The updated events structure, now filled with eegfile and eegoffset information.
         """
+
+
         if self.events.shape == () or self.sample_rate is None:
             logger.warn('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events

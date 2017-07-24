@@ -824,6 +824,10 @@ class EDF_reader(EEG_reader):
 
 
 class ScalpReader(EEG_reader):
+    """
+    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .raw and .mff 
+    formats, as well as BioSemi's .bdf format.
+    """
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
         :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
@@ -838,10 +842,11 @@ class ScalpReader(EEG_reader):
 
     def get_data(self):
         """
-        Unpacks the binary in the raw data file to get the voltage data from all channels.
+        Unpacks the binary in the raw data file to get the voltage data from all channels. In the process, it must
+        unzip the data file before use. After reading the data, it removes the unzipped file, leaving only the
+        zipped version (or zips the unzipped file if no zipped version exists). 
 
-        Note that MNE converts the raw values in the .raw file to volts, and does not simply return the raw values
-        written in the data file.
+        Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
         """
         is_mff = os.path.splitext(self.raw_filename)[1].lower() == '.mff'
         # Determine the absolute path of the EEG file before and after unzipping
@@ -854,13 +859,13 @@ class ScalpReader(EEG_reader):
         # For the few sessions which were never exported from .mff format, no zipping/unzipping is used
         else:
             already_unzipped = True
-            unzip_path = original_path = self.raw_filename
+            unzip_path = self.raw_filename
             self.filetype = '.mff'
 
         # If data file is already unzipped, use it; otherwise unzip the file for reading
         if is_mff or already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
             try:
-                logger.debug('Parsing EEG data file ' + self.unzip_path)
+                logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
                 if self.filetype in ('.raw', '.mff'):
                     self.data = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
