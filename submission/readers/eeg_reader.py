@@ -825,7 +825,7 @@ class EDF_reader(EEG_reader):
 
 class ScalpReader(EEG_reader):
     """
-    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .raw and .mff 
+    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .mff 
     formats, as well as BioSemi's .bdf format.
     """
     def __init__(self, raw_filename, unused_jacksheet=None):
@@ -867,11 +867,16 @@ class ScalpReader(EEG_reader):
             try:
                 logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
-                if self.filetype in ('.raw', '.mff'):
-                    self.data = mne.io.read_raw_egi(unzip_path, eog=['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127'], preload=True)
+                if self.filetype in ('.mff'):
+                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], misc=['E129'], preload=True)
+                    self.data.info['description'] = 'system: GSN-HydroCel-129'
+                    # Correct the name of channel 129 to Cz
+                    self.data.rename_channels({'E129': 'Cz'})
+                    self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
                 # Read a BioSemi recording
                 elif self.filetype == 'bdf':
                     self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=True)
+                    self.data.info['description'] = 'system: biosemi128'
                 else:
                     logger.critical('Unsupported EEG file type for file %s!' % unzip_path)
                 logger.debug('Finished parsing EEG data.')
