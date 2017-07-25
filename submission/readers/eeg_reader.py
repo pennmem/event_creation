@@ -959,6 +959,10 @@ class ScalpReader(EEG_reader):
 
     def _split_data(self, location, basename):
         """
+        This function runs the full EEG post-processing regimen on the recording. Note that "split data" is a misnomer
+        for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, the ScalpReader uses
+        MNE's post-processing tools and saves the results to .fif files.
+        
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
         """

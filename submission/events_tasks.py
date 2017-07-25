@@ -183,7 +183,7 @@ class EventCreationTask(PipelineTask):
                     'ltpFR': LTPFRSessionLogParser,
                     'ltpFR2': LTPFR2SessionLogParser,
                     'FR1': FRSessionLogParser,
-                    'RAA': RAASessionLogParser,
+                    'RAA': RAASessionLogParser
                   }
 
 
@@ -229,14 +229,16 @@ class EventCreationTask(PipelineTask):
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
         if self.protocol == 'ltp':
-                aligner = LTPAligner(unaligned_events, files, db_folder)
-                events = aligner.align()
-                artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
-                                                     aligner.reref_dir)
-                try:
-                    events = artifact_detector.run()
-                except Exception:
-                    traceback.print_exc()
+            eeglog = files['eeg_log'] if 'eeg_log' in files else []
+            ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
+            aligner = LTPAligner(unaligned_events, eeglog, ephys_dir)
+            events = aligner.align()
+            artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
+                                                 aligner.reref_dir)
+            try:
+                events = artifact_detector.run()
+            except Exception:
+                traceback.print_exc()
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':

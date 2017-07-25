@@ -12,60 +12,47 @@ class LTPAligner:
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESH = 10  # This many milliseconds may differ between sync pulse times during matching
 
-    def __init__(self, events, files, behav_dir):
+    def __init__(self, events, eeg_log, eeg_dir):
         """
         Constructor for the EGI aligner.
 
         :param events: The events structure to be aligned (np.recarray).
-        :param files:  The output of a Transferer -- a dictionary mapping file name to file location.
-        :param behav_dir: The path to the current session's behavioral directory
+        :param eeg_log: The filepath to the session's sync pulse log or a list of such files.
+        :param eeg_dir: The path to the session's eeg directory.
 
         DATA FIELDS:
         behav_files: The list of sync pulse logs from the behavioral computer (eeg.eeglog, eeg.eeglog.up).
-        pulse_files: The list of sync pulse logs from the ephys computer (.D255, .DI15, .DIN1 files).
-        noreref_dir: The path to the EEG noreref directory.
-        reref_dir: The path to the EEG reref directory.
-        root_names: A list containing the root name of each EEG recording (designed for cases with multiple recordings
-        from a single session)
-        num_samples: The number of EEG samples in the sync channel file.
+        eeg_files: The list of EEG files recorded during the session (assumed to be _raw.fif files)
+        basenames: A list containing the basename of each EEG recording (designed for cases with multiple recordings
+        from a single session).
+        num_samples: The number of EEG samples in the current EEG recording.
+        sample_rate: The sample rate of the current EEG recording.
         pulses: A numpy array containing the indices of EEG samples that contain sync pulses.
         ephys_ms: The mstimes of the sync pulses received by the ephys computer.
         behav_ms: The mstimes of the sync pulses sent by the behavioral computer.
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
-        sample_rate: The sample rate of the EEG recording (typically 500).
-        system: EGI or Biosemi, depending on which EEG system was used for the session. While it is not used for
-        alignment, but will be necessary for artifact detection afterwards.
         """
-        self.behav_files = files['eeg_log'] if 'eeg_log' in files else []
-        #self.noreref_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed', 'noreref')
-        #self.reref_dir = os.path.join(os.path.dirname(self.noreref_dir), 'reref')
-        eeg_dir = os.path.join(os.path.dirname(os.path.dirname(behav_dir)), 'ephys', 'current_processed')
+        # Get list of the behavioral computer's sync pulse logs
+        self.behav_files = eeg_log
+
+        # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
+        # for each
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*_raw.fif'))
-
-        self.root_names = []
+        self.basenames = []
+        self.raws = []
         for f in self.eeg_files:
-            if f not in self.root_names:
-                self.root_names.append(os.path.splitext(os.path.basename(f))[0])
+            self.basenames.append(os.path.splitext(os.path.basename(f))[0])
+            self.raws.append(mne.io.read_raw_fif(f, preload=False))
 
-        self.num_samples = -999
+        self.num_samples = None
+        self.sample_rate = None
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
 
-        # Determine sample rate from the params.txt file
-        eeg_params = os.path.join(self.reref_dir, 'params.txt')
-        try:
-            with open(eeg_params) as eeg_params_file:
-                params_text = [line.split() for line in eeg_params_file.readlines()]
-            self.sample_rate = int(params_text[0][1])
-            self.data_fmt = params_text[1][1]
-            self.system = params_text[2][1]
-        except:
-            self.sample_rate = self.data_fmt = self.system = None
-            logger.warn('Unable to read EEG parameters file at path ' + eeg_params)
 
     def align(self):
         """
@@ -73,15 +60,14 @@ class LTPAligner:
         received by the ephys computer. This enables conversions to be made between the mstimes of behavioral events
         and the indices of EEG data samples that were taken at the same time. Behavioral sync pulse times come from
         the eeg.eeglog and eeg.eeglog.up files, located in the main session directory. Ephys sync pulses are identified
-        from either a .D255, .DI15, or .DIN1 file located in the eeg.noreref directory. A linear regression is run on
-        the behavioral and ephys sync pulse times in order to calculate the EEG sample number that corresponds to each
-        behavioral event. The events structure is then updated with this information.
+        from event channels within the EEG recording. A linear regression is run on the behavioral and ephys sync pulse 
+        times in order to calculate the EEG sample number that corresponds to each behavioral event. The events 
+        structure is then updated with this information.
 
         :return: The updated events structure, now filled with eegfile and eegoffset information.
         """
-
-
-        if self.events.shape == () or self.sample_rate is None:
+        # Skip alignment if there are no events or no sync pulse logs
+        if self.events.shape == () or len(self.eeg_files) == 0:
             logger.warn('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events
 
@@ -94,18 +80,28 @@ class LTPAligner:
             logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
-        for basename in self.root_names:
+        # Align each EEG file
+        for i, basename in enumerate(self.root_names):
             logger.debug('Calculating alignment for recording, ' + basename)
-            # Reset ephys sync data
-            self.num_samples = -999
+
+            # Reset ephys sync pulse info and get the sample rate and length of recording for the current file
+            self.num_samples = self.raws[i].n_times
+            self.sample_rate = self.raws[i].info['sfreq']
             self.pulses = None
             self.ephys_ms = None
 
-            # Determine which sync pulse file to use and get the indices of the samples that contain sync pulses
-            self.get_ephys_sync(basename)
-            if self.pulses is None:
-                logger.warn('No sync pulse file could be found. Unable to align behavioral and EEG data.')
-                return self.events
+            # Get the sample numbers of all sync pulses in the EEG recording
+            self.pulses = mne.find_events(self.raws[i])[:, 0]
+
+            # Skip alignment for any EEG files with no sync pulses
+            logger.debug('%d sync pulses were detected.' % len(self.pulses))
+            if len(self.pulses) == 0:
+                logger.warn('No sync pulses were detected in %s. Unable to align behavioral and EEG data.' % basename)
+                continue
+
+            # Convert the sample numbers of all sync pulses to the number of ms since start of recording
+            self.ephys_ms = self.pulses * 1000. / self.sample_rate
+            self.ephys_ms = self.ephys_ms.astype(int)
 
             # Calculate the eeg offset for each event using PTSA's alignment system
             logger.debug('Calculating EEG offsets...')
@@ -132,34 +128,6 @@ class LTPAligner:
                 logger.warn('Unable to align events with EEG data!')
 
         return self.events
-
-    def get_ephys_sync(self, name):
-        """
-        Determines which type of sync pulse file to use for alignment when multiple are present. When this is the case,
-        .D255 files take precedence, followed by .DI15, and then .DIN1 files. Once the correct sync file has been found,
-        extract the indices of the samples that contain sync pulses, then calculate the mstimes of the pulses using
-        the sample rate.
-        """
-        logger.debug('Acquiring EEG sync pulses...')
-        if not hasattr(self.pulse_files, '__iter__'):
-            self.pulse_files = [self.pulse_files]
-        for file_type in ('.Status', '.D255', '.DI15', '.DIN1'):
-            for f in self.pulse_files:
-                if f.startswith(name) and f.endswith(file_type):
-                    pulse_sync_file = f
-                    eeg_samples = np.fromfile(os.path.join(self.noreref_dir, pulse_sync_file), self.data_fmt)
-                    self.num_samples = len(eeg_samples)
-                    self.pulses = np.where(eeg_samples > 0)[0]
-                    self.ephys_ms = self.pulses * 1000. / self.sample_rate
-                    self.ephys_ms = self.ephys_ms.astype(int)
-
-                    # Remove sync pulse samples that occurred less than 100 ms after the preceding pulse sample.
-                    # This ensures that only the first sample of each pulse is counted. (Pulses last several samples)
-                    mask = np.where(np.diff(self.ephys_ms) < 100)[0] + 1
-                    self.ephys_ms = np.delete(self.ephys_ms, mask)
-                    self.pulses = np.delete(self.pulses, mask)
-                    logger.debug('Done.')
-                    return
 
     def get_behav_sync(self):
         """
