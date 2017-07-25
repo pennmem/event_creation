@@ -132,9 +132,8 @@ files:
     multiple: true
     origin_directory: *LTP_EEG_DIR
     origin_file:
-      - '*.raw.bz2'
       - '*.bdf.bz2'
-      - '*_NEVER_EXPORTED.mff'
+      - '*.mff'
     destination: raw_eeg/
 
   - name: artifact_log
