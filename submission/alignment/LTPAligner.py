@@ -23,8 +23,8 @@ class LTPAligner:
         DATA FIELDS:
         behav_files: The list of sync pulse logs from the behavioral computer (eeg.eeglog, eeg.eeglog.up).
         eeg_files: The list of EEG files recorded during the session (assumed to be _raw.fif files)
-        basenames: A list containing the basename of each EEG recording (designed for cases with multiple recordings
-        from a single session).
+        eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with multiple 
+        recordings from a single session).
         num_samples: The number of EEG samples in the current EEG recording.
         sample_rate: The sample rate of the current EEG recording.
         pulses: A numpy array containing the indices of EEG samples that contain sync pulses.
@@ -39,11 +39,9 @@ class LTPAligner:
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*_raw.fif'))
-        self.basenames = []
-        self.raws = []
+        self.eeg = {}
         for f in self.eeg_files:
-            self.basenames.append(os.path.splitext(os.path.basename(f))[0])
-            self.raws.append(mne.io.read_raw_fif(f, preload=False))
+            self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_fif(f, preload=True)
 
         self.num_samples = None
         self.sample_rate = None
@@ -81,17 +79,17 @@ class LTPAligner:
             return self.events
 
         # Align each EEG file
-        for i, basename in enumerate(self.root_names):
+        for basename in self.eeg:
             logger.debug('Calculating alignment for recording, ' + basename)
 
             # Reset ephys sync pulse info and get the sample rate and length of recording for the current file
-            self.num_samples = self.raws[i].n_times
-            self.sample_rate = self.raws[i].info['sfreq']
+            self.num_samples = self.eeg[basename].n_times
+            self.sample_rate = self.eeg[basename].info['sfreq']
             self.pulses = None
             self.ephys_ms = None
 
             # Get the sample numbers of all sync pulses in the EEG recording
-            self.pulses = mne.find_events(self.raws[i])[:, 0]
+            self.pulses = mne.find_events(self.eeg[basename])[:, 0]
 
             # Skip alignment for any EEG files with no sync pulses
             logger.debug('%d sync pulses were detected.' % len(self.pulses))
