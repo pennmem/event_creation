@@ -35,6 +35,8 @@ class System3Aligner(object):
         self.events = events
         self.session_attrs={prop:events[0][prop] for prop in ['protocol','session','experiment','subject','montage']}
         self.session_attrs['files'] = files
+
+        self.residuals =  []
         # vocalization_events = VocalizationParser(**session_attrs).parse()
         # if vocalization_events.shape:
         #     self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
@@ -129,7 +131,16 @@ class System3Aligner(object):
             ends.append(froms[-1])
 
             self.plot_fit(froms, tos, coefs[-1], '.', 'fit_{}_{}_{}'.format(from_label,to_label,i))
-            self.check_fit(froms, tos, coefs[-1])
+            residuals = self.check_fit(froms, tos, coefs[-1])
+
+            if from_label == 'orig_timestamp':
+                for time,residue in zip(froms,residuals):
+                    at_time = self.events['mstime']==time
+                    if at_time.any():
+                        new_event = self.events[at_time]
+                        new_event['msoffset'] = int(residue)
+                        self.events[at_time] = new_event
+
 
         if len(coefs) == 0:
             raise AlignmentError("Could not find enough events to determine coefficients!")
@@ -239,9 +250,7 @@ class System3Aligner(object):
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
             ))
-            raise AlignmentError(
-                "Maximum residual of fit ({}) "
-                "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+        return residuals
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
         """
