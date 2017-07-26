@@ -149,11 +149,18 @@ class HD5_reader(EEG_reader):
             return self.h5file.root.timeseries.shape[1]
 
     def _split_data(self, location, basename):
+        time_series = self.h5file.get_node('/','timeseries').read()
+        if self.by_row:
+            time_series = time_series.T
+        if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
+            transform = self.h5file.get_node('bipolar_to_monopolar_matrix').read()
+            time_series = np.dot(transform,time_series)
         ports = self.h5file.root.ports
         for i, port in enumerate(ports):
             filename = os.path.join(location, basename + ('.%03d' % port))
-            data = self.h5file.root.timeseries[:,i] if self.by_row else self.h5file.root.timeseries[i, :]
+            data = time_series[i]
             logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
+            logger.debug('len(data):%s'%len(data))
             data.tofile(filename)
 
 
