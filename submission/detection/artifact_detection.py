@@ -234,7 +234,7 @@ class ArtifactDetector:
 
             # Get an events x channels x samples array containing the data from all good EEG channels during all word
             # presentation events
-            pres_data = ev_data['pres'].pick_channels().get_data()
+            pres_data = ev_data['pres'].pick_channels(chans_to_use).get_data()
 
             # Calculate mean and standard deviation of voltage in good channels during presentation events. This will
             # be used for calculating the artifact threshold
