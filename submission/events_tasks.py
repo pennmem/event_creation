@@ -229,12 +229,12 @@ class EventCreationTask(PipelineTask):
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         unaligned_events = parser.parse()
         if self.protocol == 'ltp':
+            # Scalp Lab alignment and artifact detection
             eeglog = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
             aligner = LTPAligner(unaligned_events, eeglog, ephys_dir)
             events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.root_names, aligner.noreref_dir,
-                                                 aligner.reref_dir)
+            artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
             try:
                 events = artifact_detector.run()
             except Exception:
