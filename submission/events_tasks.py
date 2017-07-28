@@ -88,13 +88,9 @@ class SplitEEGTask(PipelineTask):
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
                 bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
                 np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
-                # Calculate common average reference and save it to a file
-                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
 
-            # Detect EGI channel files
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
-            # Detect Biosemi channel files
-            num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
+            # Detect post-processed EEG file
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*_raw.fif')))
         else:
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
