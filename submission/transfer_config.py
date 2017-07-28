@@ -256,7 +256,11 @@ class TransferFile(object):
                 contents.append(os.path.basename(filename))
         else:
             for filename in self.origin_paths:
-                contents.append(open(filename).read())
+                if filename.endswith('.mff'):
+                    # JPazdera: Added this to condition to prevent .mff EEG packages from being opened as files
+                    contents.append(os.path.basename(filename))
+                else:
+                    contents.append(open(filename).read())
 
         for file in self.files.values():
             contents.extend(file.contents_to_check())
