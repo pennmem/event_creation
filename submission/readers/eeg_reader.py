@@ -971,6 +971,9 @@ class ScalpReader(EEG_reader):
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
         """
+        # Remove the noreref dir from the output location automatically created by EEG_reader.split_data()
+        location = os.path.dirname(location) if os.path.basename(location) == 'noreref' else location
+
         # Load data if we have not already done so
         if self.data is None:
             self.get_data()
