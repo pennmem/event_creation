@@ -525,7 +525,7 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
         CorrectCoordinatesTask(subject, localization,overwrite=False,critical=False),
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization,critical=False),
-        AddManualLocalizationsTask(subject,localization),
+        AddManualLocalizationsTask(subject,localization,critical=False),
         WriteFinalLocalizationTask()
 
     ]
