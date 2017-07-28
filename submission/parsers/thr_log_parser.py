@@ -50,9 +50,7 @@ class THSessionLogParser(BaseSessionLogParser):
         super(THSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                  primary_log='treasure_par',
                                                  include_stim_params=True, allow_unparsed_events=True)
-        
-        # remove msoffset field because it does not exist in the TH log
-        self._fields = tuple([x for x in self._fields if x[0] != 'msoffset'])
+
         self._log_header = ''
         self._trial = -999
         self._serialpos = -999
