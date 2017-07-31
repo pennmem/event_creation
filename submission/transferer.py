@@ -213,6 +213,11 @@ def find_sync_file(subject, experiment, session):
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]
     # Now look for the exp_# anywhere in the basename
+    sync_pattern = os.path.join(noreref_dir, '*_{exp}_{sess}_*.sync.txt'.format(exp=experiment, sess=session))
+    sync_files = glob.glob(sync_pattern)
+    if len(sync_files) == 1:
+        return noreref_dir, sync_files[0]
+
     sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}_*.sync.txt'.format(exp=experiment, sess=session))
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:

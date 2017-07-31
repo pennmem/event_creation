@@ -364,8 +364,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     code = code or subject
 
     try:
-        kwargs['sync_folder'], kwargs['sync_filename'] = \
-            find_sync_file(code, experiment, original_session)
+        kwargs['sync_folder'], kwargs['sync_filename'] = find_sync_file(code, experiment, original_session)
     except:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
