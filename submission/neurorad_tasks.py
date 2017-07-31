@@ -68,7 +68,7 @@ class CorrectCoordinatesTask(PipelineTask):
                                               overwrite=self.overwrite)
         Torig = self.pipeline.retrieve_object('Torig')
         Norig = self.pipeline.retrieve_object('Norig')
-        calculate_transformation.invert_transformed_coords(localization,Torig,Norig)
+        calculate_transformation.invert_transformed_coords(localization,Torig,Norig,files['tal_xfm'])
 
 class AddContactLabelsTask(PipelineTask):
 

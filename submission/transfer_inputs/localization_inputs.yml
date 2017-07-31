@@ -48,7 +48,6 @@ files:
 
   - name: mni_loc
     << : *FILE
-    required: false
     origin_directory: *IMAGING_SUBJ_DIR
     origin_file: 'electrodenames_coordinates_mni.csv'
     destination: 'coordinates_mni.csv'
@@ -56,7 +55,6 @@ files:
   - name: coords_t1
     << : *FILE
     origin_directory: *IMAGING_SUBJ_DIR
-    required: false
     origin_file: 'electrodenames_coordinates_native_and_T1.csv'
     destination: 'coordinates_native_and_t1.csv'
 
