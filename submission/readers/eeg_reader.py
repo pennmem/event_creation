@@ -153,7 +153,7 @@ class HD5_reader(EEG_reader):
         if self.by_row:
             time_series = time_series.T
         if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
-            transform = self.h5file.get_node('bipolar_to_monopolar_matrix').read()
+            transform = self.h5file.get_node('/', 'bipolar_to_monopolar_matrix').read()
             time_series = np.dot(transform,time_series)
         ports = self.h5file.root.ports
         for i, port in enumerate(ports):
