@@ -59,7 +59,11 @@ class System3LogParser(object):
         stim_events = self._empty_event()
         for i, (log, electrode_config_file) in enumerate(zip(event_logs, electrode_config_files)):
             electrode_config = ElectrodeConfig(electrode_config_file)
-            event_dict = json.load(open(log))['events']
+
+            # This is necessary because v3.1.7 stores Odin status messages as
+            # events and improperly doesn't have the right key. In later
+            # verisons, this is fixed to store Odin status messages elsewhere.
+            event_dict = [event for event in json.load(open(log))['events'] if self._LABEL_FIELD in event]
 
             stim_dicts = [event for event in event_dict if event[self._LABEL_FIELD]==self._STIM_LABEL]
 
