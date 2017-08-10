@@ -58,6 +58,7 @@ files:
   - name: mni_loc
     << : *FILE
     origin_directory: *IMAGING_SUBJ_DIR
+    required: false
     origin_file: 'electrodenames_coordinates_mni.csv'
     destination: 'coordinates_mni.csv'
 

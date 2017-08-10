@@ -407,13 +407,13 @@ def run_montage_import(kwargs, force=False):
     success, importers = attempt_importers([importer], force)
     return success, ImporterCollection(importers)
 
-def run_localization_import(kwargs, force=False):
+def run_localization_import(kwargs, force=False,force_dykstra=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
     localization_kwargs = {k:kwargs[k] for k in ['subject','protocol','localization','code']}
 
-    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **localization_kwargs)
-    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **localization_kwargs)
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra,**localization_kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False,force_dykstra=force_dykstra,**localization_kwargs)
     montage_importer  =Importer(Importer.CREATE_MONTAGE,**kwargs)
     success, importers = attempt_importers([new_importer, old_importer], force)
     used_importers = []
@@ -951,7 +951,7 @@ if __name__ == '__main__':
                 print("Import aborted! Exiting.")
                 exit(0)
         print("Importing localization")
-        success, importer = run_localization_import(inputs, config.force_localization)
+        success, importer = run_localization_import(inputs, config.force_localization,config.force_dykstra)
         print('Success:' if success else 'Failed')
         print(importer.describe())
         exit(0)

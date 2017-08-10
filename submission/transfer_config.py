@@ -312,6 +312,9 @@ class TransferFile(object):
 
         logger.debug("Locating {}".format(self.name))
 
+        if self.name == 'vertices':
+            pass
+
         containing_directory = self.origin_containing_directory(root)
 
         if self.type == 'link':

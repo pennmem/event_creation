@@ -61,8 +61,9 @@ usage: convenience.py [-h] [--debug] [--montage-only] [--change-experiment]
 optional arguments:
   -h, --help           show this help message and exit
   --debug              Prints debug information to terminal during execution
-  --montage-only       Imports a localization or montage instead of importing
+  --montage-only       Imports a montage instead of importing
                        events
+  --localization-only  Imports a localization instead of importing events
   --change-experiment  Signals that the name of the experiment changes on
                        import. Defaults to true for PS* behavioral
   --change-session     Signals that the session number changes on import
@@ -73,6 +74,9 @@ optional arguments:
   --force-events       Forces events creation even if no changes have occurred
   --force-eeg          Forces eeg splitting even if no changes have occurred
   --force-montage      Forces montage change even if no changes have occurred
+  --force-localization Forces localization change even if no changes have occurred
+                       (Note: will *NOT* rerun Dykstra correction)
+  --force-dykstra      When re-running localization, also rerun Dykstra correction
   --clean-only         ONLY cleans the database. Removes empty folders and
                        folders without processed equivalent
   --aggregate-only     ONLY aggreate index files. Run if any paths have been
