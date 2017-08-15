@@ -17,7 +17,7 @@ git submodule update
 ```
 This will initialize and check out the neurorad submodule.
 
-After installatino, the necessary dependencies must be installed.
+After installation, the necessary dependencies must be installed.
 The easiest way to install the necessary python packages is with conda.
 
 The file conda_environment.yml specifies the packages necessary for 
@@ -25,10 +25,6 @@ execution. Create the new environment with
 `conda env create -f conda_environment.yml` .
 
 Note that this will create a new environment titled `event_creation`. 
-
-The only additional package necessary for execution not installed by 
-conda is ptsa: https://github.com/maciekswat/ptsa_new. 
-
 
 ## Use
 
@@ -54,10 +50,11 @@ Submission accepts a number of command-line options, viewable with
 usage: convenience.py [-h] [--debug] [--montage-only] [--change-experiment]
                       [--change-session] [--allow-convert] [--force-convert]
                       [--force-events] [--force-eeg] [--force-montage]
+                      [--force-localization] [--force-dykstra]
                       [--clean-only] [--aggregate-only] [--do-compare]
                       [--json JSON_FILE] [--build-db DB_NAME] [--view-only]
                       [--show-plots] [--set-input INPUTS] [--path PATHS]
-
+s
 optional arguments:
   -h, --help           show this help message and exit
   --debug              Prints debug information to terminal during execution
