@@ -43,6 +43,7 @@ class CalculateTransformsTask(PipelineTask):
         Torig,Norig,talxfm = calculate_transformation.insert_transformed_coordinates(localization, files)
         self.pipeline.store_object('Torig',Torig)
         self.pipeline.store_object('Norig',Norig)
+        self.pipeline.store_object('talxfm',talxfm)
 
 
 class CorrectCoordinatesTask(PipelineTask):
