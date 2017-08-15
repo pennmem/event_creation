@@ -40,7 +40,7 @@ class CalculateTransformsTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization = self.pipeline.retrieve_object('localization')
-        Torig,Norig = calculate_transformation.insert_transformed_coordinates(localization, files)
+        Torig,Norig,talxfm = calculate_transformation.insert_transformed_coordinates(localization, files)
         self.pipeline.store_object('Torig',Torig)
         self.pipeline.store_object('Norig',Norig)
 
@@ -68,7 +68,9 @@ class CorrectCoordinatesTask(PipelineTask):
                                               overwrite=self.overwrite)
         Torig = self.pipeline.retrieve_object('Torig')
         Norig = self.pipeline.retrieve_object('Norig')
-        calculate_transformation.invert_transformed_coords(localization,Torig,Norig,files['tal_xfm'])
+        talxfm = self.pipeline.retrieve_object('talxfm')
+        calculate_transformation.invert_transformed_coords(localization,Torig,Norig,talxfm)
+
 
 class AddContactLabelsTask(PipelineTask):
 
@@ -82,6 +84,7 @@ class AddContactLabelsTask(PipelineTask):
 
         logger.info("Adding Autoloc")
         add_locations.add_autoloc(files, localization)
+
 
 class AddMNICoordinatesTask(PipelineTask):
 
