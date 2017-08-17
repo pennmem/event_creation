@@ -3,7 +3,7 @@ import json
 from neurorad.json_cleaner import clean_json_dumps
 
 from neurorad.localization import Localization
-from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct
+from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface
 
 from .log import logger
 from .tasks import PipelineTask
@@ -29,6 +29,21 @@ class LoadVoxelCoordinatesTask(PipelineTask):
         localization = Localization(vox_file)
 
         self.pipeline.store_object('localization', localization)
+
+
+class CreateDuralSurfaceTask(PipelineTask):
+    def __init__(self,subject,localization,critical=False):
+        super(CreateDuralSurfaceTask, self).__init__(critical=critical)
+        self.name='Creating Dural Surface for {}, loc {}'.format(subject,localization)
+
+    def run(self, files, db_folder):
+        logger.set_label(self.name)
+        for side in ['left','right']:
+            dural_file = '%s_dural'%side
+            pial_file = '%s_pial'%side
+            if dural_file not in files:
+                logger.info('Constructing %s dural surface'%side)
+                make_outer_surface.make_smoothed_surface(files[pial_file])
 
 
 class CalculateTransformsTask(PipelineTask):
