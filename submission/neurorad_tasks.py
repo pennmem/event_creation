@@ -39,11 +39,12 @@ class CreateDuralSurfaceTask(PipelineTask):
     def run(self, files, db_folder):
         logger.set_label(self.name)
         for side in ['left','right']:
-            dural_file = '%s_dural'%side
+            dural_side = '%s_dural'%side
             pial_file = '%s_pial'%side
-            if dural_file not in files:
+            if dural_side not in files:
                 logger.info('Constructing %s dural surface'%side)
-                make_outer_surface.make_smoothed_surface(files[pial_file])
+                dural_file = make_outer_surface.make_smoothed_surface(files[pial_file])
+                files[dural_side] = dural_file
 
 
 class CalculateTransformsTask(PipelineTask):
