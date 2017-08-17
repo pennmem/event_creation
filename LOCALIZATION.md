@@ -6,6 +6,7 @@
 ```
 git clone https://github.com/pennmem/event_creation.git -b create_montage
 ```
+This will clone the repository into a directory named `event_creation`.
 2. Initialize the `neurorad` submodule:
 ```
 cd event_creation
