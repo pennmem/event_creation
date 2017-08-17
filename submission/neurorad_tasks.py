@@ -36,7 +36,7 @@ class CreateDuralSurfaceTask(PipelineTask):
         super(CreateDuralSurfaceTask, self).__init__(critical=critical)
         self.name='Creating Dural Surface for {}, loc {}'.format(subject,localization)
 
-    def run(self, files, db_folder):
+    def _run(self, files, db_folder):
         logger.set_label(self.name)
         for side in ['left','right']:
             dural_side = '%s_dural'%side
