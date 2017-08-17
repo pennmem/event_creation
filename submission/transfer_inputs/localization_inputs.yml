@@ -125,6 +125,7 @@ files:
 
       - name: left_dural
         <<: *FILE
+        required: False
         groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'lh.pial-outer-smoothed'
@@ -132,6 +133,7 @@ files:
 
       - name: right_dural
         <<: *FILE
+        required: False
         groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'rh.pial-outer-smoothed'
