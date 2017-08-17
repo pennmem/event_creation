@@ -2,9 +2,9 @@
 #### (A Quick Guide)
 
 # Installation
-1. Clone the `event_creation` repository:
+1. Clone the `create_montage` branch of the `event_creation` repository:
 ```
-git clone https://github.com/pennmem/event_creation.git
+git clone https://github.com/pennmem/event_creation.git -b create_montage
 ```
 2. Initialize the `neurorad` submodule:
 ```
