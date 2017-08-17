@@ -6,7 +6,7 @@
 ```
 git clone https://github.com/pennmem/event_creation.git
 ```
-2. Initialize the `neurorad` submodule [1]:
+2. Initialize the `neurorad` submodule:
 ```
 cd event_creation
 git submodule init
@@ -40,12 +40,3 @@ the `RAM_maint` account and wish to run the pipeline, you will need to
 change the database directory, which is set in the file
 `submission/configuration/config.yml` and is controlled by the
 `db_root` setting.
-
-
-
-
-
-
-
-
-[1] Thanks, Isaac
