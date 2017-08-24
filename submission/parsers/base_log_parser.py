@@ -260,7 +260,7 @@ class BaseLogParser(object):
 
         # Read the annotation file, getting everything that matches the regular expression
         ann_file = self._ann_files[ann_id]
-        lines = open(ann_file, 'r').readlines()
+        lines = codecs.open(ann_file,encoding='latin1').readlines()
         matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
 
         # Remove events with rectimes greater than 10 minutes, because they're probably a mistake
