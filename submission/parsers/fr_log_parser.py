@@ -278,7 +278,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         return self.event_default(split_line)
 
     def event_word(self, split_line):
-        self._word = strip_accents(split_line[4])
+        self._word = strip_accents(split_line[4]).encode('utf8')
         self._serialpos = int(split_line[5]) + 1
         event = self.event_default(split_line)
         event = self.apply_word(event)
