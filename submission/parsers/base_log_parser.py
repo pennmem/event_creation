@@ -517,7 +517,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     def _read_sql_log(log):
         conn = sqlite3.connect(log)
         query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query, conn).msg.values]
+        msgs = [json.loads(codecs.decode(msg,encoding='utf8')) for msg in pd.read_sql_query(query, conn).msg.values]
         conn.close()
         return msgs
 
