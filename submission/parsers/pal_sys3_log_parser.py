@@ -177,7 +177,7 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
             new_event.RT = recall[0]
             new_event.mstime = rec_start_time + recall[0]
             new_event.msoffset = 20
-            self._correct = 1 if word == self._expecting_word and word != self._probe_word else 0
+            self._correct = 1 if self._expecting_word==word and self._probe_word != word else 0
             new_event.correct = self._correct
             new_event.resp_pass = 0
             new_event.intrusion = 0
