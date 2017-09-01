@@ -123,22 +123,6 @@ files:
         origin_file: 'lh.pial'
         destination: 'lh.pial'
 
-      - name: left_dural
-        <<: *FILE
-        required: False
-        groups: [ 'old' ]
-        origin_directory: ''
-        origin_file: 'lh.pial-outer-smoothed'
-        destination: 'lh.pial-outer-smoothed'
-
-      - name: right_dural
-        <<: *FILE
-        required: False
-        groups: [ 'old' ]
-        origin_directory: ''
-        origin_file: 'rh.pial-outer-smoothed'
-        destination: 'rh.pial-outer-smoothed'
-
   - name: labels
     <<: *DIR
     groups: ['old']
