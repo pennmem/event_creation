@@ -134,10 +134,25 @@ class WriteFinalLocalizationTask(PipelineTask):
         localization = self.pipeline.retrieve_object('localization')
 
         logger.info("Writing localization.json file")
-        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', False)
+        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', True)
 
 
 class CreateMontageTask(PipelineTask):
+
+    FIELD_NAMES_TABLE = {
+        'fs':'indiv',
+        'fsaverage':'tal',
+        'mni':'mni',
+        'ct_voxel':'vox',
+    }
+
+    ATLAS_NAMES_TABLE = {
+        'dk':'indiv',
+        'whole_brain':'mni',
+    }
+
+
+
     def __init__(self,subject,localization,montage,critical=True):
         super(CreateMontageTask, self).__init__(critical=critical)
         self.subject=subject
@@ -190,25 +205,30 @@ class CreateMontageTask(PipelineTask):
     def build_contacts_dict(self,db_folder):
         contacts = {}
         leads = self.localization['leads']
-        types  = {}
         for lead in leads:
-            contacts.update(
-                {x['name'].upper():x for x in leads[lead]['contacts']}
-            )
-            types.update({x['name'].upper():leads[lead]['type'] for x in leads[lead]['contacts']})
-
-        for contact in contacts.keys():
-            try:
-                contacts[contact]['channel'] = self.labels_to_nums[contact.upper()]
-                contacts[contact]['type'] = types[contact.upper()]
-            except KeyError:
-                logger.info('Contact %s not found in jacksheet' % contact)
-                contacts[contact] = {}
-                del contacts[contact]
-        contact_labels = [x.upper() for x in contacts]
-        for label in self.labels_to_nums:
-            if label not in contact_labels:
-                logger.info('Contact %s not found in localization'%label)
+            for contact in leads[lead]['contacts']:
+                atlas_dict = {}
+                for k,v in self.FIELD_NAMES_TABLE.items():
+                    try:
+                        coords = contact['coordinate_spaces'][k]['corrected']
+                    except KeyError:
+                        coords  = contact['coordinate_spaces'][k]['raw']
+                    for i,axis in enumerate(['x','y','z']):
+                        atlas_dict[v][axis] = coords[i]
+                        atlas_dict['region']=None
+                for k,v in self.ATLAS_NAMES_TABLE.items():
+                    atlas_dict[v]['region'] = contact['atlases'][k]
+                try:
+                    contact_dict = {
+                        'atlases':atlas_dict,
+                        'channel':self.labels_to_nums[contact['name']],
+                        'code':contact['name'],
+                        'type':leads[lead]['type']
+                    }
+                except KeyError:
+                    logger.info('Contact %s not found in jacksheet' % contact)
+                    continue
+                contacts[contact['name']]=contact_dict
         self.contacts_dict[self.subject] = {'contacts':contacts}
         self.create_file(os.path.join(db_folder,'contacts.json'),
                          clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
