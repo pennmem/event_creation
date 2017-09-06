@@ -127,6 +127,14 @@ class HD5_reader(EEG_reader):
         return self._h5file
 
     @property
+    def bipolar(self):
+        return 'bipolar' in self.h5file.root.timeseries.attrs and self.h5file.root.timeseries.attrs['bipolar']==True
+
+    @property
+    def should_split(self):
+        return not self.bipolar
+
+    @property
     def by_row(self):
          return 'orient' in self.h5file.root.timeseries.attrs and  self.h5file.root.timeseries.attrs['orient']=='row'
 
@@ -149,19 +157,24 @@ class HD5_reader(EEG_reader):
             return self.h5file.root.timeseries.shape[1]
 
     def _split_data(self, location, basename):
-        time_series = self.h5file.get_node('/','timeseries').read()
-        if self.by_row:
-            time_series = time_series.T
-        if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
-            transform = self.h5file.get_node('/', 'bipolar_to_monopolar_matrix').read()
-            time_series = np.dot(transform,time_series).astype(self.DATA_FORMAT)
-        ports = self.h5file.root.ports
-        for i, port in enumerate(ports):
-            filename = os.path.join(location, basename + ('.%03d' % port))
-            data = time_series[i]
-            logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
-            logger.debug('len(data):%s'%len(data))
-            data.tofile(filename)
+        if self.should_split:
+            time_series = self.h5file.get_node('/','timeseries').read()
+            if self.by_row:
+                time_series = time_series.T
+            if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
+                transform = self.h5file.get_node('/', 'bipolar_to_monopolar_matrix').read()
+                time_series = np.dot(transform,time_series).astype(self.DATA_FORMAT)
+            ports = self.h5file.root.ports
+            for i, port in enumerate(ports):
+                filename = os.path.join(location, basename + ('.%03d' % port))
+                data = time_series[i]
+                logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
+                logger.debug('len(data):%s'%len(data))
+                data.tofile(filename)
+        else:
+            filename= os.path.join(location,basename+'.h5')
+            logger.debug('Moving HD5 file')
+            copy(self.raw_filename,filename)
 
 
 class NK_reader(EEG_reader):
