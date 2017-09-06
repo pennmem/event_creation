@@ -258,23 +258,6 @@ def attempt_importers(importers, force):
     return success, importers[:i+1]
 
 
-def run_wav_import(kwargs,force=False):
-    """
-    :param kwargs:
-    :return: (success [t/f], attempted pipelines)
-    """
-    # logger.set_label('.wav Importer')
-    # logger.set_subject(kwargs['subject'],kwargs['protocol'])
-    # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
-    # success, importers = attempt_importers([wav_importer],force)
-    # if not success:
-    #     logger.info('.wav transfer failed')
-    #     wav_importer.remove()
-    # else:
-    #     return success,ImporterCollection(importers)
-    raise NotImplementedError
-
-
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
     """
     :param kwargs:
@@ -400,11 +383,13 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 
 
 def run_montage_import(kwargs, force=False):
+
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
+    importer0 = Importer(Importer.CREATE_MONTAGE,**kwargs)
 
-    importer = Importer(Importer.CONVERT_MONTAGE, **kwargs)
-    success, importers = attempt_importers([importer], force)
+    importer1 = Importer(Importer.CONVERT_MONTAGE, **kwargs)
+    success, importers = attempt_importers([importer0,importer1], force)
     return success, ImporterCollection(importers)
 
 def run_localization_import(kwargs, force=False,force_dykstra=False):
@@ -414,17 +399,8 @@ def run_localization_import(kwargs, force=False,force_dykstra=False):
 
     new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra,**localization_kwargs)
     old_importer = Importer(Importer.LOCALIZATION, is_new=False,force_dykstra=force_dykstra,**localization_kwargs)
-    montage_importer  =Importer(Importer.CREATE_MONTAGE,**kwargs)
     success, importers = attempt_importers([new_importer, old_importer], force)
-    used_importers = []
-    if success:
-        used_importers.extend([importer for importer in importers if not importer.errored])
-        montage_success,importers = attempt_importers([montage_importer],force)
-        success = success and montage_success
-        used_importers.extend(importers)
-    else:
-        used_importers = importers
-    return success, ImporterCollection(used_importers)
+    return success, ImporterCollection(importers)
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -964,19 +940,15 @@ if __name__ == '__main__':
 
     inputs = prompt_for_session_inputs(**config.options)
 
-    if config.wav_only:
-        print 'Importing .wav files'
-        success,importers = run_wav_import(inputs)
 
-    else:
-        if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
-            if not confirm('{subject} {new_experiment} session {session} already exists. '
-                           'Continue and overwrite? '.format(**inputs)):
-                print('Import aborted! Exiting.')
-                exit(0)
-        print('Importing session')
-        success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
-                                            config.force_eeg)
+    if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
+        if not confirm('{subject} {new_experiment} session {session} already exists. '
+                       'Continue and overwrite? '.format(**inputs)):
+            print('Import aborted! Exiting.')
+            exit(0)
+    print('Importing session')
+    success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
+                                        config.force_eeg)
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
