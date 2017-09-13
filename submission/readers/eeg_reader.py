@@ -128,7 +128,7 @@ class HD5_reader(EEG_reader):
 
     @property
     def bipolar(self):
-        return 'bipolar' in self.h5file.root.timeseries.attrs and self.h5file.root.timeseries.attrs['bipolar']==True
+        return 'monopolar_possible' in self.h5file.root and self.h5file.root.monopolar_possible[:]==False
 
     @property
     def should_split(self):
@@ -156,13 +156,19 @@ class HD5_reader(EEG_reader):
         else:
             return self.h5file.root.timeseries.shape[1]
 
+    def write_sources(self, location, basename):
+        if self.should_split:
+            super(HD5_reader, self).write_sources(location,basename)
+        else:
+            super(HD5_reader, self).write_sources(location,basename+'.h5')
+
     def _split_data(self, location, basename):
         if self.should_split:
             time_series = self.h5file.get_node('/','timeseries').read()
             if self.by_row:
                 time_series = time_series.T
-            if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
-                transform = self.h5file.get_node('/', 'bipolar_to_monopolar_matrix').read()
+            if 'bipolar_to_monopolar_matrix' in self.h5file.root:
+                transform = self.h5file.root.bipolar_to_monopolar_matrix.read()
                 time_series = np.dot(transform,time_series).astype(self.DATA_FORMAT)
             ports = self.h5file.root.ports
             for i, port in enumerate(ports):
