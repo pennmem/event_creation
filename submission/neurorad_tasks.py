@@ -213,6 +213,7 @@ class CreateMontageTask(PipelineTask):
                         coords = contact['coordinate_spaces'][k]['corrected']
                     except KeyError:
                         coords  = contact['coordinate_spaces'][k]['raw']
+                    atlas_dict[v] = {}
                     for i,axis in enumerate(['x','y','z']):
                         atlas_dict[v][axis] = coords[i]
                         atlas_dict['region']=None
