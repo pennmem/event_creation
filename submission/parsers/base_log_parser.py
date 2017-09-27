@@ -510,9 +510,26 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
+
     # TODO: ADD LOGIC TO CONTROL WHETHER SESSION.SQLITE OR SESSION.LOG IS USED?
     # TODO: DECIDE WHETHER SESSION.LOG IS USABLE -- NOT ALWAYS CONSISTENT WITH SESSION.SQLITE
     #    AND THE INCONSISTENCIES ARE PROBLEMATIC
+    def parse(self):
+        try:
+            return super(BaseSys3_1LogParser, self).parse()
+        except Exception as exc:
+            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s'%(str(type(exc)),exc.message))
+            if self._files.get('session_log_txt'):
+                logger.warn('Parsing session.log instead')
+
+                self._contents = self._read_session_log(self._files['session_log_txt'])
+                return super(BaseSys3_1LogParser, self).parse()
+            else:
+                raise exc
+
+
+
+
     @staticmethod
     def _read_sql_log(log):
         conn = sqlite3.connect(log)
