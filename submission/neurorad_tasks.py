@@ -3,8 +3,7 @@ import json
 from neurorad.json_cleaner import clean_json_dumps
 
 from neurorad.localization import Localization
-from neurorad import vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface
-
+from neurorad import (vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface)
 from .log import logger
 from .tasks import PipelineTask
 
@@ -45,6 +44,25 @@ class CreateDuralSurfaceTask(PipelineTask):
                 logger.info('Constructing %s dural surface'%side)
                 dural_file = make_outer_surface.make_smoothed_surface(files[pial_file])
                 files[dural_side] = dural_file
+
+class GetFsAverageCoordsTask(PipelineTask):
+
+    def __init__(self,subject,localization,critical=False):
+        super(GetFsAverageCoordsTask, self).__init__(critical)
+        self.name = 'Find FSAverage coordinates {} loc: {}'.format(subject, localization)
+
+    def _run(self, files, db_folder):
+        logger.set_label(self.name)
+        localization  =self.pipeline.retrieve_object('localization')
+        subject_surf_dir = files['surf']
+        avg_surf_dir = files['avg_surf']
+        contacts = localization.get_contacts()
+        for coord_type in ('raw','corrected'):
+            fs_coords = localization.get_contact_coordinates('fs',contacts,coord_type)
+            fsaverage_coords = calculate_transformation.map_to_average_brain(fs_coords,subject_surf_dir,avg_surf_dir)
+            localization.set_contact_coordinates('fsaverage',contacts,fsaverage_coords,coord_type)
+
+
 
 
 class CalculateTransformsTask(PipelineTask):
