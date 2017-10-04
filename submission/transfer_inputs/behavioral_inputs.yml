@@ -319,6 +319,14 @@ files:
     - 'session.sqlite'
     destination: logs/session.sqlite
 
+  - name: session_log_txt
+    << : *FILE
+    groups: [transfer, verbal, system_3_1]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: 'session.log'
+    destination: logs/session.log
+
+
 
   ### LTP
 
