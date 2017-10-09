@@ -143,7 +143,22 @@ files:
         origin_directory: ''
         origin_file: 'rh.aparc.annot'
         destination: 'rh.aparc.annot'
+        
+      #Joel added below
+      - name: left_labels_hcp
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'lh.HCP-MMP1.annot'
+        destination: 'lh.HCP-MMP1.annot'
 
+      - name: right_labels_hcp
+        <<: *FILE
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'rh.HCP-MMP1.annot'
+        destination: 'rh.HCP-MMP1.annot'
+      #Joel added above
 
   - name: manual_loc
     <<: *FILE
