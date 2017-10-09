@@ -187,10 +187,10 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                     session_dict['original_experiment'] = 'PS21'
                 else:
                     session_dict['original_experiment'] = experiment
-            if (version >= 2):
-                session_dict['system_2'] = True
-            elif version > 0:
-                session_dict['system_1'] = True
+            # if (version >= 2):
+            #     session_dict['system_2'] = True
+            # elif version > 0:
+            #     session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][new_experiment][session] = session_dict
 
