@@ -954,7 +954,8 @@ class ScalpReader(EEG_reader):
         MNE's post-processing tools and saves the results to .fif files.
         
         :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the channel files (typically subj_DDMonYY_HHMM)
+        :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
+        be appended to the path for the EEG save file and "-ica.fif" will be appended to the path for the ICA save file.
         """
         # Remove the noreref dir from the output location automatically created by EEG_reader.split_data()
         location = os.path.dirname(location) if os.path.basename(location) == 'noreref' else location
@@ -967,11 +968,11 @@ class ScalpReader(EEG_reader):
         self.postprocess()
 
         # Save post-processed data to .fif file
-        raw_filename = os.path.join(location, basename + '_raw.fif')
+        raw_filename = os.path.join(location, basename + '-raw.fif')
         self.data.save(raw_filename, fmt='single')
 
         # Run ICA, mark bad components, and save ICA solution to file
-        ica_filename = os.path.join(location, basename + '_reref-ica.fif')
+        ica_filename = os.path.join(location, basename + '-ica.fif')
         self.run_ica(ica_filename)
 
     def get_start_time(self):
