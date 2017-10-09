@@ -8,7 +8,6 @@ import os
 import re
 import numpy as np
 import json
-from shutil import copy
 from scipy.linalg import pinv
 
 import tables
