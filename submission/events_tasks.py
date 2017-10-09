@@ -86,11 +86,9 @@ class SplitEEGTask(PipelineTask):
                                                                 time=reader.get_start_time_string())
                 # Split raw data file by channel & apply postprocessing
                 reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
-                np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
 
             # Detect post-processed EEG file
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*_raw.fif')))
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*-raw.fif')))
         else:
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
