@@ -38,7 +38,7 @@ class LTPAligner:
 
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
-        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*_raw.fif'))
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*-raw.fif'))
         self.eeg = {}
         for f in self.eeg_files:
             self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_fif(f, preload=True)
