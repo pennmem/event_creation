@@ -913,11 +913,6 @@ class ScalpReader(EEG_reader):
             logger.debug('Running .1 Hz highpass filter on all channels.')
             self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
                              l_trans_bandwidth='auto', h_trans_bandwidth='auto')
-            ''' 
-            # Uncomment to downsample recordings with sampling rates above 1024 Hz
-            if self.data.info['sfreq'] > 1024:
-                self.data.resample(1024)
-            '''
             # Set common average reference
             self.data.set_eeg_reference(ref_channels=None)
         except:
@@ -925,36 +920,27 @@ class ScalpReader(EEG_reader):
 
     def run_ica(self, save_path):
         """
-        Run ICA on entire session and identify bad eyeblink/movement components based on their correlation with the EOG
-        channels. Specifically, MNE's find_bads_eog() function z-scores the correlations between components 
-        and EOG channels, removes any with a z-score greater than 3, then re-scores the correlations and repeats the
-        process until no components remain above a z-score of 3. Bad components are saved into the ICA object, and the
-        ICA solution is then saved as a .fif file.
-        :param save_path: The filepath where the ICA solution will be saved. According to MNE's documentation, this file
+        Run ICA on entire session using mne's ICA class. Then identify artifactual components based on high correlation
+        with EOG channels, low skewness, low kurtosis, or high variance (via mne's detect_artifacts workflow).
+
+        :param save_path: The filepath where the ICA solution will be saved. To conform with MNE standards, this path
         should end with "-ica.fif".
         """
-        eog_chans = []
+        eog_chans = None
         if self.filetype in ('.raw', '.mff'):
-            eog_chans = ('EEG 008', 'EEG 025', 'EEG 126', 'EEG 127')
+            eog_chans = ['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127']
         elif self.filetype == '.bdf':
-            eog_chans = ('EXG1', 'EXG2', 'EXG3', 'EXG4')
+            eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']
         else:
             logger.critical('Unsupported EEG filetype!')
-        # Apply re-reference before running ICA
-        self.data.apply_proj()
-        # Run ICA
+
+        # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
         logger.debug('Running ICA')
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
-        # Check components for high correlation with EOG channels (indicative of blinks/eye movements)
-        bad_ics = set()
-        for ch in eog_chans:
-            if ch in self.names:
-                bad_ics = bad_ics.union(ica.find_bads_eog(self.data, ch_name=ch, threshold=3.)[0])
-        # Mark bad components for exclusion
-        ica.exclude = list(bad_ics)
-        # Save ICA object
-        ica.save(save_path)
+        ica.detect_artifacts(self.data, eog_ch=eog_chans)
+        ica.save(save_path)  # Save ICA object to a .fif file
+
         # Save the mixing matrix if we detect that it will be calculated differently upon loading
         # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
         if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
