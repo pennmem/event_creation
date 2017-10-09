@@ -101,47 +101,57 @@ def get_ltp_subject_sessions_by_experiment(experiment):
 
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
-    if re.match('catFR[0-4]', experiment):
-        ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+    json_reader = JsonIndexReader(os.path.join(paths.rhino_root,'protocols','%s.json'%protocol))
+    if experiment in json_reader.experiments():
+        subjects = json_reader.subjects(experiment=experiment)
+        for subject_no_montage in subjects:
+            for montage in json_reader.montages(subject=subject_no_montage, experiment=experiment):
+                subject = subject_no_montage if montage == '0' else '%s_%s' % (subject_no_montage, montage)
+                sessions = json_reader.sessions(subject=subject_no_montage, montage=montage, experiment=experiment)
+                for session in sessions:
+                    yield subject_no_montage, subject, len(sessions), session, experiment, '0'
     else:
-        ram_exp = 'RAM_{}'.format(experiment)
-    events_dir = os.path.join(paths.data_root, '..', 'events', ram_exp)
-    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
-                          key=lambda f: f.split('_')[:-1])
-    seen_experiments = defaultdict(list)
-    for events_file in events_files:
-        subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
-        subject_no_montage = subject.split('_')[0]
-        if '_' in subject:
-            if not include_montage_changes:
-                continue
-        mat_events_reader = BaseEventReader(filename=events_file, common_root=paths.data_root)
-        logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
-        try:
-            mat_events = mat_events_reader.read()
-            sessions = np.unique(mat_events['session'])
-            version_str = mat_events[-5]['expVersion'] if 'expVersion' in mat_events.dtype.names else '0'
-            version = -1
+        if re.match('catFR[0-4]', experiment):
+            ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+        else:
+            ram_exp = 'RAM_{}'.format(experiment)
+        events_dir = os.path.join(paths.data_root,'events',ram_exp)
+        events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
+                              key=lambda f: f.split('_')[:-1])
+        seen_experiments = defaultdict(list)
+        for events_file in events_files:
+            subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
+            subject_no_montage = subject.split('_')[0]
+            if '_' in subject:
+                if not include_montage_changes:
+                    continue
+            mat_events_reader = BaseEventReader(filename=events_file, common_root=paths.data_root)
+            logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
             try:
-                version = float(version_str.split('_')[-1])
-            except:
+                mat_events = mat_events_reader.read()
+                sessions = np.unique(mat_events['session'])
+                version_str = mat_events[-5]['expVersion'] if 'expVersion' in mat_events.dtype.names else '0'
+                version = -1
                 try:
-                    version = float(version_str.split('v')[-1])
+                    version = float(version_str.split('_')[-1])
                 except:
-                    pass
+                    try:
+                        version = float(version_str.split('v')[-1])
+                    except:
+                        pass
 
-            for i, session in enumerate(sessions):
-                if 'experiment' in mat_events.dtype.names:
-                    experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
-                else:
-                    experiments = [experiment]
-                for this_experiment in experiments:
-                    n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
-                    yield subject_no_montage, subject, n_sessions, session, this_experiment, version
-                    seen_experiments[subject_no_montage].append(this_experiment)
-        except AttributeError:
-            traceback.print_exc()
-            logger.error('Could not get session from {}'.format(events_file))
+                for i, session in enumerate(sessions):
+                    if 'experiment' in mat_events.dtype.names:
+                        experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
+                    else:
+                        experiments = [experiment]
+                    for this_experiment in experiments:
+                        n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
+                        yield subject_no_montage, subject, n_sessions, session, this_experiment, version
+                        seen_experiments[subject_no_montage].append(this_experiment)
+            except AttributeError:
+                traceback.print_exc()
+                logger.error('Could not get session from {}'.format(events_file))
 
 
 def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=None, included_subjects=None,
@@ -183,6 +193,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                 session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][new_experiment][session] = session_dict
+
     with fileutil.open_with_perms(out_file, 'w') as f:
         json.dump(subjects, f, indent=2, sort_keys=True)
 
