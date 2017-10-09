@@ -319,7 +319,7 @@ files:
     destination: logs/session.sqlite
 
 
-  ### LTP
+  ### LTP (Scalp EEG)
 
   - name: wordpool
     << : *FILE
@@ -343,7 +343,6 @@ files:
     origin_file: 'eeg.eeglog*'
     destination: 'logs/'
 
-
   - name: session_log
     << : *FILE
     groups: [ ltp ]
@@ -365,17 +364,3 @@ files:
     origin_directory: *LTP_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
-
-  - name: config
-    << : *FILE
-    groups: [ ltp ]
-    origin_directory: *LTP_SUBJ_DIR
-    origin_file: config.py
-    destination: experiment_files/config.py
-
-  - name: sconfig
-    << : *FILE
-    groups: [ ltp ]
-    origin_directory: *LTP_SUBJ_DIR
-    origin_file: sconfig.py
-    destination: experiment_files/sconfig.py

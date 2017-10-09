@@ -126,6 +126,8 @@ files:
     origin_file: channel_map.json
     destination: channel_map.json
 
+  ### LTP (Scalp EEG)
+
   - name: raw_eeg
     <<: *LINK
     groups: [ ltp ]
@@ -135,12 +137,3 @@ files:
       - '*.bdf.bz2'
       - '*.mff'
     destination: raw_eeg/
-
-  - name: artifact_log
-    <<: *FILE
-    groups: [ ltp ]
-    multiple: true
-    required: false
-    origin_directory: *LTP_EEG_DIR
-    origin_file: '*.log'
-    destination: 'logs/'
