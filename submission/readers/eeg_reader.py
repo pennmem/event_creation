@@ -927,7 +927,7 @@ class ScalpReader(EEG_reader):
         """
         eog_chans = None
         if self.filetype in ('.mff', '.raw'):
-            eog_chans = ['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127']
+            eog_chans = ['E8', 'E25', 'E126', 'E127']
         elif self.filetype == '.bdf':
             eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']
         else:
@@ -947,7 +947,7 @@ class ScalpReader(EEG_reader):
             logger.warn('Possible MNE bug detected, in which mixing matrix will change upon reloading the ICA object. '
                         'Saving true mixing matrix separately for safety.')
 
-    def _split_data(self, location, basename):
+    def split_data(self, location, basename):
         """
         This function runs the full EEG post-processing regimen on the recording. Note that "split data" is a misnomer
         for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, the ScalpReader uses
@@ -957,9 +957,7 @@ class ScalpReader(EEG_reader):
         :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
         be appended to the path for the EEG save file and "-ica.fif" will be appended to the path for the ICA save file.
         """
-        # Remove the noreref dir from the output location automatically created by EEG_reader.split_data()
-        location = os.path.dirname(location) if os.path.basename(location) == 'noreref' else location
-
+        logger.info("Post-processing EEG data into {}/{}".format(location, basename))
         # Load data if we have not already done so
         if self.data is None:
             self.get_data()
@@ -974,6 +972,7 @@ class ScalpReader(EEG_reader):
         # Run ICA, mark bad components, and save ICA solution to file
         ica_filename = os.path.join(location, basename + '-ica.fif')
         self.run_ica(ica_filename)
+        self.write_sources(location, basename)
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
