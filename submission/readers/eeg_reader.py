@@ -867,7 +867,7 @@ class ScalpReader(EEG_reader):
                 logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
                 if self.filetype in ('.mff', '.raw'):
-                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], misc=['E129'], preload=True)
+                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
                     self.data.info['description'] = 'system: GSN-HydroCel-129'
                     # Correct the name of channel 129 to Cz
                     self.data.rename_channels({'E129': 'Cz'})
