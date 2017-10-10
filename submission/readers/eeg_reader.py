@@ -866,7 +866,7 @@ class ScalpReader(EEG_reader):
             try:
                 logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
-                if self.filetype in ('.mff'):
+                if self.filetype in ('.mff', '.raw'):
                     self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], misc=['E129'], preload=True)
                     self.data.info['description'] = 'system: GSN-HydroCel-129'
                     # Correct the name of channel 129 to Cz
@@ -926,7 +926,7 @@ class ScalpReader(EEG_reader):
         should end with "-ica.fif".
         """
         eog_chans = None
-        if self.filetype in ('.raw', '.mff'):
+        if self.filetype in ('.mff', '.raw'):
             eog_chans = ['EEG 008', 'EEG 025', 'EEG 126', 'EEG 127']
         elif self.filetype == '.bdf':
             eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']

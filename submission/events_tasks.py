@@ -77,8 +77,11 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
         if self.protocol == 'ltp':
-            for i in range(len(raw_eeg_groups)):
-                raw_eeg = raw_eeg_groups[i]
+            # Use .raw only if EGI session has no .mff
+            has_mff = np.any([True for eegfile in raw_eeg_groups if eegfile.endswith('.mff')])
+            for i, raw_eeg in enumerate(raw_eeg_groups):
+                if raw_eeg.endswith('.raw.bz2') and has_mff:
+                    continue
                 reader = get_eeg_reader(raw_eeg, None)
                 split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
                                                                 experiment=self.experiment,

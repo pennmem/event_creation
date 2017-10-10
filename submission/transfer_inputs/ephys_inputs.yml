@@ -136,4 +136,5 @@ files:
     origin_file:
       - '*.bdf.bz2'
       - '*.mff'
+      - '*.raw.bz2'
     destination: raw_eeg/
