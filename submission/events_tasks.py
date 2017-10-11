@@ -83,12 +83,12 @@ class SplitEEGTask(PipelineTask):
                 if raw_eeg.endswith('.raw.bz2') and has_mff:
                     continue
                 reader = get_eeg_reader(raw_eeg, None)
-                split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
+                processed_filename = self.SPLIT_FILENAME.format(subject=self.subject,
                                                                 experiment=self.experiment,
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 # Split raw data file by channel & apply postprocessing
-                reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
+                reader.split_data(os.path.join(self.pipeline.destination), processed_filename)
 
             # Detect post-processed EEG file
             num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*-raw.fif')))
