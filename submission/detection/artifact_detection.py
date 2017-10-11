@@ -225,8 +225,10 @@ class ArtifactDetector:
                 thresh_data = f.readlines()
             avg = float(thresh_data[0])
             stddev = float(thresh_data[1])
+            assert not np.isnan(avg)
+            assert not np.isnan(stddev)
             logger.debug('Loaded average voltage from file.')
-        except IOError:
+        except (IOError, AssertionError):
             logger.debug('Calculating average voltage...')
 
             # Get list of good EEG channels to use for calculating the artifact threshold

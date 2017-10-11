@@ -181,7 +181,8 @@ class TransferFile(object):
     @property
     def origin_paths(self):
         if not self._located:
-            raise Exception("Attempt to access origin paths of {} before locating".format(self.name))
+            logger.warn("Attempt to access origin paths of {} before locating".format(self.name))
+            return []
         return self._origin_paths
 
     def expand_files(self, groups):
@@ -204,6 +205,8 @@ class TransferFile(object):
         return os.path.join(root, destination_directory_name)
 
     def transfer(self, root):
+        if self.name=='output_log':
+            pass
 
         if not self.located:
             self.locate(root)
@@ -251,19 +254,20 @@ class TransferFile(object):
 
     def contents_to_check(self):
         contents = []
-        if not self._checksum_contents:
-            for filename in self.origin_paths:
-                contents.append(os.path.basename(filename))
-        else:
-            for filename in self.origin_paths:
-                if filename.endswith('.mff'):
-                    # JPazdera: Added this to condition to prevent .mff EEG packages from being opened as files
+        if self.located:
+            if not self._checksum_contents:
+                for filename in self.origin_paths:
                     contents.append(os.path.basename(filename))
-                else:
-                    contents.append(open(filename).read())
+            else:
+                for filename in self.origin_paths:
+                    # JPazdera: Added this condition to prevent .mff EEG packages from being opened as files
+                    if filename.endswith('.mff'):
+                        contents.append(os.path.basename(filename))
+                    else:
+                        contents.append(open(filename).read())
 
-        for file in self.files.values():
-            contents.extend(file.contents_to_check())
+            for file in self.files.values():
+                contents.extend(file.contents_to_check())
 
         return contents
 
@@ -310,6 +314,9 @@ class TransferFile(object):
         self._valid = all(file.valid for file in self.files.values())
 
     def locate(self, root=''):
+
+        if self.name=='output_log':
+            pass
 
         if root in self._roots_located:
             return

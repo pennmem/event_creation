@@ -24,6 +24,12 @@ class RAASessionLogParser(BaseSessionLogParser):
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
             ('rectime',-999,'int16'),
+            ('artifactMS', -1, 'int32'),
+            ('artifactNum', -1, 'int32'),
+            ('artifactFrac', -1, 'float16'),
+            ('artifactMeanMS', -1, 'float16'),
+            ('badEvent', False, 'b1'),
+            ('badEventChannel', '', 'S8', 132)
         )
 
     # FR2 specific fields

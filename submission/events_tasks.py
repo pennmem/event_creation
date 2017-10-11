@@ -180,7 +180,7 @@ class EventCreationTask(PipelineTask):
                     'ltpFR': LTPFRSessionLogParser,
                     'ltpFR2': LTPFR2SessionLogParser,
                     'FR1': FRSessionLogParser,
-                    'RAA': RAASessionLogParser
+                    'Remembering_Across_America': RAASessionLogParser,
                   }
 
 

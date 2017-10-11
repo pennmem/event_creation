@@ -148,11 +148,18 @@ class HD5_reader(EEG_reader):
             return self.h5file.root.timeseries.shape[1]
 
     def _split_data(self, location, basename):
+        time_series = self.h5file.get_node('/','timeseries').read()
+        if self.by_row:
+            time_series = time_series.T
+        if 'bipolar_to_monopolar_matrix' in [x.name for x in self.h5file.list_nodes('/')]:
+            transform = self.h5file.get_node('bipolar_to_monopolar_matrix').read()
+            time_series = np.dot(transform,time_series)
         ports = self.h5file.root.ports
         for i, port in enumerate(ports):
             filename = os.path.join(location, basename + ('.%03d' % port))
-            data = self.h5file.root.timeseries[:,i] if self.by_row else self.h5file.root.timeseries[i, :]
+            data = time_series[i]
             logger.debug("Writing channel {} ({})".format(self.h5file.root.names[i], port))
+            logger.debug('len(data):%s'%len(data))
             data.tofile(filename)
 
 
@@ -824,7 +831,7 @@ class EDF_reader(EEG_reader):
 
 class ScalpReader(EEG_reader):
     """
-    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .mff 
+    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .mff
     formats, as well as BioSemi's .bdf format.
     """
     def __init__(self, raw_filename, unused_jacksheet=None):
@@ -843,7 +850,7 @@ class ScalpReader(EEG_reader):
         """
         Unpacks the binary in the raw data file to get the voltage data from all channels. In the process, it must
         unzip the data file before use. After reading the data, it removes the unzipped file, leaving only the
-        zipped version (or zips the unzipped file if no zipped version exists). 
+        zipped version (or zips the unzipped file if no zipped version exists).
 
         Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
         """
@@ -902,7 +909,7 @@ class ScalpReader(EEG_reader):
         """
         Post-process EEG data. Currently, this involves the following:
         - Running a .1 Hz high pass filter on all EEG and EOG channels
-        - Generating a common average reference projection on the MNE Raw object, which can later be used to 
+        - Generating a common average reference projection on the MNE Raw object, which can later be used to
         re-reference the data
         """
         try:
@@ -952,7 +959,7 @@ class ScalpReader(EEG_reader):
         This function runs the full EEG post-processing regimen on the recording. Note that "split data" is a misnomer
         for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, the ScalpReader uses
         MNE's post-processing tools and saves the results to .fif files.
-        
+
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
         be appended to the path for the EEG save file and "-ica.fif" will be appended to the path for the ICA save file.
