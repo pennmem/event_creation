@@ -36,6 +36,7 @@ SOURCE_IMPORT_TYPE = 'IMPORT'
 
 N_PS4_SESSIONS = 10
 
+
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
 
@@ -225,7 +226,7 @@ class TransferPipeline(object):
                                                                    missing_files[0].formatted_origin_dir))
 
         should_transfer = not self.transferer.matches_existing_checksum()
-        if should_transfer != True:
+        if should_transfer:
             logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
                 logger.info('{} does not exist! Continuing anyway!'.format(self.current_dir))
@@ -281,11 +282,6 @@ class TransferPipeline(object):
         except Exception as e:
             self.on_failure()
             raise
-
-# def build_wav_pipeline(subject,experiment,session,protocol,**kwargs):
-#     transferer = generate_wav_transferer(subject,experiment,session,protocol,code=subject)
-#     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
-#     return TransferPipeline(transferer)
 
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
@@ -351,9 +347,9 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     if protocol == 'r1':
         system = [x for x in groups if 'system' in x][0]
         system = system.partition('_')[-1]
-        tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
+        tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
 
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,critical=('ps4' not in groups),**kwargs))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('ps4' not in groups), **kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -361,7 +357,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
         else:
             try:
-                tasks=[EventCreationTask(protocol,subject,montage,experiment,session,False)]
+                tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
             except KeyError:
                 raise Exception('Unknown experiment %s under protocol \'ltp'%experiment)
     else:
@@ -371,23 +367,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if 'ps4' in groups:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'ps4',parser_type=PS4Sys3LogParser,**kwargs))
-        other_events+=('ps4',)
+                                       'ps4', parser_type=PS4Sys3LogParser, **kwargs))
+        other_events += ('ps4',)
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', MathLogParser, critical=False,**kwargs))
-        other_events+=('math',)
+                                       'math', MathLogParser, critical=False, **kwargs))
+        other_events += ('math',)
 
     if other_events:
         tasks.append(EventCombinationTask(('task',)+other_events, critical=False,))
-
-    # if 'ps4' in groups:
-    #     if kwargs.get('new_experiment')=='PS4':
-    #         comparator = lambda events: events.list<N_PS4_SESSIONS
-    #     else:
-    #         comparator = lambda events: events.list>= N_PS4_SESSIONS
-    #     tasks.append(PruneEventsTask(comparator))
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))
@@ -486,6 +475,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     return TransferPipeline(transferer, *tasks, **info)
 
+
 def build_import_localization_pipeline(subject, protocol, localization, code, is_new,overwrite=False):
 
     logger.set_label("Building Localization Creator")
@@ -512,19 +502,19 @@ def build_import_montage_pipeline(subject, montage, protocol, code):
     return TransferPipeline(transferer, *tasks)
 
 
-def test_split_sys3():
-    pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
-    pipeline.run()
-
-def test_create_sys3_events():
-    pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
-                                     new_experiment='FR1',
-                                     localization=0, montage_num=0,
-                                     code='R9999X',
-                                     original_session=1, sync_folder='', sync_filename='')
-    pipeline.run()
-
 if __name__ == '__main__':
+    def test_split_sys3():
+        pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
+        pipeline.run()
+
+    def test_create_sys3_events():
+        pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
+                                         new_experiment='FR1',
+                                         localization=0, montage_num=0,
+                                         code='R9999X',
+                                         original_session=1, sync_folder='', sync_filename='')
+        pipeline.run()
+
     logger.set_stdout_level(0)
     test_split_sys3()
     test_create_sys3_events()
