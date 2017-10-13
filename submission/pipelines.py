@@ -54,7 +54,6 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
     groups += tuple(args)
 
-
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
         kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
@@ -65,11 +64,10 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_1','system_3_0')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0')
 
         for sys in systems:
             try:
-                print "I AM HERE!"
                 logger.info("Checking if this system is {}".format(sys))
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
@@ -98,34 +96,11 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                          ", but this will likely fail very soon!".format(sys))
         groups += (sys,)
 
-        #
-        # session_log = transfer_cfg.get_file('session_log')
-        # eeg_log = transfer_cfg.get_file('eeg_log')
-        #
-        # if experiment.startswith('TH'):
-        #     if eeg_log is not None:
-        #         if len(open(eeg_log.origin_paths[0]).read().strip()) == 0:
-        #             groups += ('system_2',)
-        #         else:
-        #             groups += ('system_1',)
-        #     else:
-        #         groups += ('system_2',)
-        # elif session_log is not None:
-        #     if len(session_log.origin_paths) < 1:
-        #         logger.warn("Could not find session log file! Assuming system_1 ")
-        #         groups += ('system_1', )
-        #     else:
-        #         version = get_version_num(session_log.origin_paths[0])
-        #         if version >= 3:
-        #             groups += ('system_3')
-        #         elif version >= 2:
-        #             groups += ('system_2',)
-        #         else:
-        #             groups += ('system_1',)
-
-        if experiment.endswith("3") or experiment.endswith("5"):
+        # FIXME: this is a dangerous way of determining stim experiments
+        if experiment[-1] in ["3", "5", "6"]:
             groups += ("stim", )
     return groups
+
 
 def r1_system_match(experiment, transfer_cfg, sys):
     """
@@ -163,12 +138,9 @@ def r1_system_match(experiment, transfer_cfg, sys):
                     return sys == 'system_2'
             except Exception as e:
                 logger.debug("Error trying to get version number: {}".format(e))
-                return sys=='system_3_1'
+                return sys == 'system_3_1'
 
     return True
-
-
-
 
 
 class TransferPipeline(object):

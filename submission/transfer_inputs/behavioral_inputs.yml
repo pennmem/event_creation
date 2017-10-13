@@ -326,7 +326,13 @@ files:
     origin_file: 'session.log'
     destination: logs/session.log
 
-
+  - name: session_log
+    << : *FILE
+    groups: [ transfer, verbal, system_3_3]
+    origin_directory: *BEH_SESS_DIR
+    origin_file:
+    - 'session.json'
+    destination: logs/session.json
 
   ### LTP
 
