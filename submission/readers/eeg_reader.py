@@ -942,6 +942,9 @@ class ScalpReader(EEG_reader):
 
         # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
         logger.debug('Running ICA')
+        # Down-sample to 512 Hz prior to running ICA. Otherwise, ICA requires 70-80 GB of RAM and will run for hours.
+        if self.data.info['sfreq'] > 512:
+            self.data.resample(512)
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
         ica.detect_artifacts(self.data, eog_ch=eog_chans)
