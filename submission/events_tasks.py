@@ -232,6 +232,7 @@ class EventCreationTask(PipelineTask):
             aligner = LTPAligner(unaligned_events, eeglog, ephys_dir)
             events = aligner.align()
             artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
+            del aligner
             try:
                 events = artifact_detector.run()
             except Exception:
