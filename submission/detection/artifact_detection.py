@@ -179,17 +179,11 @@ class ArtifactDetector:
 
     def find_bad_events(self):
         """
-        DOCSTRING NEEDS UPDATE
-        
-        Determines which channels contain artifacts on each word presentation event. This is done by finding the mean
-        and standard deviation of the voltage across all channels and events, and then labeling samples that are more
-        than 4 standard deviations above or below the mean as bad samples. Any channel that contains at least one bad
-        sample during a given event will be marked on the event as a badEventChannel. Any event with one or more bad
-        channels is marked as a bad event.
-
-        data: A channels x events x samples matrix of EEG data.
-        bad_evchans: A channels x events matrix denoting which channels are bad on each event
-        bad_events: An array denoting whether each event has at least one bad channel (1 == bad, 0 == good)
+        Determines which channels contain artifacts on each event. This is done by finding the mean
+        and standard deviation of the voltage across all channels and word presentation events, and then labeling
+        samples that are more than 4 standard deviations above or below the mean as bad samples. Any channel that
+        contains at least one bad sample during a given event will be marked on the event as a badEventChannel. Any
+        event with one or more bad channels is marked as a bad event.
         """
         eeg = self.eeg[self.basename]
         picks_eeg = mne.pick_types(eeg.info, eeg=True, meg=False)
