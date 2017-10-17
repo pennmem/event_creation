@@ -123,6 +123,19 @@ files:
         origin_file: 'lh.pial'
         destination: 'lh.pial'
 
+      - name: left_sphere
+        <<: *FILE
+        origin_directory: ''
+        origin_file: 'lh.sphere.reg'
+        destination: 'lh.sphere.reg'
+
+      - name: right_sphere
+        <<: *FILE
+        origin_directory: ''
+        origin_file: 'rh.sphere.reg'
+        destination: 'rh.sphere.reg'
+
+
   - name: labels
     <<: *DIR
     groups: ['old']
@@ -148,12 +161,14 @@ files:
       - name: left_labels_hcp
         <<: *FILE
         groups: [ 'old' ]
+        required: false
         origin_directory: ''
         origin_file: 'lh.HCP-MMP1.annot'
         destination: 'lh.HCP-MMP1.annot'
 
       - name: right_labels_hcp
         <<: *FILE
+        required: false
         groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'rh.HCP-MMP1.annot'
