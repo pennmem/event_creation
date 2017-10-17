@@ -193,8 +193,8 @@ class ArtifactDetector:
         # holds the EEG sample number of the event onset, second column is ignored, third column holds event ID number.
         # Here we will mark word presentation events from the current recording with a 2, all other events from the
         # current recording with a 1, and events from other files with a 0
-        ev_markers = np.zeros((len(ev_mask), 3), dtype=int)
-        ev_markers[:, 0] = self.events.eegoffset[ev_mask]
+        ev_markers = np.zeros((len(self.events), 3), dtype=int)
+        ev_markers[ev_mask, 0] = self.events.eegoffset[ev_mask]
         ev_markers[ev_mask, 2] = 1
         ev_markers[pres_mask, 2] = 2
 
