@@ -1,3 +1,10 @@
+from __future__ import print_function
+
+import sys
+
+if sys.version_info[0] < 3:
+    input = raw_input
+
 from .configuration import config
 if __name__ == '__main__':
     config.parse_args()
@@ -22,7 +29,6 @@ from .exc import MontageError
 from .tasks import CleanDbTask, IndexAggregatorTask
 from .log import logger
 from .automation import Importer, ImporterCollection
-
 
 from ptsa.data.readers.IndexReader import JsonIndexReader
 
@@ -75,7 +81,7 @@ def get_ltp_subject_sessions_by_experiment(experiment):
                           key=lambda f: f.split('_')[:-1])
     seen_experiments = defaultdict(list)
     for events_file in events_files:
-        print events_file
+        print(events_file)
         subject = os.path.basename(events_file)[11:-4]  # Subject number is the basename with events_all_, .mat removed
         subject_no_year = subject.split('_')[0]
         if '_' in subject:
@@ -615,7 +621,7 @@ def show_imported_experiments(subject, protocol='r1'):
     r1 = load_index(protocol)
     experiments = r1.experiments(subject=subject)
     if not experiments:
-        print 'No sessions for this subject'
+        print('No sessions for this subject')
     for experiment in experiments:
         show_imported_sessions(subject, experiment, protocol)
 
@@ -624,9 +630,9 @@ def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
     r1 = load_index(protocol)
     experiment = experiment.split('_')[-1]
     sessions = r1.sessions(subject=subject, experiment=experiment)
-    print '| Existing {} sessions for {}'.format(experiment, subject)
+    print('| Existing {} sessions for {}'.format(experiment, subject))
     if not sessions:
-        print 'None'
+        print('None')
     for session in sessions:
         code = r1.get_value('subject_alias', subject=subject, experiment=experiment, session=session)
         try:
@@ -643,8 +649,8 @@ def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
             import_type = ''
         else:
             import_type = ' ({})'.format(import_type)
-        print '|- {sess}: ({code}{montage}, {exp}_{orig_sess}{type})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess,
-                                                                             montage=montage_str, type=import_type)
+        print('|- {sess}: ({code}{montage}, {exp}_{orig_sess}{type})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess,
+                                                                             montage=montage_str, type=import_type))
 
 LOADED_INDEXES = {}
 def load_index(protocol):
@@ -679,7 +685,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     code = inputs.code
     if code is None:
-        code = raw_input('Enter subject code: ')
+        code = input('Enter subject code: ')
 
     subject = inputs.subject
     if subject is None:
@@ -687,7 +693,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     experiment = inputs.experiment
     if experiment is None:
-        experiment = raw_input('Enter experiment name: ')
+        experiment = input('Enter experiment name: ')
 
     protocol = inputs.protocol
     if protocol is None:
@@ -700,7 +706,7 @@ def prompt_for_session_inputs(inputs, **opts):
         montage = get_code_montage(code, protocol)
 
     if not montage:
-        montage = raw_input('Montage for this subject not found in database. Enter montage as #.#: ')
+        montage = input('Montage for this subject not found in database. Enter montage as #.#: ')
 
     montage_num = montage.split('.')[1]
 
@@ -712,21 +718,21 @@ def prompt_for_session_inputs(inputs, **opts):
 
     original_session = inputs.original_session or inputs.session
     if original_session is None:
-        original_session = raw_input('Enter original session number (suggested: {}): '.format(suggested_session))
+        original_session = input('Enter original session number (suggested: {}): '.format(suggested_session))
 
     session = inputs.session
     if session is None:
         if opts.get('change_session', False) or subject != code or \
                 (experiment.startswith('PS') and not experiment.endswith('2.1')):
             suggested_session = get_next_new_session(subject, experiment, protocol)
-            session = int(raw_input('Enter new session number (suggested: {}): '.format(suggested_session)))
+            session = int(input('Enter new session number (suggested: {}): '.format(suggested_session)))
         else:
             session = original_session
 
     original_experiment = inputs.original_experiment or inputs.experiment
     if original_experiment is None:
         if opts.get('change_experiment', False):
-            original_experiment = raw_input('Enter original experiment: ')
+            original_experiment = input('Enter original experiment: ')
         elif experiment == 'PS2.1':
             is_sys3 = confirm("Is this a system 3 session? ")
             if is_sys3:
@@ -778,7 +784,7 @@ def prompt_for_session_inputs(inputs, **opts):
         attempt_conversion=attempt_conversion,
         PS4 = ('ps4' in groups)
     )
-    
+
     if opts.get('sys2', False):
         inputs['groups'] += ('system_2',)
     elif opts.get('sys1', False):
@@ -794,17 +800,17 @@ def prompt_for_session_inputs(inputs, **opts):
 
 
 def prompt_for_montage_inputs():
-    code = raw_input('Enter original subject code (including _#): ')
+    code = input('Enter original subject code (including _#): ')
     subject = re.sub(r'_.*', '', code)
 
-    montage = raw_input('Enter montage as #.#: ')
+    montage = input('Enter montage as #.#: ')
 
     montage_num = montage.split(".")[1]
     subject_split = code.split("_")
     subject_montage = subject_split[1] if len(subject_split)>1 else "0"
 
     if ( subject_montage ) != montage_num:
-        print "WARNING: subject code {} does not match montage number {} !".format(subject_montage, montage_num)
+        print("WARNING: subject code {} does not match montage number {} !".format(subject_montage, montage_num))
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
             return False
@@ -819,13 +825,14 @@ def prompt_for_montage_inputs():
 
     return inputs
 
+
 def prompt_for_localization_inputs():
-    code = raw_input('Enter original subject code (including _#): ')
+    code = input('Enter original subject code (including _#): ')
     subject = re.sub(r'_.*', '', code)
 
     localization = ''
     while not localization.isdigit():
-        localization = raw_input("Enter localization number: ")
+        localization = input("Enter localization number: ")
 
     inputs = dict(
         code = code,
@@ -835,6 +842,7 @@ def prompt_for_localization_inputs():
     )
 
     return inputs
+
 
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(paths.db_root, 'protocols', protocol,
@@ -846,12 +854,14 @@ def session_exists(protocol, subject, experiment, session):
 
     return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
 
+
 def localization_exists(protocol, subject, localization):
     neurorad_current = os.path.join(paths.db_root, 'protocols', protocol,
                            'subjects', subject,
                            'localization', localization,
                            'neuroradiology', 'current_processed')
     return os.path.exists(neurorad_current)
+
 
 def montage_exists(protocol, subject, montage):
     montage_num = montage.split('.')[1]
@@ -867,7 +877,7 @@ def montage_exists(protocol, subject, montage):
 
 def confirm(prompt):
     while True:
-        resp = raw_input(prompt)
+        resp = input(prompt)
         if resp.lower() in ('y','n', 'yes', 'no'):
             return resp.lower() == 'y' or resp.lower() == 'yes'
         print('Please enter y or n')
@@ -954,7 +964,7 @@ if __name__ == '__main__':
         exit(0)
 
     if config.view_only:
-        code = raw_input("Enter subject code: ")
+        code = input("Enter subject code: ")
         subject = re.sub(r'_.*', '', code)
         show_imported_experiments(subject)
         exit(0)
@@ -962,7 +972,7 @@ if __name__ == '__main__':
     inputs = prompt_for_session_inputs(**config.options)
 
     if config.wav_only:
-        print 'Importing .wav files'
+        print('Importing .wav files')
         success,importers = run_wav_import(inputs)
 
     else:
