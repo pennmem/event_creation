@@ -143,51 +143,51 @@ class MatlabEEGConversionTask(PipelineTask):
         extractor = MatlabEEGExtractor(self.original_session, files)
         extractor.copy_ephys(db_folder)
 
+
 class EventCreationTask(PipelineTask):
-
-    R1_PARSERS ={ 1.0:{
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser,
-                    },
-                      2.0:{
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser
-                    },
-                    3.0: {
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser
-                    },
-                    3.1:{
-                        'FR': FRSys3LogParser,
-                        'catFR': catFRSys3LogParser,
-                        'PS': PS4Sys3LogParser,
-                        'PAL': PALSys3LogParser,
-                        'THR': THRSessionLogParser,
-                        'math': MathLogParser,
-                    }
-                 }
+    R1_PARSERS = {
+        1.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser,
+        },
+        2.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        3.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        3.1: {
+            'FR': FRSys3LogParser,
+            'catFR': catFRSys3LogParser,
+            'PS': PS4Sys3LogParser,
+            'PAL': PALSys3LogParser,
+            'THR': THRSessionLogParser,
+            'math': MathLogParser,
+        },
+    }
     LTP_PARSERS = {
-                    'ltpFR': LTPFRSessionLogParser,
-                    'ltpFR2': LTPFR2SessionLogParser,
-                    'FR1': FRSessionLogParser,
-                    'Remembering_Across_America': RAASessionLogParser,
-                  }
-
+        'ltpFR': LTPFRSessionLogParser,
+        'ltpFR2': LTPFR2SessionLogParser,
+        'FR1': FRSessionLogParser,
+        'Remembering_Across_America': RAASessionLogParser,
+    }
 
     @property
     def r1_sys_num(self):
@@ -268,8 +268,8 @@ class EventCreationTask(PipelineTask):
 
 
 class PruneEventsTask(PipelineTask):
-    def __init__(self,cond):
-        super(PruneEventsTask,self).__init__()
+    def __init__(self, cond):
+        super(PruneEventsTask, self).__init__()
         self.filter = cond
 
     def _run(self,files,db_folder):
@@ -326,7 +326,6 @@ class MontageLinkerTask(PipelineTask):
     FILES = {'pairs': 'pairs.json',
              'contacts': 'contacts.json'}
 
-
     def __init__(self, protocol, subject, montage, critical=True):
         super(MontageLinkerTask, self).__init__(critical)
         self.name = 'Montage linker'
@@ -350,8 +349,8 @@ class MontageLinkerTask(PipelineTask):
             logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
 
-class MatlabEventConversionTask(PipelineTask):
 
+class MatlabEventConversionTask(PipelineTask):
     CONVERTERS = {
         'FR': FRMatConverter,
         'PAL': PALMatConverter,
@@ -386,8 +385,8 @@ class MatlabEventConversionTask(PipelineTask):
         self.create_file( self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
-class ImportEventsTask(PipelineTask):
 
+class ImportEventsTask(PipelineTask):
     PARSERS = {
         'FR': FRSessionLogParser,
         'PAL': PALSessionLogParser,
@@ -429,9 +428,8 @@ class ImportEventsTask(PipelineTask):
             logger.error("Exception occurred creating events: {}! Defaulting to event conversion!".format(e))
             MatlabEventConversionTask.run(self, files, db_folder)
 
+
 class CompareEventsTask(PipelineTask):
-
-
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
                  match_field=None, critical=True):
         super(CompareEventsTask, self).__init__(critical)
