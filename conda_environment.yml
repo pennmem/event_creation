@@ -22,6 +22,7 @@ dependencies:
 - yaml=0.1.6=0
 - zlib=1.2.8=3
 - xlrd = 1.0.0
+- sympy
 - ptsa
 - pip:
   - pyedflib==0.1.6
