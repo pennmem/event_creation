@@ -246,6 +246,7 @@ class ArtifactDetector:
         # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
         logger.debug('Finding artifacts during all events...')
 
+        ch_names = np.array(self.eeg[self.basename].ch_names)
         # Convert event data from an mne.Epochs object to an events x EEG channels x samples numpy array of voltages
         self.eeg[self.basename] = self.eeg[self.basename].get_data()[:, picks_eeg, :]
 
@@ -266,5 +267,5 @@ class ArtifactDetector:
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
             self.events[ev_mask[i]].badEvent = True
-            badEventChannel = np.array(self.eeg[self.basename].ch_names)[picks_eeg[np.where(bad_evchans[i, :])]]  # Names of bad EEG channels during event i
+            badEventChannel = ch_names[picks_eeg[np.where(bad_evchans[i, :])]]  # Names of bad EEG channels during event i
             self.events[ev_mask[i]].badEventChannel = np.append(badEventChannel, np.array(['' for x in range(len(self.events[i].badEventChannel) - len(badEventChannel))]))
