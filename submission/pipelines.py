@@ -317,8 +317,6 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
     tasks = [MatlabEEGConversionTask(subject, experiment, original_session)]
-
-
     return TransferPipeline(transferer, *tasks)
 
 
@@ -326,7 +324,6 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                           groups=tuple(), do_compare=False, **kwargs):
 
     logger.set_label("Building Event Creator")
-
 
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
@@ -336,7 +333,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     except:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
-    groups =  determine_groups(protocol, code, experiment, original_session,
+    groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,

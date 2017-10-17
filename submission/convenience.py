@@ -921,7 +921,7 @@ if __name__ == '__main__':
         i=1
         while os.path.exists(import_log + '.log'):
             import_log = 'json_import' + str(i)
-            i+=1
+            i += 1
         import_log = import_log + '.log'
         failures = run_json_import(config.json_file, attempt_import, attempt_convert,
                                    config.force_events, config.force_eeg, config.force_montage, import_log)
@@ -937,7 +937,7 @@ if __name__ == '__main__':
 
     if config.montage_only:
         inputs = prompt_for_montage_inputs()
-        if inputs == False:
+        if not inputs:
             exit(0)
         if montage_exists(inputs['protocol'], inputs['subject'], inputs['montage']):
             if not confirm('{subject}, montage {montage} already exists. Continue and overwrite? '.format(**inputs)):
@@ -951,7 +951,7 @@ if __name__ == '__main__':
 
     if config.localization_only:
         inputs = prompt_for_localization_inputs()
-        if inputs == False:
+        if not inputs:
             exit(0)
         if localization_exists(inputs['protocol'], inputs['subject'], inputs['localization']):
             if not config('{subject}, loc {loc} already exists. Continue and overwrite? '.format(**inputs)):
@@ -973,7 +973,7 @@ if __name__ == '__main__':
 
     if config.wav_only:
         print('Importing .wav files')
-        success,importers = run_wav_import(inputs)
+        success, importers = run_wav_import(inputs)
 
     else:
         if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
