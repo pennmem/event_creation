@@ -113,14 +113,12 @@ class BaseLogParser(object):
         """
         return cls.event_from_template(cls._STIM_FIELDS)
 
-
     @classmethod
     def stim_params_template(cls):
         """
         Maximum of 10 stimulated electrodes at once, completely arbitrarily
         """
         return 'stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS
-
 
     def clean_events(self, events):
         """
@@ -148,7 +146,6 @@ class BaseLogParser(object):
         """
         return []
 
-
     @property
     def event_template(self):
         """
@@ -156,7 +153,6 @@ class BaseLogParser(object):
         :return:
         """
         return self._fields
-
 
     def _add_fields(self, *args):
         """
@@ -166,7 +162,6 @@ class BaseLogParser(object):
         init_fields = list(self._fields)
         init_fields.extend(args)
         self._fields = tuple(init_fields)
-
 
     @classmethod
     def event_from_template(cls, template):
@@ -179,7 +174,6 @@ class BaseLogParser(object):
         dtypes = cls.dtype_from_template(template)
         return np.rec.array(defaults, dtype=dtypes)
 
-
     @classmethod
     def dtype_from_template(cls, template):
         """
@@ -189,7 +183,6 @@ class BaseLogParser(object):
         """
         dtypes = [(entry[0], entry[2], entry[3] if len(entry) > 3 else 1) for entry in template]
         return dtypes
-
 
     @property
     def _empty_event(self):
@@ -206,7 +199,6 @@ class BaseLogParser(object):
         event.session = self._session
 
         return event
-
 
     @staticmethod
     def set_event_stim_params(event, jacksheet, index=0, **params):
@@ -240,7 +232,6 @@ class BaseLogParser(object):
             event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']].upper()
 
         event.stim_params[index]._remove = False
-
 
     # Used to find relevant lines in .ann files
     # Note from Jesse Pazdera: I added '[???]' to the accepted strings that can appear in the third column in order to
@@ -299,7 +290,6 @@ class BaseLogParser(object):
         for (key, value) in kwargs.items():
             self._type_to_modify_events[key] = value
 
-
     @staticmethod
     def _event_skip(*_):
         """
@@ -308,7 +298,6 @@ class BaseLogParser(object):
         :return: False
         """
         return False
-
 
     def parse(self):
         """
@@ -491,20 +480,21 @@ class BaseSys3LogParser(BaseLogParser):
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
+
 class BaseSys3_1LogParser(BaseSessionLogParser):
-
-
     _STIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
     _PHASE_TYPE_FIELD = 'phase_type'
 
     _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase','','<S16'),)
 
-
-    def __init__(self,protocol, subject, montage, experiment, session, files, primary_log='session_log',
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
-        BaseSessionLogParser.__init__(self,protocol, subject, montage, experiment, session, files,primary_log=primary_log,
-                 allow_unparsed_events=allow_unparsed_events, include_stim_params=include_stim_params)
+        BaseSessionLogParser.__init__(self, protocol, subject, montage,
+                                      experiment, session, files,
+                                      primary_log=primary_log,
+                                      allow_unparsed_events=allow_unparsed_events,
+                                      include_stim_params=include_stim_params)
         self._files = files
         self._phase = ''
 
@@ -526,9 +516,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
                 return super(BaseSys3_1LogParser, self).parse()
             else:
                 raise exc
-
-
-
 
     @staticmethod
     def _read_sql_log(log):
@@ -553,9 +540,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
             event_jsons[i][self._STIME_FIELD] = mstimes[i]
             event_jsons[i][self._TYPE_FIELD] = types[i]
         return event_jsons
-
-
-
 
     def _read_primary_log(self):
         msgs = []
@@ -582,10 +566,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
             version_info = json.load(event_log)['versions']
         events.exp_version = version_info['task']['version']
         return events
-
-
-
-
 
 
 class RecogParser(BaseSessionLogParser):
