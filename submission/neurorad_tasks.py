@@ -54,12 +54,12 @@ class GetFsAverageCoordsTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         localization  =self.pipeline.retrieve_object('localization')
-        subject_surf_dir = files['surf']
-        avg_surf_dir = files['avg_surf']
         contacts = localization.get_contacts()
         for coord_type in ('raw','corrected'):
             fs_coords = localization.get_contact_coordinates('fs',contacts,coord_type)
-            fsaverage_coords = calculate_transformation.map_to_average_brain(fs_coords,subject_surf_dir,avg_surf_dir)
+
+            fsaverage_coords = calculate_transformation.map_to_average_brain(fs_coords,files['left_pial'],files['right_pial'],
+                                                                             files['left_sphere'],files['right_sphere'])
             localization.set_contact_coordinates('fsaverage',contacts,fsaverage_coords,coord_type)
 
 
