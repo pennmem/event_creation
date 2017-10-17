@@ -234,6 +234,7 @@ class EventCreationTask(PipelineTask):
             artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
             del aligner
             events = artifact_detector.run()
+            del artifact_detector
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':

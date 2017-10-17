@@ -71,9 +71,6 @@ class ArtifactDetector:
         logger.debug('Identifying blinks in the EOG channels...')
         artifact_mask = None
 
-        # Select the EEG data for the recording currently being processed
-        eeg = self.eeg[self.basename]
-
         # Identify blinks in each EOG channel. For binary EOG channels (represented as tuples), get both EOG
         # sub-channels and subtract one from the other before searching for blinks
         for i in range(len(self.eog_chans)):
@@ -81,12 +78,12 @@ class ArtifactDetector:
             if isinstance(ch, tuple):
                 logger.debug('Identifying blinks in binary channel ' + str(ch) + '...')
                 # Get a 1D numpy array containing the data from an individual channel
-                eog1 = eeg.get_data(picks=mne.pick_channels(eeg.ch_names, include=[ch[0]]))[0]
-                eog2 = eeg.get_data(picks=mne.pick_channels(eeg.ch_names, include=[ch[1]]))[0]
+                eog1 = self.eeg[self.basename].get_data(picks=mne.pick_channels(self.eeg[self.basename].ch_names, include=[ch[0]]))[0]
+                eog2 = self.eeg[self.basename].get_data(picks=mne.pick_channels(self.eeg[self.basename].ch_names, include=[ch[1]]))[0]
                 eog = eog1 - eog2
             else:
                 logger.debug('Identifying blinks in channel ' + str(ch) + '...')
-                eog = eeg.get_data(picks=mne.pick_channels(eeg.ch_names, include=[ch]))[0]
+                eog = self.eeg[self.basename].get_data(picks=mne.pick_channels(self.eeg[self.basename].ch_names, include=[ch]))[0]
 
             # Instantiate artifact_mask once we know how many EEG samples there are. Note that this assumes all channels
             # have the same number of samples. The artifact_mask will be used to track which events have a blink on each
@@ -113,7 +110,7 @@ class ArtifactDetector:
             # If on the last event or next event has no eegdata, look for artifacts occurring up to 3000 ms after the
             # event onset
             if i == len(self.events) - 1 or self.events[i + 1].eegoffset <= 0:
-                ev_len = 3000 * eeg.info['sfreq'] / 1000
+                ev_len = 3000 * self.eeg[self.basename].info['sfreq'] / 1000
                 ev_blink = blinks[np.where(
                     np.logical_and(self.events[i].eegoffset <= blinks, blinks <= self.events[i].eegoffset + ev_len))[0]]
             # Otherwise, use the next event as the upper time bound for aligning artifacts with the current event
@@ -126,13 +123,13 @@ class ArtifactDetector:
             # Calculate and add artifact info to the current event, if any artifacts were present
             if ev_blink.size > 0:
                 # Calculate how many milliseconds after the event it was that the blink onset occurred
-                self.events[i].artifactMS = (ev_blink[0] - self.events[i].eegoffset) * 1000 / eeg.info['sfreq']
+                self.events[i].artifactMS = (ev_blink[0] - self.events[i].eegoffset) * 1000 / self.eeg[self.basename].info['sfreq']
                 # Calculate the number of samples during the event with artifacts in them
                 self.events[i].artifactNum = len(ev_blink)
                 # Calculate the porportion of samples during the event that have artifacts in them
                 self.events[i].artifactFrac = float(len(ev_blink)) / ev_len
                 # Calculate the average number of milliseconds after the event that artifacts occurred
-                self.events[i].artifactMeanMS = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / eeg.info['sfreq']
+                self.events[i].artifactMeanMS = (np.mean(ev_blink) - self.events[i].eegoffset) * 1000 / self.eeg[self.basename].info['sfreq']
             else:
                 continue
 
@@ -185,8 +182,7 @@ class ArtifactDetector:
         contains at least one bad sample during a given event will be marked on the event as a badEventChannel. Any
         event with one or more bad channels is marked as a bad event.
         """
-        eeg = self.eeg[self.basename]
-        picks_eeg = mne.pick_types(eeg.info, eeg=True, meg=False)
+        picks_eeg = mne.pick_types(self.eeg[self.basename].info, eeg=True, meg=False)
 
         # Get event numbers for all events aligned with the current EEG recording
         ev_mask = np.where(self.events.eegfile == self.basename)[0]
@@ -210,7 +206,7 @@ class ArtifactDetector:
             ev_ids['pres'] = 2
 
         # Get EEG data from 200 ms before through 3000 ms after each event from the current recording
-        ev_data = mne.Epochs(eeg, ev_markers, event_id=ev_ids, tmin=-.2, tmax=3, baseline=None, preload=True)
+        self.eeg[self.basename] = mne.Epochs(self.eeg[self.basename], ev_markers, event_id=ev_ids, tmin=-.2, tmax=3, baseline=None, preload=False)
 
         try:
             # Load the mean and std deviation if they have already been calculated. This way math events generation can
@@ -226,12 +222,12 @@ class ArtifactDetector:
             logger.debug('Calculating average voltage...')
 
             # Get list of good EEG channels to use for calculating the artifact threshold
-            good_chans = mne.pick_channels(eeg.ch_names, include=[], exclude=self.bad_chans)
+            good_chans = mne.pick_channels(self.eeg[self.basename].ch_names, include=[], exclude=self.bad_chans)
             chans_to_use = np.intersect1d(picks_eeg, good_chans)
 
             # Get an events x channels x samples array containing the data from all good EEG channels during all word
             # presentation events
-            pres_data = ev_data['pres'].get_data()[:, chans_to_use, :]
+            pres_data = self.eeg[self.basename]['pres'].get_data()[:, chans_to_use, :]
 
             # Calculate mean and standard deviation of voltage in good channels during presentation events. This will
             # be used for calculating the artifact threshold
@@ -250,15 +246,15 @@ class ArtifactDetector:
         # Find artifacts by looking for samples that are greater than 4 standard deviations above or below the mean
         logger.debug('Finding artifacts during all events...')
 
-        # Convert ev_data from an mne.Epochs object to an events x EEG channels x samples numpy array of voltages
-        ev_data = ev_data.get_data()[:, picks_eeg, :]
+        # Convert event data from an mne.Epochs object to an events x EEG channels x samples numpy array of voltages
+        self.eeg[self.basename] = self.eeg[self.basename].get_data()[:, picks_eeg, :]
 
-        # Replace ev_data with booleans indicating whether each sample exceeds the artifact threshold
-        ev_data = np.logical_or(ev_data > pos_thresh, ev_data < neg_thresh)
+        # Replace event data with booleans indicating whether each sample exceeds the artifact threshold
+        self.eeg[self.basename] = np.logical_or(self.eeg[self.basename] > pos_thresh, self.eeg[self.basename] < neg_thresh)
 
         # Get array of events x EEG channels where bad_evchans(i, j) is True if one or more bad samples occur on channel
         # j during event i
-        bad_evchans = ev_data.any(axis=2)
+        bad_evchans = self.eeg[self.basename].any(axis=2)
 
         # Get an array of booleans denoting whether each event has at least one bad EEG channel (not EOG channels)
         bad_events = bad_evchans.any(axis=1)
@@ -270,5 +266,5 @@ class ArtifactDetector:
         logger.debug('Logging badEventChannel info...')
         for i in np.where(bad_events)[0]:
             self.events[ev_mask[i]].badEvent = True
-            badEventChannel = np.array(eeg.ch_names)[picks_eeg[np.where(bad_evchans[i, :])]]  # Names of bad EEG channels during event i
+            badEventChannel = np.array(self.eeg[self.basename].ch_names)[picks_eeg[np.where(bad_evchans[i, :])]]  # Names of bad EEG channels during event i
             self.events[ev_mask[i]].badEventChannel = np.append(badEventChannel, np.array(['' for x in range(len(self.events[i].badEventChannel) - len(badEventChannel))]))
