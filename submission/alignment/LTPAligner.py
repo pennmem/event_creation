@@ -41,7 +41,7 @@ class LTPAligner:
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*-raw.fif'))
         self.eeg = {}
         for f in self.eeg_files:
-            self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_fif(f, preload=True)
+            self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_fif(f, preload=False)
 
         self.num_samples = None
         self.sample_rate = None

@@ -233,7 +233,7 @@ class ArtifactDetector:
             # be used for calculating the artifact threshold
             avg = pres_data.mean()
             stddev = pres_data.std()
-
+            del pres_data
             logger.debug('Saving average voltage...')
             with open(os.path.join(self.ephys_dir, '%s_mean_stddev.txt' % self.basename), 'w') as f:
                 f.write(str(avg) + '\n' + str(stddev))
