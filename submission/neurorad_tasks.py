@@ -162,11 +162,13 @@ class CreateMontageTask(PipelineTask):
         'fsaverage':'avg',
         'mni':'mni',
         'ct_voxel':'vox',
+        'hcp':'hcp',
     }
 
     ATLAS_NAMES_TABLE = {
         'dk':'indiv',
         'whole_brain':'mni',
+        'hcp':'hcp',
     }
 
 
@@ -198,8 +200,8 @@ class CreateMontageTask(PipelineTask):
         """
         self.read_jacksheet(files['jacksheet'])
         self.load_localization(files['localization'])
-        self.build_contacts_dict(db_folder)
-        self.build_pairs_dict(db_folder)
+        self.build_contacts_dict(db_folder,'contacts')
+        self.build_contacts_dict(db_folder,'pairs')
 
 
 
@@ -220,61 +222,78 @@ class CreateMontageTask(PipelineTask):
         with open(localization_file) as loc_fid:
             self.localization = json.load(loc_fid)
 
-    def build_contacts_dict(self,db_folder):
+    def build_contacts_dict(self,db_folder,name):
         contacts = {}
         leads = self.localization['leads']
         for lead in leads:
-            for contact in leads[lead]['contacts']:
+            for contact in leads[lead][name]:
                 atlas_dict = {}
                 for k,v in self.FIELD_NAMES_TABLE.items():
-                    try:
-                        coords = contact['coordinate_spaces'][k]['corrected']
-                    except KeyError:
-                        coords  = contact['coordinate_spaces'][k]['raw']
+                    coords = [None,None,None]
+                    if k in contact['coordinate_spaces']:
+                        try:
+                            coords = contact['coordinate_spaces'][k]['corrected']
+                        except KeyError:
+                            coords  = contact['coordinate_spaces'][k]['raw']
                     atlas_dict[v] = {}
                     for i,axis in enumerate(['x','y','z']):
                         atlas_dict[v][axis] = coords[i]
                         atlas_dict['region']=None
                 for k,v in self.ATLAS_NAMES_TABLE.items():
-                    atlas_dict[v]['region'] = contact['atlases'][k]
-                try:
-                    contact_dict = {
-                        'atlases':atlas_dict,
-                        'channel':self.labels_to_nums[contact['name']],
-                        'code':contact['name'],
-                        'type':leads[lead]['type']
-                    }
-                except KeyError:
-                    logger.info('Contact %s not found in jacksheet' % contact)
-                    continue
-                contacts[contact['name']]=contact_dict
-        self.contacts_dict[self.subject] = {'contacts':contacts}
-        self.create_file(os.path.join(db_folder,'contacts.json'),
-                         clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),'contacts',False)
+                    atlas_dict[v]['region'] = contact['atlases'].get(k)
+                    try:
+                        if name=='contacts':
+                            contact_dict = {
+                                'atlases':atlas_dict,
+                                'channel':self.labels_to_nums[contact['name']],
+                                'code':contact['name'],
+                                'type':leads[lead]['type']
+                            }
+                        elif name=='pairs':
+                            contact_dict={
+                                'atlases':atlas_dict,
+                                'channel_1':self.labels_to_nums[contact['names'][0]],
+                                'channel_2':self.labels_to_nums[contact['names'][1]],
+                                'code':'-'.join(contact['names']),
+                                'type':leads[lead]['type']
+                            }
+                        else:
+                            raise RuntimeError('bad name')
+                        contacts[contact_dict['code']]=contact_dict
 
-    def build_pairs_dict(self,db_folder):
-        leads = self.localization['leads']
-        pairs = {}
-        types={}
-        for lead in leads:
-            pairs.update({'-'.join([y.upper() for y in x['names']]):x for x in leads[lead]['pairs']})
-            types.update({'-'.join([y.upper() for y in x['names']]):leads[lead]['type'] for x in leads[lead]['pairs']})
-        logger.debug('Building pairs.json')
-        for pair in pairs.keys():
-            logger.debug(str(pair))
-            (name1,name2) = [x.upper() for x in pair.split('-')]
-            if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
-                pairs[pair]['channel_1'] =self.labels_to_nums[name1]
-                pairs[pair]['channel_2'] = self.labels_to_nums[name2]
-                pairs[pair]['type']=types[pair]
-            else:
-                logger.info('Pair %s not contained in jacksheet'%pair)
-                pairs[pair]={}
-                del pairs[pair]
-        self.pairs_dict[self.subject] = {'pairs':pairs}
-        self.create_file(os.path.join(db_folder,'pairs.json'),
-                         contents=clean_json_dumps(self.pairs_dict,indent=2,sort_keys=True),
-                         label='pairs',index_file=False)
+                    except KeyError as ke:
+                        if 'name' in contact:
+                            logger.info('%s %s not found in jacksheet' %(name.capitalize(),contact['name']))
+                        else:
+                            logger.info('%s %s not found in jacksheet' % (name.capitalize(), '-'.join(contact['names'])))
+                        continue
+        self.contacts_dict[self.subject] = {name:contacts}
+        self.create_file(os.path.join(db_folder,'%s.json'%name),
+                         clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),name,False)
+
+    # def build_pairs_dict(self,db_folder):
+    #     leads = self.localization['leads']
+    #     pairs = {}
+    #     types={}
+    #     for lead in leads:
+    #         pairs.update({'-'.join([y.upper() for y in x['names']]):x for x in leads[lead]['pairs']})
+    #         types.update({'-'.join([y.upper() for y in x['names']]):leads[lead]['type'] for x in leads[lead]['pairs']})
+    #     logger.debug('Building pairs.json')
+    #     for pair in pairs.keys():
+    #         logger.debug(str(pair))
+    #         (name1,name2) = [x.upper() for x in pair.split('-')]
+    #         if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
+    #             pairs[pair]['channel_1'] =self.labels_to_nums[name1]
+    #             pairs[pair]['channel_2'] = self.labels_to_nums[name2]
+    #             pairs[pair]['type']=types[pair]
+    #         else:
+    #             logger.info('Pair %s not contained in jacksheet'%pair)
+    #             pairs[pair]={}
+    #             del pairs[pair]
+    #     self.pairs_dict[self.subject] = {'pairs':pairs}
+    #     self.create_file(os.path.join(db_folder,'pairs.json'),
+    #                      contents=clean_json_dumps(self.pairs_dict,indent=2,sort_keys=True),
+    #                      label='pairs',index_file=False)
 
 
 
