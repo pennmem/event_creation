@@ -244,21 +244,6 @@ class IndexAggregatorTask(PipelineTask):
         with fileutil.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
             json.dump(index, f, sort_keys=True, indent=2)
 
-    # FIXME: is this intentionally defined within another class??
-    class ImportWavFilesTask(PipelineTask):
-        def _run(self,files,db_folder):
-            for fid in files:
-                with open(files[fid],'b') as f_open:
-                    contents = f_open.read()
-                self.create_file(file.name,contents=contents,)
-
-        def copy_file(self,filename,label,index=True):
-            base = os.path.basename(filename)
-            dest = os.path.join(self.destination,base)
-            shutil.copy(filename,dest)
-            if index:
-                self.pipeline.register_output(dest,label)
-
 
 def change_current(source_folder, *args):
     """

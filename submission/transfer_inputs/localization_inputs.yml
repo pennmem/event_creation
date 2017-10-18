@@ -11,7 +11,7 @@ directories:
   imaging_subject_dir : &IMAGING_SUBJ_DIR !join [*IMAGING_DIR, '{code}']
 
   freesurfer_dir : &FS_DIR "{data_root}/freesurfer"
-  freesurfer_subj_dir: &FS_SUBJ !join [*FS_DIR, 'subjects', '{subject}']
+  freesurfer_subj_dir: &FS_SUBJ !join [*FS_DIR, 'subjects/{code}']
   freesurfer_mri_dir: &FS_MRI !join [*FS_SUBJ, 'mri']
 
   tal_dir  : &TAL_DIR !join [*SUBJ_DIR, "tal"]
@@ -46,9 +46,19 @@ files:
     origin_file: 'electrodenames_coordinates_native.csv'
     destination: 'coordinates_native.csv'
 
+
+  - name: native_pair_loc
+    << : *FILE
+    required: false
+    origin_directory: *IMAGING_SUBJ_DIR
+    origin_file: 'electrodenames_coordinates_native_and_T1_mid.csv'
+    destination: 'coordinates_native_mid.cvs'
+
+
   - name: mni_loc
     << : *FILE
     origin_directory: *IMAGING_SUBJ_DIR
+    required: false
     origin_file: 'electrodenames_coordinates_mni.csv'
     destination: 'coordinates_mni.csv'
 
@@ -113,19 +123,18 @@ files:
         origin_file: 'lh.pial'
         destination: 'lh.pial'
 
-      - name: left_dural
+      - name: left_sphere
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
-        origin_file: 'lh.pial-outer-smoothed'
-        destination: 'lh.pial-outer-smoothed'
+        origin_file: 'lh.sphere.reg'
+        destination: 'lh.sphere.reg'
 
-      - name: right_dural
+      - name: right_sphere
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
-        origin_file: 'rh.pial-outer-smoothed'
-        destination: 'rh.pial-outer-smoothed'
+        origin_file: 'rh.sphere.reg'
+        destination: 'rh.sphere.reg'
+
 
   - name: labels
     <<: *DIR
@@ -147,6 +156,32 @@ files:
         origin_directory: ''
         origin_file: 'rh.aparc.annot'
         destination: 'rh.aparc.annot'
+        
+      #Joel added below
+      - name: left_labels_hcp
+        <<: *FILE
+        groups: [ 'old' ]
+        required: false
+        origin_directory: ''
+        origin_file: 'lh.HCP-MMP1.annot'
+        destination: 'lh.HCP-MMP1.annot'
+
+      - name: right_labels_hcp
+        <<: *FILE
+        required: false
+        groups: [ 'old' ]
+        origin_directory: ''
+        origin_file: 'rh.HCP-MMP1.annot'
+        destination: 'rh.HCP-MMP1.annot'
+      #Joel added above
+
+  - name: manual_loc
+    <<: *FILE
+    required: false
+    origin_directory: *SUBJ_DIR
+    origin_file: 'docs/localization/{code} Localization.xlsx'
+    destination: 'manual_localization.xlsx'
+
 
 
 
