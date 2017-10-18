@@ -524,8 +524,8 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
         CreateDuralSurfaceTask(subject,localization,True),
-        CalculateTransformsTask(subject, localization,critical=False),
-        CorrectCoordinatesTask(subject, localization,overwrite=force_dykstra,critical=False),
+        CalculateTransformsTask(subject, localization,critical=True),
+        CorrectCoordinatesTask(subject, localization,overwrite=force_dykstra,critical=True),
         GetFsAverageCoordsTask(subject,localization,critical=False),
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization,critical=False),
@@ -544,9 +544,10 @@ def build_import_montage_pipeline(subject, montage, protocol, code):
     return TransferPipeline(transferer, *tasks)
 
 
-def build_create_montage_pipeline(subject,montage,protocol,localization, code):
-    full_montage = '%s.%s'%(localization,montage)
-    transferer = generate_create_montage_transferer(subject, full_montage, protocol, code)
+def build_create_montage_pipeline(subject,montage,protocol, code):
+
+    localization  = int(montage.split('.')[0])
+    transferer = generate_create_montage_transferer(subject, montage, protocol, code)
     task = CreateMontageTask(subject,localization,montage)
     return TransferPipeline(transferer,task)
 
