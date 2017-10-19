@@ -6,7 +6,7 @@ from neurorad.localization import Localization
 from neurorad import (vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface)
 from .log import logger
 from .tasks import PipelineTask
-
+import numpy as np
 
 class LoadVoxelCoordinatesTask(PipelineTask):
 
@@ -150,6 +150,10 @@ class WriteFinalLocalizationTask(PipelineTask):
 
     def _run(self, files, db_folder):
         localization = self.pipeline.retrieve_object('localization')
+        pairs = localization.get_pairs(localization.get_lead_names())
+        for coord_space in localization.VALID_COORDINATE_SPACES:
+            for type in 'raw','corrected':
+                localization.get_pair_coordinates(coord_space,pairs,type)
 
         logger.info("Writing localization.json file")
         self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', True)
@@ -158,15 +162,15 @@ class WriteFinalLocalizationTask(PipelineTask):
 class CreateMontageTask(PipelineTask):
 
     FIELD_NAMES_TABLE = {
-        'fs':'indiv',
-        'fsaverage':'avg',
-        'mni':'mni',
-        'ct_voxel':'vox',
-        'hcp':'hcp',
+        'fs':('ind','corrected'),
+        'fsaverage':('avg','corrected'),
+        'mni':('mni','raw'),
+        'ct_voxel':('vox','raw'),
+        'hcp':('hcp','raw')
     }
 
     ATLAS_NAMES_TABLE = {
-        'dk':'indiv',
+        'dk':'ind',
         'whole_brain':'mni',
         'hcp':'hcp',
     }
@@ -228,17 +232,17 @@ class CreateMontageTask(PipelineTask):
         for lead in leads:
             for contact in leads[lead][name]:
                 atlas_dict = {}
-                for k,v in self.FIELD_NAMES_TABLE.items():
-                    coords = [None,None,None]
+                for k,(v,t) in self.FIELD_NAMES_TABLE.items():
+                    coords = [np.nan,np.nan,np.nan]
                     if k in contact['coordinate_spaces']:
                         try:
-                            coords = contact['coordinate_spaces'][k]['corrected']
+                            coords = contact['coordinate_spaces'][k][t]
                         except KeyError:
-                            coords  = contact['coordinate_spaces'][k]['raw']
+                            pass
                     atlas_dict[v] = {}
                     for i,axis in enumerate(['x','y','z']):
                         atlas_dict[v][axis] = coords[i]
-                        atlas_dict['region']=None
+                        atlas_dict[v]['region']=None
                 for k,v in self.ATLAS_NAMES_TABLE.items():
                     atlas_dict[v]['region'] = contact['atlases'].get(k)
                     try:
