@@ -162,10 +162,12 @@ class WriteFinalLocalizationTask(PipelineTask):
 class CreateMontageTask(PipelineTask):
 
     FIELD_NAMES_TABLE = {
-        'fs':('ind','corrected'),
-        'fsaverage':('avg','corrected'),
+        'ind':('fs','raw'),
+        'ind.corrected':('fs','corrected'),
+        'avg':('fsaverage','raw'),
+        'avg.corrected':('fsaverage','corrected'),
         'mni':('mni','raw'),
-        'ct_voxel':('vox','raw'),
+        'vox':('ct_voxel','raw'),
         'hcp':('hcp','raw')
     }
 
@@ -232,19 +234,16 @@ class CreateMontageTask(PipelineTask):
         for lead in leads:
             for contact in leads[lead][name]:
                 atlas_dict = {}
-                for k,(v,t) in self.FIELD_NAMES_TABLE.items():
+                for contact_name,(loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
                     coords = [np.nan,np.nan,np.nan]
-                    if k in contact['coordinate_spaces']:
-                        try:
-                            coords = contact['coordinate_spaces'][k][t]
-                        except KeyError:
-                            pass
-                    atlas_dict[v] = {}
+                    if loc_name in contact['coordinate_spaces']:
+                        coords = contact['coordinate_spaces'][loc_name][loc_t]
+                    atlas_dict[contact_name] = {}
                     for i,axis in enumerate(['x','y','z']):
-                        atlas_dict[v][axis] = coords[i]
-                        atlas_dict[v]['region']=None
-                for k,v in self.ATLAS_NAMES_TABLE.items():
-                    atlas_dict[v]['region'] = contact['atlases'].get(k)
+                        atlas_dict[contact_name][axis] = coords[i]
+                        atlas_dict[contact_name]['region']=None
+                for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
+                    atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
                     try:
                         if name=='contacts':
                             contact_dict = {
