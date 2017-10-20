@@ -19,8 +19,8 @@ class System3Aligner(object):
 
     MAXIMUM_ALLOWED_RESIDUAL = 500
 
-    FROM_LABELS = (('orig_timestamp', 1000),
-                   ('t_event', 1))
+    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),
+                   ('t_event', 1,''))
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -44,10 +44,10 @@ class System3Aligner(object):
         self.merged_events = self.events
 
 
-        for label, rate in self.FROM_LABELS:
+        for label, rate,exclude in self.FROM_LABELS:
             try:
                 self.task_to_ens_coefs, self.task_ends = \
-                    self.get_coefficients_from_event_log(label, 'offset', rate)
+                    self.get_coefficients_from_event_log(label, 'offset', rate,(exclude,))
                 self.host_to_ens_coefs, self.host_ends = \
                     self.get_coefficients_from_event_log('t_event', 'offset', 1)
                 logger.debug("Found coefficient with label {}".format(label))
@@ -104,7 +104,7 @@ class System3Aligner(object):
         return self.merged_events
 
 
-    def get_coefficients_from_event_log(self, from_label, to_label, rate):
+    def get_coefficients_from_event_log(self, from_label, to_label, rate,exclude=(None,)):
 
         ends = []
         coefs = []
@@ -114,9 +114,9 @@ class System3Aligner(object):
             event_dict = json.load(open(event_log))['events']
 
             froms = [float(event[from_label]) * 1000. / rate for event in event_dict \
-                    if from_label in event and to_label in event]
+                    if from_label in event and to_label in event and event['event_label'] not in exclude]
             tos = [float(event[to_label]) for event in event_dict\
-                   if from_label in event and to_label in event]
+                   if from_label in event and to_label in event and event['event_label'] not in exclude]
 
             froms = np.array(froms)
             tos = np.array(tos)
