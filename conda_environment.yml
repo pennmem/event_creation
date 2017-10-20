@@ -25,4 +25,4 @@ dependencies:
   - pywavelets==0.5.1
   - tables==3.3.0
   - nibabel==2.1.0
-  - mne
+  - mne==0.15.0
