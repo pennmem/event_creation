@@ -559,7 +559,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _read_primary_log(self):
         msgs = []
-        if isinstance(self._primary_log,str):
+        if isinstance(self._primary_log,basestring):
             msgs = self._read_sql_log(self._primary_log)
             # msgs = self._read_session_log(self._primary_log)
         else:
