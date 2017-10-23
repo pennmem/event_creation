@@ -813,15 +813,12 @@ def prompt_for_localization_inputs():
     localization = ''
     while not localization.isdigit():
         localization = raw_input("Enter localization number: ")
-    montage = ''
-    while not montage.isdigit():
-        montage = raw_input("Enter montage number: ")
+
 
     inputs = dict(
         code = code,
         subject = subject,
         localization = localization,
-        montage=montage,
         protocol = 'r1'
     )
 
