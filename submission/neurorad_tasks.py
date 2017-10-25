@@ -37,12 +37,16 @@ class CreateDuralSurfaceTask(PipelineTask):
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
+        tc = self.pipeline.transferer.transfer_config
+        out_folder = os.path.join(tc._raw_config['directories']['localization_db_dir'].format(**tc.kwargs), 'dural_surface')
+        if not os.path.isdir(out_folder):
+            os.makedirs(out_folder)
         for side in ['left','right']:
             dural_side = '%s_dural'%side
             pial_file = '%s_pial'%side
             if dural_side not in files:
                 logger.info('Constructing %s dural surface'%side)
-                dural_file = make_outer_surface.make_smoothed_surface(files[pial_file])
+                dural_file = make_outer_surface.make_smoothed_surface(files[pial_file],out_folder)
                 files[dural_side] = dural_file
 
 class GetFsAverageCoordsTask(PipelineTask):
@@ -58,9 +62,10 @@ class GetFsAverageCoordsTask(PipelineTask):
         for coord_type in ('raw','corrected'):
             fs_coords = localization.get_contact_coordinates('fs',contacts,coord_type)
 
-            fsaverage_coords = calculate_transformation.map_to_average_brain(fs_coords,files['left_pial'],files['right_pial'],
+            fsaverage_coords,fsaverage_labels = calculate_transformation.map_to_average_brain(fs_coords,files['left_pial'],files['right_pial'],
                                                                              files['left_sphere'],files['right_sphere'])
             localization.set_contact_coordinates('fsaverage',contacts,fsaverage_coords,coord_type)
+            localization.set_contact_labels('dkavg',contacts,fsaverage_labels,)
 
 
 
@@ -175,6 +180,7 @@ class CreateMontageTask(PipelineTask):
         'dk':'ind',
         'whole_brain':'mni',
         'hcp':'hcp',
+        'manual':'stein',
     }
 
 
