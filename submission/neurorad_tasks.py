@@ -277,33 +277,9 @@ class CreateMontageTask(PipelineTask):
                             logger.info('%s %s not found in jacksheet' % (name.capitalize(), '-'.join(contact['names'])))
                         continue
         self.contacts_dict[self.subject] = {name:contacts}
+        self.contacts_dict['version'] = self.localization.get('version') or 1.0
         self.create_file(os.path.join(db_folder,'%s.json'%name),
                          clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),name,False)
-
-    # def build_pairs_dict(self,db_folder):
-    #     leads = self.localization['leads']
-    #     pairs = {}
-    #     types={}
-    #     for lead in leads:
-    #         pairs.update({'-'.join([y.upper() for y in x['names']]):x for x in leads[lead]['pairs']})
-    #         types.update({'-'.join([y.upper() for y in x['names']]):leads[lead]['type'] for x in leads[lead]['pairs']})
-    #     logger.debug('Building pairs.json')
-    #     for pair in pairs.keys():
-    #         logger.debug(str(pair))
-    #         (name1,name2) = [x.upper() for x in pair.split('-')]
-    #         if name1 in self.labels_to_nums and name2 in self.labels_to_nums:
-    #             pairs[pair]['channel_1'] =self.labels_to_nums[name1]
-    #             pairs[pair]['channel_2'] = self.labels_to_nums[name2]
-    #             pairs[pair]['type']=types[pair]
-    #         else:
-    #             logger.info('Pair %s not contained in jacksheet'%pair)
-    #             pairs[pair]={}
-    #             del pairs[pair]
-    #     self.pairs_dict[self.subject] = {'pairs':pairs}
-    #     self.create_file(os.path.join(db_folder,'pairs.json'),
-    #                      contents=clean_json_dumps(self.pairs_dict,indent=2,sort_keys=True),
-    #                      label='pairs',index_file=False)
-
 
 
 
