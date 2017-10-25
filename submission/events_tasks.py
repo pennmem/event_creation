@@ -32,7 +32,7 @@ from .parsers.pal_sys3_log_parser import PALSys3LogParser
 from .parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from .parsers.math_parser import MathLogParser
+from .parsers.math_parser import MathLogParser,MathUnityLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 
@@ -181,6 +181,14 @@ class EventCreationTask(PipelineTask):
             'THR': THRSessionLogParser,
             'math': MathLogParser,
         },
+        3.3:{
+            'FR': FRSys3LogParser,
+            'catFR': catFRSys3LogParser,
+            'PS': PS4Sys3LogParser,
+            'PAL': PALSys3LogParser,
+            'THR': THRSessionLogParser,
+            'math': MathUnityLogParser,
+        }
     }
     LTP_PARSERS = {
         'ltpFR': LTPFRSessionLogParser,
