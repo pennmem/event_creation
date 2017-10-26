@@ -481,7 +481,6 @@ class BaseSys3LogParser(BaseLogParser):
 class BaseSys3_1LogParser(BaseSessionLogParser):
     _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
-    _UNITY_TYPE_FIELD = 'name'
     _PHASE_TYPE_FIELD = 'phase_type'
 
     _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase', '', '<S16'),)

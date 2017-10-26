@@ -78,7 +78,6 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
         self._type_to_new_event = defaultdict(
             lambda: self.event_default,
-            WORD = self.event_unity_word,
             WORD_START=self.event_word,
             WORD_END=self.event_word_off,
             TRIAL_START=self.event_trial,
