@@ -71,7 +71,7 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
 
     def event_vocalization(self,event_json):
         event = self.event_default(event_json)
-        event.mstime = int(event_json[self._STIME_FIELD])
+        event.mstime = int(event_json[self._MSTIME_FIELD])
         return event
 
     def event_recall_start(self,event_json):

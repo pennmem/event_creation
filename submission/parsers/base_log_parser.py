@@ -479,14 +479,22 @@ class BaseSys3LogParser(BaseLogParser):
 
 
 class BaseSys3_1LogParser(BaseSessionLogParser):
-    _STIME_FIELD = 'timestamp'
+    _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
+    _UNITY_TYPE_FIELD = 'name'
     _PHASE_TYPE_FIELD = 'phase_type'
 
     _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase', '', '<S16'),)
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
+        self.LOG_READERS = {
+            '.sql': self._read_sql_log,
+            '.sqlite': self._read_sql_log,
+            '.json': self._read_unityepl_log,
+            '.log': self._read_session_log,
+        }
+
         BaseSessionLogParser.__init__(self, protocol, subject, montage,
                                       experiment, session, files,
                                       primary_log=primary_log,
@@ -494,6 +502,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
                                       include_stim_params=include_stim_params)
         self._files = files
         self._phase = ''
+
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
@@ -533,6 +542,9 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         messages = df[df.type == 'network'].data
         network = pd.DataFrame([msg['message']['data']
                                 for msg in messages if msg['sent']])
+        times = [msg['message']['time'] for msg in messages if msg['sent']]
+        network[self._MSTIME_FIELD] = times
+        self._TYPE_FIELD = self._UNITY_TYPE_FIELD
         events = network[network.name.notnull()].dropna(1, 'all').reset_index(drop=True)
         return [e.to_dict() for _, e in events.iterrows()]
 
@@ -548,23 +560,24 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         mstimes = [int(x[0]) for x in lines]
         types = [x[-1].partition(' ')[0] for x in lines]
         for i in range(len(event_jsons)):
-            event_jsons[i][self._STIME_FIELD] = mstimes[i]
+            event_jsons[i][self._MSTIME_FIELD] = mstimes[i]
             event_jsons[i][self._TYPE_FIELD] = types[i]
         return event_jsons
 
     def _read_primary_log(self):
         msgs = []
         if isinstance(self._primary_log, str):
-            msgs = self._read_sql_log(self._primary_log)
-            # msgs = self._read_session_log(self._primary_log)
+            log_ext = os.path.splitext(self._primary_log)[-1]
+            msgs = self.LOG_READERS[log_ext](self._primary_log)
         else:
             for log in self._primary_log:
-                msgs += self._read_session_log(log)
+                log_ext = os.path.splitext(log)[-1]
+                msgs += self.LOG_READERS[log_ext](self._primary_log)
         return msgs
 
     def event_default(self, event_json):
         event = self._empty_event
-        event.mstime = event_json[self._STIME_FIELD]
+        event.mstime = event_json[self._MSTIME_FIELD]
         event.type = event_json[self._TYPE_FIELD]
         event.phase = self._phase
 

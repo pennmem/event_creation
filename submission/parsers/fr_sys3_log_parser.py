@@ -78,6 +78,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
         self._type_to_new_event = defaultdict(
             lambda: self.event_default,
+            WORD = self.event_unity_word,
             WORD_START=self.event_word,
             WORD_END=self.event_word_off,
             TRIAL_START=self.event_trial,
@@ -198,7 +199,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         self._word = event_json[self._ITEM_FIELD]
         event = self.apply_word(event)
         if self._recognition:
-            self._recog_pres_mstime = event_json[self._STIME_FIELD]
+            self._recog_pres_mstime = event_json[self._MSTIME_FIELD]
             if event_json[self._PHASE_TYPE_FIELD] == 'LURE':
                 event.type = 'RECOG_LURE'
             else:
@@ -214,7 +215,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         event = self.apply_word(event)
         if self._recognition:
             event.type = 'RECOG_WORD_OFF'
-            self._recog_endtime = event_json[self._STIME_FIELD]-self._recog_pres_mstime
+            self._recog_endtime = event_json[self._MSTIME_FIELD] - self._recog_pres_mstime
         else:
             event.type = 'WORD_OFF'
         return event
@@ -265,6 +266,10 @@ class RecognitionParser(BaseSys3LogParser):
             event = self.event_default(event_json)
             event.type = 'RECOG_LURE' if event_json['phase_type']=='LURE' else 'RECOG_TARGET'
             event.response = event_json['value']
+
+
+
+
 
 
 if __name__ == '__main__':

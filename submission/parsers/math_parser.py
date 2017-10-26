@@ -114,7 +114,7 @@ class MathUnityLogParser(BaseSys3_1LogParser):
                   for msg in messages ]
         used_messages = pd.DataFrame.from_records([msg['message']  for msg in messages.loc[to_use]])
         data = pd.DataFrame.from_records([data for data in used_messages.data])
-        data[cls._STIME_FIELD] = used_messages.time.values.astype(int)
+        data[cls._MSTIME_FIELD] = used_messages.time.values.astype(int)
         data[cls._TYPE_FIELD] = data['name'].where(~data['name'].isnull(),used_messages['type'])
         return [e.to_dict() for _, e in data.iterrows()]
 
@@ -157,7 +157,7 @@ class MathUnityLogParser(BaseSys3_1LogParser):
         event['test']  = problem
         event['iscorrect'] = int(event['answer']==sum(problem))
         event['rectime'] = int(event_json[self.RECTIME_FIELD])
-        event['mstime'] = event_json[self._STIME_FIELD]-event['rectime']
+        event['mstime'] = event_json[self._MSTIME_FIELD] - event['rectime']
 
         return event
 
