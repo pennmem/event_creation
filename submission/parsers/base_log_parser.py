@@ -18,6 +18,12 @@ class BaseLogParser(object):
     # Maximum length of stim params
     MAX_STIM_PARAMS = 10
 
+    # Set to false if stim events are added inside the log parser
+    ADD_STIM_EVENTS = True
+
+    # Set to false if EEG offsets are added inside the log parser
+    DO_ALIGNMENT = True
+
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
         ('protocol', '', 'S64'),
@@ -215,7 +221,8 @@ class BaseLogParser(object):
                 value *= 1000  # Put in uA. Ugly fix...
             if param == 'pulse_freq' and value>np.iinfo(event.stim_params[index][param].dtype).max:
                 value /=1000 # same fix, but for Hz
-            event.stim_params[index][param] = value
+            if param in event.stim_params.dtype.names:
+                event.stim_params[index][param] = value
 
         if 'anode_label' in params and 'anode_number' not in params:
             reverse_jacksheet = {v: k for k, v in jacksheet.items()}

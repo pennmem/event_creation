@@ -254,7 +254,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     aligner = System3Aligner(unaligned_events, files, db_folder)
 
-                if self.event_label not in  ['math'] and self.parser_type is not PS4Sys3LogParser:
+                if parser.ADD_STIM_EVENTS:
                     logger.debug("Adding stimulation events")
                     aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
@@ -264,7 +264,8 @@ class EventCreationTask(PipelineTask):
                     start_type = 'NP_POLL'
                 else:
                     start_type = "SESS_START"
-                events = aligner.align(start_type)
+                if parser.DO_ALIGNMENT:
+                    events = aligner.align(start_type)
             elif self.r1_sys_num == 1.0:
                 aligner = System1Aligner(unaligned_events, files)
                 events = aligner.align()

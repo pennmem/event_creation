@@ -407,6 +407,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     _ID_FIELD = 'hashtag'
     _STIM_PARAMS_FIELD = 'msg_stub'
     _DELTA_CLASSIFIER_FIELD = 'stim_delta_classifier'
+    ADD_STIM_EVENTS = False
 
     _LOC_FIELDS = (
         ('loc_name','','S16'),

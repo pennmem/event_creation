@@ -7,6 +7,8 @@ class MathLogParser(BaseSessionLogParser):
 
     _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
 
+    ADD_STIM_EVENTS = False
+
     @classmethod
     def _math_fields(cls):
         """
