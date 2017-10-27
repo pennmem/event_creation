@@ -52,7 +52,7 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
         super(BaseHostPCLogParser, self).__init__(protocol,subject,montage,experiment,session,files,
                                                   primary_log,allow_unparsed_events,include_stim_params)
 
-        self.biomarker_value = -1.0
+        self._biomarker_value = -1.0
         self._stim_params = {}
 
     def _read_primary_log(self):
@@ -102,6 +102,7 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
 
     def event_biomarker(self,event_json):
         event=self.event_default(event_json)
+        event = self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
         event.eegoffset = event_json['msg_stub']['start_offset']
 
 
@@ -203,10 +204,18 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
     def modify_biomarker(self,events):
         """
-        Find events after most recent
+        Adds biomarker value to stim events
+
+        Note that this method assumes that stim events are immediately followed by a biomarker event.
         :param events:
         :return:
         """
+        last_word = events[events.type=='WORD'][-1]
+        events_to_modify = events[events.mstime>=last_word.mstime]
+        events_to_modify.stim_params['biomarker_value'] = self._biomarker_value
+        self._biomarker_value = -1
+        events[events.mstime>=last_word.mstime]= events_to_modify
+        return events
 
 
 
