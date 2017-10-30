@@ -37,10 +37,7 @@ class CreateDuralSurfaceTask(PipelineTask):
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
-        tc = self.pipeline.transferer.transfer_config
-        out_folder = os.path.join(tc._raw_config['directories']['localization_db_dir'].format(**tc.kwargs), 'dural_surface')
-        if not os.path.isdir(out_folder):
-            os.makedirs(out_folder)
+        out_folder = os.path.dirname(files['right_pial'])
         for side in ['left','right']:
             dural_side = '%s_dural'%side
             pial_file = '%s_pial'%side
