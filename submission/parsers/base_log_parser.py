@@ -318,20 +318,20 @@ class BaseLogParser(object):
             this_type = self._get_raw_event_type(raw_event)
             # Check if the line is parseable
             try:
-                new_event = self._type_to_new_event[this_type](raw_event)
-                if not isinstance(new_event, np.recarray) and not (new_event is False):
-                    raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
-                elif isinstance(new_event, np.recarray):
-                    events = np.append(events, new_event)
-
+                handler = self._type_to_new_event[this_type]
             except KeyError:
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
-                    pass
+                    continue
                 else:
                     raise LogParseError("Event type %s not parseable" % this_type)
-            if events.dtype == np.object:
-                pass
+
+            new_event = handler(raw_event)
+            if not isinstance(new_event, np.recarray) and not (new_event is False):
+                raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
+            elif isinstance(new_event, np.recarray):
+                events = np.append(events, new_event)
+
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
