@@ -41,8 +41,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         ('position','','S64')
     )
 
-    _BASE_FIELDS = FRSessionLogParser._BASE_FIELDS + (
-        ('phase','','S64'),
+    _RECOG_FIELDS =  (
         ('recognized',-999,'int16'),
         ('rejected',-999,'int16'),
         ('recog_resp',-999,'int16'),
@@ -65,9 +64,9 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         event.stim_list = self._stim_list
         return event
 
-    def __init__(self, protocol, subject, montage, experiment, session, files):
+    def __init__(self, protocol, subject, montage, experiment, session, files,primary_log='session_log'):
         super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                                        primary_log='session_log',allow_unparsed_events=True)
+                                        primary_log=primary_log,allow_unparsed_events=True)
 
         self._list = -999
         self._stim_list = False
@@ -75,6 +74,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         self._recognition = False
         self._was_recognized = False
         self._phase = ''
+        self._add_fields(*self._RECOG_FIELDS)
 
         self._type_to_new_event = defaultdict(
             lambda: self.event_default,
