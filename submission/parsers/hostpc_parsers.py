@@ -1,8 +1,11 @@
-from .base_log_parser import BaseLogParser,BaseSys3_1LogParser
-from fr_sys3_log_parser import FRSys3LogParser
+from .base_log_parser import BaseLogParser,BaseSys3_1LogParser,BaseSessionLogParser
+from ..readers.eeg_reader import read_jacksheet
+from .fr_sys3_log_parser import FRSys3LogParser
 import pandas as pd
 import json
 from functools import wraps
+from copy import deepcopy
+import numpy as np
 
 
 def with_offset(event_handler):
@@ -15,10 +18,12 @@ def with_offset(event_handler):
     @wraps(event_handler)
     def handle_and_add_offset(self,event_json):
         event = event_handler(self,event_json)
+        if event is None:
+            pass
         return self.set_offset(event,event_json)
     return handle_and_add_offset
 
-class BaseHostPCLogParser(BaseSys3_1LogParser):
+class BaseHostPCLogParser(BaseSessionLogParser):
     """
     This class implements the basic logic for producing event structures from event_log.json files written by the
     host PC in system 3.1+
@@ -28,32 +33,39 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
     possible on the existence of particular fields.
     """
 
-    _TYPE_FIELD = 'event_label'
-    _MSTIME_FIELD = 't_event'
-
     DO_ALIGNMENT = False
     ADD_STIM_EVENTS = False
 
     _STIM_FIELDS = (
         ('anode_label','','S64'),
-        ('andode_number',-1,'int16'),
+        ('anode_number',-1,'int16'),
         ('cathode_label','','S64'),
         ('cathode_number',-1,'int16'),
-        ('amplitude',    -1,'float16'),
-        ('pulse_freq',   -1,'float16'),
+        ('amplitude',    -1,'int16'),
+        ('pulse_freq',   -1,'int16'),
         ('stim_duration',-1,'int16'),
         ('biomarker_value',-1.0,'float'),
-        ('remove',True,'bool'),
+        ('_remove',True,'bool'),
         )
 
 
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='event_log', allow_unparsed_events=False, include_stim_params=False):
-        super(BaseHostPCLogParser, self).__init__(protocol,subject,montage,experiment,session,files,
-                                                  primary_log,allow_unparsed_events,include_stim_params)
+        BaseSessionLogParser.__init__(self,protocol,subject,montage,experiment,session,files,
+                                                  primary_log=primary_log,
+                                                  allow_unparsed_events=allow_unparsed_events,
+                                                  include_stim_params=include_stim_params)
+        self._TYPE_FIELD = 'event_label'
+        self._MSTIME_FIELD = 't_event'
+
+        self.files = files
+        self._phase = ''
 
         self._biomarker_value = -1.0
         self._stim_params = {}
+        with open(files['experiment_config'],'r') as ecf:
+            self._experiment_config = json.load(ecf)
+        self._jacksheet = read_jacksheet(files['electrode_config'])
 
     def _read_primary_log(self):
         """
@@ -62,7 +74,8 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
         """
         with open(self._primary_log,'r') as primary_log:
             contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
-            contents = pd.concat([contents,pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])])
+            contents = pd.concat([contents,pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])],
+                                 axis=1)
             return [e.to_dict() for _, e in contents.iterrows()]
 
 
@@ -81,7 +94,7 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
         :param event_json: Unparsed event record
         :return:
         """
-        event = super(BaseHostPCLogParser, self).event_default(event_json)
+
         event.eegoffset = event_json['offset']
         return event
 
@@ -93,18 +106,21 @@ class BaseHostPCLogParser(BaseSys3_1LogParser):
         event.type = 'STIM_ON'
         stim_params = event_json['msg_stub']['stim_channels']
         for i,stim_pair in enumerate(stim_params):
-            stim_params['anode_name'] = stim_pair.split('_')[0]
-            stim_params['cathode_name'] = stim_pair.split('_')[1]
-            stim_params['stim_duration'] = stim_params['duration']
-            self.set_event_stim_params(event,self._jacksheet,index=i,**stim_params[stim_pair])
-        self._stim_params = stim_params
+            new_params= {}
+            new_params['anode_label'] = stim_pair.split('_')[0]
+            new_params['cathode_label'] = stim_pair.split('_')[1]
+            new_params['stim_duration'] = int(stim_params[stim_pair]['duration'])
+            new_params['amplitude'] = int(stim_params[stim_pair]['amplitude'])
+            new_params['pulse_freq'] = int(stim_params[stim_pair]['pulse_freq'])
+            self.set_event_stim_params(event,self._jacksheet,index=i,**new_params)
+        self._stim_params = new_params
         return event
 
+    @with_offset
     def event_biomarker(self,event_json):
         event=self.event_default(event_json)
-        event = self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
-        event.eegoffset = event_json['msg_stub']['start_offset']
-
+        self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
+        return event
 
 
 class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
@@ -112,8 +128,15 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     _VALUE_FIELD = 'event_value'
 
     def __init__(self,protocol,subject,montage,experiment,session,files):
+        FRSys3LogParser.__init__(self,protocol,subject,montage,experiment,session,files,primary_log='event_log')
+        fields = self._fields
         BaseHostPCLogParser.__init__(self,protocol,subject,montage,experiment,session,files,allow_unparsed_events=True,
                                      include_stim_params=True)
+
+
+        self._fields = fields
+        if 'FR5' not in experiment:
+            self._fields = tuple(f for f in self._fields if f not in self._RECOG_FIELDS)
 
         self._add_type_to_new_event(
             INSTRUCT = self.event_default,
@@ -134,17 +157,22 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         )
         self._biomarker_value =-1
         self._stim_on = False
+        self._list = -999
+        self._phase = ''
 
+    @with_offset
     def event_stim(self,event_json):
         event = super(FRHostPCLogParser, self).event_stim(event_json)
         if self._stim_on:
             event.stim_params['biomarker_value']=self._biomarker_value
         self._stim_on = True
+        return event
 
     def event_biomarker(self,event_json):
-        super(FRHostPCLogParser, self).event_biomarker(event_json)
+        event = super(FRHostPCLogParser, self).event_biomarker(event_json)
         self._biomarker_value = event_json['msg_stub']['biomarker_value']
         self._stim_on = True
+        return event
 
 
     @with_offset
@@ -153,9 +181,10 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         event.phase = self._phase
         event['mstime'] = int(event_json[self._MSTIME_FIELD]*1000)
         if event_json[self._VALUE_FIELD]:
-            event['type'] = event['type']+'_START'
+            event['type'] = '%s_START'%event['type']
         else:
-            event['type'] = event['type']+ '_END'
+            event['type'] = '%s_END'%event['type']
+        return event
 
     @with_offset
     def event_word(self,event_json):
@@ -172,12 +201,15 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     @with_offset
     def event_trial(self, event_json):
         self._phase = event_json[self._PHASE_TYPE_FIELD]
-        event = self.event_default(event_json)
-        if self._list == -1:
-            self._list = 1
-        else:
-            self._list+=1
+        if event_json[self._VALUE_FIELD]:
 
+            if self._list == -999:
+                self._list = -1
+            elif self._list == -1:
+                self._list = 1
+            else:
+                self._list+=1
+        event = self.event_default(event_json)
         return event
 
     @with_offset
@@ -198,9 +230,17 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         return events
 
 
-    # def modify_stim(self,events):
-    #     in_list = events.list==self._list
-    #     for event in events[in_list]:
+    def modify_stim(self,events):
+        in_list = events.list==self._list
+        list_stim_events = events[(events.type=='STIM_ON') & in_list]
+        stim_off_events = deepcopy(list_stim_events)
+        duration  =self._stim_params['stim_duration']
+        stim_off_events.mstime += duration
+        stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
+        stim_off_events.type='STIM_OFF'
+        events = np.concatenate([events,stim_off_events])
+        events.sort(order='mstime')
+        return events
 
     def modify_biomarker(self,events):
         """
