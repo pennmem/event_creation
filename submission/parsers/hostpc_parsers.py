@@ -63,21 +63,37 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
         self._biomarker_value = -1.0
         self._stim_params = {}
-        with open(files['experiment_config'],'r') as ecf:
-            self._experiment_config = json.load(ecf)
-        self._jacksheet = read_jacksheet(files['electrode_config'])
+        self._set_experiment_config()
+        self._jacksheet = read_jacksheet(files['electrode_config'][0]) #TODO:
 
     def _read_primary_log(self):
         """
         Overrides BaseSys3_1LogParser._read_primary_log
         :return: List of dicts, 1 per entry in the log
         """
-        with open(self._primary_log,'r') as primary_log:
-            contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
-            contents = pd.concat([contents,pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])],
-                                 axis=1)
-            return [e.to_dict() for _, e in contents.iterrows()]
+        if isinstance(self._primary_log,(str,unicode)):
 
+            with open(self._primary_log,'r') as primary_log:
+                contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
+                contents = pd.concat([contents,pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])],
+                                     axis=1)
+                return [e.to_dict() for _, e in contents.iterrows()]
+        elif isinstance(self._primary_log,list):
+            all_contents = []
+            for log in self._primary_log:
+                with open(log,'r') as primary_log:
+                    contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
+                    contents = pd.concat(
+                        [contents, pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])],
+                        axis=1)
+                all_contents.extend([e.to_dict() for _, e in contents.iterrows()])
+            return all_contents
+
+    def _set_experiment_config(self):
+        config_file = (self.files['experiment_config'][0] if isinstance(self.files['experiment_config'],list)
+                       else self.files['experiment_config'])
+        with open(config_file,'r') as ecf:
+            self._experiment_config = json.load(ecf)
 
 
     def parse(self):
@@ -105,14 +121,16 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         event = self.event_default(event_json)
         event.type = 'STIM_ON'
         stim_params = event_json['msg_stub']['stim_channels']
+        new_params = {}
         for i,stim_pair in enumerate(stim_params):
-            new_params= {}
-            new_params['anode_label'] = stim_pair.split('_')[0]
-            new_params['cathode_label'] = stim_pair.split('_')[1]
-            new_params['stim_duration'] = int(stim_params[stim_pair]['duration'])
-            new_params['amplitude'] = int(stim_params[stim_pair]['amplitude'])
-            new_params['pulse_freq'] = int(stim_params[stim_pair]['pulse_freq'])
-            self.set_event_stim_params(event,self._jacksheet,index=i,**new_params)
+            new_pair_params = {}
+            new_pair_params['anode_label'] = stim_pair.split('_')[0]
+            new_pair_params['cathode_label'] = stim_pair.split('_')[1]
+            new_pair_params['stim_duration'] = int(stim_params[stim_pair]['duration'])
+            new_pair_params['amplitude'] = int(stim_params[stim_pair]['amplitude'])
+            new_pair_params['pulse_freq'] = int(stim_params[stim_pair]['pulse_freq'])
+            self.set_event_stim_params(event,self._jacksheet,index=i,**new_pair_params)
+            new_params[stim_pair] = new_pair_params
         self._stim_params = new_params
         return event
 
@@ -233,12 +251,12 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     def modify_stim(self,events):
         in_list = events.list==self._list
         list_stim_events = events[(events.type=='STIM_ON') & in_list]
-        stim_off_events = deepcopy(list_stim_events)
-        duration  =self._stim_params['stim_duration']
-        stim_off_events.mstime += duration
-        stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
-        stim_off_events.type='STIM_OFF'
-        events = np.concatenate([events,stim_off_events])
+        for duration in np.unique([x['stim_duration'] for x in self._stim_params.values()]):
+            stim_off_events = deepcopy(list_stim_events)
+            stim_off_events.mstime += duration
+            stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
+            stim_off_events.type='STIM_OFF'
+            events = np.concatenate([events,stim_off_events])
         events.sort(order='mstime')
         return events
 
