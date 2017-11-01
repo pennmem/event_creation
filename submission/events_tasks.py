@@ -184,10 +184,6 @@ class EventCreationTask(PipelineTask):
         },
         3.3:{
             'FR': FRHostPCLogParser,
-            'catFR': catFRSys3LogParser,
-            'PS': PS4Sys3LogParser,
-            'PAL': PALSys3LogParser,
-            'THR': THRSessionLogParser,
             'math': MathUnityLogParser,
         }
     }
@@ -209,7 +205,10 @@ class EventCreationTask(PipelineTask):
         if self._parser_type is None:
             if self.protocol == 'r1':
                 new_experiment = self.kwargs.get('new_experiment') or self.experiment
-                self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+                try:
+                    self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+                except KeyError:
+                    raise  KeyError('Experiment %s not supported for system %s'%(new_experiment,self.r1_sys_num))
             elif self.protocol == 'ltp':
                 self._parser_type = self.LTP_PARSERS[self.experiment]
         return self._parser_type
@@ -249,7 +248,7 @@ class EventCreationTask(PipelineTask):
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
                 events = unaligned_events
-            elif self.r1_sys_num in (2.0,3.0,3.1):
+            elif self.r1_sys_num in (2.0,3.0,3.1,3.3):
                 if self.r1_sys_num == 2.0:
                     aligner = System2Aligner(unaligned_events, files, db_folder)
                 else:
@@ -267,11 +266,14 @@ class EventCreationTask(PipelineTask):
                     start_type = "SESS_START"
                 if parser.DO_ALIGNMENT:
                     events = aligner.align(start_type)
+                else:
+                    events = unaligned_events
+                aligner.apply_eeg_file(events)
             elif self.r1_sys_num == 1.0:
                 aligner = System1Aligner(unaligned_events, files)
                 events = aligner.align()
             else:
-                raise ProcessingError("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+                raise ProcessingError("r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
