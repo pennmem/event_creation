@@ -95,6 +95,8 @@ class MathLogParser(BaseSessionLogParser):
 
 class MathUnityLogParser(BaseSys3_1LogParser):
 
+    ADD_STIM_EVENTS = False
+
     ANSWER_FIELD='response'
     TEST_FIELD = 'problem'
     RECTIME_FIELD = 'response_time_ms'
@@ -123,7 +125,7 @@ class MathUnityLogParser(BaseSys3_1LogParser):
 
     def __init__(self,protocol,subject,montage,experiment,session,files):
         super(MathUnityLogParser, self).__init__(protocol,subject,montage,experiment,session,files,
-                                                 primary_log='session_log')
+                                                 primary_log='session_log_json')
 
         self._add_fields(*MathLogParser._math_fields())
         self._add_type_to_new_event(
