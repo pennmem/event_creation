@@ -469,6 +469,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
+            PS_OPTIMIZATION_DECISION_NOT_POSSIBLE =  self.event_default,
             ENCODING = self.encoding,
             DISTRACT = self.distract,
             RETRIEVAL = self.retrieval,
