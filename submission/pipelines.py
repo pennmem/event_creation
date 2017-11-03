@@ -369,7 +369,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', MathLogParser, critical=False, **kwargs))
+                                       'math', critical=False, **kwargs))
         other_events += ('math',)
 
     if other_events:
