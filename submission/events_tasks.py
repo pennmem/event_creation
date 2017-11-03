@@ -33,7 +33,7 @@ from .parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathLogParser,MathUnityLogParser
-from .parsers.hostpc_parsers import  FRHostPCLogParser
+from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 
@@ -184,6 +184,7 @@ class EventCreationTask(PipelineTask):
         },
         3.3:{
             'FR': FRHostPCLogParser,
+            'catFR':catFRHostPCLogParser,
             'math': MathUnityLogParser,
         }
     }
@@ -204,7 +205,7 @@ class EventCreationTask(PipelineTask):
     def parser_type(self):
         if self._parser_type is None:
             if self.protocol == 'r1':
-                new_experiment = self.kwargs.get('new_experiment') or self.experiment
+                new_experiment = self.kwargs.get('new_experiment') or self.experiment if self.event_label=='task' else self.event_label
                 try:
                     self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:
