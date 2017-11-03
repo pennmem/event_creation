@@ -276,5 +276,27 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         return events
 
 
+class catFRHostPCLogParser(FRHostPCLogParser):
+
+    _catFR_FIELDS = (
+        ('category','X','S64'),
+        ('category_num',-999,'int16')
+    )
+
+    _CATEGORY = 'category'
+    _CATEGORY_NUM = 'category_num'
 
 
+    def __init__(self,*args,**kwargs):
+        super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
+        self._add_fields(*self._catFR_FIELDS)
+        self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
+
+
+    def event_word(self, event_json):
+        event = super(catFRHostPCLogParser, self).event_word(event_json)
+        event.category = event_json[self._CATEGORY]
+        category_num = np.where(np.in1d(self._categories,event.category))
+        if len(category_num):
+            event.category_num=category_num[0][0]
+        return event
