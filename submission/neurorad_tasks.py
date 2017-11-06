@@ -158,7 +158,7 @@ class WriteFinalLocalizationTask(PipelineTask):
                 localization.get_pair_coordinates(coord_space,pairs,type)
 
         logger.info("Writing localization.json file")
-        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', True)
+        self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', False)
 
 
 class CreateMontageTask(PipelineTask):
@@ -248,6 +248,8 @@ class CreateMontageTask(PipelineTask):
                 for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
                     if loc_name not in atlas_dict:
                         atlas_dict[loc_name]={}
+                        for axis in 'xyz':
+                            atlas_dict[loc_name][axis] = np.nan
                     atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
                     try:
                         if name=='contacts':
