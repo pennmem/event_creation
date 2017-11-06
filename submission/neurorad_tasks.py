@@ -246,6 +246,8 @@ class CreateMontageTask(PipelineTask):
                         atlas_dict[contact_name][axis] = coords[i]
                         atlas_dict[contact_name]['region']=None
                 for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
+                    if loc_name not in atlas_dict:
+                        atlas_dict[loc_name]={}
                     atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
                     try:
                         if name=='contacts':
