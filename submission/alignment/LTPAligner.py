@@ -5,6 +5,7 @@ import numpy as np
 from ..log import logger
 import pandas as pd
 
+
 class LTPAligner:
     """
     Used for aligning the EEG data from the ephys computer with the task events from the behavioral computer.
@@ -38,10 +39,13 @@ class LTPAligner:
 
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
-        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*-raw.fif'))
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.bdf')) + glob.glob(os.path.join('*.mff')) + glob.glob(os.path.join('*.raw'))
         self.eeg = {}
         for f in self.eeg_files:
-            self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_fif(f, preload=False)
+            if f.endswith('.bdf'):
+                self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_edf(f, preload=False)
+            else:
+                self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_egi(f, preload=False)
 
         self.num_samples = None
         self.sample_rate = None
