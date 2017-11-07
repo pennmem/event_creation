@@ -265,7 +265,9 @@ class CreateMontageTask(PipelineTask):
                                 'channel_1':self.labels_to_nums[contact['names'][0]],
                                 'channel_2':self.labels_to_nums[contact['names'][1]],
                                 'code':'-'.join(contact['names']),
-                                'type':leads[lead]['type']
+                                'is_stim_only':False,
+                                'type_1':leads[lead]['type'],
+                                'type_2':leads[lead]['type'],
                             }
                         else:
                             raise RuntimeError('bad name')
