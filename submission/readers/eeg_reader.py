@@ -1006,8 +1006,8 @@ class ScalpReader(EEG_reader):
         # Run ICA, mark bad components, and save ICA solution to file
         ica_filename = os.path.join(location, basename + '-ica.fif')
         self.run_ica(ica_filename)
-        self.write_sources(location, basename)
         """
+        self.write_sources(location, basename)
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
