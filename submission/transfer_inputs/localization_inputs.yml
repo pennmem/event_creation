@@ -83,7 +83,6 @@ files:
 
   - name: jacksheet
     <<: *FILE
-    groups: [ 'old' ]
     origin_directory: *DOCS_DIR
     origin_file: 'jacksheet.txt'
     destination: 'jacksheet.txt'
@@ -97,28 +96,24 @@ files:
 
   - name: tal_xfm
     <<: *FILE
-    groups: [ 'old' ]
     origin_directory: !join [*FS_MRI, 'transforms']
     origin_file: 'talairach.xfm'
     destination: 'mri/transforms/talairach.xfm'
 
   - name: vertices
     <<: *DIR
-    groups: [ 'old' ]
     origin_directory: *FS_SUBJ
     origin_file: 'surf/'
     destination: 'surf/'
     files:
       - name: right_pial
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'rh.pial'
         destination: 'rh.pial'
 
       - name: left_pial
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'lh.pial'
         destination: 'lh.pial'
@@ -138,29 +133,24 @@ files:
 
   - name: labels
     <<: *DIR
-    groups: ['old']
     origin_directory: *FS_SUBJ
     origin_file: 'label'
     destination: 'label'
     files:
       - name: left_labels
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'lh.aparc.annot'
         destination: 'lh.aparc.annot'
 
       - name: right_labels
         <<: *FILE
-        groups: [ 'old' ]
         origin_directory: ''
         origin_file: 'rh.aparc.annot'
         destination: 'rh.aparc.annot'
         
-      #Joel added below
       - name: left_labels_hcp
         <<: *FILE
-        groups: [ 'old' ]
         required: false
         origin_directory: ''
         origin_file: 'lh.HCP-MMP1.annot'
@@ -173,7 +163,6 @@ files:
         origin_directory: ''
         origin_file: 'rh.HCP-MMP1.annot'
         destination: 'rh.HCP-MMP1.annot'
-      #Joel added above
 
   - name: manual_loc
     <<: *FILE
