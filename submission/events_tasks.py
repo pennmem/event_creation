@@ -88,7 +88,7 @@ class SplitEEGTask(PipelineTask):
                 reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
 
             # Detect post-processed EEG file
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*-raw.fif')))
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*.bdf')) + glob.glob(os.path.join(self.pipeline.destination, '*.mff')) + glob.glob(os.path.join(self.pipeline.destination, '*.raw')))
         else:
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
