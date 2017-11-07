@@ -117,7 +117,8 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(db_folder, split_eeg_filename)
-            num_split_files = len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
+            num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
+                                + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
 
         if num_split_files == 0:
             raise ProcessingError(
@@ -173,7 +174,8 @@ class EventCreationTask(PipelineTask):
                         'catFR': catFRSys3LogParser,
                         'PS': PS4Sys3LogParser,
                         'PAL': PALSys3LogParser,
-                        'THR': THRSessionLogParser
+                        'THR': THRSessionLogParser,
+                        'math': MathLogParser,
                     }
                  }
     LTP_PARSERS = {

@@ -17,7 +17,7 @@ git submodule update
 ```
 This will initialize and check out the neurorad submodule.
 
-After installatino, the necessary dependencies must be installed.
+After installation, the necessary dependencies must be installed.
 The easiest way to install the necessary python packages is with conda.
 
 The file conda_environment.yml specifies the packages necessary for 
@@ -25,10 +25,6 @@ execution. Create the new environment with
 `conda env create -f conda_environment.yml` .
 
 Note that this will create a new environment titled `event_creation`. 
-
-The only additional package necessary for execution not installed by 
-conda is ptsa: https://github.com/maciekswat/ptsa_new. 
-
 
 ## Use
 
@@ -54,6 +50,7 @@ Submission accepts a number of command-line options, viewable with
 usage: convenience.py [-h] [--debug] [--montage-only] [--change-experiment]
                       [--change-session] [--allow-convert] [--force-convert]
                       [--force-events] [--force-eeg] [--force-montage]
+                      [--force-localization] [--force-dykstra]
                       [--clean-only] [--aggregate-only] [--do-compare]
                       [--json JSON_FILE] [--build-db DB_NAME] [--view-only]
                       [--show-plots] [--set-input INPUTS] [--path PATHS]
@@ -61,8 +58,9 @@ usage: convenience.py [-h] [--debug] [--montage-only] [--change-experiment]
 optional arguments:
   -h, --help           show this help message and exit
   --debug              Prints debug information to terminal during execution
-  --montage-only       Imports a localization or montage instead of importing
+  --montage-only       Imports a montage instead of importing
                        events
+  --localization-only  Imports a localization instead of importing events
   --change-experiment  Signals that the name of the experiment changes on
                        import. Defaults to true for PS* behavioral
   --change-session     Signals that the session number changes on import
@@ -73,6 +71,9 @@ optional arguments:
   --force-events       Forces events creation even if no changes have occurred
   --force-eeg          Forces eeg splitting even if no changes have occurred
   --force-montage      Forces montage change even if no changes have occurred
+  --force-localization Forces localization change even if no changes have occurred
+                       (Note: will *NOT* rerun Dykstra correction)
+  --force-dykstra      When re-running localization, also rerun Dykstra correction
   --clean-only         ONLY cleans the database. Removes empty folders and
                        folders without processed equivalent
   --aggregate-only     ONLY aggreate index files. Run if any paths have been
@@ -228,7 +229,7 @@ their destination directories, and will roll back the transfer entirely if it
 fails at any point.
 
 Functions that instantiate different types of Transferers are located in 
- `submission.transferer` (`generate_ephys_transferer()`, `generate_montage_transferer()`,
+ `submission.transferer` (`generate_ephys_transferer()`, `generate_import_montage_transferer()`,
  `genereate_session_transferer()`)
 
 ### Processing

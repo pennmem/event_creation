@@ -81,11 +81,6 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         super(FRSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files,
                                         primary_log='session_log',allow_unparsed_events=True)
 
-        if 'no_accent_wordpool' in files:
-            wordpool_type = 'no_accent_wordpool'
-        else:
-            wordpool_type = 'wordpool'
-        self._wordpool = np.array([x.strip() for x in open(files[wordpool_type]).readlines()])
 
 
         self._list = -999
@@ -220,6 +215,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
             self._recog_pres_mstime = event_json[self._STIME_FIELD]
             if event_json[self._PHASE_TYPE_FIELD] == 'LURE':
                 event.type = 'RECOG_LURE'
+                event.stim_list = -999
             else:
                 event.type = 'RECOG_TARGET'
         else:

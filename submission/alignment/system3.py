@@ -19,8 +19,8 @@ class System3Aligner(object):
 
     MAXIMUM_ALLOWED_RESIDUAL = 500
 
-    FROM_LABELS = (('orig_timestamp', 1000),
-                   ('t_event', 1))
+    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),
+                   ('t_event', 1,''))
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -35,6 +35,8 @@ class System3Aligner(object):
         self.events = events
         self.session_attrs={prop:events[0][prop] for prop in ['protocol','session','experiment','subject','montage']}
         self.session_attrs['files'] = files
+
+        self.residuals =  []
         # vocalization_events = VocalizationParser(**session_attrs).parse()
         # if vocalization_events.shape:
         #     self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
@@ -42,10 +44,10 @@ class System3Aligner(object):
         self.merged_events = self.events
 
 
-        for label, rate in self.FROM_LABELS:
+        for label, rate,exclude in self.FROM_LABELS:
             try:
                 self.task_to_ens_coefs, self.task_ends = \
-                    self.get_coefficients_from_event_log(label, 'offset', rate)
+                    self.get_coefficients_from_event_log(label, 'offset', rate,(exclude,))
                 self.host_to_ens_coefs, self.host_ends = \
                     self.get_coefficients_from_event_log('t_event', 'offset', 1)
                 logger.debug("Found coefficient with label {}".format(label))
@@ -102,7 +104,7 @@ class System3Aligner(object):
         return self.merged_events
 
 
-    def get_coefficients_from_event_log(self, from_label, to_label, rate):
+    def get_coefficients_from_event_log(self, from_label, to_label, rate,exclude=(None,)):
 
         ends = []
         coefs = []
@@ -112,9 +114,9 @@ class System3Aligner(object):
             event_dict = json.load(open(event_log))['events']
 
             froms = [float(event[from_label]) * 1000. / rate for event in event_dict \
-                    if from_label in event and to_label in event]
+                    if from_label in event and to_label in event and event['event_label'] not in exclude]
             tos = [float(event[to_label]) for event in event_dict\
-                   if from_label in event and to_label in event]
+                   if from_label in event and to_label in event and event['event_label'] not in exclude]
 
             froms = np.array(froms)
             tos = np.array(tos)
@@ -129,7 +131,16 @@ class System3Aligner(object):
             ends.append(froms[-1])
 
             self.plot_fit(froms, tos, coefs[-1], '.', 'fit_{}_{}_{}'.format(from_label,to_label,i))
-            self.check_fit(froms, tos, coefs[-1])
+            residuals = self.check_fit(froms, tos, coefs[-1])
+
+            if from_label == 'orig_timestamp':
+                for time,residue in zip(froms,residuals):
+                    at_time = self.events['mstime']==time
+                    if at_time.any():
+                        new_event = self.events[at_time]
+                        new_event['msoffset'] = int(residue)
+                        self.events[at_time] = new_event
+
 
         if len(coefs) == 0:
             raise AlignmentError("Could not find enough events to determine coefficients!")
@@ -239,9 +250,7 @@ class System3Aligner(object):
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
             ))
-            raise AlignmentError(
-                "Maximum residual of fit ({}) "
-                "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+        return residuals
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
         """

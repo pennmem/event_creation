@@ -260,7 +260,7 @@ class BaseLogParser(object):
 
         # Read the annotation file, getting everything that matches the regular expression
         ann_file = self._ann_files[ann_id]
-        lines = open(ann_file, 'r').readlines()
+        lines = codecs.open(ann_file,encoding='latin1').readlines()
         matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
 
         # Remove events with rectimes greater than 10 minutes, because they're probably a mistake
@@ -510,9 +510,26 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
+
     # TODO: ADD LOGIC TO CONTROL WHETHER SESSION.SQLITE OR SESSION.LOG IS USED?
     # TODO: DECIDE WHETHER SESSION.LOG IS USABLE -- NOT ALWAYS CONSISTENT WITH SESSION.SQLITE
     #    AND THE INCONSISTENCIES ARE PROBLEMATIC
+    def parse(self):
+        try:
+            return super(BaseSys3_1LogParser, self).parse()
+        except Exception as exc:
+            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s'%(str(type(exc)),exc.message))
+            if self._files.get('session_log_txt'):
+                logger.warn('Parsing session.log instead')
+
+                self._contents = self._read_session_log(self._files['session_log_txt'])
+                return super(BaseSys3_1LogParser, self).parse()
+            else:
+                raise exc
+
+
+
+
     @staticmethod
     def _read_sql_log(log):
         conn = sqlite3.connect(log)
@@ -542,7 +559,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _read_primary_log(self):
         msgs = []
-        if isinstance(self._primary_log,str):
+        if isinstance(self._primary_log,basestring):
             msgs = self._read_sql_log(self._primary_log)
             # msgs = self._read_session_log(self._primary_log)
         else:

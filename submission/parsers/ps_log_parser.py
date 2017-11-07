@@ -5,7 +5,7 @@ import re
 import json
 from .electrode_config_parser import ElectrodeConfig
 from ..alignment.system3 import System3Aligner
-
+import codecs
 
 def PSLogParser(protocol, subject, montage, experiment, session,  files):
     """
@@ -325,7 +325,7 @@ class PSHostLogParser(BaseSessionLogParser):
         contents = []
         for host_log_file in self.host_log_files:
             contents += [line.strip().split(self._SPLIT_DELIMITER)
-                         for line in open(host_log_file).readlines()]
+                         for line in codecs.open(host_log_file,encoding='utf8').readlines()]
         return contents
 
     @staticmethod

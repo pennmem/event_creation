@@ -101,47 +101,57 @@ def get_ltp_subject_sessions_by_experiment(experiment):
 
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
-    if re.match('catFR[0-4]', experiment):
-        ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+    json_reader = JsonIndexReader(os.path.join(paths.rhino_root,'protocols','%s.json'%protocol))
+    if experiment in json_reader.experiments():
+        subjects = json_reader.subjects(experiment=experiment)
+        for subject_no_montage in subjects:
+            for montage in json_reader.montages(subject=subject_no_montage, experiment=experiment):
+                subject = subject_no_montage if montage == '0' else '%s_%s' % (subject_no_montage, montage)
+                sessions = json_reader.sessions(subject=subject_no_montage, montage=montage, experiment=experiment)
+                for session in sessions:
+                    yield subject_no_montage, subject, len(sessions), session, experiment, '0'
     else:
-        ram_exp = 'RAM_{}'.format(experiment)
-    events_dir = os.path.join(paths.data_root, '..', 'events', ram_exp)
-    events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
-                          key=lambda f: f.split('_')[:-1])
-    seen_experiments = defaultdict(list)
-    for events_file in events_files:
-        subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
-        subject_no_montage = subject.split('_')[0]
-        if '_' in subject:
-            if not include_montage_changes:
-                continue
-        mat_events_reader = BaseEventReader(filename=events_file, common_root=paths.data_root)
-        logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
-        try:
-            mat_events = mat_events_reader.read()
-            sessions = np.unique(mat_events['session'])
-            version_str = mat_events[-5]['expVersion'] if 'expVersion' in mat_events.dtype.names else '0'
-            version = -1
+        if re.match('catFR[0-4]', experiment):
+            ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
+        else:
+            ram_exp = 'RAM_{}'.format(experiment)
+        events_dir = os.path.join(paths.data_root,'events',ram_exp)
+        events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
+                              key=lambda f: f.split('_')[:-1])
+        seen_experiments = defaultdict(list)
+        for events_file in events_files:
+            subject = '_'.join(os.path.basename(events_file).split('_')[:-1])
+            subject_no_montage = subject.split('_')[0]
+            if '_' in subject:
+                if not include_montage_changes:
+                    continue
+            mat_events_reader = BaseEventReader(filename=events_file, common_root=paths.data_root)
+            logger.debug('Loading matlab events {exp}: {subj}'.format(exp=experiment, subj=subject))
             try:
-                version = float(version_str.split('_')[-1])
-            except:
+                mat_events = mat_events_reader.read()
+                sessions = np.unique(mat_events['session'])
+                version_str = mat_events[-5]['expVersion'] if 'expVersion' in mat_events.dtype.names else '0'
+                version = -1
                 try:
-                    version = float(version_str.split('v')[-1])
+                    version = float(version_str.split('_')[-1])
                 except:
-                    pass
+                    try:
+                        version = float(version_str.split('v')[-1])
+                    except:
+                        pass
 
-            for i, session in enumerate(sessions):
-                if 'experiment' in mat_events.dtype.names:
-                    experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
-                else:
-                    experiments = [experiment]
-                for this_experiment in experiments:
-                    n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
-                    yield subject_no_montage, subject, n_sessions, session, this_experiment, version
-                    seen_experiments[subject_no_montage].append(this_experiment)
-        except AttributeError:
-            traceback.print_exc()
-            logger.error('Could not get session from {}'.format(events_file))
+                for i, session in enumerate(sessions):
+                    if 'experiment' in mat_events.dtype.names:
+                        experiments = np.unique(mat_events[mat_events['session'] == session]['experiment'])
+                    else:
+                        experiments = [experiment]
+                    for this_experiment in experiments:
+                        n_sessions = seen_experiments[subject_no_montage].count(this_experiment)
+                        yield subject_no_montage, subject, n_sessions, session, this_experiment, version
+                        seen_experiments[subject_no_montage].append(this_experiment)
+            except AttributeError:
+                traceback.print_exc()
+                logger.error('Could not get session from {}'.format(events_file))
 
 
 def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=None, included_subjects=None,
@@ -177,19 +187,20 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                     session_dict['original_experiment'] = 'PS21'
                 else:
                     session_dict['original_experiment'] = experiment
-            if (version >= 2):
-                session_dict['system_2'] = True
-            elif version > 0:
-                session_dict['system_1'] = True
+            # if (version >= 2):
+            #     session_dict['system_2'] = True
+            # elif version > 0:
+            #     session_dict['system_1'] = True
             session_dict.update(extra_items)
             subjects[subject][new_experiment][session] = session_dict
+
     with fileutil.open_with_perms(out_file, 'w') as f:
         json.dump(subjects, f, indent=2, sort_keys=True)
 
 
 def build_sharing_import_database():
     subjects_for_export = [x.strip() for x in open(os.path.join(os.path.dirname(__file__),'subjects_for_export.txt')).readlines() if len(x.strip()) > 0 ]
-    experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2')
+    experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2','TH1')
     build_json_import_db('export_sessions.json', experiments, [], subjects_for_export, 'r1', True)
 
 
@@ -232,6 +243,12 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
 
 
 def attempt_importers(importers, force):
+    """
+    Runs each importer in importers until one of them succeeds
+    :param importers: A list of importers to attempt
+    :param force: Whether to force an import when no change is found
+    :return: The importers that were attempted
+    """
     success = False
     i=0
     for i, importer in enumerate(importers):
@@ -250,23 +267,6 @@ def attempt_importers(importers, force):
         logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
 
     return success, importers[:i+1]
-
-
-def run_wav_import(kwargs,force=False):
-    """
-    :param kwargs:
-    :return: (success [t/f], attempted pipelines)
-    """
-    # logger.set_label('.wav Importer')
-    # logger.set_subject(kwargs['subject'],kwargs['protocol'])
-    # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
-    # success, importers = attempt_importers([wav_importer],force)
-    # if not success:
-    #     logger.info('.wav transfer failed')
-    #     wav_importer.remove()
-    # else:
-    #     return success,ImporterCollection(importers)
-    raise NotImplementedError
 
 
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
@@ -394,26 +394,24 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 
 
 def run_montage_import(kwargs, force=False):
+
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
+    importer0 = Importer(Importer.CREATE_MONTAGE,**kwargs)
 
-    importer = Importer(Importer.MONTAGE, **kwargs)
-    success, importers = attempt_importers([importer], force)
+    importer1 = Importer(Importer.CONVERT_MONTAGE, **kwargs)
+    success, importers = attempt_importers([importer0,importer1], force)
     return success, ImporterCollection(importers)
 
-def run_localization_import(kwargs, force=False):
+def run_localization_import(kwargs, force=False,force_dykstra=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
-    kwargs['overwrite']=force
+    localization_kwargs = {k:kwargs[k] for k in ['subject','protocol','localization','code']}
 
-    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **kwargs)
-    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **kwargs)
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra,**localization_kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False,force_dykstra=force_dykstra,**localization_kwargs)
     success, importers = attempt_importers([new_importer, old_importer], force)
-    if success:
-        used_importers = [importer for importer in importers if not importer.errored]
-    else:
-        used_importers = importers
-    return success, ImporterCollection(used_importers)
+    return success, ImporterCollection(importers)
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -816,6 +814,7 @@ def prompt_for_localization_inputs():
     while not localization.isdigit():
         localization = raw_input("Enter localization number: ")
 
+
     inputs = dict(
         code = code,
         subject = subject,
@@ -937,7 +936,7 @@ if __name__ == '__main__':
                 print("Import aborted! Exiting.")
                 exit(0)
         print("Importing localization")
-        success, importer = run_localization_import(inputs, config.force_localization)
+        success, importer = run_localization_import(inputs, config.force_localization,config.force_dykstra)
         print('Success:' if success else 'Failed')
         print(importer.describe())
         exit(0)
@@ -950,19 +949,15 @@ if __name__ == '__main__':
 
     inputs = prompt_for_session_inputs(**config.options)
 
-    if config.wav_only:
-        print 'Importing .wav files'
-        success,importers = run_wav_import(inputs)
 
-    else:
-        if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
-            if not confirm('{subject} {new_experiment} session {session} already exists. '
-                           'Continue and overwrite? '.format(**inputs)):
-                print('Import aborted! Exiting.')
-                exit(0)
-        print('Importing session')
-        success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
-                                            config.force_eeg)
+    if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
+        if not confirm('{subject} {new_experiment} session {session} already exists. '
+                       'Continue and overwrite? '.format(**inputs)):
+            print('Import aborted! Exiting.')
+            exit(0)
+    print('Importing session')
+    success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
+                                        config.force_eeg)
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])

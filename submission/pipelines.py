@@ -9,8 +9,9 @@ from .configuration import paths
 from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
                   MontageLinkerTask, RecognitionFlagTask
-from .neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
-                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
+from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask,
+                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask,
+                             AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask)
 from .parsers.base_log_parser import get_version_num
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
@@ -20,7 +21,7 @@ from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, TransferError, TRANSFER_INPUTS, find_sync_file
+                       generate_import_montage_transferer, generate_create_montage_transferer,TransferError, TRANSFER_INPUTS, find_sync_file
 from .log import logger
 
 GROUPS = {
@@ -364,8 +365,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     code = code or subject
 
     try:
-        kwargs['sync_folder'], kwargs['sync_filename'] = \
-            find_sync_file(code, experiment, original_session)
+        kwargs['sync_folder'], kwargs['sync_filename'] = find_sync_file(code, experiment, original_session)
     except:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
@@ -515,7 +515,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     return TransferPipeline(transferer, *tasks, **info)
 
-def build_import_localization_pipeline(subject, protocol, localization, code, is_new,overwrite=False):
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new,force_dykstra=False):
 
     logger.set_label("Building Localization Creator")
 
@@ -523,10 +523,13 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
-        CalculateTransformsTask(subject, localization),
-        CorrectCoordinatesTask(subject, localization,overwrite),
+        CreateDuralSurfaceTask(subject,localization,True),
+        CalculateTransformsTask(subject, localization,critical=True),
+        CorrectCoordinatesTask(subject, localization,overwrite=force_dykstra,critical=True),
+        GetFsAverageCoordsTask(subject,localization,critical=False),
         AddContactLabelsTask(subject, localization),
-        AddMNICoordinatesTask(subject, localization),
+        AddMNICoordinatesTask(subject, localization,critical=False),
+        AddManualLocalizationsTask(subject,localization,critical=False),
         WriteFinalLocalizationTask()
 
     ]
@@ -535,10 +538,18 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code):
-    transferer = generate_montage_transferer(subject, montage, protocol, code)
+    transferer = generate_import_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
     return TransferPipeline(transferer, *tasks)
+
+
+def build_create_montage_pipeline(subject,montage,protocol, code):
+
+    localization  = int(montage.split('.')[0])
+    transferer = generate_create_montage_transferer(subject, montage, protocol, code)
+    task = CreateMontageTask(subject,localization,montage)
+    return TransferPipeline(transferer,task)
 
 
 def test_split_sys3():

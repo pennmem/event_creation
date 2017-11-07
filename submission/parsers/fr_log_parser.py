@@ -9,7 +9,7 @@ import pandas as pd
 from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
 from .system2_log_parser import System2LogParser
 from ..viewers.recarray import strip_accents
-
+import codecs
 
 class FRSessionLogParser(BaseSessionLogParser):
 
@@ -21,7 +21,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
-            ('item_name', 'X', 'S64'),
+            ('item_name', 'X', 'U64'),
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intrusion', -999, 'int16'),
@@ -48,7 +48,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         else:
             wordpool_type = 'wordpool'
         try:
-            with open(files[wordpool_type]) as wordpool:
+            with codecs.open(files[wordpool_type],encoding='latin1') as wordpool:
                 self._wordpool = np.array([x.strip() for x in wordpool])
         except KeyError as key_error:
             if type(self) is FRSessionLogParser:
@@ -57,15 +57,6 @@ class FRSessionLogParser(BaseSessionLogParser):
                 #Subclasses are allowed to not have a word pool
                 self._wordpool = None
 
-        try:
-            with open(files[wordpool_type]) as wordpool:
-                self._wordpool = np.array([x.strip() for x in wordpool])
-        except KeyError as key_error:
-            if type(self) is FRSessionLogParser:
-                raise key_error
-            else:
-                #Subclasses are allowed to not have a word pool
-                self._wordpool = None
 
         if protocol == 'ltp':
             self._add_fields(
