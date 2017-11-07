@@ -83,12 +83,9 @@ class SplitEEGTask(PipelineTask):
                 if raw_eeg.endswith('.raw.bz2') and has_mff:
                     continue
                 reader = get_eeg_reader(raw_eeg, None)
-                processed_filename = self.SPLIT_FILENAME.format(subject=self.subject,
-                                                                experiment=self.experiment,
-                                                                session=self.session,
-                                                                time=reader.get_start_time_string())
+                # processed_filename = self.SPLIT_FILENAME.format(subject=self.subject, experiment=self.experiment, session=self.session, time=reader.get_start_time_string())
                 # Split raw data file by channel & apply postprocessing
-                reader.split_data(os.path.join(self.pipeline.destination), processed_filename)
+                reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
 
             # Detect post-processed EEG file
             num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*-raw.fif')))
@@ -230,13 +227,15 @@ class EventCreationTask(PipelineTask):
         if self.protocol == 'ltp':
             # Scalp Lab alignment and artifact detection
             eeglog = files['eeg_log'] if 'eeg_log' in files else []
-            ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
+            ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_source', 'raw_eeg')
             aligner = LTPAligner(unaligned_events, eeglog, ephys_dir)
             events = aligner.align()
+            """
             artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
             del aligner
             events = artifact_detector.run()
             del artifact_detector
+            """
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
