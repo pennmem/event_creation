@@ -873,19 +873,19 @@ class ScalpReader(EEG_reader):
 
         Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
         """
-        is_mff = os.path.splitext(self.raw_filename)[1].lower() == '.mff'
-        # Determine the absolute path of the EEG file before and after unzipping
-        if not is_mff:
+        ext = os.path.splitext(self.raw_filename)[1].lower()
+        is_mff = ext == '.mff'
+        already_unzipped = ext != '.bz2'
+        # If EEG file is zipped, determine the absolute path of the EEG file before and after unzipping
+        if not already_unzipped:
             original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
             unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
             already_unzipped = os.path.isfile(unzip_path)
             logger.debug('Unzipping EEG data file ' + self.raw_filename)
-            self.filetype = os.path.splitext(unzip_path)[1]
-        # For the few sessions which were never exported from .mff format, no zipping/unzipping is used
+            self.filetype = os.path.splitext(unzip_path)[1].lower()
         else:
-            already_unzipped = True
             unzip_path = self.raw_filename
-            self.filetype = '.mff'
+            self.filetype = ext
 
         # If data file is already unzipped, use it; otherwise unzip the file for reading
         if is_mff or already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
@@ -893,14 +893,16 @@ class ScalpReader(EEG_reader):
                 logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
                 if self.filetype in ('.mff', '.raw'):
-                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
+                    # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
+                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=False)
                     self.data.info['description'] = 'system: GSN-HydroCel-129'
                     # Correct the name of channel 129 to Cz
                     self.data.rename_channels({'E129': 'Cz'})
                     self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
                 # Read a BioSemi recording
                 elif self.filetype == '.bdf':
-                    self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=True)
+                    # self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=True)
+                    self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=False)
                     self.data.info['description'] = 'system: biosemi128'
                 else:
                     logger.critical('Unsupported EEG file type for file %s!' % unzip_path)
@@ -912,7 +914,7 @@ class ScalpReader(EEG_reader):
                 logger.critical('Unable to parse EEG data file!')
 
             # Remove unzipped file if zipped version exists, otherwise zip the file. Leave .mff files alone.
-            if is_mff:
+            if already_unzipped:
                 pass
             elif os.path.isfile(original_path):
                 os.system('rm ' + unzip_path.replace(' ', '\ '))
@@ -992,7 +994,8 @@ class ScalpReader(EEG_reader):
         # Load data if we have not already done so
         if self.data is None:
             self.get_data()
-
+        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
+        """
         # Run post-processing regimen on the loaded data
         self.postprocess()
 
@@ -1004,6 +1007,7 @@ class ScalpReader(EEG_reader):
         ica_filename = os.path.join(location, basename + '-ica.fif')
         self.run_ica(ica_filename)
         self.write_sources(location, basename)
+        """
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info

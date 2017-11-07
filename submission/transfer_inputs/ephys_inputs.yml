@@ -134,7 +134,7 @@ files:
     multiple: true
     origin_directory: *LTP_EEG_DIR
     origin_file:
-      - '*.bdf.bz2'
+      - '*.bdf'
       - '*.mff'
-      - '*.raw.bz2'
+      # - '*.raw.bz2' DISABLED FOR NOW
     destination: raw_eeg/
