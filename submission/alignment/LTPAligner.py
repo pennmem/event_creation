@@ -127,9 +127,10 @@ class LTPAligner:
                     sess = split_path[8]
                     timestring = self.eeg[basename].info['meas_date']
                     if isinstance(timestring, int):
-                        timestring = datetime.datetime.utcfromtimestamp(timestring)
+                        timestring = datetime.datetime.fromtimestamp(timestring)
                     else:
-                        timestring = datetime.datetime.utcfromtimestamp(timestring[0])
+                        timestring = datetime.datetime.fromtimestamp(timestring[0])
+                    timestring = roundMinute(timestring)
                     timestring = timestring.strftime('%d%b%y_%H%M')
                     eegfile_name = '/data/eeg/scalp/ltp/%s/session_%s/eeg/eeg.reref/%s_%s' % (subj, sess, subj, timestring)
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
@@ -265,3 +266,13 @@ def match_sequence(needle, haystack, maxdiff):
     if not found:
         i = None
     return i
+
+
+def roundMinute(dt):
+   """
+   Round a datetime object to the nearest minute. Function adapted from Stack Overflow post by Thierry Husson.
+   :param dt: datetime.datetime object
+   """
+   seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+   rounding = (seconds+60/2) // 60 * 60
+   return dt + datetime.timedelta(0,rounding-seconds,-dt.microsecond)
