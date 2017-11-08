@@ -888,7 +888,7 @@ class ScalpReader(EEG_reader):
             self.filetype = ext
 
         # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if is_mff or already_unzipped or os.system('bunzip2 -k ' + original_path.replace(' ', '\ ')) == 0:
+        if is_mff or already_unzipped or os.system('bunzip2 ' + original_path.replace(' ', '\ ')) == 0:
             try:
                 logger.debug('Parsing EEG data file ' + unzip_path)
                 # Read an EGI recording
@@ -913,6 +913,7 @@ class ScalpReader(EEG_reader):
             except:
                 logger.critical('Unable to parse EEG data file!')
 
+            """
             # Remove unzipped file if zipped version exists, otherwise zip the file. Leave .mff files alone.
             if already_unzipped:
                 pass
@@ -921,6 +922,7 @@ class ScalpReader(EEG_reader):
             else:
                 os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
             logger.debug('Finished getting EEG data.')
+            """
 
         # If unzip attempt fails, return error
         else:
