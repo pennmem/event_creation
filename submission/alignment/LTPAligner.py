@@ -2,8 +2,9 @@ import os
 import mne
 import glob
 import numpy as np
-from ..log import logger
+import datetime
 import pandas as pd
+from ..log import logger
 
 
 class LTPAligner:
@@ -41,11 +42,15 @@ class LTPAligner:
         # for each
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.bdf')) + glob.glob(os.path.join('*.mff')) + glob.glob(os.path.join('*.raw'))
         self.eeg = {}
+        self.filetypes = {}
         for f in self.eeg_files:
+            basename = os.path.splitext(os.path.basename(f))[0]
             if f.endswith('.bdf'):
-                self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_edf(f, preload=False)
+                self.filetypes[basename] = 'biosemi'
+                self.eeg[basename] = mne.io.read_raw_edf(f, preload=False)
             else:
-                self.eeg[os.path.splitext(os.path.basename(f))[0]] = mne.io.read_raw_egi(f, preload=False)
+                self.filetypes[basename] = 'egi'
+                self.eeg[basename] = mne.io.read_raw_egi(f, preload=False)
 
         self.num_samples = None
         self.sample_rate = None
@@ -114,11 +119,20 @@ class LTPAligner:
 
                 # Add eeg offset and eeg file information to the events
                 logger.debug('Adding EEG file and offset information to events structure...')
+                if self.filetypes[basename] == 'biosemi':
+                    eegfile_name = basename
+                else:  # Construct the file path to the original split reref files for EGI sessions
+                    split_path = self.behav_files.split('/')
+                    subj = split_path[-9]
+                    sess = split_path[-5]
+                    timestring = datetime.datetime.utcfromtimestamp(self.eeg[basename].info['meas_date'])
+                    timestring = timestring.strftime('%d%b%y_%H%M')
+                    eegfile_name = '/data/eeg/scalp/ltp/%s/session_%s/eeg/eeg.reref/%s_%s' % (subj, sess, subj, timestring)
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
                     if 0 <= eeg_offsets[i] <= self.num_samples:
                         self.events[i].eegoffset = eeg_offsets[i]
-                        self.events[i].eegfile = basename
+                        self.events[i].eegfile = eegfile_name
                     else:
                         oob += 1
                 logger.debug('Done.')
