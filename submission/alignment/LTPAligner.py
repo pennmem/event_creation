@@ -124,6 +124,7 @@ class LTPAligner:
                     # Assumes path is /protocols/ltp/subjects/<subj>/experiments/<exp>/sessions/<sess>/ephys/current_processed
                     split_path = self.eeg_dir.split('/')
                     subj = split_path[4]
+                    exp = split_path[6]
                     sess = split_path[8]
                     timestring = self.eeg[basename].info['meas_date']
                     if isinstance(timestring, int):
@@ -132,7 +133,7 @@ class LTPAligner:
                         timestring = datetime.datetime.fromtimestamp(timestring[0])
                     timestring = roundMinute(timestring)
                     timestring = timestring.strftime('%d%b%y_%H%M')
-                    eegfile_name = '/data/eeg/scalp/ltp/%s/session_%s/eeg/eeg.reref/%s_%s' % (subj, sess, subj, timestring)
+                    eegfile_name = '/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/eeg.reref/%s_%s' % (exp, subj, sess, subj, timestring)
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
                     if 0 <= eeg_offsets[i] <= self.num_samples:
