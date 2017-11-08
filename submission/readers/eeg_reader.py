@@ -908,7 +908,10 @@ class ScalpReader(EEG_reader):
                     logger.critical('Unsupported EEG file type for file %s!' % unzip_path)
                 logger.debug('Finished parsing EEG data.')
                 # Pull relevant header info
-                self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
+                if isinstance(self.data.info['meas_date'], int):  # Measurement date may either be int or length-2 array
+                    self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'])
+                else:
+                    self.start_datetime = datetime.datetime.utcfromtimestamp(self.data.info['meas_date'][0])
                 self.names = [str(x) for x in self.data.info['ch_names']]
             except:
                 logger.critical('Unable to parse EEG data file!')
