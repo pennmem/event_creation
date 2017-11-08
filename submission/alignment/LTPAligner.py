@@ -97,7 +97,17 @@ class LTPAligner:
             self.ephys_ms = None
 
             # Get the sample numbers of all sync pulses in the EEG recording
-            self.pulses = mne.find_events(self.eeg[basename])[:, 0]
+            if self.filetypes[basename] == 'biosemi':
+                self.pulses = mne.find_events(self.eeg[basename])[:, 0]
+            else:  # For EGI, prefer D255 > DI15 > DIN1
+                if 'D255' in self.eeg[basename].ch_names:
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='D255')[:, 0]
+                elif 'DI15' in self.eeg[basename].ch_names:
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DI15')[:, 0]
+                elif 'DIN1' in self.eeg[basename].ch_names:
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DIN1')[:, 0]
+                else:
+                    self.pulses = mne.find_events(self.eeg[basename])[:, 0]
 
             # Skip alignment for any EEG files with no sync pulses
             logger.debug('%d sync pulses were detected.' % len(self.pulses))
