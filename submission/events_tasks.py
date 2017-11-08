@@ -80,7 +80,7 @@ class SplitEEGTask(PipelineTask):
             # Use .raw only if EGI session has no .mff
             has_mff = np.any([True for eegfile in raw_eeg_groups if eegfile.endswith('.mff')])
             for i, raw_eeg in enumerate(raw_eeg_groups):
-                if raw_eeg.endswith('.raw.bz2') and has_mff:
+                if (raw_eeg.endswith('.raw.bz2') or raw_eeg.endswith('.raw')) and has_mff:
                     continue
                 reader = get_eeg_reader(raw_eeg, None)
                 # processed_filename = self.SPLIT_FILENAME.format(subject=self.subject, experiment=self.experiment, session=self.session, time=reader.get_start_time_string())

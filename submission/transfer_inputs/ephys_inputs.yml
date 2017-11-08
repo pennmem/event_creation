@@ -136,5 +136,6 @@ files:
     origin_file:
       - '*.bdf'
       - '*.mff'
-      # - '*.raw.bz2' DISABLED FOR NOW
+      - '*.raw'
+      - '*.raw.bz2'
     destination: raw_eeg/
