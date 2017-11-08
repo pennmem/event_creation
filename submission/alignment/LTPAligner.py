@@ -35,9 +35,8 @@ class LTPAligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         """
-        # Get list of the behavioral computer's sync pulse logs
-        self.behav_files = eeg_log
-
+        self.behav_files = eeg_log  # Get list of the behavioral computer's sync pulse logs
+        self.eeg_dir = eeg_dir  # Path to current_processed ephys files
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.bdf')) + glob.glob(os.path.join(eeg_dir, '*.mff')) + glob.glob(os.path.join(eeg_dir, '*.raw'))
@@ -122,9 +121,10 @@ class LTPAligner:
                 if self.filetypes[basename] == 'biosemi':
                     eegfile_name = basename
                 else:  # Construct the file path to the original split reref files for EGI sessions
-                    split_path = self.behav_files.split('/')
-                    subj = split_path[-9]
-                    sess = split_path[-5]
+                    # Assumes path is /protocols/ltp/subjects/<subj>/experiments/<exp>/sessions/<sess>/ephys/current_processed
+                    split_path = self.eeg_dir.split('/')
+                    subj = split_path[4]
+                    sess = split_path[8]
                     timestring = datetime.datetime.utcfromtimestamp(self.eeg[basename].info['meas_date'])
                     timestring = timestring.strftime('%d%b%y_%H%M')
                     eegfile_name = '/data/eeg/scalp/ltp/%s/session_%s/eeg/eeg.reref/%s_%s' % (subj, sess, subj, timestring)
