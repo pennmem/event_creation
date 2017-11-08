@@ -40,7 +40,7 @@ class LTPAligner:
 
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
-        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.bdf')) + glob.glob(os.path.join('*.mff')) + glob.glob(os.path.join('*.raw'))
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.bdf')) + glob.glob(os.path.join(eeg_dir, '*.mff')) + glob.glob(os.path.join(eeg_dir, '*.raw'))
         self.eeg = {}
         self.filetypes = {}
         for f in self.eeg_files:
