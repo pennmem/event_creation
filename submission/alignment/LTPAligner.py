@@ -148,7 +148,7 @@ class LTPAligner:
                     eegfile_options = ['/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/eeg.reref/%s_%s' % (exp, subj, sess, subj, timestring) for timestring in timestring_options]
                     eegfile_name = ''
                     for fname in eegfile_options:
-                        if len(glob(fname + '.*')) > 0:
+                        if len(glob.glob(fname + '.*')) > 0:
                             eegfile_name = fname
                             break
 
