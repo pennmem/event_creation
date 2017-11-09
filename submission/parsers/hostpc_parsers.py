@@ -177,6 +177,15 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._stim_on = False
         self._list = -999
         self._phase = ''
+        self._serialpos = 0
+
+    @property
+    def serialpos(self):
+        return self._serialpos%12
+
+    @property
+    def stim_list(self):
+        return self._phase in ('STIM','PS4')
 
     @with_offset
     def event_stim(self,event_json):
@@ -197,6 +206,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     def event_default(self, event_json):
         event = FRSys3LogParser.event_default(self,event_json)
         event.phase = self._phase
+        event.stim_list = self.stim_list
         event['mstime'] = int(event_json[self._MSTIME_FIELD]*1000)
         if event_json[self._VALUE_FIELD]:
             event['type'] = '%s_START'%event['type']
@@ -207,12 +217,15 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     @with_offset
     def event_word(self,event_json):
         event = self.event_default(event_json)
+        event.serialpos = self.serialpos
         self._word = event_json[self._ITEM_FIELD]
+
         if event_json[self._VALUE_FIELD]:
             self._stim_on = False
             event.type='WORD'
         else:
             event.type='WORD_OFF'
+            self._serialpos += 1
         self.apply_word(event)
         return event
 
