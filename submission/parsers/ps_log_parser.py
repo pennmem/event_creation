@@ -571,8 +571,8 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             except KeyError:
                 for stim_pair in stim_params_dict['stim_channels']:
                     self._anode,self._cathode = stim_pair.split('_')
-                    self._amplitude = stim_params_dict[stim_pair]['amplitude']
-                    self._frequency = stim_params_dict[stim_pair]['pulse_freq'] / 1000
+                    self._amplitude = stim_params_dict['stim_channels'][stim_pair]['amplitude']
+                    self._frequency = stim_params_dict['stim_channels'][stim_pair]['pulse_freq'] / 1000
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
         event = self.event_default(event_json)
         event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
