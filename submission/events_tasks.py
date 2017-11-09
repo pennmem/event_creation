@@ -77,18 +77,17 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
         if self.protocol == 'ltp':
-            # Use .raw only if EGI session has no .mff
-            has_mff = np.any([True for eegfile in raw_eeg_groups if eegfile.endswith('.mff')])
+            has_raw = np.any([True for eegfile in raw_eeg_groups if (eegfile.endswith('.raw') or eegfile.endswith('.raw.bz2'))])
             for i, raw_eeg in enumerate(raw_eeg_groups):
-                if (raw_eeg.endswith('.raw.bz2') or raw_eeg.endswith('.raw')) and has_mff:
-                    # Skip over .raw files if .mff exists
+                # Only use .mff if no .raw exists
+                if raw_eeg.endswith('.mff') and has_raw:
                     continue
+                # If both a zipped and unzipped version of a .raw file exist, skip over the zipped one
                 if raw_eeg.endswith('.raw.bz2') and os.path.splitext(raw_eeg)[0] in raw_eeg_groups:
-                    # If both a zipped and unzipped version of a .raw file exist, skip over the zipped one
                     continue
                 reader = get_eeg_reader(raw_eeg, None)
                 # processed_filename = self.SPLIT_FILENAME.format(subject=self.subject, experiment=self.experiment, session=self.session, time=reader.get_start_time_string())
-                # Split raw data file by channel & apply postprocessing
+                # Post-process EEG file
                 reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
 
             # Detect post-processed EEG file
