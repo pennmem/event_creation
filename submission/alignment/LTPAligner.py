@@ -141,10 +141,17 @@ class LTPAligner:
                         timestring = datetime.datetime.fromtimestamp(timestring)
                     else:
                         timestring = datetime.datetime.fromtimestamp(timestring[0])
-                    timestring = roundMinute(timestring)
-                    timestring = timestring.strftime('%d%b%y_%H%M')
-                    timestring = timestring[1:] if timestring.startswith('0') else timestring
-                    eegfile_name = '/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/eeg.reref/%s_%s' % (exp, subj, sess, subj, timestring)
+                    td = datetime.timedelta(seconds=60)
+                    timestring_options = [(timestring - td).strftime('%d%b%y_%H%M'), timestring.strftime('%d%b%y_%H%M'), (timestring + td).strftime('%d%b%y_%H%M')]
+                    for i, timestring in enumerate(timestring_options):
+                        timestring_options[i] = timestring[1:] if timestring.startswith('0') else timestring
+                    eegfile_options = ['/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/eeg.reref/%s_%s' % (exp, subj, sess, subj, timestring) for timestring in timestring_options]
+                    eegfile_name = ''
+                    for fname in eegfile_options:
+                        if len(glob(fname)) > 0:
+                            eegfile_name = fname
+                            break
+
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
                     if 0 <= eeg_offsets[i] <= self.num_samples:
@@ -278,13 +285,3 @@ def match_sequence(needle, haystack, maxdiff):
     if not found:
         i = None
     return i
-
-
-def roundMinute(dt):
-   """
-   Round a datetime object to the nearest minute. Function adapted from Stack Overflow post by Thierry Husson.
-   :param dt: datetime.datetime object
-   """
-   seconds = (dt.replace(tzinfo=None) - dt.min).seconds
-   rounding = (seconds+60/2) // 60 * 60
-   return dt + datetime.timedelta(0,rounding-seconds,-dt.microsecond)
