@@ -561,11 +561,18 @@ class PS4Sys3LogParser(BaseSys3LogParser):
 
     def event_stim(self,event_json):
         if event_json['event_value']:
-            stim_params_dict = event_json[self._STIM_PARAMS_FIELD]
-            self._amplitude = stim_params_dict['amplitude']
-            self._frequency = stim_params_dict['pulse_freq'] /1000
-            stim_pair = stim_params_dict['stim_pair']
-            self._anode,self._cathode = stim_pair.split('_')
+            try:
+                stim_params_dict = event_json[self._STIM_PARAMS_FIELD]
+                self._amplitude = stim_params_dict['amplitude']
+                self._frequency = stim_params_dict['pulse_freq'] /1000
+                stim_pair = stim_params_dict['stim_pair']
+                self._anode, self._cathode = stim_pair.split('_')
+
+            except KeyError:
+                for stim_pair in stim_params_dict['stim_channels']:
+                    self._anode,self._cathode = stim_pair.split('_')
+                    self._amplitude = stim_params_dict[stim_pair]['amplitude']
+                    self._frequency = stim_params_dict[stim_pair]['pulse_freq'] / 1000
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
         event = self.event_default(event_json)
         event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
