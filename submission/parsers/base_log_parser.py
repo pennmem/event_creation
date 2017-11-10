@@ -572,12 +572,12 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     def _read_primary_log(self):
         msgs = []
         if isinstance(self._primary_log,basestring):
-            msgs = self._read_sql_log(self._primary_log)
-            # msgs = self._read_session_log(self._primary_log)
+            logs = [self._primary_log]
         else:
-            for log in self._primary_log:
-                log_ext = os.path.splitext(log)[-1]
-                msgs += self.LOG_READERS[log_ext](self._primary_log)
+            logs = self._primary_log
+        for log in logs:
+            log_ext = os.path.splitext(log)[-1]
+            msgs += self.LOG_READERS[log_ext](self._primary_log)
         return msgs
 
     def event_default(self, event_json):
