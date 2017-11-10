@@ -484,7 +484,6 @@ class BaseSys3LogParser(BaseLogParser):
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
-
 class BaseSys3_1LogParser(BaseSessionLogParser):
     _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
@@ -557,12 +556,12 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     def _read_session_log(self, log):
         def load_json(s, *args, **kwargs):
             try:
-                return json.loads(s, *args, **kwargs)
+                return json.loads(s,*args,**kwargs)
             except ValueError:
                 return {}
         with open(log) as logfile:
-            lines = [x.strip().split('\t') for x in logfile.readlines() if len(x.split('\t')) > 1]
-        event_jsons = [load_json(x[-1].partition(' ')[-1]) for x in lines]
+            lines = [x.strip().split('\t') for x in logfile.readlines() if len(x.split('\t'))>1]
+        event_jsons= [load_json(x[-1].partition(' ')[-1]) for x  in lines]
         mstimes = [int(x[0]) for x in lines]
         types = [x[-1].partition(' ')[0] for x in lines]
         for i in range(len(event_jsons)):
@@ -572,9 +571,9 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _read_primary_log(self):
         msgs = []
-        if isinstance(self._primary_log, str):
-            log_ext = os.path.splitext(self._primary_log)[-1]
-            msgs = self.LOG_READERS[log_ext](self._primary_log)
+        if isinstance(self._primary_log,basestring):
+            msgs = self._read_sql_log(self._primary_log)
+            # msgs = self._read_session_log(self._primary_log)
         else:
             for log in self._primary_log:
                 log_ext = os.path.splitext(log)[-1]
@@ -591,8 +590,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def clean_events(self, events):
         # Add in experiment version
-        events = super(BaseSys3_1LogParser, self).clean_events(events)
-        with open(self._files['event_log'][0], 'r') as event_log:
+        events = super(BaseSys3_1LogParser,self).clean_events(events)
+        with open(self._files['event_log'][0],'r') as event_log:
             version_info = json.load(event_log)['versions']
         events.exp_version = version_info['task']['version']
         return events

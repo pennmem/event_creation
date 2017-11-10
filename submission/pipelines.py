@@ -9,8 +9,9 @@ from .configuration import paths
 from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConversionTask, \
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
                   MontageLinkerTask, RecognitionFlagTask
-from .neurorad_tasks import LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask, \
-                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask
+from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask,
+                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask,
+                             AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask)
 from .parsers.base_log_parser import get_version_num
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
@@ -20,7 +21,7 @@ from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_montage_transferer, TransferError, TRANSFER_INPUTS, find_sync_file
+                       generate_import_montage_transferer, generate_create_montage_transferer,TransferError, TRANSFER_INPUTS, find_sync_file
 from .log import logger
 
 GROUPS = {
@@ -35,7 +36,6 @@ MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
 
 N_PS4_SESSIONS = 10
-
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
@@ -101,7 +101,6 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         if experiment[-1] in ["3", "5", "6"]:
             groups += ("stim", )
     return groups
-
 
 def r1_system_match(experiment, transfer_cfg, sys):
     """
@@ -226,7 +225,7 @@ class TransferPipeline(object):
                                                                    missing_files[0].formatted_origin_dir))
 
         should_transfer = not self.transferer.matches_existing_checksum()
-        if should_transfer:
+        if should_transfer != True:
             logger.info('No changes to transfer...')
             if not os.path.exists(self.current_dir):
                 logger.info('{} does not exist! Continuing anyway!'.format(self.current_dir))
@@ -472,8 +471,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     return TransferPipeline(transferer, *tasks, **info)
 
-
-def build_import_localization_pipeline(subject, protocol, localization, code, is_new,overwrite=False):
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new,force_dykstra=False):
 
     logger.set_label("Building Localization Creator")
 
@@ -481,10 +479,13 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
-        CalculateTransformsTask(subject, localization),
-        CorrectCoordinatesTask(subject, localization,overwrite),
+        CreateDuralSurfaceTask(subject,localization,True),
+        CalculateTransformsTask(subject, localization,critical=True),
+        CorrectCoordinatesTask(subject, localization,overwrite=force_dykstra,critical=True),
+        GetFsAverageCoordsTask(subject,localization,critical=False),
         AddContactLabelsTask(subject, localization),
-        AddMNICoordinatesTask(subject, localization),
+        AddMNICoordinatesTask(subject, localization,critical=False),
+        AddManualLocalizationsTask(subject,localization,critical=False),
         WriteFinalLocalizationTask()
 
     ]
@@ -493,11 +494,18 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code):
-    transferer = generate_montage_transferer(subject, montage, protocol, code)
+    transferer = generate_import_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
     return TransferPipeline(transferer, *tasks)
 
+
+def build_create_montage_pipeline(subject,montage,protocol, code):
+
+    localization  = int(montage.split('.')[0])
+    transferer = generate_create_montage_transferer(subject, montage, protocol, code)
+    task = CreateMontageTask(subject,localization,montage)
+    return TransferPipeline(transferer,task)
 
 if __name__ == '__main__':
     def test_split_sys3():

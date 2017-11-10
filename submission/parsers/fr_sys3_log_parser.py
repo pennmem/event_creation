@@ -201,6 +201,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
             self._recog_pres_mstime = event_json[self._MSTIME_FIELD]
             if event_json[self._PHASE_TYPE_FIELD] == 'LURE':
                 event.type = 'RECOG_LURE'
+                event.stim_list = -999
             else:
                 event.type = 'RECOG_TARGET'
         else:

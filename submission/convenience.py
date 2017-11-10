@@ -249,6 +249,12 @@ def run_individual_pipline(pipeline_fn, kwargs, force_run=False):
 
 
 def attempt_importers(importers, force):
+    """
+    Runs each importer in importers until one of them succeeds
+    :param importers: A list of importers to attempt
+    :param force: Whether to force an import when no change is found
+    :return: The importers that were attempted
+    """
     success = False
     i=0
     for i, importer in enumerate(importers):
@@ -267,23 +273,6 @@ def attempt_importers(importers, force):
         logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))
 
     return success, importers[:i+1]
-
-
-def run_wav_import(kwargs,force=False):
-    """
-    :param kwargs:
-    :return: (success [t/f], attempted pipelines)
-    """
-    # logger.set_label('.wav Importer')
-    # logger.set_subject(kwargs['subject'],kwargs['protocol'])
-    # wav_importer = Importer(Importer.MOVE_WAV,**kwargs)
-    # success, importers = attempt_importers([wav_importer],force)
-    # if not success:
-    #     logger.info('.wav transfer failed')
-    #     wav_importer.remove()
-    # else:
-    #     return success,ImporterCollection(importers)
-    raise NotImplementedError
 
 
 def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
@@ -413,24 +402,21 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 def run_montage_import(kwargs, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
+    importer0 = Importer(Importer.CREATE_MONTAGE,**kwargs)
 
-    importer = Importer(Importer.MONTAGE, **kwargs)
-    success, importers = attempt_importers([importer], force)
+    importer1 = Importer(Importer.CONVERT_MONTAGE, **kwargs)
+    success, importers = attempt_importers([importer0,importer1], force)
     return success, ImporterCollection(importers)
 
-def run_localization_import(kwargs, force=False):
+def run_localization_import(kwargs, force=False,force_dykstra=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
-    kwargs['overwrite']=force
+    localization_kwargs = {k:kwargs[k] for k in ['subject','protocol','localization','code']}
 
-    new_importer = Importer(Importer.LOCALIZATION, is_new=True, **kwargs)
-    old_importer = Importer(Importer.LOCALIZATION, is_new=False, **kwargs)
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra,**localization_kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False,force_dykstra=force_dykstra,**localization_kwargs)
     success, importers = attempt_importers([new_importer, old_importer], force)
-    if success:
-        used_importers = [importer for importer in importers if not importer.errored]
-    else:
-        used_importers = importers
-    return success, ImporterCollection(used_importers)
+    return success, ImporterCollection(importers)
 
 
 this_dir = os.path.realpath(os.path.dirname(__file__))
@@ -843,7 +829,6 @@ def prompt_for_localization_inputs():
 
     return inputs
 
-
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(paths.db_root, 'protocols', protocol,
                                  'subjects', subject,
@@ -854,14 +839,12 @@ def session_exists(protocol, subject, experiment, session):
 
     return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
 
-
 def localization_exists(protocol, subject, localization):
     neurorad_current = os.path.join(paths.db_root, 'protocols', protocol,
                            'subjects', subject,
                            'localization', localization,
                            'neuroradiology', 'current_processed')
     return os.path.exists(neurorad_current)
-
 
 def montage_exists(protocol, subject, montage):
     montage_num = montage.split('.')[1]
@@ -958,7 +941,7 @@ if __name__ == '__main__':
                 print("Import aborted! Exiting.")
                 exit(0)
         print("Importing localization")
-        success, importer = run_localization_import(inputs, config.force_localization)
+        success, importer = run_localization_import(inputs, config.force_localization,config.force_dykstra)
         print('Success:' if success else 'Failed')
         print(importer.describe())
         exit(0)
@@ -971,19 +954,15 @@ if __name__ == '__main__':
 
     inputs = prompt_for_session_inputs(**config.options)
 
-    if config.wav_only:
-        print('Importing .wav files')
-        success, importers = run_wav_import(inputs)
 
-    else:
-        if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
-            if not confirm('{subject} {new_experiment} session {session} already exists. '
-                           'Continue and overwrite? '.format(**inputs)):
-                print('Import aborted! Exiting.')
-                exit(0)
-        print('Importing session')
-        success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
-                                            config.force_eeg)
+    if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
+        if not confirm('{subject} {new_experiment} session {session} already exists. '
+                       'Continue and overwrite? '.format(**inputs)):
+            print('Import aborted! Exiting.')
+            exit(0)
+    print('Importing session')
+    success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
+                                        config.force_eeg)
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
