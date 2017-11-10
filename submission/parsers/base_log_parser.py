@@ -18,6 +18,12 @@ class BaseLogParser(object):
     # Maximum length of stim params
     MAX_STIM_PARAMS = 10
 
+    # Set to false if stim events are added inside the log parser
+    ADD_STIM_EVENTS = True
+
+    # Set to false if EEG offsets are added inside the log parser
+    DO_ALIGNMENT = True
+
     # FORMAT: (NAME, DEFAULT, DTYPE)
     _BASE_FIELDS = (
         ('protocol', '', 'S64'),
@@ -113,14 +119,12 @@ class BaseLogParser(object):
         """
         return cls.event_from_template(cls._STIM_FIELDS)
 
-
     @classmethod
     def stim_params_template(cls):
         """
         Maximum of 10 stimulated electrodes at once, completely arbitrarily
         """
         return 'stim_params', cls.empty_stim_params(), cls.dtype_from_template(cls._STIM_FIELDS), cls.MAX_STIM_PARAMS
-
 
     def clean_events(self, events):
         """
@@ -148,7 +152,6 @@ class BaseLogParser(object):
         """
         return []
 
-
     @property
     def event_template(self):
         """
@@ -156,7 +159,6 @@ class BaseLogParser(object):
         :return:
         """
         return self._fields
-
 
     def _add_fields(self, *args):
         """
@@ -166,7 +168,6 @@ class BaseLogParser(object):
         init_fields = list(self._fields)
         init_fields.extend(args)
         self._fields = tuple(init_fields)
-
 
     @classmethod
     def event_from_template(cls, template):
@@ -179,7 +180,6 @@ class BaseLogParser(object):
         dtypes = cls.dtype_from_template(template)
         return np.rec.array(defaults, dtype=dtypes)
 
-
     @classmethod
     def dtype_from_template(cls, template):
         """
@@ -189,7 +189,6 @@ class BaseLogParser(object):
         """
         dtypes = [(entry[0], entry[2], entry[3] if len(entry) > 3 else 1) for entry in template]
         return dtypes
-
 
     @property
     def _empty_event(self):
@@ -207,7 +206,6 @@ class BaseLogParser(object):
 
         return event
 
-
     @staticmethod
     def set_event_stim_params(event, jacksheet, index=0, **params):
         """
@@ -223,7 +221,8 @@ class BaseLogParser(object):
                 value *= 1000  # Put in uA. Ugly fix...
             if param == 'pulse_freq' and value>np.iinfo(event.stim_params[index][param].dtype).max:
                 value /=1000 # same fix, but for Hz
-            event.stim_params[index][param] = value
+            if param in event.stim_params.dtype.names:
+                event.stim_params[index][param] = value
 
         if 'anode_label' in params and 'anode_number' not in params:
             reverse_jacksheet = {v: k for k, v in jacksheet.items()}
@@ -240,7 +239,6 @@ class BaseLogParser(object):
             event.stim_params[index]['cathode_label'] = jacksheet[params['cathode_number']].upper()
 
         event.stim_params[index]._remove = False
-
 
     # Used to find relevant lines in .ann files
     # Note from Jesse Pazdera: I added '[???]' to the accepted strings that can appear in the third column in order to
@@ -299,7 +297,6 @@ class BaseLogParser(object):
         for (key, value) in kwargs.items():
             self._type_to_modify_events[key] = value
 
-
     @staticmethod
     def _event_skip(*_):
         """
@@ -308,7 +305,6 @@ class BaseLogParser(object):
         :return: False
         """
         return False
-
 
     def parse(self):
         """
@@ -322,20 +318,20 @@ class BaseLogParser(object):
             this_type = self._get_raw_event_type(raw_event)
             # Check if the line is parseable
             try:
-                new_event = self._type_to_new_event[this_type](raw_event)
-                if not isinstance(new_event, np.recarray) and not (new_event is False):
-                    raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
-                elif isinstance(new_event, np.recarray):
-                    events = np.append(events, new_event)
-
-            except KeyError as ke:
+                handler = self._type_to_new_event[this_type]
+            except KeyError:
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
-                    pass
+                    continue
                 else:
                     raise LogParseError("Event type %s not parseable" % this_type)
-            if events.dtype==np.object:
-                pass
+
+            new_event = handler(raw_event)
+            if not isinstance(new_event, np.recarray) and not (new_event is False):
+                raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
+            elif isinstance(new_event, np.recarray):
+                events = np.append(events, new_event)
+
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
@@ -392,7 +388,6 @@ class BaseSessionLogParser(BaseLogParser):
     # Alignment doesn't have to start until this event is seen
     START_EVENT = 'SESS_START'
 
-
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
         """
@@ -413,7 +408,6 @@ class BaseSessionLogParser(BaseLogParser):
 
         super(BaseSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files, primary_log,
                                                    allow_unparsed_events, include_stim_params)
-
 
         # These events are common in pyepl, and can be skipped by default
         self._add_type_to_new_event(
@@ -469,7 +463,6 @@ class BaseSys3LogParser(BaseLogParser):
     _TYPE_FIELD = 'event_label'
     _EEG_OFFSET_FIELD = 'offset'
 
-
     def _read_primary_log(self):
         contents = []
         for log in self._primary_log:
@@ -492,21 +485,29 @@ class BaseSys3LogParser(BaseLogParser):
         return event_json[self._TYPE_FIELD]
 
 class BaseSys3_1LogParser(BaseSessionLogParser):
-
-
-    _STIME_FIELD = 'timestamp'
+    _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
     _PHASE_TYPE_FIELD = 'phase_type'
 
-    _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase','','<S16'),)
+    _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase', '', '<S16'),)
 
-
-    def __init__(self,protocol, subject, montage, experiment, session, files, primary_log='session_log',
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
-        BaseSessionLogParser.__init__(self,protocol, subject, montage, experiment, session, files,primary_log=primary_log,
-                 allow_unparsed_events=allow_unparsed_events, include_stim_params=include_stim_params)
+        self.LOG_READERS = {
+            '.sql': self._read_sql_log,
+            '.sqlite': self._read_sql_log,
+            '.json': self._read_unityepl_log,
+            '.log': self._read_session_log,
+        }
+
+        BaseSessionLogParser.__init__(self, protocol, subject, montage,
+                                      experiment, session, files,
+                                      primary_log=primary_log,
+                                      allow_unparsed_events=allow_unparsed_events,
+                                      include_stim_params=include_stim_params)
         self._files = files
         self._phase = ''
+
 
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
@@ -518,7 +519,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         try:
             return super(BaseSys3_1LogParser, self).parse()
         except Exception as exc:
-            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s'%(str(type(exc)),exc.message))
+            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), exc.message))
             if self._files.get('session_log_txt'):
                 logger.warn('Parsing session.log instead')
 
@@ -526,9 +527,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
                 return super(BaseSys3_1LogParser, self).parse()
             else:
                 raise exc
-
-
-
 
     @staticmethod
     def _read_sql_log(log):
@@ -538,8 +536,25 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         conn.close()
         return msgs
 
-    def _read_session_log(self,log):
-        def load_json(s,*args,**kwargs):
+    def _read_unityepl_log(self, filename):
+        """Read events from the UnityEPL format (JSON strings separated by
+        newline characters).
+
+        :param str filename:
+
+        """
+        df = pd.read_json(filename, lines=True)
+        messages = df[df.type == 'network'].data
+        network = pd.DataFrame([msg['message']['data']
+                                for msg in messages if msg['sent']])
+        times = [msg['message']['time'] for msg in messages if msg['sent']]
+        network[self._MSTIME_FIELD] = times
+        self._TYPE_FIELD = self._UNITY_TYPE_FIELD
+        events = network[network.name.notnull()].dropna(1, 'all').reset_index(drop=True)
+        return [e.to_dict() for _, e in events.iterrows()]
+
+    def _read_session_log(self, log):
+        def load_json(s, *args, **kwargs):
             try:
                 return json.loads(s,*args,**kwargs)
             except ValueError:
@@ -550,26 +565,24 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         mstimes = [int(x[0]) for x in lines]
         types = [x[-1].partition(' ')[0] for x in lines]
         for i in range(len(event_jsons)):
-            event_jsons[i][self._STIME_FIELD] = mstimes[i]
+            event_jsons[i][self._MSTIME_FIELD] = mstimes[i]
             event_jsons[i][self._TYPE_FIELD] = types[i]
         return event_jsons
-
-
-
 
     def _read_primary_log(self):
         msgs = []
         if isinstance(self._primary_log,basestring):
-            msgs = self._read_sql_log(self._primary_log)
-            # msgs = self._read_session_log(self._primary_log)
+            logs = [self._primary_log]
         else:
-            for log in self._primary_log:
-                msgs += self._read_session_log(log)
+            logs = self._primary_log
+        for log in logs:
+            log_ext = os.path.splitext(log)[-1]
+            msgs += self.LOG_READERS[log_ext](self._primary_log)
         return msgs
 
     def event_default(self, event_json):
-        event= self._empty_event
-        event.mstime = event_json[self._STIME_FIELD]
+        event = self._empty_event
+        event.mstime = event_json[self._MSTIME_FIELD]
         event.type = event_json[self._TYPE_FIELD]
         event.phase = self._phase
 
@@ -582,10 +595,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
             version_info = json.load(event_log)['versions']
         events.exp_version = version_info['task']['version']
         return events
-
-
-
-
 
 
 class RecogParser(BaseSessionLogParser):

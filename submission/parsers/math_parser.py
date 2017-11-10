@@ -1,12 +1,13 @@
-from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
+from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
 from .system2_log_parser import System2LogParser
-import numpy as np
-import os
-
+import pandas as pd
+from collections import defaultdict
 
 class MathLogParser(BaseSessionLogParser):
 
     _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
+
+    ADD_STIM_EVENTS = False
 
     @classmethod
     def _math_fields(cls):
@@ -89,3 +90,85 @@ class MathLogParser(BaseSessionLogParser):
         rectime = int(split_line[6])
         event.rectime = rectime
         return event
+
+
+
+class MathUnityLogParser(BaseSys3_1LogParser):
+
+    ADD_STIM_EVENTS = False
+
+    ANSWER_FIELD='response'
+    TEST_FIELD = 'problem'
+    RECTIME_FIELD = 'response_time_ms'
+    _STATE_NAMES = ['DISTRACT',]
+
+    @classmethod
+    def _read_unityepl_log(cls, filename):
+        """
+        Need to overload this method because the math events are formatted differently from the WORD events.
+        :param filename: path to session.json
+        :return: List of dicts containing necessary info
+        """
+        df = pd.read_json(filename, lines=True)
+        messages = df[df['type'] == 'network'].data
+        to_use = ['type' in msg['message'] and (
+            msg['message']['type']=='MATH'
+            or (msg['message']['type']=='STATE' and msg['message']['data']['name'] in cls._STATE_NAMES)
+        )
+                  for msg in messages ]
+        used_messages = pd.DataFrame.from_records([msg['message']  for msg in messages.loc[to_use]])
+        data = pd.DataFrame.from_records([data for data in used_messages.data])
+        data[cls._MSTIME_FIELD] = used_messages.time.values.astype(int)
+        data[cls._TYPE_FIELD] = data['name'].where(~data['name'].isnull(),used_messages['type'])
+        return [e.to_dict() for _, e in data.iterrows()]
+
+
+    def __init__(self,protocol,subject,montage,experiment,session,files):
+        super(MathUnityLogParser, self).__init__(protocol,subject,montage,experiment,session,files,
+                                                 primary_log='session_log_json')
+
+        self._add_fields(*MathLogParser._math_fields())
+        self._add_type_to_new_event(
+            MATH=self.events_math,
+            DISTRACT = self.event_distract,
+        )
+
+        self._list = -1
+
+    def event_default(self, event_json):
+        event = super(MathUnityLogParser, self).event_default(event_json)
+        event['list'] = self._list
+        return event
+
+    def event_distract(self, event_json):
+        self._phase = event_json[self._PHASE_TYPE_FIELD]
+        event = self.event_default(event_json)
+        if event_json['value']:
+            event['type'] = 'START'
+        else :
+            event['type']='STOP'
+            if self._list == -1:
+                self._list = 1
+            else:
+                self._list += 1
+        return event
+
+    def events_math(self,event_json):
+        event = self.event_default(event_json)
+        event['type'] = 'PROB'
+        event['answer'] = int(event_json[self.ANSWER_FIELD])
+        problem = [int(x.strip()) for x in event_json[self.TEST_FIELD].replace('=','').replace(' ','').split('+')]
+        event['test']  = problem
+        event['iscorrect'] = int(event['answer']==sum(problem))
+        event['rectime'] = int(event_json[self.RECTIME_FIELD])
+        event['mstime'] = event_json[self._MSTIME_FIELD] - event['rectime']
+
+        return event
+
+
+    @classmethod
+    def test(cls,unity_log):
+        files = {'session_log':unity_log}
+        parser = MathUnityLogParser('r1','R1999X',0,'math_test',-1,files)
+        events = parser.parse()
+        return events

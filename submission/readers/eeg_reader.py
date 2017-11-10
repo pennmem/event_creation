@@ -23,7 +23,7 @@ from .. import fileutil
 from ..log import logger
 from .nsx_utility.brpylib import NsxFile
 from ..exc import EEGError
-
+from ..parsers.electrode_config_parser import ElectrodeConfig
 
 class EEG_reader(object):
 
@@ -1513,6 +1513,8 @@ def read_jacksheet(filename):
         return read_text_jacksheet(filename)
     elif ext.lower() == '.json':
         return read_json_jacksheet(filename)
+    elif ext.lower() == '.csv':
+        return read_electrode_config_jacksheet(filename)
     else:
         raise NotImplementedError
 
@@ -1529,6 +1531,10 @@ def read_json_jacksheet(filename):
         raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
     jacksheet = {int(v['channel']): k for k, v in contacts.items()}
     return jacksheet
+
+def read_electrode_config_jacksheet(filename):
+    ec = ElectrodeConfig(filename)
+    return {c.jack_num: c.name for c in ec.contacts.values()}
 
 
 def calc_gain(amp_info, amp_fact):

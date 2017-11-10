@@ -165,8 +165,6 @@ class System3Aligner(object):
         ens_times[ens_times < 0] = -1
         aligned_events[self.ENS_TIME_FIELD] = ens_times
 
-        self.apply_eeg_file(aligned_events)
-
         return aligned_events
 
     def apply_eeg_file(self, events):

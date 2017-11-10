@@ -62,7 +62,7 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer, '!system_3_0', '!system_3_1']
+    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3']
     checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:

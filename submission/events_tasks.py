@@ -32,7 +32,8 @@ from .parsers.pal_sys3_log_parser import PALSys3LogParser
 from .parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from .parsers.math_parser import MathLogParser
+from .parsers.math_parser import MathLogParser,MathUnityLogParser
+from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 
@@ -143,51 +144,56 @@ class MatlabEEGConversionTask(PipelineTask):
         extractor = MatlabEEGExtractor(self.original_session, files)
         extractor.copy_ephys(db_folder)
 
+
 class EventCreationTask(PipelineTask):
-
-    R1_PARSERS ={ 1.0:{
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser,
-                    },
-                      2.0:{
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser
-                    },
-                    3.0: {
-                        'FR': FRSessionLogParser,
-                        'PAL': PALSessionLogParser,
-                        'catFR': CatFRSessionLogParser,
-                        'math': MathLogParser,
-                        'PS': PSLogParser,
-                        'TH': THSessionLogParser,
-                        'THR': THRSessionLogParser
-                    },
-                    3.1:{
-                        'FR': FRSys3LogParser,
-                        'catFR': catFRSys3LogParser,
-                        'PS': PS4Sys3LogParser,
-                        'PAL': PALSys3LogParser,
-                        'THR': THRSessionLogParser,
-                        'math': MathLogParser,
-                    }
-                 }
+    R1_PARSERS = {
+        1.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser,
+        },
+        2.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        3.0: {
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'math': MathLogParser,
+            'PS': PSLogParser,
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser
+        },
+        3.1: {
+            'FR': FRSys3LogParser,
+            'catFR': catFRSys3LogParser,
+            'PS': PS4Sys3LogParser,
+            'PAL': PALSys3LogParser,
+            'THR': THRSessionLogParser,
+            'math': MathLogParser,
+        },
+        3.3:{
+            'FR': FRHostPCLogParser,
+            'catFR':catFRHostPCLogParser,
+            'math': MathUnityLogParser,
+        }
+    }
     LTP_PARSERS = {
-                    'ltpFR': LTPFRSessionLogParser,
-                    'ltpFR2': LTPFR2SessionLogParser,
-                    'FR1': FRSessionLogParser,
-                    'Remembering_Across_America': RAASessionLogParser,
-                  }
-
+        'ltpFR': LTPFRSessionLogParser,
+        'ltpFR2': LTPFR2SessionLogParser,
+        'FR1': FRSessionLogParser,
+        'Remembering_Across_America': RAASessionLogParser,
+    }
 
     @property
     def r1_sys_num(self):
@@ -199,8 +205,11 @@ class EventCreationTask(PipelineTask):
     def parser_type(self):
         if self._parser_type is None:
             if self.protocol == 'r1':
-                new_experiment = self.kwargs.get('new_experiment') or self.experiment
-                self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+                new_experiment = self.kwargs.get('new_experiment') or self.experiment if self.event_label=='task' else self.event_label
+                try:
+                    self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+                except KeyError:
+                    raise  KeyError('Experiment %s not supported for system %s'%(new_experiment,self.r1_sys_num))
             elif self.protocol == 'ltp':
                 self._parser_type = self.LTP_PARSERS[self.experiment]
         return self._parser_type
@@ -240,13 +249,13 @@ class EventCreationTask(PipelineTask):
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
                 events = unaligned_events
-            elif self.r1_sys_num in (2.0,3.0,3.1):
+            elif self.r1_sys_num in (2.0,3.0,3.1,3.3):
                 if self.r1_sys_num == 2.0:
                     aligner = System2Aligner(unaligned_events, files, db_folder)
                 else:
                     aligner = System3Aligner(unaligned_events, files, db_folder)
 
-                if self.event_label not in  ['math'] and self.parser_type is not PS4Sys3LogParser:
+                if parser.ADD_STIM_EVENTS:
                     logger.debug("Adding stimulation events")
                     aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
 
@@ -256,20 +265,24 @@ class EventCreationTask(PipelineTask):
                     start_type = 'NP_POLL'
                 else:
                     start_type = "SESS_START"
-                events = aligner.align(start_type)
+                if parser.DO_ALIGNMENT:
+                    events = aligner.align(start_type)
+                else:
+                    events = unaligned_events
+                aligner.apply_eeg_file(events)
             elif self.r1_sys_num == 1.0:
                 aligner = System1Aligner(unaligned_events, files)
                 events = aligner.align()
             else:
-                raise ProcessingError("r1_sys_num must be in (1, 3.1) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+                raise ProcessingError("r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
 
 class PruneEventsTask(PipelineTask):
-    def __init__(self,cond):
-        super(PruneEventsTask,self).__init__()
+    def __init__(self, cond):
+        super(PruneEventsTask, self).__init__()
         self.filter = cond
 
     def _run(self,files,db_folder):
@@ -326,7 +339,6 @@ class MontageLinkerTask(PipelineTask):
     FILES = {'pairs': 'pairs.json',
              'contacts': 'contacts.json'}
 
-
     def __init__(self, protocol, subject, montage, critical=True):
         super(MontageLinkerTask, self).__init__(critical)
         self.name = 'Montage linker'
@@ -350,8 +362,8 @@ class MontageLinkerTask(PipelineTask):
             logger.info('File {} found'.format(file))
             self.pipeline.register_info(name, fullfile)
 
-class MatlabEventConversionTask(PipelineTask):
 
+class MatlabEventConversionTask(PipelineTask):
     CONVERTERS = {
         'FR': FRMatConverter,
         'PAL': PALMatConverter,
@@ -386,8 +398,8 @@ class MatlabEventConversionTask(PipelineTask):
         self.create_file( self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
-class ImportEventsTask(PipelineTask):
 
+class ImportEventsTask(PipelineTask):
     PARSERS = {
         'FR': FRSessionLogParser,
         'PAL': PALSessionLogParser,
@@ -429,9 +441,8 @@ class ImportEventsTask(PipelineTask):
             logger.error("Exception occurred creating events: {}! Defaulting to event conversion!".format(e))
             MatlabEventConversionTask.run(self, files, db_folder)
 
+
 class CompareEventsTask(PipelineTask):
-
-
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
                  match_field=None, critical=True):
         super(CompareEventsTask, self).__init__(critical)

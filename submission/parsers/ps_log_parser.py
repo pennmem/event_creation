@@ -407,6 +407,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     _ID_FIELD = 'hashtag'
     _STIM_PARAMS_FIELD = 'msg_stub'
     _DELTA_CLASSIFIER_FIELD = 'stim_delta_classifier'
+    ADD_STIM_EVENTS = False
 
     _LOC_FIELDS = (
         ('loc_name','','S16'),
@@ -468,6 +469,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
+            PS_OPTIMIZATION_DECISION_NOT_POSSIBLE =  self.event_default,
             ENCODING = self.encoding,
             DISTRACT = self.distract,
             RETRIEVAL = self.retrieval,

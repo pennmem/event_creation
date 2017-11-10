@@ -96,7 +96,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ transfer, verbal,]
+    groups: [ transfer, verbal, '!system_3_3']
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.log'
@@ -104,7 +104,7 @@ files:
 
   - name: math_log
     << : *FILE
-    groups: [ r1, transfer, verbal ]
+    groups: [ r1, transfer, verbal, '!system_3_3' ]
     origin_directory: *BEH_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -326,7 +326,13 @@ files:
     origin_file: 'session.log'
     destination: logs/session.log
 
-
+  - name: session_log_json
+    << : *FILE
+    groups: [ transfer, verbal, system_3_3]
+    origin_directory: *BEH_SESS_DIR
+    origin_file:
+    - 'session.json'
+    destination: logs/session.json
 
   ### LTP
 
@@ -410,4 +416,3 @@ files:
     origin_directory: *LTP_EXP_DIR
     origin_file: 'RAM_wordpool.txt'
     destination: experiment_files/wordpool.txt
-

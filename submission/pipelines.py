@@ -55,7 +55,6 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
     groups += tuple(args)
 
-
     if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
         kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
@@ -66,11 +65,10 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_1','system_3_0')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0')
 
         for sys in systems:
             try:
-                print "I AM HERE!"
                 logger.info("Checking if this system is {}".format(sys))
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
@@ -99,32 +97,8 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                          ", but this will likely fail very soon!".format(sys))
         groups += (sys,)
 
-        #
-        # session_log = transfer_cfg.get_file('session_log')
-        # eeg_log = transfer_cfg.get_file('eeg_log')
-        #
-        # if experiment.startswith('TH'):
-        #     if eeg_log is not None:
-        #         if len(open(eeg_log.origin_paths[0]).read().strip()) == 0:
-        #             groups += ('system_2',)
-        #         else:
-        #             groups += ('system_1',)
-        #     else:
-        #         groups += ('system_2',)
-        # elif session_log is not None:
-        #     if len(session_log.origin_paths) < 1:
-        #         logger.warn("Could not find session log file! Assuming system_1 ")
-        #         groups += ('system_1', )
-        #     else:
-        #         version = get_version_num(session_log.origin_paths[0])
-        #         if version >= 3:
-        #             groups += ('system_3')
-        #         elif version >= 2:
-        #             groups += ('system_2',)
-        #         else:
-        #             groups += ('system_1',)
-
-        if experiment.endswith("3") or experiment.endswith("5"):
+        # FIXME: this is a dangerous way of determining stim experiments
+        if experiment[-1] in ["3", "5", "6"]:
             groups += ("stim", )
     return groups
 
@@ -164,12 +138,9 @@ def r1_system_match(experiment, transfer_cfg, sys):
                     return sys == 'system_2'
             except Exception as e:
                 logger.debug("Error trying to get version number: {}".format(e))
-                return sys=='system_3_1'
+                return sys == 'system_3_1'
 
     return True
-
-
-
 
 
 class TransferPipeline(object):
@@ -311,11 +282,6 @@ class TransferPipeline(object):
             self.on_failure()
             raise
 
-# def build_wav_pipeline(subject,experiment,session,protocol,**kwargs):
-#     transferer = generate_wav_transferer(subject,experiment,session,protocol,code=subject)
-#     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
-#     return TransferPipeline(transferer)
-
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
@@ -350,8 +316,6 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
     transferer.set_transfer_type(MATLAB_CONVERSION_TYPE)
 
     tasks = [MatlabEEGConversionTask(subject, experiment, original_session)]
-
-
     return TransferPipeline(transferer, *tasks)
 
 
@@ -359,7 +323,6 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                           groups=tuple(), do_compare=False, **kwargs):
 
     logger.set_label("Building Event Creator")
-
 
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
@@ -369,7 +332,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     except:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
-    groups =  determine_groups(protocol, code, experiment, original_session,
+    groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
@@ -380,9 +343,9 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     if protocol == 'r1':
         system = [x for x in groups if 'system' in x][0]
         system = system.partition('_')[-1]
-        tasks = [MontageLinkerTask(protocol, subject, montage,critical=('3' in system))]
+        tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
 
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,critical=('ps4' not in groups),**kwargs))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('ps4' not in groups), **kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -390,7 +353,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
         else:
             try:
-                tasks=[EventCreationTask(protocol,subject,montage,experiment,session,False)]
+                tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
             except KeyError:
                 raise Exception('Unknown experiment %s under protocol \'ltp'%experiment)
     else:
@@ -400,23 +363,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if 'ps4' in groups:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'ps4',parser_type=PS4Sys3LogParser,**kwargs))
-        other_events+=('ps4',)
+                                       'ps4', parser_type=PS4Sys3LogParser, **kwargs))
+        other_events += ('ps4',)
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', MathLogParser, critical=False,**kwargs))
-        other_events+=('math',)
+                                       'math', critical=False, **kwargs))
+        other_events += ('math',)
 
     if other_events:
         tasks.append(EventCombinationTask(('task',)+other_events, critical=False,))
-
-    # if 'ps4' in groups:
-    #     if kwargs.get('new_experiment')=='PS4':
-    #         comparator = lambda events: events.list<N_PS4_SESSIONS
-    #     else:
-    #         comparator = lambda events: events.list>= N_PS4_SESSIONS
-    #     tasks.append(PruneEventsTask(comparator))
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))
@@ -551,20 +507,19 @@ def build_create_montage_pipeline(subject,montage,protocol, code):
     task = CreateMontageTask(subject,localization,montage)
     return TransferPipeline(transferer,task)
 
-
-def test_split_sys3():
-    pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
-    pipeline.run()
-
-def test_create_sys3_events():
-    pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
-                                     new_experiment='FR1',
-                                     localization=0, montage_num=0,
-                                     code='R9999X',
-                                     original_session=1, sync_folder='', sync_filename='')
-    pipeline.run()
-
 if __name__ == '__main__':
+    def test_split_sys3():
+        pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
+        pipeline.run()
+
+    def test_create_sys3_events():
+        pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
+                                         new_experiment='FR1',
+                                         localization=0, montage_num=0,
+                                         code='R9999X',
+                                         original_session=1, sync_folder='', sync_filename='')
+        pipeline.run()
+
     logger.set_stdout_level(0)
     test_split_sys3()
     test_create_sys3_events()
