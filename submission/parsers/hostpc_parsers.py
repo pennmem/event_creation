@@ -179,9 +179,6 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._phase = ''
         self._serialpos = 0
 
-    @property
-    def serialpos(self):
-        return self._serialpos%12
 
     @property
     def stim_list(self):
@@ -217,7 +214,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     @with_offset
     def event_word(self,event_json):
         event = self.event_default(event_json)
-        event.serialpos = self.serialpos
+        event.serialpos = self._serialpos
         self._word = event_json[self._ITEM_FIELD]
 
         if event_json[self._VALUE_FIELD]:
@@ -241,6 +238,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             else:
                 self._list+=1
         event = self.event_default(event_json)
+        self._serialpos= 0
         return event
 
     @with_offset
