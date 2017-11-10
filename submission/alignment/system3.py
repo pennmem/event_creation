@@ -57,14 +57,14 @@ class System3Aligner(object):
                 logger.debug("Couldn't find coefficient with label {}".format(label))
                 continue
             except AlignmentError:
-                logger.debug("Couldn't find coefficient with label {}".format(label))
+                logger.debug("Couldn't align coefficient with label {}".format(label))
                 continue
             self.from_label = label
             self.from_multiplier = rate
             break
 
         else:
-            raise AlignmentError("Could not find sortable label in events")
+            raise AlignmentError("Could not find alignable label in events")
 
         self.eeg_info = json.load(open(files['eeg_sources']))
 
