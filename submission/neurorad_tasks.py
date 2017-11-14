@@ -219,7 +219,7 @@ class CreateMontageTask(PipelineTask):
         nums_to_labels = {}
         labels_to_nums = {}
         with open(jacksheet) as jack_file:
-            for line in jack_file:
+            for line in jack_file.read().splitlines():
                 num,label = line.strip().split()
                 num=int(num)
                 label=label.upper()
