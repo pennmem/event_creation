@@ -211,26 +211,43 @@ class System3LogParser(object):
         stim_event = self._empty_event()
         stim_params = {}
         stim_params['host_time'] = stim_dict[self.source_time_field] * self.source_time_multiplier
+        if 'stim_channels' in stim_dict[self._STIM_PARAMS_FIELD]:
+            for (i,channel) in enumerate(stim_dict[self._STIM_PARAMS_FIELD]['stim_channels']):
+                for inpt, param in self._DICT_TO_FIELD.items():
+                    stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD]['stim_channels'][channel][inpt]
+                stim_params['pulse_width'] = stim_dict[
+                    'pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
+                stim_params['n_pulses'] = self.get_n_pulses(stim_params)
+                stim_params['stim_on'] = True
+                stim_channel = electrode_config.stim_channels[channel]
+                anode_numbers = stim_channel.anodes
+                cathode_numbers = stim_channel.cathodes
+                BaseLogParser.set_event_stim_params(stim_event,electrode_config.as_jacksheet(),i,
+                                                    anode_numbers=anode_numbers,
+                                                    cathode_numbers=cathode_numbers,
+                                                    **stim_params)
+        else:
+            for input, param in self._DICT_TO_FIELD.items():
+                try:
+                    stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
+                except KeyError:
+                    logger.debug('Field %s is missing'%input)
 
-        for input, param in self._DICT_TO_FIELD.items():
-            try:
-                stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
-            except KeyError: #
-                logger.debug('Field %s is missing'%input)
+            stim_params['pulse_width'] = stim_dict['pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
+            stim_params['n_pulses'] = self.get_n_pulses(stim_params)
+            stim_params['stim_on'] = True
 
-        stim_params['pulse_width'] = stim_dict['pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
-        stim_params['n_pulses'] = self.get_n_pulses(stim_params)
-        stim_params['stim_on'] = True
+            stim_channels = electrode_config.stim_channels[stim_dict[self._STIM_PARAMS_FIELD][self._STIM_CHANNEL_FIELD]]
+            anode_numbers = stim_channels.anodes
+            cathode_numbers = stim_channels.cathodes
 
-        stim_channels = electrode_config.stim_channels[stim_dict[self._STIM_PARAMS_FIELD][self._STIM_CHANNEL_FIELD]]
-        anode_numbers = stim_channels.anodes
-        cathode_numbers = stim_channels.cathodes
+            for i, (anode_num, cathode_num) in enumerate(zip(anode_numbers, cathode_numbers)):
+                BaseLogParser.set_event_stim_params(stim_event, electrode_config.as_jacksheet(), i,
+                                                    anode_number=anode_num,
+                                                    cathode_number=cathode_num,
+                                                    **stim_params)
 
-        for i, (anode_num, cathode_num) in enumerate(zip(anode_numbers, cathode_numbers)):
-            BaseLogParser.set_event_stim_params(stim_event, electrode_config.as_jacksheet(), i,
-                                                anode_number=anode_num,
-                                                cathode_number=cathode_num,
-                                                **stim_params)
+
         return stim_event
 
 
