@@ -107,12 +107,8 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
         return event
 
     def event_trial(self,event_json):
-        if self._list == -999:
-            self._list = -1
-        elif self._list == -1:
-            self._list = 1
-        else:
-            self._list += 1
+        lst = event_json['listno']
+        self._list = lst if lst >0 else -1
         self._phase = event_json[self._PHASE_TYPE_FIELD]
         self._probepos = -999
         return self.event_default(event_json)

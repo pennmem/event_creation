@@ -252,7 +252,11 @@ class TransferPipeline(object):
                 logger.info('Executing task {}: {}'.format(i+1, pipeline_task.name))
                 logger.set_label(pipeline_task.name)
                 pipeline_task.run(transferred_files, self.destination)
-                logger.info('Task {} finished successfully'.format(pipeline_task.name))
+                if pipeline_task.error:
+                    logger.info('Task {} failed with message {}. Continuing'.format(
+                        pipeline_task.name,pipeline_task.error))
+                else:
+                    logger.info('Task {} finished successfully'.format(pipeline_task.name))
 
             if os.path.islink(self.current_dir):
                 os.unlink(self.current_dir)
