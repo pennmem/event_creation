@@ -149,12 +149,13 @@ class System3Aligner(object):
 
     def align(self, start_type=None):
 
-        aligned_events = deepcopy(self.merged_events)
+        new_events = deepcopy(self.merged_events)
+        aligned_events = new_events[new_events['eegoffset']==-1]
 
         if start_type:
             starting_entries= np.where(aligned_events['type'] == start_type)[0]
             # Don't have to align until one after the starting type (which is normally SESS_START)
-            starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 0
+            starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 1
         else:
             starts_at = 0
 
@@ -164,12 +165,11 @@ class System3Aligner(object):
 
         ens_times[ens_times < 0] = -1
         aligned_events[self.ENS_TIME_FIELD] = ens_times
+        new_events[new_events['eegoffset']==-1] = aligned_events
 
-        return aligned_events
+        return new_events
 
     def apply_eeg_file(self, events):
-
-
 
         eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
 
