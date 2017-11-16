@@ -34,8 +34,6 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
         self._type_to_modify_events = {
             'PROBE_START': self.modify_recalls,
             'REC_END': self.modify_test,
-            'TRIAL': self.modify_start,
-
         }
 
         self._study_1 = None
@@ -115,12 +113,6 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
 
     ### MODIFY EVENT METHODS ###
 
-
-    def modify_start(self,events):
-        if self._list == -1:
-            events.list=self._list
-            events.phase = self._phase
-        return events
 
 
     def modify_test(self, events):
