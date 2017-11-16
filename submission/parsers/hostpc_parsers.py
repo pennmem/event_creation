@@ -33,7 +33,6 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     possible on the existence of particular fields.
     """
 
-    DO_ALIGNMENT = False
     ADD_STIM_EVENTS = False
 
     _STIM_FIELDS = (
@@ -56,7 +55,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                                                   allow_unparsed_events=allow_unparsed_events,
                                                   include_stim_params=include_stim_params)
         self._TYPE_FIELD = 'event_label'
-        self._MSTIME_FIELD = 't_event'
+        self._MSTIME_FIELD = 'orig_timestamp'
 
         self.files = files
         self._phase = ''
@@ -204,7 +203,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         event = FRSys3LogParser.event_default(self,event_json)
         event.phase = self._phase
         event.stim_list = self.stim_list
-        event['mstime'] = int(event_json[self._MSTIME_FIELD]*1000)
+        event['mstime'] = int(np.round(event_json[self._MSTIME_FIELD]))
         if event_json[self._VALUE_FIELD]:
             event['type'] = '%s_START'%event['type']
         else:
