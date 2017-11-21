@@ -326,6 +326,8 @@ files:
     origin_file: 'session.log'
     destination: logs/session.log
 
+  ### System 3.3
+
   - name: session_log_json
     << : *FILE
     groups: [ transfer, verbal, system_3_3]
@@ -333,6 +335,17 @@ files:
     origin_file:
     - 'session.json'
     destination: logs/session.json
+
+  - name: wordpool
+    << : *FILE
+    groups: [transfer, verbal,system_3_3]
+    origin_directory: *BEH_EXP_DIR
+    origin_file:
+     - short_ram_categorized_en
+     - ram_categorized_en
+     - ram_wordpool_en
+     - short_ram_wordpool_en
+    destination: experiment_files/wordpool.txt
 
   ### LTP
 
