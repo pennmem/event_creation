@@ -222,7 +222,7 @@ class CreateMontageTask(PipelineTask):
             for line in jack_file.read().splitlines():
                 num,label = line.strip().split()
                 num=int(num)
-                label=label.upper()
+                label=label
                 nums_to_labels[num] = label
                 labels_to_nums[label] = num
         self.nums_to_labels = nums_to_labels
