@@ -33,14 +33,20 @@ class System3LogParser(object):
     }
 
     _EXPERIMENT_TO_ITEM_FIELD = {
+        'PS_FR':'item_name',
+        'PS_catFR':'item_name',
         'FR': 'item_name',
         'catFR': 'item_name',
+        'PS_PAL': 'study_1',
         'PAL': 'study_1',
         'TH': 'item_name'
     }
     _EXPERIMENT_ITEM_OFF_TYPE={
+        'PS_FR': 'WORD_OFF',
+        'PS_catFR': 'WORD_OFF',
         'FR': 'WORD_OFF',
         'catFR': 'WORD_OFF',
+        'PS_PAL': 'STUDY_PAIR_OFF',
         'PAL': 'STUDY_PAIR_OFF',
         'TH': 'CHEST'
     }
