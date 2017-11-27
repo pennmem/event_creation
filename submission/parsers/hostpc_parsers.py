@@ -251,7 +251,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
 
     def modify_recalls(self, events):
-        if events[-1].type=='REC_END':
+        if events[-1].type=='REC_START':
             events= FRSys3LogParser.modify_recalls(self,events)
             if self._phase == 'STIM':
                 events = self.modify_stim(events)
