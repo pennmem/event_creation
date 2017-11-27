@@ -63,7 +63,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         self._biomarker_value = -1.0
         self._stim_params = {}
         self._set_experiment_config()
-        self._jacksheet = read_jacksheet(files['electrode_config'][0]) #TODO:
+        self._jacksheet = read_jacksheet(files['electrode_config'][0])
 
     def _read_primary_log(self):
         """
@@ -177,6 +177,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._list = -999
         self._phase = ''
         self._serialpos = 0
+        self._wordpool = np.loadtxt(files['wordpool'],dtype=str)
 
 
     @property
@@ -301,6 +302,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
         self._add_fields(*self._catFR_FIELDS)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
+        self._wordpool = np.loadtxt(self.files['wordpool'], dtype=str)[:,1]
 
 
     def event_word(self, event_json):
