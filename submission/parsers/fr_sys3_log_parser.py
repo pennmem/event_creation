@@ -136,25 +136,21 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
             else:
                 new_event.type = 'REC_WORD'
 
-            # If XLI
-            if recall[1] == -1:
-                new_event.intrusion = -1
-            else:  # Correct recall or PLI or XLI from latter list
-                pres_mask = self.find_presentation(word, events)
-                pres_list = np.unique(events[pres_mask].list)
-                pres_mask = np.logical_and(pres_mask, events.list == self._list)
+            pres_mask = self.find_presentation(word, events)
+            pres_list = np.unique(events[pres_mask].list)
+            pres_mask = np.logical_and(pres_mask, events.list == self._list)
 
-                # Correct recall or PLI
-                if len(pres_list) >= 1:
-                    new_event.intrusion = self._list - max(pres_list)
-                    if new_event.intrusion == 0:
-                        new_event.serialpos = np.unique(events[pres_mask].serialpos)
-                        new_event.recalled = True
-                        if not any(events.recalled[pres_mask]):
-                            events.recalled[pres_mask] = True
-                            events.rectime[pres_mask] = new_event.rectime
-                else:  # XLI
-                    new_event.intrusion = -1
+            # Correct recall or PLI
+            if len(pres_list) >= 1:
+                new_event.intrusion = self._list - max(pres_list)
+                if new_event.intrusion == 0:
+                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                    new_event.recalled = True
+                    if not any(events.recalled[pres_mask]):
+                        events.recalled[pres_mask] = True
+                        events.rectime[pres_mask] = new_event.rectime
+            else:  # XLI
+                new_event.intrusion = -1
 
             events = np.append(events, new_event).view(np.recarray)
 
@@ -244,6 +240,25 @@ class catFRSys3LogParser(FRSys3LogParser):
         event.category = event_json[self._CATEGORY]
         event.category_num = event_json[self._CATEGORY_NUM]
         return event
+
+    def clean_events(self, events):
+        """
+        Final processing of events
+        Here we add categories and category numbers to all the non-ELI recalls
+        In theory this could be added to modify_recalls, but we might as well wait until we've finished
+        and then do it all at once.
+        :param events:
+        :return:
+        """
+        events= events.view(np.recarray)
+        is_recall = (events.type=='REC_WORD') & (events.intrusion != -1)
+        rec_events = events[is_recall]
+        categories = [events[(events.type=='WORD') & (events.item_name==r.item_name)].category[0] for r in rec_events]
+        category_nums = [events[(events.type=='WORD') & (events.item_name == r.item_name)].category_num[0] for r in rec_events]
+        rec_events['category']=categories
+        rec_events['category_num']=category_nums
+        events[is_recall] = rec_events
+        return events
 
 
 class RecognitionParser(BaseSys3LogParser):
