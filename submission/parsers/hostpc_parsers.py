@@ -302,7 +302,9 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
         self._add_fields(*self._catFR_FIELDS)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
-        self._wordpool = np.loadtxt(self.files['wordpool'], dtype=str)[:,1]
+        self._wordpool = np.loadtxt(self.files['wordpool'], dtype=[('category','|S256'),('item_name','|S256')])
+        self._wordpool.sort(order='category')
+        self._wordpool = self._wordpool['item_name']
 
 
     def event_word(self, event_json):
@@ -312,3 +314,19 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         if len(category_num):
             event.category_num=category_num[0][0]
         return event
+
+
+    def clean_events(self, events):
+        """
+        Final processing of events
+        Here we add categories and category numbers to all the non-ELI recalls
+        :param events:
+        :return:
+        """
+        rec_events = events[(events.type=='REC_WORD') & (events.intrusion != 0)]
+        categories = [events[events.item_name==r['item_name']]['category'][0] for r in rec_events]
+        category_nums = [events[events.item_name == r.item_name]['category_num'][0] for r in rec_events]
+        rec_events['category']=categories
+        rec_events['category_num']=category_nums
+        events[(events.type=='REC_WORD') & (events.intrusion != 0)] = rec_events
+        return events
