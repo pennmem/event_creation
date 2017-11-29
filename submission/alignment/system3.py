@@ -20,7 +20,7 @@ class System3Aligner(object):
     MAXIMUM_ALLOWED_RESIDUAL = 1000
 
     FROM_LABELS = (('orig_timestamp', 1000,'STIM'),
-                   ('t_event', 1,'','STIM'))
+                   ('t_event', 1,'STIM'))
 
     def __init__(self, events, files, plot_save_dir=None):
 
