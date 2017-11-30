@@ -144,6 +144,18 @@ class BaseLogParser(object):
         return events
 
     @staticmethod
+    def check_event_quality(events):
+        """
+        Called at the end of event creation to make sure that the events look like we expect them to.
+        This method uses the class as a namespace, rather than needing any of hte
+        To be overridden in subclasses.
+        Raises AssertionError if anything is wrong.
+        :param events:
+        """
+        return
+
+
+    @staticmethod
     def persist_fields_during_stim(event):
         """
         Defines the field for a given event which should persist into the stim event
@@ -493,6 +505,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
+        if primary_log not in files:
+            primary_log = 'session_log_txt'
         self.LOG_READERS = {
             '.sql': self._read_sql_log,
             '.sqlite': self._read_sql_log,
