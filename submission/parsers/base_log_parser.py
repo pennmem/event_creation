@@ -493,6 +493,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
+        if primary_log not in files:
+            primary_log = 'session_log_txt'
         self.LOG_READERS = {
             '.sql': self._read_sql_log,
             '.sqlite': self._read_sql_log,
