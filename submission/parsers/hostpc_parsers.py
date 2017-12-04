@@ -6,7 +6,7 @@ import json
 from functools import wraps
 from copy import deepcopy
 import numpy as np
-
+from ..quality import fr_tests
 
 def with_offset(event_handler):
     """
@@ -332,3 +332,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         rec_events['category_num']=category_nums
         events[is_rec] = rec_events
         return events
+
+    def check_event_quality(events,files):
+        super(catFRHostPCLogParser).check_event_quality(events,files)
+        fr_tests.test_catfr_categories(events,files)
