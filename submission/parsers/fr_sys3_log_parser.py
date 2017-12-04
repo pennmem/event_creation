@@ -3,7 +3,7 @@ from .fr_log_parser import FRSessionLogParser
 from .base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
 import numpy as np
-
+from ..quality.fr_tests import test_catfr_categories
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -250,7 +250,7 @@ class catFRSys3LogParser(FRSys3LogParser):
         :param events:
         :return:
         """
-        events= events.view(np.recarray)
+        events= super(catFRSys3LogParser, self).clean_events(events).view(np.recarray)
         is_recall = (events.type=='REC_WORD') & (events.intrusion != -1)
         rec_events = events[is_recall]
         categories = [events[(events.type=='WORD') & (events.item_name==r.item_name)].category[0] for r in rec_events]
@@ -259,6 +259,11 @@ class catFRSys3LogParser(FRSys3LogParser):
         rec_events['category_num']=category_nums
         events[is_recall] = rec_events
         return events
+
+    @staticmethod
+    def check_event_quality(events,files):
+        super(catFRSys3LogParser).check_event_quality(events,files)
+        test_catfr_categories(events,files)
 
 
 class RecognitionParser(BaseSys3LogParser):
