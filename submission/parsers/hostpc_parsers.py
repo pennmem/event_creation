@@ -320,6 +320,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         :param events:
         :return:
         """
+        events= super(catFRHostPCLogParser, self).clean_events(events).view(np.recarray)
         is_rec = (events.type == 'REC_WORD') & (events.intrusion != -1)
         rec_events = events[is_rec]
         categories = [events[events.item_name==r['item_name']]['category'][0] for r in rec_events]

@@ -250,7 +250,7 @@ class catFRSys3LogParser(FRSys3LogParser):
         :param events:
         :return:
         """
-        events= events.view(np.recarray)
+        events= super(catFRSys3LogParser, self).clean_events(events).view(np.recarray)
         is_recall = (events.type=='REC_WORD') & (events.intrusion != -1)
         rec_events = events[is_recall]
         categories = [events[(events.type=='WORD') & (events.item_name==r.item_name)].category[0] for r in rec_events]
