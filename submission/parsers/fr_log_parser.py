@@ -10,7 +10,7 @@ from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
 from .system2_log_parser import System2LogParser
 from ..viewers.recarray import strip_accents
 import codecs
-
+from ..quality import fr_tests
 class FRSessionLogParser(BaseSessionLogParser):
 
     @classmethod
@@ -139,6 +139,12 @@ class FRSessionLogParser(BaseSessionLogParser):
                     'rectime')
         else:
             return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
+
+    @staticmethod
+    def check_event_quality(events,files):
+        fr_tests.test_serialpos_order(events,files)
+        fr_tests.test_session_length(events,files)
+        fr_tests.test_words_in_wordpool(events,files)
 
     def event_default(self, split_line):
         """
@@ -559,30 +565,3 @@ def free_epochs(times, duration, pre, post, start=None, end=None):
 
 
 
-
-class FRSys31SessionParser(BaseSessionLogParser):
-    def __init__(self, protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False):
-        super(FRSys31SessionParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False,primary_log='session_sql')
-
-    # def _get_raw_event_type(self, split_line):
-
-    def _read_primary_log(self):
-        # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
-        conn = sqlite3.connect(self._primary_log)
-        query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,
-                                                             conn).msg.values]
-        return msgs
-
-
-if __name__ == '__main__':
-    files = {
-        'session_log':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.log',
-        'wordpool': '/Users/leond/Documents/PS4_FR5/task/R1234M/RAM_wordpool.txt',
-        'session_sql':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.sqlite'
-    }
-
-    frslp = FRSys31SessionParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
-    events=  frslp.parse()
