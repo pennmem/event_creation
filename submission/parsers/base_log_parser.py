@@ -144,7 +144,7 @@ class BaseLogParser(object):
         return events
 
     @staticmethod
-    def check_event_quality(events):
+    def check_event_quality(events,files):
         """
         Called at the end of event creation to make sure that the events look like we expect them to.
         This method uses the class as a namespace, rather than needing any of hte
