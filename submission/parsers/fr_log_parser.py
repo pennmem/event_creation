@@ -141,8 +141,8 @@ class FRSessionLogParser(BaseSessionLogParser):
             return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
 
     def check_event_quality(self,events,files):
-        fr_tests.test_serialpos_order(events,files)
-        fr_tests.test_session_length(events,files)
+        fr_tests.test_serialpos_order(events)
+        fr_tests.test_session_length(events)
         fr_tests.test_words_in_wordpool(events,files)
 
     def event_default(self, split_line):
