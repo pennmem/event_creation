@@ -11,6 +11,7 @@ from ..log import logger
 from ..exc import LogParseError, UnknownExperimentError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.recarray import pformat_rec, to_dict, from_dict
+from ..exc import NoAnnotationError
 
 
 class BaseLogParser(object):
@@ -263,9 +264,9 @@ class BaseLogParser(object):
         :param ann_id: The key with which to retrieve the specific annotation file from files['annotations']
         :return: (float, int, str) corresponding to (time, word number, word)
         """
-        # Don't worry if we can't find the annotation file
+        # Worry if we can't find the annotation file
         if ann_id not in self._ann_files:
-            return []
+            raise NoAnnotationError("Missing %s.ann"%ann_id)
 
         # Read the annotation file, getting everything that matches the regular expression
         ann_file = self._ann_files[ann_id]
