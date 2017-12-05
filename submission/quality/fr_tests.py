@@ -17,10 +17,10 @@ def test_catfr_categories(events,files=None):
     :return:
     """
     # np.recarray -> bool
-    rec_events = events[events.type=='REC_WORD']
-    word_events = events[events.type=='WORD']
-    assert (word_events[word_events.list>=0].category != 'X').all(), 'Word presentations missing categories'
-    assert (rec_events[rec_events.intrusion>-1].category != 'X').all() , 'Recalled words missing categories'
+    rec_events = events[(events.type=='REC_WORD') & (events.list>0) & (events.intrusion>-1)]
+    word_events = events[(events.type=='WORD') & (events.list>0)]
+    assert (word_events.category != 'X').all(), 'Some word presentations missing categories'
+    assert (rec_events.category != 'X').all() , 'Some recalled words missing categories'
 
 
 def test_session_length(events,files=None):
