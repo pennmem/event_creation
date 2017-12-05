@@ -52,6 +52,12 @@ class ImporterCollection(object):
                     error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
 
             statuses.append(error_status)
+        if any([any(importer.warnings) for importer in self.importers]):
+            warning_status = '\tWarnings: \n'
+            for importer in self.importers:
+                if any(importer.warnings):
+                    warning_status += '\n%s:\n%s'%(importer.label,importer.describe_warnings())
+            statuses.append(warning_status)
 
         return '\n'.join(statuses)
 
@@ -96,6 +102,7 @@ class Importer(object):
         self.kwargs = kwargs
         self.subject = kwargs['subject']
         self.errors = {'init': None, 'check': None, 'transfer': None, 'processing': None}
+        self.warnings = []
         self._should_transfer = None
         self.errored = False
         self.processed = False
@@ -103,6 +110,7 @@ class Importer(object):
         self.traceback = None
         try:
             self.pipeline = self.PIPELINE_BUILDERS[type](*args, **kwargs)
+            self.pipeline.importer  = self
             self.transferer = self.pipeline.transferer
             self.initialized = True
         except Exception as e:
@@ -178,8 +186,13 @@ class Importer(object):
             error_status = self.describe_errors()
             statuses.append(error_status)
 
+        if any(self.warnings):
+            statuses.append('Warnings: \n'+self.describe_warnings())
+
         return '\n'.join(statuses)
 
+    def describe_warnings(self):
+        return '\n'.join(self.warnings)
 
     def describe_errors(self):
         errors = []

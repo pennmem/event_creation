@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def test_session_length(events):
+def test_session_length(events,files):
     """
     Asserts that there are no more than 26 lists in the event structure.
     Specifically, for a set of event types that should appear once per list,
@@ -15,7 +15,7 @@ def test_session_length(events):
         assert (events.type==type_).sum() <= 26 , 'Session contains more than 26 lists'
 
 
-def test_words_per_list(events):
+def test_words_per_list(events,files):
     """
     Asserts that each serialposition occurs once per list
     :param events:

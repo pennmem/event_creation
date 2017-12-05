@@ -1,11 +1,7 @@
 import numpy as np
 import pandas as pd
-from ..log import logger
 
-
-
-
-def test_catfr_categories(events):
+def test_catfr_categories(events,files):
     """
     This function makes the following assertions about an event structure:
     - That all presented words not in the practice list have been assigned a category
@@ -20,7 +16,7 @@ def test_catfr_categories(events):
     assert (rec_events.category != 'X').all() , 'Some recalled words missing categories'
 
 
-def test_session_length(events):
+def test_session_length(events,files):
     """
     Asserts that there are no more than 26 lists in the event structure.
     Specifically, for a set of event types that should appear once per list,
@@ -48,7 +44,7 @@ def test_words_in_wordpool(events,files):
         assert np.in1d(words,wordpool).all() , 'Wordpool missing presented words'
 
 
-def test_serialpos_order(events):
+def test_serialpos_order(events,files):
     """
     Asserts that serial position increases uniformly across lists, always between 0 and 12
     :param events:
@@ -60,7 +56,7 @@ def test_serialpos_order(events):
     assert (words['serialpos']<=12).all(), 'Serial Position > 12 found'
     assert (words['serialpos']>=0).all() , 'Negative serial position found'
 
-def test_words_per_list(events):
+def test_words_per_list(events,files):
     """
     Asserts that each serialposition occurs once per list
     :param events:
@@ -71,7 +67,7 @@ def test_words_per_list(events):
     assert (words.groupby('serialpos').apply(len) >= len(words.list.unique())).all() , 'List missing serial position'
 
 
-def test_rec_word_position(events):
+def test_rec_word_position(events,files):
     """
     Asserts that all REC_WORD events are preceded by a REC_START event and followed by a REC_END event
     :param events:
@@ -87,7 +83,7 @@ def test_rec_word_position(events):
 
 
 
-# def test_stim_on_position(events):
+# def test_stim_on_position(events,files):
 #     """
 #     Asserts that all STIM_ON events are preceded by a TRIAL event
 #     :param events:

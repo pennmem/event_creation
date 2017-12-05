@@ -149,6 +149,7 @@ class TransferPipeline(object):
     INDEX_FILE = 'index.json'
 
     def __init__(self, transferer, *pipeline_tasks, **info):
+        self.importer = None
         self.transferer = transferer
         self.pipeline_tasks = pipeline_tasks
         self.exports = {}
