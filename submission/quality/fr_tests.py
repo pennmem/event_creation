@@ -68,8 +68,7 @@ def test_words_per_list(events):
     """
     words = pd.DataFrame.from_records([e for e in events[events.type == 'WORD']], columns=events.dtype.names)
     assert (words.groupby('serialpos').apply(len) <= len(words.list.unique())).all(), 'Serial position repeated'
-    if not (words.groupby('serialpos').apply(len) >= len(words.list.unique())).all():
-        logger.warn('List missing serial position')
+    assert (words.groupby('serialpos').apply(len) >= len(words.list.unique())).all() , 'List missing serial position'
 
 
 def test_rec_word_position(events):
@@ -83,8 +82,8 @@ def test_rec_word_position(events):
         rec_start = events[(events.list==lst) & (events.type=='REC_START')]
         rec_end = events[(events.list==lst) & (events.type=='REC_END')]
         rec_words = events[(events.list==lst) & (events.type=='REC_WORD')]
-        assert (rec_words.mstime>rec_start.mstime).all(),'REC_WORD occurs before REC_START'
-        assert (rec_words.mstime < rec_end.mstime).all(), 'REC_WORD occurs after REC_END'
+        assert (rec_words.mstime>rec_start.mstime).all(),'REC_WORD occurs before REC_START in list %s'%lst
+        assert (rec_words.mstime < rec_end.mstime).all(), 'REC_WORD occurs after REC_END in list %s'%lst
 
 
 
