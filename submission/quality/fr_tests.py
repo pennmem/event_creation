@@ -19,8 +19,8 @@ def test_catfr_categories(events,files=None):
     # np.recarray -> bool
     rec_events = events[events.type=='REC_WORD']
     word_events = events[events.type=='WORD']
-    assert (word_events[word_events.list>=0].category != 'X').all()
-    assert (rec_events[rec_events.intrusion>-1].category != 'X').all()
+    assert (word_events[word_events.list>=0].category != 'X').all(), 'Word presentations missing categories'
+    assert (rec_events[rec_events.intrusion>-1].category != 'X').all() , 'Recalled words missing categories'
 
 
 def test_session_length(events,files=None):
@@ -33,7 +33,7 @@ def test_session_length(events,files=None):
     """
     listwise_event_types = ['REC_START','REC_END','TRIAL','INSTRUCT_START','INSTRUCT_END',] # list is incomplete
     for type_ in listwise_event_types:
-        assert (events.type==type_).sum() <= 26
+        assert (events.type==type_).sum() <= 26 , 'Session contains more than 26 lists'
 
 
 def test_words_in_wordpool(events,files):
@@ -48,7 +48,7 @@ def test_words_in_wordpool(events,files):
     if wordpool_file is not None:
         with open(wordpool_file,'r') as wf:
             wordpool = [x.strip().split()[-1] for x in wf]
-        assert np.in1d(words,wordpool).all()
+        assert np.in1d(words,wordpool).all() , 'Wordpool missing presented words'
 
 
 def test_serialpos_order(events,files=None):
@@ -59,7 +59,7 @@ def test_serialpos_order(events,files=None):
     :return:
     """
     words = pd.DataFrame.from_records([e for e in events[events.type=='WORD']],columns=events.dtype.names)
-    assert ((words.groupby('list').serialpos.diff().dropna())==1).all()
-    assert (words['serialpos']<=12).all()
-    assert (words['serialpos']>=0).all()
+    assert ((words.groupby('list').serialpos.diff().dropna())==1).all(), 'Serial positions not increasing uniformly'
+    assert (words['serialpos']<=12).all(), 'Serial Position > 12 found'
+    assert (words['serialpos']>=0).all() , 'Negative serial position found'
 
