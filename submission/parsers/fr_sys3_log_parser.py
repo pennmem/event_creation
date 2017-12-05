@@ -262,7 +262,7 @@ class catFRSys3LogParser(FRSys3LogParser):
 
     @staticmethod
     def check_event_quality(events,files):
-        super(catFRSys3LogParser).check_event_quality(events,files)
+        FRSys3LogParser.check_event_quality(events,files)
         test_catfr_categories(events,files)
 
 
