@@ -145,6 +145,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         fr_tests.test_session_length(events)
         fr_tests.test_words_in_wordpool(events,files)
         fr_tests.test_words_per_list(events)
+        fr_tests.test_rec_word_position(events)
 
     def event_default(self, split_line):
         """
