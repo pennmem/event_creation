@@ -33,7 +33,7 @@ def test_session_length(events,files=None):
     """
     listwise_event_types = ['REC_START','REC_END','TRIAL','INSTRUCT_START','INSTRUCT_END',] # list is incomplete
     for type_ in listwise_event_types:
-        assert (events.type==type_).sum() < 26
+        assert (events.type==type_).sum() <= 26
 
 
 def test_words_in_wordpool(events,files):
@@ -58,7 +58,7 @@ def test_serialpos_order(events,files=None):
     :param files:
     :return:
     """
-    words = pd.DataFrame([e for e in events[events.type=='WORD']],columns=events.dtype.names)
+    words = pd.DataFrame.from_records([e for e in events[events.type=='WORD']],columns=events.dtype.names)
     assert ((words.groupby('list').serialpos.diff().dropna())==1).all()
     assert (words['serialpos']<=12).all()
     assert (words['serialpos']>=0).all()
