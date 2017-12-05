@@ -4,6 +4,8 @@ import numpy as np
 import os
 import warnings
 import re
+from ..quality import pal_tests
+
 
 class PALSessionLogParser(BaseSessionLogParser):
 
@@ -643,3 +645,9 @@ class PALSessionLogParser(BaseSessionLogParser):
                     'vocalization', 'stim_type', 'intrusion', 'list', 'expecting_word')
         else:
             return tuple()
+
+
+    def check_event_quality(self,events,files):
+        pal_tests.test_session_length(events)
+        pal_tests.test_words_per_list(events)
+
