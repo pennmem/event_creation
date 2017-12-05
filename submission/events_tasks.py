@@ -276,6 +276,7 @@ class EventCreationTask(PipelineTask):
             else:
                 raise ProcessingError("r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
         events = parser.clean_events(events) if events.shape != () else events
+        parser.check_event_quality(events,files)
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 

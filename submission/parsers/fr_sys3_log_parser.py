@@ -3,7 +3,7 @@ from .fr_log_parser import FRSessionLogParser
 from .base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
 import numpy as np
-
+from ..quality.fr_tests import test_catfr_categories
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -259,6 +259,10 @@ class catFRSys3LogParser(FRSys3LogParser):
         rec_events['category_num']=category_nums
         events[is_recall] = rec_events
         return events
+
+    def check_event_quality(self,events,files):
+        super(catFRSys3LogParser, self).check_event_quality(events,files)
+        test_catfr_categories(events,files)
 
 
 class RecognitionParser(BaseSys3LogParser):
