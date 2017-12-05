@@ -260,9 +260,8 @@ class catFRSys3LogParser(FRSys3LogParser):
         events[is_recall] = rec_events
         return events
 
-    @staticmethod
-    def check_event_quality(events,files):
-        FRSys3LogParser.check_event_quality(events,files)
+    def check_event_quality(self,events,files):
+        super(catFRSys3LogParser, self).check_event_quality(events,files)
         test_catfr_categories(events,files)
 
 

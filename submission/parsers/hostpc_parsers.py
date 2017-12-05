@@ -333,6 +333,6 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         events[is_rec] = rec_events
         return events
 
-    def check_event_quality(events,files):
-        super(catFRHostPCLogParser).check_event_quality(events,files)
+    def check_event_quality(self,events,files):
+        super(catFRHostPCLogParser, self).check_event_quality(events,files)
         fr_tests.test_catfr_categories(events,files)
