@@ -1,10 +1,7 @@
 import numpy as np
 import pandas as pd
+from ..log import logger
 
-
-"""
-Data quality checks for events.
-"""
 
 
 
@@ -70,8 +67,9 @@ def test_words_per_list(events):
     :return:
     """
     words = pd.DataFrame.from_records([e for e in events[events.type == 'WORD']], columns=events.dtype.names)
-    assert words.groupby('serialpos').apply(len) <= len(words.list.unique()), 'Serial position repeated'
-    assert words.groupby('serialpos').apply(len) >= len(words.list.unique()), 'List missing serial position'
+    assert (words.groupby('serialpos').apply(len) <= len(words.list.unique())).all(), 'Serial position repeated'
+    if not (words.groupby('serialpos').apply(len) >= len(words.list.unique())).all():
+        logger.warn('List missing serial position')
 
 
 def test_rec_word_position(events):
