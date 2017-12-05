@@ -8,7 +8,7 @@ Data quality checks for events.
 
 
 
-def test_catfr_categories(events,files=None):
+def test_catfr_categories(events):
     """
     This function makes the following assertions about an event structure:
     - That all presented words not in the practice list have been assigned a category
@@ -23,7 +23,7 @@ def test_catfr_categories(events,files=None):
     assert (rec_events.category != 'X').all() , 'Some recalled words missing categories'
 
 
-def test_session_length(events,files=None):
+def test_session_length(events):
     """
     Asserts that there are no more than 26 lists in the event structure.
     Specifically, for a set of event types that should appear once per list,
@@ -31,7 +31,7 @@ def test_session_length(events,files=None):
     :param events:
     :return:
     """
-    listwise_event_types = ['REC_START','REC_END','TRIAL','INSTRUCT_START','INSTRUCT_END',] # list is incomplete
+    listwise_event_types = ['REC_START','REC_END','TRIAL',] # list is incomplete
     for type_ in listwise_event_types:
         assert (events.type==type_).sum() <= 26 , 'Session contains more than 26 lists'
 
@@ -51,7 +51,7 @@ def test_words_in_wordpool(events,files):
         assert np.in1d(words,wordpool).all() , 'Wordpool missing presented words'
 
 
-def test_serialpos_order(events,files=None):
+def test_serialpos_order(events):
     """
     Asserts that serial position increases uniformly across lists, always between 0 and 12
     :param events:
@@ -63,3 +63,12 @@ def test_serialpos_order(events,files=None):
     assert (words['serialpos']<=12).all(), 'Serial Position > 12 found'
     assert (words['serialpos']>=0).all() , 'Negative serial position found'
 
+def test_words_per_list(events):
+    """
+    Asserts that each serialposition occurs once per list
+    :param events:
+    :return:
+    """
+    words = pd.DataFrame.from_records([e for e in events[events.type == 'WORD']], columns=events.dtype.names)
+    assert words.groupby('serialpos').apply(len) <= len(words.list.unique()), 'Serial position repeated'
+    assert words.groupby('serialpos').apply(len) >= len(words.list.unique()), 'List missing serial position'
