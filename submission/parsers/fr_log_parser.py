@@ -39,6 +39,17 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_N_BURSTS = 1
     FR2_STIM_PULSE_WIDTH = 300
 
+
+
+    # List of tests to run
+    _TESTS = [ fr_tests.test_serialpos_order,
+               fr_tests.test_session_length,
+               fr_tests.test_words_in_wordpool,
+               fr_tests.test_words_per_list,
+               fr_tests.test_rec_word_position,
+             ]
+
+
     def __init__(self, protocol, subject, montage, experiment, session, files,**kwargs):
         kwargs['include_stim_params'] = True
         super(FRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
@@ -140,12 +151,6 @@ class FRSessionLogParser(BaseSessionLogParser):
         else:
             return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
 
-    def check_event_quality(self,events,files):
-        fr_tests.test_serialpos_order(events)
-        fr_tests.test_session_length(events)
-        fr_tests.test_words_in_wordpool(events,files)
-        fr_tests.test_words_per_list(events)
-        fr_tests.test_rec_word_position(events)
 
     def event_default(self, split_line):
         """

@@ -45,6 +45,9 @@ class PALSessionLogParser(BaseSessionLogParser):
     PAL2_STIM_N_BURSTS = 1
     PAL2_STIM_PULSE_WIDTH = 300
 
+    _TESTS = [pal_tests.test_session_length,
+              pal_tests.test_words_per_list]
+
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
                                                   include_stim_params=True)
@@ -647,7 +650,4 @@ class PALSessionLogParser(BaseSessionLogParser):
             return tuple()
 
 
-    def check_event_quality(self,events,files):
-        pal_tests.test_session_length(events)
-        pal_tests.test_words_per_list(events)
 

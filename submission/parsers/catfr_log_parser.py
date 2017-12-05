@@ -3,6 +3,8 @@ import numpy as np
 
 from .base_log_parser import BaseSessionLogParser
 from ..viewers.recarray import strip_accents
+from .fr_log_parser import FRSessionLogParser
+from ..quality import fr_tests
 
 class CatFRSessionLogParser(BaseSessionLogParser):
     """
@@ -37,6 +39,8 @@ class CatFRSessionLogParser(BaseSessionLogParser):
     CATFR2_STIM_BURST_FREQUENCY = 1
     CATFR2_STIM_N_BURSTS = 1
     CATFR2_STIM_PULSE_WIDTH = 300
+
+    _TESTS = FRSessionLogParser._TESTS + [fr_tests.test_catfr_categories]
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         """

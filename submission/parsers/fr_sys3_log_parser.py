@@ -226,6 +226,8 @@ class catFRSys3LogParser(FRSys3LogParser):
     _CATEGORY = 'category'
     _CATEGORY_NUM = 'category_num'
 
+    _TESTS = FRSys3LogParser._TESTS + [test_catfr_categories]
+
     def __init__(self, *args, **kwargs):
         super(catFRSys3LogParser, self).__init__(*args, **kwargs)
 
@@ -259,10 +261,6 @@ class catFRSys3LogParser(FRSys3LogParser):
         rec_events['category_num']=category_nums
         events[is_recall] = rec_events
         return events
-
-    def check_event_quality(self,events,files):
-        super(catFRSys3LogParser, self).check_event_quality(events,files)
-        test_catfr_categories(events,files)
 
 
 class RecognitionParser(BaseSys3LogParser):

@@ -60,6 +60,9 @@ class BaseLogParser(object):
     # Maximum amount of time after which a valid annotation can appear in a .ann file
     MAX_ANN_LENGTH = 600000
 
+    # Tests to run in order to validate output
+    _TESTS = []
+
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='session_log', allow_unparsed_events=False, include_stim_params=False):
         """
@@ -147,12 +150,17 @@ class BaseLogParser(object):
     def check_event_quality(self,events,files):
         """
         Called at the end of event creation to make sure that the events look like we expect them to.
-        This method uses the class as a namespace, rather than needing any of hte
-        To be overridden in subclasses.
-        Raises AssertionError if anything is wrong.
-        :param events:
+        :param events: A complete events structure
+        :param files: A dictionary of paths
+        :return: A list of messages from failing tests
         """
-        return
+        msgs = []
+        for test in self._TESTS:
+            try:
+                test(events,files)
+            except AssertionError as e:
+                msgs.append(e.message)
+        return msgs
 
 
     @staticmethod

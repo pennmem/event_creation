@@ -297,6 +297,8 @@ class catFRHostPCLogParser(FRHostPCLogParser):
     _CATEGORY = 'category'
     _CATEGORY_NUM = 'category_num'
 
+    _TESTS = FRHostPCLogParser._TESTS + [fr_tests.test_catfr_categories]
+
 
     def __init__(self,*args,**kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
@@ -332,7 +334,3 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         rec_events['category_num']=category_nums
         events[is_rec] = rec_events
         return events
-
-    def check_event_quality(self,events,files):
-        super(catFRHostPCLogParser, self).check_event_quality(events,files)
-        fr_tests.test_catfr_categories(events,files)
