@@ -53,7 +53,7 @@ class ImporterCollection(object):
 
             statuses.append(error_status)
         if any([any(importer.tests) for importer in self.importers]):
-            warning_status = '\tFailed Tests: \n'
+            warning_status = '\tTest Results: \n'
             for importer in self.importers:
                 if any(importer.tests):
                     warning_status += '\n%s:\n%s'%(importer.label,importer.describe_tests())
