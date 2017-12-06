@@ -52,11 +52,11 @@ class ImporterCollection(object):
                     error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
 
             statuses.append(error_status)
-        if any([any(importer.warnings) for importer in self.importers]):
-            warning_status = '\tWarnings: \n'
+        if any([any(importer.tests) for importer in self.importers]):
+            warning_status = '\tTests: \n'
             for importer in self.importers:
-                if any(importer.warnings):
-                    warning_status += '\n%s:\n%s'%(importer.label,importer.describe_warnings())
+                if any(importer.tests):
+                    warning_status += '\n%s:\n%s'%(importer.label,importer.describe_tests())
             statuses.append(warning_status)
 
         return '\n'.join(statuses)
@@ -102,7 +102,7 @@ class Importer(object):
         self.kwargs = kwargs
         self.subject = kwargs['subject']
         self.errors = {'init': None, 'check': None, 'transfer': None, 'processing': None}
-        self.warnings = []
+        self.tests = []
         self._should_transfer = None
         self.errored = False
         self.processed = False
@@ -186,13 +186,13 @@ class Importer(object):
             error_status = self.describe_errors()
             statuses.append(error_status)
 
-        if any(self.warnings):
-            statuses.append('Warnings: \n'+self.describe_warnings())
+        if any(self.tests):
+            statuses.append('Tests: \n' + self.describe_tests())
 
         return '\n'.join(statuses)
 
-    def describe_warnings(self):
-        return '\n'.join(self.warnings)
+    def describe_tests(self):
+        return '\n'.join(self.tests)
 
     def describe_errors(self):
         errors = []
