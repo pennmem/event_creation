@@ -128,6 +128,15 @@ class LTPAligner:
 
                 # Add eeg offset and eeg file information to the events
                 logger.debug('Adding EEG file and offset information to events structure...')
+
+                # Reconstruct original EEG file location using experiment, subject, session number, and file basename
+                split_path = self.eeg_dir.split('/')
+                subj = split_path[4]
+                exp = split_path[6]
+                sess = split_path[8]
+                eegfile_name = '/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/%s' % (exp, subj, sess, basename)
+
+                """
                 if self.filetypes[basename] == 'biosemi':
                     eegfile_name = basename
                 else:  # Construct the file path to the original split reref files for EGI sessions
@@ -151,6 +160,7 @@ class LTPAligner:
                         if len(glob.glob(fname + '.*')) > 0:
                             eegfile_name = fname
                             break
+                """
 
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
