@@ -346,6 +346,10 @@ files:
      - ram_categorized_en
      - ram_wordpool_en
      - short_ram_wordpool_en
+     - short_ram_categorized_en.txt
+     - ram_categorized_en.txt
+     - ram_wordpool_en.txt
+     - short_ram_wordpool_en.txt
     destination: experiment_files/wordpool.txt
 
   ### LTP
