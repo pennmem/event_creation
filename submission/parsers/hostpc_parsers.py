@@ -156,6 +156,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             self._fields = tuple(f for f in self._fields if f not in self._RECOG_FIELDS)
 
         self._add_type_to_new_event(
+            STIM_ARTIFACT_DETECTION = self.event_default,
             INSTRUCT = self.event_default,
             COUNTDOWN = self.event_default,
             ENCODING = self.event_trial,
@@ -233,12 +234,8 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
             if self._list == -999:
                 self._list = -1
-            elif self._list == -1:
-                self._list = 1
-            else:
-                self._list+=1
+            self._serialpos = 0
         event = self.event_default(event_json)
-        self._serialpos= 0
         return event
 
     @with_offset
@@ -247,6 +244,11 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         if event_json[self._VALUE_FIELD]:
             event.type='REC_START'
         else:
+            if not event_json[self._VALUE_FIELD]:
+                if self._list == -1:
+                    self._list = 1
+                else:
+                    self._list += 1
             event.type='REC_END'
         return event
 
