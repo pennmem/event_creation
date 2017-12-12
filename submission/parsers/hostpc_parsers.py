@@ -7,6 +7,7 @@ from functools import wraps
 from copy import deepcopy
 import numpy as np
 from ..quality import fr_tests
+import os
 
 def with_offset(event_handler):
     """
@@ -306,9 +307,11 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
         self._add_fields(*self._catFR_FIELDS)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
-        self._wordpool = np.loadtxt(self.files['wordpool'], dtype=[('category','|S256'),('item_name','|S256')])
-        self._wordpool.sort(order='category')
-        self._wordpool = self._wordpool['item_name']
+        if os.path.splitext(self.files['wordpool'])[1]:
+            self._wordpool = np.loadtxt(self.files['wordpool'],dtype=str)
+        else:
+            self._wordpool = np.loadtxt(self.files['wordpool'], dtype=[('category','|S256'),('item_name','|S256')])
+            self._wordpool = self._wordpool['item_name']
 
 
     def event_word(self, event_json):
