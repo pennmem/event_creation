@@ -178,7 +178,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._stim_on = False
         self._list = -999
         self._phase = ''
-        self._serialpos = 0
+        self._serialpos = 1
         self._wordpool = np.loadtxt(files['wordpool'],dtype=str)
 
 
@@ -235,7 +235,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
             if self._list == -999:
                 self._list = -1
-            self._serialpos = 0
+            self._serialpos = 1
         event = self.event_default(event_json)
         return event
 
