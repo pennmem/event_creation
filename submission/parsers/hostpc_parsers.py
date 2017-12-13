@@ -330,7 +330,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         events= super(catFRHostPCLogParser, self).clean_events(events).view(np.recarray)
         is_rec = (events.type == 'REC_WORD') & (events.intrusion != -1)
         rec_events = events[is_rec]
-        categories = [events[events.item_name==r['item_name']]['category'][0] for r in rec_events]
+        categories = [events[(events.item_name==r['item_name']) & (events.type=='WORD')]['category'][0] for r in rec_events]
         category_nums = [events[events.item_name == r.item_name]['category_num'][0] for r in rec_events]
         rec_events['category']=categories
         rec_events['category_num']=category_nums
