@@ -129,12 +129,7 @@ class LTPAligner:
                 # Add eeg offset and eeg file information to the events
                 logger.debug('Adding EEG file and offset information to events structure...')
 
-                # Reconstruct original EEG file location using experiment, subject, session number, and file basename
-                split_path = self.eeg_dir.split('/')
-                subj = split_path[4]
-                exp = split_path[6]
-                sess = split_path[8]
-                eegfile_name = '/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/%s' % (exp, subj, sess, basename)
+                eegfile_name = os.path.join(self.eeg_dir, basename)
 
                 """
                 if self.filetypes[basename] == 'biosemi':
