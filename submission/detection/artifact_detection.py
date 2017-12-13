@@ -1,13 +1,14 @@
 import os
 import mne
 import numpy as np
+import scipy.stats as ss
 from ..log import logger
 
 
 class ArtifactDetector:
     """
-    Runs scripts for blink and artifact detection. Parameters differ depending on whether the session was conducted
-    using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
+    Runs scripts for Scalp Lab blink and artifact detection. Parameters differ depending on whether the session was
+    conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
     def __init__(self, events, eeg, ephys_dir):
@@ -17,7 +18,7 @@ class ArtifactDetector:
         multiple recordings from a single session).
         """
         self.events = events
-        self.basename = None  # Used for tracking the basename of the recording currently being processed
+        self.eegfile = None  # Used for tracking the path to the recording which is currently being processed
         self.eeg = eeg
         self.ephys_dir = ephys_dir
 
@@ -35,21 +36,29 @@ class ArtifactDetector:
         if self.events.shape == () or len(self.eeg) == 0:
             logger.warn('Skipping artifact detection due to there being no events or invalid EEG parameter info.')
         else:
-            for self.basename in self.eeg:
+            for self.eegfile in self.eeg:
+                self.eeg[self.eegfile].pick_types(eeg=True, eog=True)  # Drop miscellaneous/sync pulse channel(s)
                 # Prepare settings depending on the EEG system that was used
-                if 'GSN-HydroCel-129' in self.eeg[self.basename].info['description']:
-                    self.eog_chans = [('E25', 'E127'), ('E8', 'E126')]  # 127 is left, 126 is right
-                    # These channels were excluded by the old MATLAB pipeline when calculating the mean and stddev
-                    # during artifact detection
-                    self.bad_chans = ['E1', 'E8', 'E14', 'E17', 'E21', 'E25', 'E32', 'E44', 'E49', 'E56', 'E63', 'E99', 'E107', 'E113', 'E114', 'E126', 'E127']
-                    self.blink_thresh = .0001
-                elif 'biosemi128' in self.eeg[self.basename].info['description']:
-                    self.eog_chans = [('EXG3', 'EXG1'), ('EXG4', 'EXG2')]  # EXG1 and 3 are left, EXG2 and 4 are right
-                    self.bad_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']
-                    self.blink_thresh = .0001
+                if 'GSN-HydroCel-129' in self.eeg[self.eegfile].info['description']:
+                    self.left_eog = ['E25', 'E127']
+                    self.right_eog = ['E8', 'E126']
+                    # These channels were excluded by the old MATLAB pipeline when calculating the mean and stddev during artifact detection
+                    # self.bad_chans = ['E1', 'E8', 'E14', 'E17', 'E21', 'E25', 'E32', 'E44', 'E49', 'E56', 'E63', 'E99', 'E107', 'E113', 'E114', 'E126', 'E127']
+
+                elif 'biosemi128' in self.eeg[self.eegfile].info['description']:
+                    self.left_eog = ['EXG3', 'EXG1']
+                    self.right_eog = ['EXG4', 'EXG2']
+                    # self.bad_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']
+
                 else:
-                    logger.warn('Unidentifiable EEG system detected in file %s' % self.basename)
+                    logger.warn('Unidentifiable EEG system detected in file %s' % self.eegfile)
                     continue
+
+                # Set bipolar reference for EOG channels. Note that the resulting channels will be anode - cathode
+                self.eeg[self.eegfile] = mne.set_bipolar_reference(self.eeg[self.eegfile], anode=[self.left_eog[0], self.right_eog[0]], cathode=[self.left_eog[1], self.right_eog[1]])
+
+                # Mark which channels contain high-voltage artifacts during each event
+                self.mark_artifacts()
 
                 # Find blinks in the current file
                 self.process_eog()
@@ -59,6 +68,121 @@ class ArtifactDetector:
                 self.find_bad_events()
 
         return self.events
+
+
+    def mark_artifacts(self):
+        """
+        TBA
+        :return:
+        """
+        """
+        Create an mne events array with one row for each event of all types that appears in ev_ids (currently just 
+        presentation events). The first column indicates the sample number of the event's onset, the second column is 
+        ignored, and the third column indicates the event type as defined by the ev_ids dictionary.
+        """
+        logger.debug('Marking artifacts for %s' % self.eegfile)
+        ev_ids = dict(
+            WORD=0
+            # DISTRACTOR = 1,
+            # REC_START = 2,
+            # REC_WORD = 3,
+            # REST_REWET = 4
+        )
+
+        offsets = [o for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i] == self.eegfile]
+        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i] == self.eegfile]
+        mne_evs = np.zeros((len(offsets), 3), dtype=int)
+        mne_evs[:, 0] = offsets
+        mne_evs[:, 2] = ids
+
+        # Load data from all presentation events into an mne.Epochs object & baseline correct using each event's average voltage
+        ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, event_id=ev_ids, tmin=0., tmax=1.6, baseline=(0, None), preload=True)
+
+        # Find average variance of each channel over time for each event, then z-score across events
+        v = np.var(ep._data, axis=2)
+        v = ss.zscore(v, axis=0)
+
+        # Find median slope of each channel for each event, then z-score across events
+        g = np.gradient(ep._data, axis=2)
+        g = np.median(g, axis=2)
+        g = ss.zscore(g, axis=0)
+
+        # Find voltage range of each channel for each event, then z-score across events
+        r = ep._data.max(axis=2) - ep._data.min(axis=2)
+        r = ss.zscore(r, axis=0)
+
+        # Find the interquartile range of each channel, across time and across all events
+        p75 = np.percentile(ep._data, 75, axis=[2, 0])
+        p25 = np.percentile(ep._data, 25, axis=[2, 0])
+        iqr = p75 - p25
+
+        # Set artifact threshold for EEG channels as 3 * IQR above or below the interquartile range
+        thresh_pos = p75 + 3 * iqr
+        thresh_neg = p25 - 3 * iqr
+
+        # Set artifact threshold for EOG channels as 3 * IQR above or below the interquartile range
+        thresh_pos[-2:] = p75[-2:] + 3 * iqr[-2:]
+        thresh_neg[-2:] = p25[-2:] - 3 * iqr[-2:]
+
+        # For each time point on each event mark channels that exceed either the positive or negative artifact threshold
+        # The variable "a" will be an events x channels x time matrix indicating which samples are bad on which events
+        a = np.zeros_like(ep._data, dtype=bool)
+        evrange = range(ep._data.shape[0])
+        for t in range(ep._data.shape[2]):
+            for e in evrange:
+                a[e, :, t] = np.logical_or(ep._data[e, :, t] > thresh_pos, ep._data[e, :, t] < thresh_neg)
+
+        # Create an events x channels matrix of booleans indicating whether each channel is bad during each event
+        art = np.logical_or(np.logical_or(np.logical_or(v > 3, g > 3), r > 3), np.any(a, axis=2))
+
+        logger.debug('Marking events with artifact info...' % self.eegfile)
+
+        # Mark channels with artifacts during each presentation event
+        # badChannels is a 128 item array indicating whether each channel is bad during each event
+        # eogArtifact = 0 if no artifact was detected in either EOG channel during the event
+        # eogArtifact = 1 if an artifact was detected in the left EOG channel during the event
+        # eogArtifact = 2 if an artifact was detected in the right EOG channel during the event
+        # eogArtifact = 3 if an artifact was detected in both EOG channels during the event
+        for i in range(len(self.events)):
+            if self.events[i].type not in ev_ids:
+                continue
+            else:
+                self.events[i].artifactSamples = art[i][:128]
+                if art[i][-2] and art[i][-1]:
+                    self.events[i].eogArtifact = 3
+                elif art[i][-2]:
+                    self.events[i].eogArtifact = 1
+                elif art[i][-1]:
+                    self.events[i].eogArtifact = 2
+                else:
+                    self.events[i].eogArtifact = 0
+
+        logger.debug('Events marked with artifact info for %s' % self.eegfile)
+
+
+    def mark_bad_channels(self):
+        """
+        TBA
+        :return:
+        """
+        logger.debug('Identifying bad channels for %s' % self.eegfile)
+        m = self.eeg[self.eegfile].mean(axis=1)
+        m = ss.zscore(m)
+
+        c = np.corrcoef(self.eeg[self.eegfile]._data)
+        c = c.mean(axis=0)
+        c = ss.zscore(c)
+
+        v = np.var(self.eeg[self.eegfile]._data, axis=1)
+        v = ss.zscore(v)
+
+        bad = np.where(np.logical_or(np.logical_or(np.abs(m) > 3, c < -3), v > 3))[0]
+        bad_chan_file = os.path.join(self.eeg_dir, 'bad_chan.txt')
+        with open(bad_chan_file, 'w') as f:
+            for ch in bad:
+                f.write('%d\t%s\n' % (ch, self.eeg[self.eegfile].ch_names[ch]))
+
+
 
     def process_eog(self):
         """
