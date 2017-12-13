@@ -153,9 +153,6 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
 
         self._fields = fields
-        if 'FR5' not in experiment:
-            self._fields = tuple(f for f in self._fields if f not in self._RECOG_FIELDS)
-
         self._add_type_to_new_event(
             STIM_ARTIFACT_DETECTION = self.event_default,
             INSTRUCT = self.event_default,
