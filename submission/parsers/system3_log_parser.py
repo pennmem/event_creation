@@ -226,11 +226,11 @@ class System3LogParser(object):
                 stim_params['n_pulses'] = self.get_n_pulses(stim_params)
                 stim_params['stim_on'] = True
                 stim_channel = electrode_config.stim_channels[channel]
-                anode_numbers = stim_channel.anodes
-                cathode_numbers = stim_channel.cathodes
+                anode_numbers = stim_channel.anodes[0] if len(stim_channel.anodes)==1 else -1
+                cathode_numbers = stim_channel.cathodes[0] if len(stim_channel.cathodes)==1 else -1
                 BaseLogParser.set_event_stim_params(stim_event,electrode_config.as_jacksheet(),i,
-                                                    anode_numbers=anode_numbers,
-                                                    cathode_numbers=cathode_numbers,
+                                                    anode_number=anode_numbers,
+                                                    cathode_number=cathode_numbers,
                                                     **stim_params)
         else:
             for input, param in self._DICT_TO_FIELD.items():
