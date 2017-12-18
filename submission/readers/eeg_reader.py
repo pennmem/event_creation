@@ -8,6 +8,7 @@ import os
 import re
 import numpy as np
 import json
+from shutil import copy
 from scipy.linalg import pinv
 
 import tables
@@ -864,6 +865,7 @@ class ScalpReader(EEG_reader):
         self.names = None
         self.data = None
         self.filetype = None
+        self.DATA_FORMAT = self.filetype
 
     def get_data(self):
         """
@@ -874,62 +876,31 @@ class ScalpReader(EEG_reader):
         Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
         """
         ext = os.path.splitext(self.raw_filename)[1].lower()
-        is_mff = ext == '.mff'
-        already_unzipped = ext != '.bz2'
-        # If EEG file is zipped, determine the absolute path of the EEG file before and after unzipping
-        if not already_unzipped:
-            original_path = os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename)))
-            unzip_path = original_path[:-4]  # remove '.bz2' from end of file name
-            already_unzipped = os.path.isfile(unzip_path)
-            logger.debug('Unzipping EEG data file ' + self.raw_filename)
-            self.filetype = os.path.splitext(unzip_path)[1].lower()
-        else:
-            unzip_path = self.raw_filename
-            self.filetype = ext
-
-        # If data file is already unzipped, use it; otherwise unzip the file for reading
-        if is_mff or already_unzipped or os.system('bunzip2 ' + original_path.replace(' ', '\ ')) == 0:
-            try:
-                logger.debug('Parsing EEG data file ' + unzip_path)
-                # Read an EGI recording
-                if self.filetype in ('.mff', '.raw'):
-                    # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
-                    self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=False)
-                    self.data.info['description'] = 'system: GSN-HydroCel-129'
-                    # Correct the name of channel 129 to Cz
-                    self.data.rename_channels({'E129': 'Cz'})
-                    self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
-                # Read a BioSemi recording
-                elif self.filetype == '.bdf':
-                    # self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=True)
-                    self.data = mne.io.read_raw_edf(unzip_path, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], montage='biosemi128', preload=False)
-                    self.data.info['description'] = 'system: biosemi128'
-                else:
-                    logger.critical('Unsupported EEG file type for file %s!' % unzip_path)
-                logger.debug('Finished parsing EEG data.')
-                # Pull relevant header info
-                if isinstance(self.data.info['meas_date'], int):  # Measurement date may either be int or length-2 array
-                    self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'])
-                else:
-                    self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
-                self.names = [str(x) for x in self.data.info['ch_names']]
-            except:
-                logger.critical('Unable to parse EEG data file!')
-
-            """
-            # Remove unzipped file if zipped version exists, otherwise zip the file. Leave .mff files alone.
-            if already_unzipped:
-                pass
-            elif os.path.isfile(original_path):
-                os.system('rm ' + unzip_path.replace(' ', '\ '))
+        self.filetype = ext
+        try:
+            logger.debug('Parsing EEG data file ' + self.raw_filename)
+            # Read an EGI recording
+            if self.filetype in ('.mff', '.raw'):
+                # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
+                self.data = mne.io.read_raw_egi(self.raw_filename, preload=False)
+                # Correct the name of channel 129 to Cz, or else the montage will fail to load
+                self.data.rename_channels({'E129': 'Cz'})
+                self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
+                self.data.set_channel_types({'E8': 'eog', 'E25': 'eog', 'E126': 'eog', 'E127': 'eog', 'Cz': 'misc'})
+            # Read a BioSemi recording
+            elif self.filetype == '.bdf':
+                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=False)
             else:
-                os.system('bzip2 ' + unzip_path.replace(' ', '\ '))
-            logger.debug('Finished getting EEG data.')
-            """
-
-        # If unzip attempt fails, return error
-        else:
-            logger.critical('Unzipping failed! Unable to read data file!')
+                logger.critical('Unsupported EEG file type for file %s!' % self.raw_filename)
+            logger.debug('Finished parsing EEG data.')
+            # Pull relevant header info; Measurement date may be either an integer or a length-2 array
+            if isinstance(self.data.info['meas_date'], int):
+                self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'])
+            else:
+                self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
+            self.names = [str(x) for x in self.data.info['ch_names']]
+        except:
+            logger.critical('Unable to parse EEG data file!')
 
     def postprocess(self):
         """
@@ -966,30 +937,30 @@ class ScalpReader(EEG_reader):
         else:
             logger.critical('Unsupported EEG filetype!')
 
+        # MNE recommends high pass filtering at 1 Hz before running ICA
+        self.data.filter(1., None, fir_design='firwin')
+
         # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
         logger.debug('Running ICA')
-        # Down-sample to 512 Hz prior to running ICA. Otherwise, ICA requires 70-80 GB of RAM and will run for hours.
+        # Set ICA to use decimation for 1kHz and 2kHz recordings Otherwise, ICA may require over 70 GB of RAM and will
+        # run for hours.
         orig_sfreq = self.data.info['sfreq']
-        if orig_sfreq > 512:
-            self.data.resample(512)
+        if self.data.info['sfreq'] >= 2000:
+            decimation_level = 4
+        elif self.data.info['sfreq'] >= 1000:
+            decimation_level = 2
+        else:
+            decimation_level = None
         ica = mne.preprocessing.ICA(method='fastica')
-        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True))
+        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True), decim=decimation_level)
         ica.detect_artifacts(self.data, eog_ch=eog_chans)
-        ica.info['sfreq'] = orig_sfreq
         ica.save(save_path)  # Save ICA object to a .fif file
-
-        # Save the mixing matrix if we detect that it will be calculated differently upon loading
-        # (possible MNE bug, see https://github.com/mne-tools/mne-python/issues/4374)
-        if not np.allclose(ica.mixing_matrix_, pinv(ica.unmixing_matrix_)):
-            np.save(os.path.join(os.path.dirname(save_path), 'mixing_mat.npy'), ica.mixing_matrix_)
-            logger.warn('Possible MNE bug detected, in which mixing matrix will change upon reloading the ICA object. '
-                        'Saving true mixing matrix separately for safety.')
 
     def split_data(self, location, basename):
         """
         This function runs the full EEG post-processing regimen on the recording. Note that "split data" is a misnomer
-        for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, the ScalpReader uses
-        MNE's post-processing tools and saves the results to .fif files.
+        for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, Scalp Lab data is left
+        as raw .mff/.raw/.bdf data files and ICA post-processing results are saved to a .fif file using MNE.
 
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
@@ -999,20 +970,16 @@ class ScalpReader(EEG_reader):
         # Load data if we have not already done so
         if self.data is None:
             self.get_data()
-        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
-        """
-        # Run post-processing regimen on the loaded data
-        self.postprocess()
 
-        # Save post-processed data to .fif file
-        raw_filename = os.path.join(location, basename + '-raw.fif')
-        self.data.save(raw_filename, fmt='single')
+        # Create a link to the raw data file in the ephys current_processed directory
+        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
 
         # Run ICA, mark bad components, and save ICA solution to file
         ica_filename = os.path.join(location, basename + '-ica.fif')
         self.run_ica(ica_filename)
-        """
+
         self.write_sources(location, basename)
+
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
