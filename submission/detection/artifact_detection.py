@@ -140,15 +140,7 @@ class ArtifactDetector:
 
         ##########
         #
-        # Cross-channel bad epoch detection
-        #
-        ##########
-
-        # TODO: Add bad epoch detection
-
-        ##########
-        #
-        # Individual-channel bad epoch detection
+        # Individual-channel and all-channel bad epoch detection
         #
         ##########
 
@@ -157,13 +149,15 @@ class ArtifactDetector:
 
         # Method 1: High variance on individual channels during event
         variance = np.var(ep._data, axis=2)
+        avg_variance = variance.mean(axis=1)
 
         # Method 2: High median slope for individual channels during event
         gradient = np.gradient(ep._data, axis=2)
         gradient = np.median(gradient, axis=2)
 
         # Method 3: High voltage range on individual channels during event
-        vrange = ep._data.max(axis=2) - ep._data.min(axis=2)
+        amp_range = ep._data.max(axis=2) - ep._data.min(axis=2)
+        avg_amp_range = amp_range.mean(axis=1)
 
         # Method 4: Large deviation of voltage from interquartile range on individual channels during event
         # Find the interquartile range of each channel, across time and across all events
@@ -181,9 +175,12 @@ class ArtifactDetector:
         eeg_mask[self.reog_ind] = False
         eeg_mask[self.leog_ind] = False
 
+        # Mark entire events as bad if they have a high voltage range or variance across channels
+        bad_epoch = np.logical_or(ss.zscore(avg_amp_range) > 3, ss.zscore(avg_variance) > 3)
+
         # Create events x channels matrices of booleans indicating whether each EEG channel is bad during each event
         eeg_art = np.logical_or.reduce((ss.zscore(variance, axis=0) > 3, ss.zscore(gradient, axis=0) > 3,
-                                    ss.zscore(vrange, axis=0) > 3), amp_max_iqr > 3, amp_min_iqr < -3)[eeg_mask]
+                                    ss.zscore(amp_range, axis=0) > 3), amp_max_iqr > 3, amp_min_iqr < -3)[eeg_mask]
 
         # Use only method 4 to search for blinks/eye movements in each EOG channel
         right_eog_art = np.logical_or(amp_max_iqr[self.right_eog] > 3, amp_min_iqr[self.right_eog] < -3)
@@ -201,14 +198,17 @@ class ArtifactDetector:
             if self.events[i].type not in ev_ids:
                 continue
             else:
+                # badEpoch is 1 if abnormally high range or variance occurs across EEG channels, else 0
+                self.events[i].badEpoch = bad_epoch[i]
                 # artifactChannels is a 128-item array indicating whether each EEG channel is bad during each event
                 self.events[i].artifactChannels = eeg_art[i]
+
                 # variance is a 128-item array indicating the variance of each channel during the event
                 self.events[i].variance = variance[i]
                 # medGradiant is a 128-item array indicating the median gradient of each channel during the event
                 self.events[i].medGradient = gradient[i]
                 # ampRange is a 128-item array indicating the amplitude range of each channel during the event
-                self.events[i].ampRange = vrange[i]
+                self.events[i].ampRange = amp_range[i]
                 # iqrDevMax is a 128-item array how many IQRs above the 75th %ile each channel reaches during the event
                 self.events[i].iqrDevMax = amp_max_iqr[i]
                 # iqrDevMin is a 128-item array how many IQRs below the 25th %ile each channel reaches during the event
