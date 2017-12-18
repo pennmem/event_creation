@@ -76,22 +76,20 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
+        # Scalp EEG post-processing
         if self.protocol == 'ltp':
-            has_raw = np.any([True for eegfile in raw_eeg_groups if (eegfile.endswith('.raw') or eegfile.endswith('.raw.bz2'))])
+            has_mff = np.any([True for eegfile in raw_eeg_groups if (eegfile.endswith('.mff'))])
+            # Repeat process for each EEG recording, if multiple exist
             for i, raw_eeg in enumerate(raw_eeg_groups):
-                # Only use .mff if no .raw exists
-                if raw_eeg.endswith('.mff') and has_raw:
+                # Only use .raw if no .mff exists, as MNE appears to read .mff recordings much faster
+                if raw_eeg.endswith('.raw') and has_mff:
                     continue
-                # If both a zipped and unzipped version of a .raw file exist, skip over the zipped one
-                if raw_eeg.endswith('.raw.bz2') and os.path.splitext(raw_eeg)[0] in raw_eeg_groups:
-                    continue
+                # Create EEG reader
                 reader = get_eeg_reader(raw_eeg, None)
-                # processed_filename = self.SPLIT_FILENAME.format(subject=self.subject, experiment=self.experiment, session=self.session, time=reader.get_start_time_string())
-                # Post-process EEG file
+                # Post-process EEG file (note: does not actually "split" the data for scalp EEG sessions)
                 reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
 
-            # Detect post-processed EEG file
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, '*.bdf')) + glob.glob(os.path.join(self.pipeline.destination, '*.mff')) + glob.glob(os.path.join(self.pipeline.destination, '*.raw')))
+        # RAM post-processing
         else:
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
@@ -120,10 +118,10 @@ class SplitEEGTask(PipelineTask):
             num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
                                 + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
 
-        if num_split_files == 0:
-            raise ProcessingError(
-                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
-                    db_folder))
+            if num_split_files == 0:
+                raise ProcessingError(
+                    'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
+                        db_folder))
 
 
 class MatlabEEGConversionTask(PipelineTask):
