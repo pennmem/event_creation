@@ -160,7 +160,8 @@ class ArtifactDetector:
 
         Entire presentation events are automatically marked as bad if the average variance across channels (z-scored
         across events) is greater than 3 or if the average amplitude range across channels (z-scored across events) is
-        greater than 3.
+        greater than 3. Note that both of these methods are adapted from the "FASTER" method by Nolan, Whelan, and
+        Reilly (2010).
 
         The detection methods for marking individual channels as bad during each event are as follows:
 
@@ -181,7 +182,8 @@ class ArtifactDetector:
         Individual channels on each event are marked as bad if the variance of the channel (z-scored across events) is
         greater than 3, if the median slope of the channel during the event (z-scored across events) is greater than 3,
         if the amplitude range of the channel (z-scored across events) is greater than 3, and if the channel's voltage
-        reaches 3 IQRs above its 75th percentile/below its 25th percentile at any point during the event.
+        reaches 3 IQRs above its 75th percentile/below its 25th percentile at any point during the event. Methods 1, 2,
+        and 3 were based on the methods used in "FASTER".
 
         Blink/eye movement detection is performed by applying method 4 to each EOG channel. Events where an EOG channel
         exceeds the 3*IQR threshold are marked as having an EOG artifact.
