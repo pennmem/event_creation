@@ -35,13 +35,14 @@ class MathLogParser(BaseSessionLogParser):
             ('iscorrect', -999, 'int16'),
             ('rectime', -999, 'int32'),
 
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float32'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
+            ('badEpoch', False, 'b1'),
+            ('artifactChannels', False, 'b1', 128),
+            ('variance', np.nan, 'float', 128),
+            ('medGradient', np.nan, 'float', 128),
+            ('ampRange', np.nan, 'float', 128),
+            ('iqrDevMax', np.nan, 'float', 128),
+            ('iqrDevMin', np.nan, 'float', 128),
+            ('eogArtifact', -1, 'int8', 128)
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
