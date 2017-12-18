@@ -16,6 +16,7 @@ class ArtifactDetector:
         :param events: The events structure (a recarray) for the session
         :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with 
         multiple recordings from a single session).
+        :param ephys_dir: The path to the current_processed ephys folder for the current session.
         """
         self.events = events
         self.eegfile = None  # Used for tracking the path to the recording which is currently being processed

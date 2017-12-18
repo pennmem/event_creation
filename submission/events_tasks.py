@@ -229,16 +229,14 @@ class EventCreationTask(PipelineTask):
         unaligned_events = parser.parse()
         if self.protocol == 'ltp':
             # Scalp Lab alignment and artifact detection
-            eeglog = files['eeg_log'] if 'eeg_log' in files else []
+            sync_log = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
-            aligner = LTPAligner(unaligned_events, eeglog, ephys_dir)
+            aligner = LTPAligner(unaligned_events, sync_log, ephys_dir)
             events = aligner.align()
-            """
             artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
             del aligner
             events = artifact_detector.run()
             del artifact_detector
-            """
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
