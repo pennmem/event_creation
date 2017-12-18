@@ -2,7 +2,6 @@ import os
 import mne
 import glob
 import numpy as np
-import datetime
 import pandas as pd
 from ..log import logger
 
@@ -130,32 +129,6 @@ class LTPAligner:
                 logger.debug('Adding EEG file and offset information to events structure...')
 
                 eegfile_name = os.path.join(self.eeg_dir, basename)
-
-                """
-                if self.filetypes[basename] == 'biosemi':
-                    eegfile_name = basename
-                else:  # Construct the file path to the original split reref files for EGI sessions
-                    # Assumes path is /protocols/ltp/subjects/<subj>/experiments/<exp>/sessions/<sess>/ephys/current_processed
-                    split_path = self.eeg_dir.split('/')
-                    subj = split_path[4]
-                    exp = split_path[6]
-                    sess = split_path[8]
-                    timestring = self.eeg[basename].info['meas_date']
-                    if isinstance(timestring, int):
-                        timestring = datetime.datetime.fromtimestamp(timestring)
-                    else:
-                        timestring = datetime.datetime.fromtimestamp(timestring[0])
-                    td = datetime.timedelta(seconds=60)
-                    timestring_options = [(timestring - td).strftime('%d%b%y_%H%M'), timestring.strftime('%d%b%y_%H%M'), (timestring + td).strftime('%d%b%y_%H%M')]
-                    for i, timestring in enumerate(timestring_options):
-                        timestring_options[i] = timestring[1:] if timestring.startswith('0') else timestring
-                    eegfile_options = ['/data/eeg/scalp/ltp/%s/%s/session_%s/eeg/eeg.reref/%s_%s' % (exp, subj, sess, subj, timestring) for timestring in timestring_options]
-                    eegfile_name = ''
-                    for fname in eegfile_options:
-                        if len(glob.glob(fname + '.*')) > 0:
-                            eegfile_name = fname
-                            break
-                """
 
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
