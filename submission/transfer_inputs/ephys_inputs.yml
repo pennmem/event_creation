@@ -137,5 +137,4 @@ files:
       - '*.bdf'
       - '*.mff'
       - '*.raw'
-      - '*.raw.bz2'
     destination: raw_eeg/
