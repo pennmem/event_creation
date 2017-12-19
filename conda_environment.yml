@@ -2,6 +2,7 @@ name: event_creation
 channels:
 - pennmem
 dependencies:
+- h5py
 - hdf5=1.8.17=1
 - matplotlib
 - nose=1.3.7=py27_1
