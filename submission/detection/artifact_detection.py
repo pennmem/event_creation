@@ -263,7 +263,7 @@ class ArtifactDetector:
 
         # Create events x channels matrices of booleans indicating whether each EEG channel is bad during each event
         eeg_art = np.logical_or.reduce((ss.zscore(variance, axis=0) > 3, ss.zscore(gradient, axis=0) > 3,
-                                    ss.zscore(amp_range, axis=0) > 3, amp_max_iqr > 3, amp_min_iqr < -3))[:, self.eeg_mask]
+                                    ss.zscore(amp_range, axis=0) > 3, amp_max_iqr > 3, amp_min_iqr < -3))
 
         # Use only method 4 to search for blinks/eye movements in each EOG channel
         right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
@@ -284,18 +284,18 @@ class ArtifactDetector:
                 # badEpoch is True if abnormally high range or variance occurs across EEG channels
                 self.events[i].badEpoch = bad_epoch[i]
                 # artifactChannels is a 128-item array indicating whether each EEG channel is bad during each event
-                self.events[i].artifactChannels[:self.n_chans-2] = eeg_art[i]
+                self.events[i].artifactChannels[:self.n_chans-2] = eeg_art[i, self.eeg_mask]
 
                 # variance is a 128-item array indicating the variance of each channel during the event
-                self.events[i].variance[:self.n_chans-2] = variance[i]
+                self.events[i].variance[:self.n_chans-2] = variance[i, self.eeg_mask]
                 # medGradiant is a 128-item array indicating the median gradient of each channel during the event
-                self.events[i].medGradient[:self.n_chans-2] = gradient[i]
+                self.events[i].medGradient[:self.n_chans-2] = gradient[i, self.eeg_mask]
                 # ampRange is a 128-item array indicating the amplitude range of each channel during the event
-                self.events[i].ampRange[:self.n_chans-2] = amp_range[i]
+                self.events[i].ampRange[:self.n_chans-2] = amp_range[i, self.eeg_mask]
                 # iqrDevMax is a 128-item array how many IQRs above the 75th %ile each channel reaches during the event
-                self.events[i].iqrDevMax[:self.n_chans-2] = amp_max_iqr[i]
+                self.events[i].iqrDevMax[:self.n_chans-2] = amp_max_iqr[i, self.eeg_mask]
                 # iqrDevMin is a 128-item array how many IQRs below the 25th %ile each channel reaches during the event
-                self.events[i].iqrDevMin[:self.n_chans-2] = amp_min_iqr[i]
+                self.events[i].iqrDevMin[:self.n_chans-2] = amp_min_iqr[i, self.eeg_mask]
 
                 # eogArtifact = 3 if an artifact was detected in both EOG channels during the event
                 if right_eog_art[i] and left_eog_art[i]:
