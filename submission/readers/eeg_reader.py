@@ -890,7 +890,7 @@ class ScalpReader(EEG_reader):
                 self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
                 self.data.set_channel_types({'E8': 'eog', 'E25': 'eog', 'E126': 'eog', 'E127': 'eog', 'Cz': 'misc'})
                 self.left_eog = ['E25', 'E127']
-                self.ight_eog = ['E8', 'E126']
+                self.right_eog = ['E8', 'E126']
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
@@ -931,9 +931,7 @@ class ScalpReader(EEG_reader):
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True), decim=decimation_level)
         # Automatically identify bad components using MNE
-        for ch in self.left_eog + self.right_eog:
-            ica.find_bads_eog(self.data, ch_name=ch, threshold=3.0)
-        # ica.detect_artifacts(self.data, eog_ch=self.left_eog + self.right_eog)
+        ica.detect_artifacts(self.data, eog_ch=self.left_eog + self.right_eog)
         # Save the MNE ICA object to a .fif file
         ica.save(save_path)
 
