@@ -884,7 +884,7 @@ class ScalpReader(EEG_reader):
             # Read an EGI recording
             if self.filetype in ('.mff', '.raw'):
                 # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
-                self.data = mne.io.read_raw_egi(self.raw_filename, preload=False)
+                self.data = mne.io.read_raw_egi(self.raw_filename, preload=True)
                 # Correct the name of channel 129 to Cz, or else the montage will fail to load
                 self.data.rename_channels({'E129': 'Cz'})
                 self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
@@ -894,7 +894,7 @@ class ScalpReader(EEG_reader):
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
-                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=False)
+                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=True)
                 self.left_eog = ['EXG3', 'EXG1']
                 self.right_eog = ['EXG4', 'EXG2']
 
