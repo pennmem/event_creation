@@ -31,7 +31,7 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             ('ampRange', np.nan, 'float', 128),
             ('iqrDevMax', np.nan, 'float', 128),
             ('iqrDevMin', np.nan, 'float', 128),
-            ('eogArtifact', -1, 'int8', 128)
+            ('eogArtifact', -1, 'int8')
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
