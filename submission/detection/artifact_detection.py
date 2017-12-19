@@ -11,7 +11,7 @@ class ArtifactDetector:
     conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, eeg, ephys_dir):
+    def __init__(self, events, eeg, filetypes, ephys_dir):
         """
         :param events: The events structure (a recarray) for the session
         :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with 
@@ -21,6 +21,7 @@ class ArtifactDetector:
         self.events = events
         self.eegfile = None  # Used for tracking the path to the recording which is currently being processed
         self.eeg = eeg
+        self.filetypes = filetypes
         self.ephys_dir = ephys_dir
 
         self.chans = None
@@ -44,10 +45,10 @@ class ArtifactDetector:
                 self.eeg[self.eegfile].pick_types(eeg=True, eog=True)
 
                 # Prepare settings depending on the EEG system that was used
-                if 'GSN-HydroCel-129' in self.eeg[self.eegfile].info['description']:
+                if self.filetypes[self.eegfile] == 'egi':
                     self.left_eog = ['E25', 'E127']
                     self.right_eog = ['E8', 'E126']
-                elif 'biosemi128' in self.eeg[self.eegfile].info['description']:
+                elif self.filetypes[self.eegfile] == 'biosemi':
                     self.left_eog = ['EXG3', 'EXG1']
                     self.right_eog = ['EXG4', 'EXG2']
                 else:
@@ -61,8 +62,14 @@ class ArtifactDetector:
                 # Get a list of the channels names, and make sure we have 130 channels as intended (128 +
                 self.chans = self.eeg[self.eegfile].ch_names
                 self.n_chans = len(self.chans)
-                if self.n_chans != 130:
-                    logger.warn('Artifact detection expected 128 EEG + 2 bipolar EOG channels but got %i for file %s! Skipping...' % (self.n_chans, self.eegfile))
+                if self.filetypes[self.eegfile] == 'egi' and self.n_chans != 126:
+                    logger.warn('Artifact detection expected 124 EEG + 2 bipolar EOG channels for EGI but got %i for '
+                                'file %s! Skipping...' % (self.n_chans, self.eegfile))
+                    continue
+                elif self.filetypes[self.eegfile] == 'biosemi' and self.n_chans != 130:
+                    logger.warn(
+                        'Artifact detection expected 128 EEG + 2 bipolar EOG channels for BioSemi but got %i for '
+                        'file %s! Skipping...' % (self.n_chans, self.eegfile))
                     continue
 
                 # Record the indices of the bipolar EOG channels, as positioned in the mne object
@@ -278,18 +285,18 @@ class ArtifactDetector:
                 # badEpoch is True if abnormally high range or variance occurs across EEG channels
                 self.events[i].badEpoch = bad_epoch[i]
                 # artifactChannels is a 128-item array indicating whether each EEG channel is bad during each event
-                self.events[i].artifactChannels = eeg_art[i]
+                self.events[i].artifactChannels[:self.n_chans-2] = eeg_art[i]
 
                 # variance is a 128-item array indicating the variance of each channel during the event
-                self.events[i].variance = variance[i]
+                self.events[i].variance[:self.n_chans-2] = variance[i]
                 # medGradiant is a 128-item array indicating the median gradient of each channel during the event
-                self.events[i].medGradient = gradient[i]
+                self.events[i].medGradient[:self.n_chans-2] = gradient[i]
                 # ampRange is a 128-item array indicating the amplitude range of each channel during the event
-                self.events[i].ampRange = amp_range[i]
+                self.events[i].ampRange[:self.n_chans-2] = amp_range[i]
                 # iqrDevMax is a 128-item array how many IQRs above the 75th %ile each channel reaches during the event
-                self.events[i].iqrDevMax = amp_max_iqr[i]
+                self.events[i].iqrDevMax[:self.n_chans-2] = amp_max_iqr[i]
                 # iqrDevMin is a 128-item array how many IQRs below the 25th %ile each channel reaches during the event
-                self.events[i].iqrDevMin = amp_min_iqr[i]
+                self.events[i].iqrDevMin[:self.n_chans-2] = amp_min_iqr[i]
 
                 # eogArtifact = 3 if an artifact was detected in both EOG channels during the event
                 if right_eog_art[i] and left_eog_art[i]:
