@@ -35,14 +35,14 @@ class MathLogParser(BaseSessionLogParser):
             ('iscorrect', -999, 'int16'),
             ('rectime', -999, 'int32'),
 
-            ('badEpoch', np.nan, 'float8'),
-            ('artifactChannels', np.nan, 'float8', 128),
+            ('badEpoch', -1, 'int8'),
+            ('artifactChannels', -1, 'int8', 128),
             ('variance', np.nan, 'float', 128),
             ('medGradient', np.nan, 'float', 128),
             ('ampRange', np.nan, 'float', 128),
             ('iqrDevMax', np.nan, 'float', 128),
             ('iqrDevMin', np.nan, 'float', 128),
-            ('eogArtifact', np.nan, 'float8')
+            ('eogArtifact', -1, 'int8')
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
