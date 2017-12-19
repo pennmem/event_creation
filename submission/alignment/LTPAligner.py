@@ -241,7 +241,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     m, c = np.linalg.lstsq(np.vstack([x - x[0], np.ones(len(x))]).T, y)[0]
     c = c - x[0] * m
 
-    eeg_start_ms = round((1-c)/m)
+    # eeg_start_ms = round((1-c)/m)
 
     # Use the regression to convert task event mstimes to EEG offsets
     offsets = np.round((m*ev_ms + c)*samplerate/1000.).astype(int)
