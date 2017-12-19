@@ -231,7 +231,7 @@ class EventCreationTask(PipelineTask):
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
             aligner = LTPAligner(unaligned_events, sync_log, ephys_dir)
             events = aligner.align()
-            artifact_detector = ArtifactDetector(events, aligner.eeg, aligner.filetypes, ephys_dir)
+            artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir)
             del aligner
             events = artifact_detector.run()
             del artifact_detector

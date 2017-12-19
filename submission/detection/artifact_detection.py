@@ -11,7 +11,7 @@ class ArtifactDetector:
     conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, eeg, filetypes, ephys_dir):
+    def __init__(self, events, eeg, ephys_dir):
         """
         :param events: The events structure (a recarray) for the session
         :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with 
@@ -21,7 +21,6 @@ class ArtifactDetector:
         self.events = events
         self.eegfile = None  # Used for tracking the path to the recording which is currently being processed
         self.eeg = eeg
-        self.filetypes = filetypes
         self.ephys_dir = ephys_dir
 
         self.chans = None
@@ -45,12 +44,12 @@ class ArtifactDetector:
                 self.eeg[self.eegfile].pick_types(eeg=True, eog=True)
 
                 # Prepare settings depending on the EEG system that was used
-                if self.filetypes[self.eegfile] == 'egi':
-                    self.left_eog = ['E25', 'E127']
-                    self.right_eog = ['E8', 'E126']
-                elif self.filetypes[self.eegfile] == 'biosemi':
+                if self.eegfile.endswith('.bdf'):
                     self.left_eog = ['EXG3', 'EXG1']
                     self.right_eog = ['EXG4', 'EXG2']
+                elif self.eegfile.endswith('.mff') or self.eegfile.endswith('.raw'):
+                    self.left_eog = ['E25', 'E127']
+                    self.right_eog = ['E8', 'E126']
                 else:
                     logger.warn('Unidentifiable EEG system detected in file %s' % self.eegfile)
                     continue
@@ -62,11 +61,11 @@ class ArtifactDetector:
                 # Get a list of the channels names, and make sure we have 130 channels as intended (128 +
                 self.chans = np.array(self.eeg[self.eegfile].ch_names)
                 self.n_chans = len(self.chans)
-                if self.filetypes[self.eegfile] == 'egi' and self.n_chans != 126:
+                if (self.eegfile.endswith('.mff') or self.eegfile.endswith('.raw')) and self.n_chans != 126:
                     logger.warn('Artifact detection expected 124 EEG + 2 bipolar EOG channels for EGI but got %i for '
                                 'file %s! Skipping...' % (self.n_chans, self.eegfile))
                     continue
-                elif self.filetypes[self.eegfile] == 'biosemi' and self.n_chans != 130:
+                elif self.eegfile.endswith('.bdf') and self.n_chans != 130:
                     logger.warn(
                         'Artifact detection expected 128 EEG + 2 bipolar EOG channels for BioSemi but got %i for '
                         'file %s! Skipping...' % (self.n_chans, self.eegfile))
@@ -218,8 +217,8 @@ class ArtifactDetector:
             WORD=0
         )
 
-        offsets = [o for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i] == self.eegfile]
-        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i] == self.eegfile]
+        offsets = [o for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
+        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
         mne_evs = np.zeros((len(offsets), 3), dtype=int)
         mne_evs[:, 0] = offsets
         mne_evs[:, 2] = ids
