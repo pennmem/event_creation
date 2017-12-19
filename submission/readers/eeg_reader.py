@@ -862,8 +862,9 @@ class ScalpReader(EEG_reader):
         """
         self.raw_filename = raw_filename
         self.start_datetime = None
-        self.names = None
         self.data = None
+        self.left_eog = None
+        self.right_eog = None
         self.filetype = None
         self.DATA_FORMAT = self.filetype
 
@@ -876,9 +877,10 @@ class ScalpReader(EEG_reader):
         Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
         """
         ext = os.path.splitext(self.raw_filename)[1].lower()
-        self.filetype = ext
+        self.filetype = self.DATA_FORMAT = ext
         try:
             logger.debug('Parsing EEG data file ' + self.raw_filename)
+
             # Read an EGI recording
             if self.filetype in ('.mff', '.raw'):
                 # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
@@ -887,39 +889,28 @@ class ScalpReader(EEG_reader):
                 self.data.rename_channels({'E129': 'Cz'})
                 self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
                 self.data.set_channel_types({'E8': 'eog', 'E25': 'eog', 'E126': 'eog', 'E127': 'eog', 'Cz': 'misc'})
+                self.left_eog = ['E25', 'E127']
+                self.ight_eog = ['E8', 'E126']
+
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
                 self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=False)
+                self.left_eog = ['EXG3', 'EXG1']
+                self.right_eog = ['EXG4', 'EXG2']
+
+            # Return error if unsupported filetype, though this should never happen
             else:
                 logger.critical('Unsupported EEG file type for file %s!' % self.raw_filename)
-            logger.debug('Finished parsing EEG data.')
+
             # Pull relevant header info; Measurement date may be either an integer or a length-2 array
             if isinstance(self.data.info['meas_date'], int):
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'])
             else:
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
-            self.names = [str(x) for x in self.data.info['ch_names']]
+
+            logger.debug('Finished parsing EEG data.')
         except:
             logger.critical('Unable to parse EEG data file!')
-
-    def postprocess(self):
-        """
-        Post-process EEG data. Currently, this involves the following:
-        - Running a .1 Hz high pass filter on all EEG and EOG channels
-        - Generating a common average reference projection on the MNE Raw object, which can later be used to
-        re-reference the data
-        """
-        try:
-            # Get indices of EEG and EOG channels
-            picks_eeg_eog = mne.pick_types(self.data.info, eeg=True, eog=True)
-            # Run a .1 Hz high pass filter on all EEG and EOG channels
-            logger.debug('Running .1 Hz highpass filter on all channels.')
-            self.data.filter(.1, None, picks=picks_eeg_eog, method='iir', phase='zero-double',
-                             l_trans_bandwidth='auto', h_trans_bandwidth='auto')
-            # Set common average reference
-            self.data.set_eeg_reference(ref_channels=None)
-        except:
-            logger.critical('Failed to post-process EEG!')
 
     def run_ica(self, save_path):
         """
@@ -929,32 +920,22 @@ class ScalpReader(EEG_reader):
         :param save_path: The filepath where the ICA solution will be saved. To conform with MNE standards, this path
         should end with "-ica.fif".
         """
-        eog_chans = None
-        if self.filetype in ('.mff', '.raw'):
-            eog_chans = ['E8', 'E25', 'E126', 'E127']
-        elif self.filetype == '.bdf':
-            eog_chans = ['EXG1', 'EXG2', 'EXG3', 'EXG4']
-        else:
-            logger.critical('Unsupported EEG filetype!')
-
         # MNE recommends high pass filtering at 1 Hz before running ICA
         self.data.filter(1., None, fir_design='firwin')
 
         # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
         logger.debug('Running ICA')
-        # Set ICA to use decimation for 1kHz and 2kHz recordings Otherwise, ICA may require over 70 GB of RAM and will
-        # run for hours.
-        orig_sfreq = self.data.info['sfreq']
-        if self.data.info['sfreq'] >= 2000:
-            decimation_level = 4
-        elif self.data.info['sfreq'] >= 1000:
-            decimation_level = 2
-        else:
-            decimation_level = None
+        # Set ICA to use decimation based on the sample rate of the recording, or else ICA will take a very long time
+        decimation_level = int(self.data.info['sfreq'] // 250) if self.data.info['sfreq'] >= 500 else None
+        # Run fit ICA to EEG channels only using FastICA algorithm
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True), decim=decimation_level)
-        ica.detect_artifacts(self.data, eog_ch=eog_chans)
-        ica.save(save_path)  # Save ICA object to a .fif file
+        # Automatically identify bad components using MNE
+        for ch in self.left_eog + self.right_eog:
+            ica.find_bads_eog(self.data, ch_name=ch, threshold=3.0)
+        # ica.detect_artifacts(self.data, eog_ch=self.left_eog + self.right_eog)
+        # Save the MNE ICA object to a .fif file
+        ica.save(save_path)
 
     def split_data(self, location, basename):
         """
