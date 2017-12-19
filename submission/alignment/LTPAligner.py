@@ -45,10 +45,10 @@ class LTPAligner:
             basename = os.path.splitext(os.path.basename(f))[0]
             if f.endswith('.bdf'):
                 self.filetypes[basename] = 'biosemi'
-                self.eeg[basename] = mne.io.read_raw_edf(f, preload=False)
+                self.eeg[basename] = mne.io.read_raw_edf(f, eog=['E8', 'E25', 'E126', 'E127'], misc=['E129'], preload=True)
             else:
                 self.filetypes[basename] = 'egi'
-                self.eeg[basename] = mne.io.read_raw_egi(f, preload=False)
+                self.eeg[basename] = mne.io.read_raw_egi(f, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', preload=True)
 
         self.num_samples = None
         self.sample_rate = None
@@ -57,7 +57,6 @@ class LTPAligner:
         self.behav_ms = None
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
-
 
     def align(self):
         """
