@@ -60,7 +60,7 @@ class ArtifactDetector:
                                                     self.right_eog[0]], cathode=[self.left_eog[1], self.right_eog[1]])
 
                 # Get a list of the channels names, and make sure we have 130 channels as intended (128 +
-                self.chans = self.eeg[self.eegfile].ch_names
+                self.chans = np.array(self.eeg[self.eegfile].ch_names)
                 self.n_chans = len(self.chans)
                 if self.filetypes[self.eegfile] == 'egi' and self.n_chans != 126:
                     logger.warn('Artifact detection expected 124 EEG + 2 bipolar EOG channels for EGI but got %i for '
