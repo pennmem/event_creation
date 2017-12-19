@@ -266,8 +266,8 @@ class ArtifactDetector:
                                     ss.zscore(amp_range, axis=0) > 3, amp_max_iqr > 3, amp_min_iqr < -3))[:, self.eeg_mask]
 
         # Use only method 4 to search for blinks/eye movements in each EOG channel
-        right_eog_art = np.logical_or(amp_max_iqr[:, self.right_eog] > 3, amp_min_iqr[:, self.right_eog] < -3)
-        left_eog_art = np.logical_or(amp_max_iqr[:, self.left_eog] > 3, amp_min_iqr[:, self.left_eog] < -3)
+        right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
+        left_eog_art = np.logical_or(amp_max_iqr[:, self.leog_ind] > 3, amp_min_iqr[:, self.leog_ind] < -3)
 
         ##########
         #
