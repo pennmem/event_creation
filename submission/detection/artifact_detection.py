@@ -282,24 +282,24 @@ class ArtifactDetector:
         event_mask = [ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events]
 
         # badEpoch is True if abnormally high range or variance occurs across EEG channels
-        self.events[event_mask].badEpoch = bad_epoch
+        self.events.badEpoch[event_mask] = bad_epoch
         # artifactChannels is a 128-item array indicating whether each EEG channel is bad during each event
-        self.events[event_mask].artifactChannels[:self.n_chans-2] = eeg_art[:, self.eeg_mask]
+        self.events.artifactChannels[event_mask, :self.n_chans-2] = eeg_art[:, self.eeg_mask]
 
         # variance is a 128-item array indicating the variance of each channel during the event
-        self.events[event_mask].variance[:self.n_chans-2] = variance[:, self.eeg_mask]
+        self.events.variance[event_mask, :self.n_chans-2] = variance[:, self.eeg_mask]
         # medGradiant is a 128-item array indicating the median gradient of each channel during the event
-        self.events[event_mask].medGradient[:self.n_chans-2] = gradient[:, self.eeg_mask]
+        self.events.medGradient[event_mask, :self.n_chans-2] = gradient[:, self.eeg_mask]
         # ampRange is a 128-item array indicating the amplitude range of each channel during the event
-        self.events[event_mask].ampRange[:self.n_chans-2] = amp_range[:, self.eeg_mask]
+        self.events.ampRange[event_mask, :self.n_chans-2] = amp_range[:, self.eeg_mask]
         # iqrDevMax is a 128-item array how many IQRs above the 75th %ile each channel reaches during the event
-        self.events[event_mask].iqrDevMax[:self.n_chans-2] = amp_max_iqr[:, self.eeg_mask]
+        self.events.iqrDevMax[event_mask, :self.n_chans-2] = amp_max_iqr[:, self.eeg_mask]
         # iqrDevMin is a 128-item array how many IQRs below the 25th %ile each channel reaches during the event
-        self.events[event_mask].iqrDevMin[:self.n_chans-2] = amp_min_iqr[:, self.eeg_mask]
+        self.events.iqrDevMin[event_mask, :self.n_chans-2] = amp_min_iqr[:, self.eeg_mask]
 
         # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
-        self.events[event_mask] = 0
-        self.events[event_mask][left_eog_art] += 1
-        self.events[event_mask][right_eog_art] += 2
+        self.events.eogArtifact[event_mask] = 0
+        self.events.eogArtifact[event_mask][left_eog_art] += 1
+        self.events.eogArtifact[event_mask][right_eog_art] += 2
 
         logger.debug('Events marked with artifact info for %s' % self.eegfile)
