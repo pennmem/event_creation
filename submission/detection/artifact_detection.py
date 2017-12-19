@@ -125,15 +125,15 @@ class ArtifactDetector:
         logger.debug('Identifying bad channels for %s' % self.eegfile)
 
         # Method 1: High voltage offset from the reference channel
-        ref_offset = self.eeg[self.eegfile]._data[:, self.eeg_mask, :].mean(axis=1)
+        ref_offset = self.eeg[self.eegfile]._data[self.eeg_mask, :].mean(axis=1)
 
         # Method 2: Low correlation with other channels
-        corr = np.corrcoef(self.eeg[self.eegfile]._data[:, self.eeg_mask, :])
+        corr = np.corrcoef(self.eeg[self.eegfile]._data[self.eeg_mask, :])
         corr = np.abs(corr)
         corr = corr.mean(axis=0)
 
         # Method 3: High/Low variance
-        var = np.var(self.eeg[self.eegfile]._data[:, self.eeg_mask, :], axis=1)
+        var = np.var(self.eeg[self.eegfile]._data[self.eeg_mask, :], axis=1)
 
         # Method 4: High/Low log-transformed variance
         log_var = np.log10(var)
