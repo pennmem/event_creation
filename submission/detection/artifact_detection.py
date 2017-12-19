@@ -278,7 +278,8 @@ class ArtifactDetector:
         # Mark channels with artifacts during each presentation event
         logger.debug('Marking events with artifact info...')
         for i in range(len(self.events)):
-            if self.events[i].type not in ev_ids:
+            # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
+            if self.events[i].type not in ev_ids or not self.events[i].eegfile.endswith(self.eegfile):
                 continue
             else:
                 # badEpoch is True if abnormally high range or variance occurs across EEG channels
