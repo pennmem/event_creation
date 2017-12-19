@@ -14,6 +14,7 @@ dependencies:
 - python-dateutil=2.5.3=py27_0
 - pyyaml=3.12=py27_0
 - qt=4.8.7=4
+- scikit-learn
 - scipy=0.18.1
 - swig=3.0.10=0
 - tk=8.5.18=0
