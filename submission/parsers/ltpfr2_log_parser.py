@@ -24,14 +24,14 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
 
-            ('badEpoch', False, 'b1'),
-            ('artifactChannels', False, 'b1', 128),
+            ('badEpoch', np.nan, 'float8'),
+            ('artifactChannels', np.nan, 'float8', 128),
             ('variance', np.nan, 'float', 128),
             ('medGradient', np.nan, 'float', 128),
             ('ampRange', np.nan, 'float', 128),
             ('iqrDevMax', np.nan, 'float', 128),
             ('iqrDevMin', np.nan, 'float', 128),
-            ('eogArtifact', -1, 'int8')
+            ('eogArtifact', np.nan, 'float8')
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
