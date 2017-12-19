@@ -263,7 +263,7 @@ class ArtifactDetector:
 
         # Create events x channels matrices of booleans indicating whether each EEG channel is bad during each event
         eeg_art = np.logical_or.reduce((ss.zscore(variance, axis=0) > 3, ss.zscore(gradient, axis=0) > 3,
-                                    ss.zscore(amp_range, axis=0) > 3), amp_max_iqr > 3, amp_min_iqr < -3)[self.eeg_mask]
+                                    ss.zscore(amp_range, axis=0) > 3, amp_max_iqr > 3, amp_min_iqr < -3))[self.eeg_mask]
 
         # Use only method 4 to search for blinks/eye movements in each EOG channel
         right_eog_art = np.logical_or(amp_max_iqr[self.right_eog] > 3, amp_min_iqr[self.right_eog] < -3)
