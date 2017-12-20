@@ -954,7 +954,7 @@ class ScalpReader(EEG_reader):
         os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
 
         # Run ICA, mark bad components, and save ICA solution to file
-        ica_filename = os.path.join(location, basename + '-ica.fif')
+        ica_filename = os.path.join(location, os.path.splitext(basename)[0] + '-ica.fif')
         self.run_ica(ica_filename)
 
         self.write_sources(location, basename)
