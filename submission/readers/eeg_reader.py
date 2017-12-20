@@ -926,7 +926,7 @@ class ScalpReader(EEG_reader):
         # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
         logger.debug('Running ICA')
         # Set ICA to use decimation based on the sample rate of the recording, or else ICA will take a very long time
-        decimation_level = int(self.data.info['sfreq'] // 500) if self.data.info['sfreq'] >= 1000 else None
+        decimation_level = int(self.data.info['sfreq'] // 250) if self.data.info['sfreq'] >= 500 else None
         # Run fit ICA to EEG channels only using FastICA algorithm
         ica = mne.preprocessing.ICA(method='fastica')
         ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True), decim=decimation_level)
