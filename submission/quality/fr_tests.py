@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import json
+from ..log import logger
 
 def test_catfr_categories(events,files):
     """
@@ -80,3 +82,25 @@ def test_rec_word_position(events,files):
         rec_words = events[(events.list==lst) & (events.type=='REC_WORD')]
         assert (rec_words.mstime>=rec_start.mstime).all(),'REC_WORD occurs before REC_START in list %s'%lst
         assert (rec_words.mstime <= rec_end.mstime).all(), 'REC_WORD occurs after REC_END in list %s'%lst
+
+def test_stim_on_position(events,files):
+    """
+    Asserts that all STIM_ON events are preceded by a TRIAL event
+    :param events:
+    :return:
+    """
+    logger.debug('Checking stim event locations')
+    with open(files['experiment_config'][-1]) as config_file:
+        config=json.load(config_file)
+    stim_events = events[events.type=='STIM_ON']
+    if len(stim_events):
+        try:
+            n_artifact_stims = config['experiment']['artifact_detection'][
+                                   'artifact_detection_number_of_stims_per_channel'] * len(
+                config['experiment']['experiment_specific_data']['stim_channels'])
+        except KeyError:
+            return
+
+        trial_0 = events[events.type=='TRIAL'][0]
+        n_early_stims = (stim_events.mstime<=trial_0.mstime).sum()
+        assert n_early_stims<= n_artifact_stims, '%s unexpected stim events before experiment begins'%(n_early_stims-n_artifact_stims)
