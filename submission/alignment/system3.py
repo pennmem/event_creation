@@ -18,9 +18,9 @@ class System3Aligner(object):
     EEG_FILE_FIELD = 'eegfile'
 
     MAXIMUM_ALLOWED_RESIDUAL = 1000
+    MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS = 2
 
-    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),
-                   ('t_event', 1,'STIM'))
+    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),)
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -240,6 +240,7 @@ class System3Aligner(object):
             )
 
         if max(residuals) > cls.MAXIMUM_ALLOWED_RESIDUAL:
+
             logger.error("Maximum residual of fit ({}) "
                          "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
 
@@ -248,8 +249,13 @@ class System3Aligner(object):
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
             ))
-            raise AlignmentError("Maximum residual of fit ({}) "
-                         "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+
+            n_excess_residuals = (residuals > cls.MAXIMUM_ALLOWED_RESIDUAL).sum()
+
+            if n_excess_residuals > cls.MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS:
+
+                raise AlignmentError("Maximum residual of fit ({}) "
+                             "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
 
         return residuals
     @classmethod
