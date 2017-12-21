@@ -3,7 +3,7 @@ from .fr_log_parser import FRSessionLogParser
 from .base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
 import numpy as np
-from ..quality.fr_tests import test_catfr_categories
+from ..quality.fr_tests import test_catfr_categories,test_stim_on_position
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -47,6 +47,8 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         ('recog_resp',-999,'int16'),
         ('recog_rt',-999,'int16'),
     )
+
+    _TESTS = FRSessionLogParser._TESTS + [test_stim_on_position]
 
     @staticmethod
     def persist_fields_during_stim(event):
