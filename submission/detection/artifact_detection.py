@@ -282,7 +282,7 @@ class ArtifactDetector:
         logger.debug('Marking events with artifact info...')
 
         # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
-        event_mask = [ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events]
+        event_mask = np.where([ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
 
         # badEpoch is True if abnormally high range or variance occurs across EEG channels
         self.events.badEpoch[event_mask] = bad_epoch
@@ -302,7 +302,7 @@ class ArtifactDetector:
 
         # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
         self.events.eogArtifact[event_mask] = 0
-        self.events.eogArtifact[event_mask][left_eog_art] += 1
-        self.events.eogArtifact[event_mask][right_eog_art] += 2
+        self.events.eogArtifact[event_mask[left_eog_art]] += 1
+        self.events.eogArtifact[event_mask[right_eog_art]] += 2
 
         logger.debug('Events marked with artifact info for %s' % self.eegfile)
