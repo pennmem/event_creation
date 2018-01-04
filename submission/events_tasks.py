@@ -78,16 +78,22 @@ class SplitEEGTask(PipelineTask):
 
         # Scalp EEG post-processing
         if self.protocol == 'ltp':
-            has_mff = np.any([True for eegfile in raw_eeg_groups if (eegfile.endswith('.mff'))])
-            # Repeat process for each EEG recording, if multiple exist
+            # Process each EEG recording separately, if multiple exist
+            success = np.zeros(len(raw_eeg_groups), dtype=bool)
             for i, raw_eeg in enumerate(raw_eeg_groups):
-                # Only use .raw if no .mff exists, as MNE appears to read .mff recordings much faster
-                if raw_eeg.endswith('.raw') and has_mff:
-                    continue
+                # Only use .raw if no corresponding .mff exists (or if the .mff could not be read), as MNE is able to
+                # read .mff recordings much faster than .raw
+                if raw_eeg.endswith('.raw'):
+                    has_mff_version = False
+                    for j, other_eeg in enumerate(raw_eeg_groups):
+                        if other_eeg.endswith('.mff') and other_eeg.startswith(raw_eeg[:15]) and success[j]:
+                            has_mff_version = True
+                    if has_mff_version:
+                        continue
                 # Create EEG reader
                 reader = get_eeg_reader(raw_eeg, None)
                 # Post-process EEG file (note: does not actually "split" the data for scalp EEG sessions)
-                reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
+                success[i] = reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
 
         # RAM post-processing
         else:

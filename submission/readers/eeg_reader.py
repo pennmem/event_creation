@@ -909,8 +909,11 @@ class ScalpReader(EEG_reader):
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
 
             logger.debug('Finished parsing EEG data.')
+            return True
         except:
-            logger.critical('Unable to parse EEG data file!')
+            logger.warn('Unable to parse EEG data file!')
+            return False
+
 
     def run_ica(self, save_path):
         """
@@ -948,7 +951,9 @@ class ScalpReader(EEG_reader):
         logger.info("Post-processing EEG data into {}/{}".format(location, basename))
         # Load data if we have not already done so
         if self.data is None:
-            self.get_data()
+            success = self.get_data()
+            if not success:
+                return False
 
         # Create a link to the raw data file in the ephys current_processed directory
         os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
@@ -958,6 +963,7 @@ class ScalpReader(EEG_reader):
         self.run_ica(ica_filename)
 
         self.write_sources(location, basename)
+        return True
 
 
     def get_start_time(self):
@@ -1008,23 +1014,6 @@ def read_json_jacksheet(filename):
         raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
     jacksheet = {int(v['channel']): k for k, v in contacts.items()}
     return jacksheet
-
-
-def calc_gain(amp_info, amp_fact):
-    """
-    Calculates the gain factor for converting raw EEG to uV.
-
-    :param amp_info: Info to convert from raw to voltage
-    :param amp_fact: Amplification factor to correct for
-    :return: Gain factor for converting raw data to uV.
-    """
-    arange = abs(np.diff(amp_info[0])[0])
-    drange = abs(np.diff(amp_info[1])[0])
-    if np.diff(abs(amp_info[0]))[0] == 0 and np.diff(abs(amp_info[1]))[0] == 0:
-        return (drange * 1000000./amp_fact) / arange
-    else:
-        logger.warn('WARNING: Amp info ranges were not centered at zero.\nNo gain calculation was possible.')
-        return 1
 
 
 READERS = {
