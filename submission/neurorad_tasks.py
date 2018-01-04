@@ -3,7 +3,8 @@ import json
 from neurorad.json_cleaner import clean_json_dumps
 
 from neurorad.localization import Localization
-from neurorad import (vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface)
+from neurorad import (vox_mother_converter, calculate_transformation, add_locations,
+                      brainshift_correct,make_outer_surface,map_mni_coords)
 from .log import logger
 from .tasks import PipelineTask
 import numpy as np
@@ -97,6 +98,7 @@ class CorrectCoordinatesTask(PipelineTask):
         tc = self.pipeline.transferer.transfer_config
         fsfolder =  self.pipeline.source_dir
         outfolder = os.path.join( tc._raw_config['directories']['localization_db_dir'].format(**tc.kwargs),'brainshift_correction')
+        imaging_root = tc._raw_config['directories']['imaging_subject_dir'].format(**tc.kwargs)
         try:
             os.mkdir(outfolder)
         except OSError:
@@ -108,6 +110,7 @@ class CorrectCoordinatesTask(PipelineTask):
         Norig = self.pipeline.retrieve_object('Norig')
         talxfm = self.pipeline.retrieve_object('talxfm')
         calculate_transformation.invert_transformed_coords(localization,Torig,Norig,talxfm)
+        map_mni_coords.add_corrected_mni_cordinates(localization,imaging_root,self.subject)
 
 
 class AddContactLabelsTask(PipelineTask):
