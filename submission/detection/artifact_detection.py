@@ -219,6 +219,9 @@ class ArtifactDetector:
 
         offsets = [o for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
         ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
+        if len(ids) == 0:
+            logger.warn('Skipping artifact detection for file %s due to it having no presentation events!' % self.eegfile)
+            return
         mne_evs = np.zeros((len(offsets), 3), dtype=int)
         mne_evs[:, 0] = offsets
         mne_evs[:, 2] = ids
