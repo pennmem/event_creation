@@ -85,9 +85,6 @@ class LTPAligner:
             logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
-        print self.behav_ms
-        print type(self.behav_ms)
-        print isinstance(self.behav_ms, np.ndarray)
         if not isinstance(self.behav_ms, np.ndarray) or len(self.behav_ms) < 2:
             logger.warn('No sync pulses were found in the sync pulse log. Unable to align behavioral and EEG data.')
             return self.events
@@ -165,7 +162,7 @@ class LTPAligner:
             self.behav_files = [self.behav_files]
         for f in self.behav_files:
             if f.endswith('.up'):
-                self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0])
+                self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0], ndmin=1)
         if self.behav_ms is None:
             logger.debug('No eeg.eeglog.up file detected. Extracting up pulses from eeg.eeglog...')
             self.behav_ms = self.extract_up_pulses(self.behav_files[0])
@@ -180,7 +177,7 @@ class LTPAligner:
         """
         # Load data from the eeg.eeglog file and get all rows for up pulses
         try:
-            data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2))
+            data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2), ndmin=2)
         except Exception:
             data = pd.read_csv(eeg_log,sep='\s+',header=None,usecols=(0,1,2,)).values
         up_pulses = data[(data[:, 2] == 'CHANNEL_0_UP')| (data[:, 2] == 'UP')| (data[:,2]=='ON')]
