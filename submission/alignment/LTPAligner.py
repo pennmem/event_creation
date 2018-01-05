@@ -85,6 +85,9 @@ class LTPAligner:
             logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
+        print self.behav_ms
+        print type(self.behav_ms)
+        print isinstance(self.behav_ms, np.ndarray)
         if not isinstance(self.behav_ms, np.ndarray) or len(self.behav_ms) < 2:
             logger.warn('No sync pulses were found in the sync pulse log. Unable to align behavioral and EEG data.')
             return self.events
