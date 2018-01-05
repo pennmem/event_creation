@@ -226,8 +226,19 @@ class ArtifactDetector:
         mne_evs[:, 0] = offsets
         mne_evs[:, 2] = ids
 
+        tmin = 0.
+        tmax = 1.6
+        # Remove any events that run beyond the bounds of the EEG file
+        truncated_events_pre = 0
+        truncated_events_post = 0
+        while mne_evs[0, 0] + self.eeg[self.eegfile].info['sfreq'] * tmin < 0:
+            mne_evs = mne_evs[1:]
+            truncated_events_pre += 1
+        while mne_evs[-1, 0] + self.eeg[self.eegfile].info['sfreq'] * tmax >= self.eeg[self.eegfile].n_times:
+            mne_evs = mne_evs[:-1]
+            truncated_events_post += 1
         # Load data from all presentation events into an mne.Epochs object & baseline correct using each event's average voltage
-        ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, event_id=ev_ids, tmin=0., tmax=1.6, baseline=None, preload=True)
+        ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, event_id=ev_ids, tmin=tmin, tmax=tmax, baseline=None, preload=True)
 
         ##########
         #
@@ -283,6 +294,9 @@ class ArtifactDetector:
 
         # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
         event_mask = np.where([ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
+        # Remove any events that run beyond the bounds of the EEG file
+        event_mask = event_mask[truncated_events_pre:-truncated_events_post] if truncated_events_post > 0 else \
+            event_mask[truncated_events_pre]
 
         # badEpoch is True if abnormally high range or variance occurs across EEG channels
         self.events.badEpoch[event_mask] = bad_epoch
