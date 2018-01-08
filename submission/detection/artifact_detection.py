@@ -294,9 +294,9 @@ class ArtifactDetector:
 
         # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
         event_mask = np.where([ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
-        # Remove any events that run beyond the bounds of the EEG file
-        event_mask = event_mask[truncated_events_pre:-truncated_events_post] if truncated_events_post > 0 else \
-            event_mask[truncated_events_pre]
+        # Also skip any events that run beyond the bounds of the EEG file
+        event_mask = event_mask[truncated_events_pre:]
+        event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
 
         # badEpoch is True if abnormally high range or variance occurs across EEG channels
         self.events.badEpoch[event_mask] = bad_epoch
