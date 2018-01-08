@@ -92,9 +92,9 @@ class ArtifactDetector:
         Runs several bad channel detection tests and records the test scores and automatically marked bad channels in
         a TSV file. The detection methods are as follows:
 
-        1) Average voltage offset from the reference channel. This corresponds to the electrode offset screen in
-        BioSemi's ActiView (though also appears to be effective for EGI sessions), and can be used to identify channels
-        with poor connection to the scalp.
+        1) Average absolute voltage offset from the reference channel. This corresponds to the electrode offset screen
+        in BioSemi's ActiView (though also appears to be effective for EGI sessions), and can be used to identify
+        channels with poor connection to the scalp.
 
         2) Low average correlation with all other channels. As signals on the scalp are rather diffuse, a properly
         functioning channel should have some degree of correlation many other channels. Therefore, a channel with
@@ -124,7 +124,7 @@ class ArtifactDetector:
         logger.debug('Identifying bad channels for %s' % self.eegfile)
 
         # Method 1: High voltage offset from the reference channel
-        ref_offset = self.eeg[self.eegfile]._data[self.eeg_mask, :].mean(axis=1)
+        ref_offset = np.abs(self.eeg[self.eegfile]._data[self.eeg_mask, :]).mean(axis=1)
 
         # Method 2: Low correlation with other channels
         corr = np.corrcoef(self.eeg[self.eegfile]._data[self.eeg_mask, :])
