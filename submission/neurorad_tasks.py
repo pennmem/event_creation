@@ -9,6 +9,8 @@ from .log import logger
 from .tasks import PipelineTask
 import numpy as np
 from neurorad.version import __version__ as neurorad_version
+import requests
+from .exc import BrainBuilderError
 
 class LoadVoxelCoordinatesTask(PipelineTask):
 
@@ -163,6 +165,24 @@ class WriteFinalLocalizationTask(PipelineTask):
 
         logger.info("Writing localization.json file")
         self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', False)
+
+class BrainBuilderWebhookTask(PipelineTask):
+
+    def __init__(self,subject,critical=False):
+        super(BrainBuilderWebhookTask, self).__init__(critical=critical)
+        self.subject = subject
+
+
+    def _run(self, files, db_folder):
+        config = self.pipeline.transferer.transfer_config
+        api_url = config._raw_config['api_url']
+        parameters={'subject':self.subject,
+                    'username':'cmlbrainbuilder',
+                    'password':'BoBtheBuilder'}
+        response  = requests.post(api_url,data=parameters)
+        if response.status_code != 200:
+            raise BrainBuilderError('Request failed with message %s'%response.text)
+
 
 
 class CreateMontageTask(PipelineTask):

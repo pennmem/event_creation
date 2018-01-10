@@ -11,7 +11,8 @@ from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConv
                   MontageLinkerTask, RecognitionFlagTask
 from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask,
                            AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask,
-                             AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask)
+                             AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask,
+                             BrainBuilderWebhookTask)
 from .parsers.base_log_parser import get_version_num
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
@@ -491,7 +492,8 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization,critical=False),
         AddManualLocalizationsTask(subject,localization,critical=False),
-        WriteFinalLocalizationTask()
+        WriteFinalLocalizationTask(),
+        BrainBuilderWebhookTask(subject,critical=False)
 
     ]
 
