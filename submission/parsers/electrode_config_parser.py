@@ -237,7 +237,10 @@ class ElectrodeConfig(object):
         return next(file)
 
     def parse_name(self, line, file):
-        self.config_name = line.split(',')[1].strip()
+        try:
+            self.config_name = line.split(',')[1].strip()
+        except IndexError:
+            self.config_name = ''
         return next(file)
 
     def parse_id(self, line, file):
