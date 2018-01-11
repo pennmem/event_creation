@@ -342,10 +342,6 @@ files:
     groups: [transfer, verbal,system_3_3]
     origin_directory: *BEH_EXP_DIR
     origin_file:
-     - short_ram_categorized_en
-     - ram_categorized_en
-     - ram_wordpool_en
-     - short_ram_wordpool_en
      - short_ram_categorized_en.txt
      - ram_categorized_en.txt
      - ram_wordpool_en.txt
