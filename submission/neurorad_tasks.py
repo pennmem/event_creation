@@ -3,11 +3,14 @@ import json
 from neurorad.json_cleaner import clean_json_dumps
 
 from neurorad.localization import Localization
-from neurorad import (vox_mother_converter, calculate_transformation, add_locations,brainshift_correct,make_outer_surface)
+from neurorad import (vox_mother_converter, calculate_transformation, add_locations,
+                      brainshift_correct,make_outer_surface,map_mni_coords)
 from .log import logger
 from .tasks import PipelineTask
 import numpy as np
 from neurorad.version import __version__ as neurorad_version
+import requests
+from .exc import BrainBuilderError
 
 class LoadVoxelCoordinatesTask(PipelineTask):
 
@@ -97,6 +100,7 @@ class CorrectCoordinatesTask(PipelineTask):
         tc = self.pipeline.transferer.transfer_config
         fsfolder =  self.pipeline.source_dir
         outfolder = os.path.join( tc._raw_config['directories']['localization_db_dir'].format(**tc.kwargs),'brainshift_correction')
+        imaging_root = tc._raw_config['directories']['imaging_subject_dir'].format(**tc.kwargs)
         try:
             os.mkdir(outfolder)
         except OSError:
@@ -108,6 +112,7 @@ class CorrectCoordinatesTask(PipelineTask):
         Norig = self.pipeline.retrieve_object('Norig')
         talxfm = self.pipeline.retrieve_object('talxfm')
         calculate_transformation.invert_transformed_coords(localization,Torig,Norig,talxfm)
+        map_mni_coords.add_corrected_mni_cordinates(localization,imaging_root,self.subject)
 
 
 class AddContactLabelsTask(PipelineTask):
@@ -160,6 +165,24 @@ class WriteFinalLocalizationTask(PipelineTask):
 
         logger.info("Writing localization.json file")
         self.create_file(os.path.join(db_folder, 'localization.json',), localization.to_jsons(), 'localization', False)
+
+class BrainBuilderWebhookTask(PipelineTask):
+
+    def __init__(self,subject,critical=False):
+        super(BrainBuilderWebhookTask, self).__init__(critical=critical)
+        self.subject = subject
+
+
+    def _run(self, files, db_folder):
+        config = self.pipeline.transferer.transfer_config
+        api_url = config._raw_config['api_url']
+        parameters={'subject':self.subject,
+                    'username':'cmlbrainbuilder',
+                    'password':'BoBtheBuilder'}
+        response  = requests.post(api_url,data=parameters)
+        if response.status_code != 200:
+            raise BrainBuilderError('Request failed with message %s'%response.text)
+
 
 
 class CreateMontageTask(PipelineTask):

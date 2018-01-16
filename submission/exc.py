@@ -21,6 +21,9 @@ class EventFieldError(Exception):
 class ConfigurationError(Exception):
     """Raised when a config file is malformed."""
 
+class BrainBuilderError(Exception):
+    """Raised when the online brain visualization could not be launched"""
+
 
 class MontageError(Exception):
     """Raised when there are montage errors."""

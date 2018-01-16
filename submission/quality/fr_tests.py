@@ -80,8 +80,10 @@ def test_rec_word_position(events,files):
         rec_start = events[(events.list==lst) & (events.type=='REC_START')]
         rec_end = events[(events.list==lst) & (events.type=='REC_END')]
         rec_words = events[(events.list==lst) & (events.type=='REC_WORD')]
-        assert (rec_words.mstime>=rec_start.mstime).all(),'REC_WORD occurs before REC_START in list %s'%lst
-        assert (rec_words.mstime <= rec_end.mstime).all(), 'REC_WORD occurs after REC_END in list %s'%lst
+        if len(rec_start):
+            assert (rec_words.mstime>rec_start.mstime).all(),'REC_WORD occurs before REC_START in list %s'%lst
+        if len(rec_end):
+            assert (rec_words.mstime < rec_end.mstime).all(), 'REC_WORD occurs after REC_END in list %s'%lst
 
 def test_stim_on_position(events,files):
     """
@@ -104,3 +106,21 @@ def test_stim_on_position(events,files):
         trial_0 = events[events.type=='TRIAL'][0]
         n_early_stims = (stim_events.mstime<=trial_0.mstime).sum()
         assert n_early_stims<= n_artifact_stims, '%s unexpected stim events before experiment begins'%(n_early_stims-n_artifact_stims)
+def test_rec_bracket(events,files):
+    events =events.view(np.recarray)
+    for lst in np.unique(events.list):
+        rec_start = events[(events.list==lst) & (events.type=='REC_START')]
+        assert rec_start.any(), 'NO REC_START event for list %s'%lst
+        rec_end = events[(events.list==lst) & (events.type=='REC_END')]
+        assert rec_end.any(), 'No REC_END event for list %s'%lst
+
+
+# def test_stim_on_position(events,files):
+#     """
+#     Asserts that all STIM_ON events are preceded by a TRIAL event
+#     :param events:
+#     :return:
+#     """
+#     stim_events = events[events.type=='STIM_ON']
+#     trial_0 = events[events.type=='TRIAL'][0]
+#     assert stim_events.mstime>trial_0.mstime, ''

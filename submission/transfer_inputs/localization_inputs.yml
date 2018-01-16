@@ -17,6 +17,8 @@ directories:
   tal_dir  : &TAL_DIR !join [*SUBJ_DIR, "tal"]
   docs_dir : &DOCS_DIR !join [*SUBJ_DIR, "docs"]
 
+api_url: 'http://rhino2.psych.upenn.edu:8080/api/v1/brain/build/'
+
 default_link: &LINK
   type: link
   groups: []
