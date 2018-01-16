@@ -1,3 +1,9 @@
+2018-1-16
+=========
+- Added brainshift-corrected MNI coordinates to localization
+- Fixed bug in which event pipeline would crash if electrode config file didn't have a name
+- Added call to brain visualization API at end of localization pipeline
+
 2017-12-5
 =========
 * Added some data quality checks to FR,catFR,PAL events
