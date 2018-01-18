@@ -800,13 +800,22 @@ def prompt_for_montage_inputs():
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
             return False
+    reference_scheme = ''
+    while not reference_scheme.startswith('m') and not reference_scheme.startswith('b'):
+        reference_scheme = input('Enter reference scheme \n (monopolar or bipolar) : ')
+
+    if reference_scheme.startswith('m'):
+        reference_scheme = 'monopolar'
+    elif reference_scheme.startswith('b'):
+        reference_scheme = 'bipolar'
 
 
     inputs = dict(
         subject=subject,
         montage=montage,
         code=code,
-        protocol='r1'
+        protocol='r1',
+        reference_scheme = reference_scheme
     )
 
     return inputs

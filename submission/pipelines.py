@@ -500,18 +500,18 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
     return TransferPipeline(transferer, *tasks)
 
 
-def build_import_montage_pipeline(subject, montage, protocol, code):
+def build_import_montage_pipeline(subject, montage, protocol, code,**kwargs):
     transferer = generate_import_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
     return TransferPipeline(transferer, *tasks)
 
 
-def build_create_montage_pipeline(subject,montage,protocol, code):
+def build_create_montage_pipeline(subject,montage,protocol, reference_scheme,code):
 
     localization  = int(montage.split('.')[0])
     transferer = generate_create_montage_transferer(subject, montage, protocol, code)
-    task = CreateMontageTask(subject,localization,montage)
+    task = CreateMontageTask(subject,localization,montage,reference_scheme=reference_scheme)
     return TransferPipeline(transferer,task)
 
 if __name__ == '__main__':

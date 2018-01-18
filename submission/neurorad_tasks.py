@@ -251,9 +251,7 @@ class CreateMontageTask(PipelineTask):
                 labels_to_nums[label] = num
         self.nums_to_labels = nums_to_labels
         self.labels_to_nums = labels_to_nums
-        if self.reference_scheme == 'monopolar':
-            self.pairs_frame = bptools.pairs.create_monopolar_pairs(jacksheet)
-        elif self.reference_scheme == 'bipolar':
+        if self.reference_scheme == 'bipolar':
             self.pairs_frame = bptools.pairs.create_pairs(jacksheet)
 
     # def load_localization(self,localization_file):
@@ -265,7 +263,7 @@ class CreateMontageTask(PipelineTask):
 
     def build_contacts_dict(self,db_folder,name):
         contacts = {}
-        if name == 'pairs':
+        if name == 'pairs' and self.reference_scheme == 'bipolar':
             for i in self.pairs_frame.index:
                 logger.debug('%s, %s'%(str(i),type(i)))
                 atlas_dict = {}
@@ -296,7 +294,7 @@ class CreateMontageTask(PipelineTask):
                 except InvalidContactException as exc:
                     logger.warn(exc.message)
 
-        elif name == 'contacts':
+        else:
             leads = self.localization._contact_dict['leads']
             for lead in leads:
                 for contact in leads[lead][name]:
@@ -317,28 +315,31 @@ class CreateMontageTask(PipelineTask):
                                     atlas_dict[loc_name][axis] = None
                             atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
 
-                                # if name=='contacts':
+                        if name=='contacts':
                             contact_dict = {
                                 'atlases':atlas_dict,
                                 'channel':self.labels_to_nums[contact['name']],
                                 'code':contact['name'],
                                 'type':leads[lead]['type']
                             }
-                            # elif name=='pairs':
-                            #     contact_dict={
-                            #         'atlases':atlas_dict,
-                            #         'channel_1':self.labels_to_nums[contact['names'][0]],
-                            #         'channel_2':self.labels_to_nums[contact['names'][1]],
-                            #         'code':'-'.join(contact['names']),
-                            #         'is_stim_only':False,
-                            #         'type_1':leads[lead]['type'],
-                            #         'type_2':leads[lead]['type'],
-                            #     }
-                            # else:
-                            #     raise RuntimeError('bad name')
-                            contacts[contact_dict['code']]=contact_dict
+                        elif name=='pairs':
+                            contact_dict={
+                                'atlases':atlas_dict,
+                                'channel_1':self.labels_to_nums[contact['names'][0]],
+                                'channel_2':self.labels_to_nums[contact['names'][1]],
+                                'code':'-'.join(contact['names']),
+                                'is_stim_only':False,
+                                'type_1':leads[lead]['type'],
+                                'type_2':leads[lead]['type'],
+                            }
+                        else:
+                            raise RuntimeError('bad name')
+                        contacts[contact_dict['code']]=contact_dict
                     except KeyError as ke:
-                        logger.info('Contact %s not found in jacksheet' %(contact['name']))
+                        if name=='contacts':
+                            logger.info('Contact %s not found in jacksheet' %(contact['name']))
+                        else:
+                            logger.info('Contacts %s not found in jacksheet'%(contact['names']))
         logger.debug('%s entries in %s dict'%(len(contacts),name))
         self.contacts_dict[self.subject] = {name:contacts}
         self.contacts_dict['version'] = self.localization.version
