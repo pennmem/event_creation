@@ -340,6 +340,11 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
+    try:
+        if any('PS' in g and int(re.sub(r'PS','',g))>3 for g in groups):
+            do_math = True
+    except Exception:
+        pass
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
                                              code=code, **kwargs)
@@ -350,8 +355,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         system = [x for x in groups if 'system' in x][0]
         system = system.partition('_')[-1]
         tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
-
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('ps4' not in groups), **kwargs))
+        if kwargs.get('new_experiment'):
+            new_exp = kwargs['new_experiment']
+            if 'PS4_' in new_exp:
+                task_kwargs = dict(**kwargs)
+                task_kwargs['new_experiment'] = new_exp.split('_')[-1]
+            else:
+                task_kwargs = kwargs
+        else:
+            task_kwargs = kwargs
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('ps4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
