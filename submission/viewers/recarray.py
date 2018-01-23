@@ -148,7 +148,7 @@ def from_json(json_filename):
     d = json.load(open(json_filename))
     return from_dict(d)
 
-def from_dict(d):
+def from_dict(d,dtypes=None):
     if not isinstance(d, list):
         d = [d]
 
@@ -168,13 +168,13 @@ def from_dict(d):
                     list_info[k]['dtype'] = mkdtype(entry[k][0])
                 else:
                     list_info[k]['dtype'] = get_element_dtype(entry[k])
-
-    dtypes = []
-    for k, v in d[0].items():
-        if not k in list_info:
-            dtypes.append((str(k), get_element_dtype(v)))
-        else:
-            dtypes.append((str(k), list_info[k]['dtype'], list_info[k]['len']))
+    if dtypes is None:
+        dtypes = []
+        for k, v in d[0].items():
+            if not k in list_info:
+                dtypes.append((str(k), get_element_dtype(v)))
+            else:
+                dtypes.append((str(k), list_info[k]['dtype'], list_info[k]['len']))
 
     if dtypes:
         arr = np.zeros(len(d), dtypes).view(np.recarray)
