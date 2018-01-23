@@ -496,19 +496,20 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         if events.shape:
             event_id = events[-1]['id']
             matches = [events['id']==event_id]
-            new_events = self.apply_stim_params(events[matches])
-            events[matches] = new_events
+            new_params= self.apply_stim_params(events[matches].stim_params)
+            events['stim_params'][matches]= new_params
         return events
 
 
 
     def apply_stim_params(self,event):
-        event.anode_label  = self._anode
-        event.cathode_label = self._cathode
-        event.anode_num = self._anode_num
-        event.cathode_num = self._cathode_num
-        event.amplitude = self._amplitude
-        event.frequency = self._frequency
+        event[:,0].anode_label  = self._anode
+        event[:,0].cathode_label = self._cathode
+        event[:,0].anode_number = self._anode_num
+        event[:,0].cathode_number = self._cathode_num
+        event[:,0].amplitude = self._amplitude
+        event[:,0].frequency = self._frequency
+        event[:,0]['_remove']= False
         return event
 
     def event_default(self, event_json):
