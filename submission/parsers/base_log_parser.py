@@ -918,7 +918,38 @@ class EventCombiner(object):
 
         # Sort them, and return them
         all_dict_events = sorted(all_dict_events, key=lambda d:d[self.sort_field])
-        return from_dict(all_dict_events)
+        dtypes = self.combine_dtypes([e.dtype for e in self.events])
+        return from_dict(all_dict_events,dtypes=dtypes)
+
+    def combine_dtypes(self,dtypes):
+        assert len(dtypes)>1
+        dtype_0 = dtypes[0]
+
+        for dtype in dtypes[1:]:
+            if ((dtype.names is None) ^ (dtype_0.names is None)):
+                # pick the named one
+                dtype_0 = dtype_0 if dtype_0.names else dtype
+                continue
+            if dtype.names is None:
+                dtype_0 = max(dtype_0,dtype)
+                continue
+            else:
+
+                type_dict = {}
+                nested_type_names = set(n for dt in [dtype_0,dtype] for n in dt.names if dt.fields[n] is not None)
+                for name in nested_type_names:
+                    if name in dtype_0.names and name in dtype.names:
+                        type_dict[name] = self.combine_dtypes([dtype_0[name],dtype[name]])
+                    else:
+                        type_dict[name] = dtype[name] if name in dtype.names else dtype_0[name]
+                flat_names = set(n for dt in [dtype_0,dtype] for n in dt.names if n not in nested_type_names)
+                for name in flat_names:
+                    if name in dtype_0.names and name in dtype.names:
+                        type_dict[name] = max(dtype_0[name],dtype[name])
+                    else:
+                        type_dict[name] = dtype_0[name] if name in dtype_0.names else dtype[name]
+                dtype_0 = np.dtype([x for x in type_dict.iteritems()])
+        return dtype_0
 
 
 def get_version_num(session_log_file):
