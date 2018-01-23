@@ -5,6 +5,8 @@ import numpy
 import unicodedata
 from collections import defaultdict
 import re
+from collections import OrderedDict
+
 
 PPRINT_PADDING = 2
 
@@ -169,12 +171,16 @@ def from_dict(d):
                 else:
                     list_info[k]['dtype'] = get_element_dtype(entry[k])
 
-    dtypes = []
-    for k, v in d[0].items():
-        if not k in list_info:
-            dtypes.append((str(k), get_element_dtype(v)))
-        else:
-            dtypes.append((str(k), list_info[k]['dtype'], list_info[k]['len']))
+    dtypes_dict = OrderedDict()
+    for entry in d:
+        for k, v in entry.items():
+            if v or (k not in dtypes_dict):
+                if k not in list_info:
+                    dtypes_dict[str(k)] = get_element_dtype(v)
+                else:
+                    dtypes_dict[str(k)] =  (list_info[k]['dtype'], list_info[k]['len'])
+
+    dtypes = [(k,) + v if isinstance(v,tuple) else (k,v) for (k,v) in dtypes_dict.iteritems()]
 
     if dtypes:
         arr = np.zeros(len(d), dtypes).view(np.recarray)

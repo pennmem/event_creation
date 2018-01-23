@@ -9,6 +9,8 @@ import numpy as np
 from ..quality import fr_tests
 import os
 
+
+
 def with_offset(event_handler):
     """
     Decorator for event handlers.
@@ -336,3 +338,14 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         rec_events['category_num']=category_nums
         events[is_rec] = rec_events
         return events
+
+
+class PSHostPCLogParser(BaseHostPCLogParser):
+
+    _PS_STIM_PARAMS_FIELDS = (
+        ('trigger_anode','X','S'),
+        ('trigger_cathode','X','S'),
+        ('anode','X','S',),
+        ('cathode','X','S'),
+
+    )

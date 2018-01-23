@@ -369,8 +369,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if 'ps4' in groups:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'ps4', parser_type=PS4Sys3LogParser, **kwargs))
-        other_events += ('ps4',)
+                                       'PS4', **kwargs))
+        other_events += ('PS4',)
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
