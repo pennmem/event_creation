@@ -268,31 +268,28 @@ class CreateMontageTask(PipelineTask):
                 logger.debug('%s, %s'%(str(i),type(i)))
                 atlas_dict = {}
                 pair = self.pairs_frame.loc[i]
-                try:
-                    for pairs_name, (loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
-                        coords = self.localization.get_pair_coordinate(loc_name,pair[['label1','label2']].values,loc_t)
-                        atlas_dict[pairs_name]={}
-                        for i,axis in enumerate('xyz'):
-                            atlas_dict[pairs_name][axis] = coords.squeeze()[i]
-                            atlas_dict[pairs_name]['region'] = None
-                    for loc_name,pairs_name in self.ATLAS_NAMES_TABLE.items():
-                        atlas_dict[pairs_name] = {}
-                        for axis in 'xyz':
-                            atlas_dict[pairs_name][axis] = None
-                        atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']])
+                for pairs_name, (loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
+                    coords = self.localization.get_pair_coordinate(loc_name,pair[['label1','label2']].values,loc_t)
+                    atlas_dict[pairs_name]={}
+                    for i,axis in enumerate('xyz'):
+                        atlas_dict[pairs_name][axis] = coords.squeeze()[i]
+                        atlas_dict[pairs_name]['region'] = None
+                for loc_name,pairs_name in self.ATLAS_NAMES_TABLE.items():
+                    atlas_dict[pairs_name] = {}
+                    for axis in 'xyz':
+                        atlas_dict[pairs_name][axis] = None
+                    atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']])
 
-                    contact_dict = {
-                        'atlases': atlas_dict,
-                        'channel_1':self.labels_to_nums[pair['label1']],
-                        'channel_2':self.labels_to_nums[pair['label2']],
-                        'code': '-'.join(pair[['label1','label2']]),
-                        'is_stim_only': False,
-                        'type_1': self.localization.get_contact_type(pair['label1']),
-                        'type_2': self.localization.get_contact_type(pair['label2']),
-                        }
-                    contacts[contact_dict['code']] = contact_dict
-                except InvalidContactException as exc:
-                    logger.warn(exc.message)
+                contact_dict = {
+                    'atlases': atlas_dict,
+                    'channel_1':self.labels_to_nums[pair['label1']],
+                    'channel_2':self.labels_to_nums[pair['label2']],
+                    'code': '-'.join(pair[['label1','label2']]),
+                    'is_stim_only': False,
+                    'type_1': self.localization.get_contact_type(pair['label1']),
+                    'type_2': self.localization.get_contact_type(pair['label2']),
+                    }
+                contacts[contact_dict['code']] = contact_dict
 
         else:
             leads = self.localization._contact_dict['leads']

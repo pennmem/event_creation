@@ -10,7 +10,7 @@ from .configuration import paths
 from .exc import ProcessingError
 
 try:
-    from ptsa.data.readers.BaseEventReader import BaseEventReader
+    from ptsa.data.readers import BaseEventReader
 except:
     logger.warn('PTSA NOT LOADED')
 

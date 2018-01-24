@@ -4,7 +4,7 @@ import copy
 from collections import defaultdict
 import traceback
 
-from ptsa.data.readers.IndexReader import JsonIndexReader
+from ptsa.data.readers import JsonIndexReader
 
 from .transferer import TransferError
 from .pipelines import build_events_pipeline, build_split_pipeline, build_convert_events_pipeline, \
