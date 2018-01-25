@@ -479,6 +479,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         self._add_type_to_modify_events(
             STIM = self.modify_with_stim_params,
             BIOMARKER = self.modify_with_stim_params,
+            FEATURES = self.modify_with_stim_params,
             OPTIMIZATION = self.modify_with_stim_params
         )
 
@@ -580,11 +581,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
                     self._amplitude = stim_params_dict['stim_channels'][stim_pair]['amplitude']
                     self._frequency = stim_params_dict['stim_channels'][stim_pair]['pulse_freq'] / 1000
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
-        event = self.event_default(event_json)
-        event.list_phase = self._list_phase
-        event.id = self._id
-        event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
-        return event
+        return False
 
     def event_decision(self,event_json):
         event = self.event_default(event_json)
