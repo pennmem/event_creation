@@ -6,7 +6,7 @@ import glob
 import datetime
 from scipy.io import loadmat
 
-from ptsa.data.readers.BaseEventReader import BaseEventReader
+from ptsa.data.readers import BaseEventReader
 
 from .base_log_parser import BaseSessionLogParser
 from .fr_log_parser import FRSessionLogParser

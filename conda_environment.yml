@@ -24,6 +24,7 @@ dependencies:
 - xlrd = 1.0.0
 - sympy
 - ptsa
+- bptools
 - pip:
   - pyedflib==0.1.6
   - pywavelets==0.5.1

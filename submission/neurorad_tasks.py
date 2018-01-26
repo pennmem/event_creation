@@ -1,15 +1,14 @@
 import os
-import json
-from neurorad.json_cleaner import clean_json_dumps
+import requests
+import bptools.pairs
 
-from neurorad.localization import Localization
+from neurorad.json_cleaner import clean_json_dumps
+from neurorad.localization import Localization,InvalidContactException
 from neurorad import (vox_mother_converter, calculate_transformation, add_locations,
-                      brainshift_correct,make_outer_surface,map_mni_coords)
+                      brainshift_correct,make_outer_surface,map_mni_coords,)
+
 from .log import logger
 from .tasks import PipelineTask
-import numpy as np
-from neurorad.version import __version__ as neurorad_version
-import requests
 from .exc import BrainBuilderError
 
 class LoadVoxelCoordinatesTask(PipelineTask):
@@ -206,13 +205,15 @@ class CreateMontageTask(PipelineTask):
 
 
 
-    def __init__(self,subject,localization,montage,critical=True):
+    def __init__(self,subject,localization,montage,reference_scheme='bipolar',critical=True):
         super(CreateMontageTask, self).__init__(critical=critical)
         self.subject=subject
         self.localization_num = localization
         self.montage_num = montage
+        self.reference_scheme = reference_scheme
         self.contacts_dict = {}
         self.pairs_dict = {}
+        self.pairs_frame = None # pandas.DataFrame
 
 
     def _run(self, files, db_folder):
@@ -222,7 +223,6 @@ class CreateMontageTask(PipelineTask):
             * Add port numbers to each contact
             * store contacts in dictionary by contact label: contacts.json
             * ***
-            * Go through leads, extract pairs
             * store pairs in dictionary by pair label : pairs.json
 
         This method doesn't write any new information; everything should be populated by previous tasks
@@ -232,10 +232,11 @@ class CreateMontageTask(PipelineTask):
         :return:
         """
         self.read_jacksheet(files['jacksheet'])
-        self.load_localization(files['localization'])
+        self.localization = Localization(files['localization'])
+        logger.info('Creating contacts.json')
         self.build_contacts_dict(db_folder,'contacts')
+        logger.info('Creating pairs.json')
         self.build_contacts_dict(db_folder,'pairs')
-
 
 
     def read_jacksheet(self,jacksheet):
@@ -250,32 +251,67 @@ class CreateMontageTask(PipelineTask):
                 labels_to_nums[label] = num
         self.nums_to_labels = nums_to_labels
         self.labels_to_nums = labels_to_nums
+        if self.reference_scheme == 'bipolar':
+            self.pairs_frame = bptools.pairs.create_pairs(jacksheet)
 
-    def load_localization(self,localization_file):
-        with open(localization_file) as loc_fid:
-            self.localization = json.load(loc_fid)
+    # def load_localization(self,localization_file):
+    #     try:
+    #         self.localization = Localization.import_json(localization_file)
+    #     except Exception:
+    #         with open(localization_file) as loc_fid:
+    #             self.localization = json.load(loc_fid)
 
     def build_contacts_dict(self,db_folder,name):
         contacts = {}
-        leads = self.localization['leads']
-        for lead in leads:
-            for contact in leads[lead][name]:
+        if name == 'pairs' and self.reference_scheme == 'bipolar':
+            for i in self.pairs_frame.index:
+                logger.debug('%s, %s'%(str(i),type(i)))
                 atlas_dict = {}
-                for contact_name,(loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
-                    coords = [np.nan,np.nan,np.nan]
-                    if loc_name in contact['coordinate_spaces']:
-                        coords = contact['coordinate_spaces'][loc_name][loc_t]
-                    atlas_dict[contact_name] = {}
-                    for i,axis in enumerate(['x','y','z']):
-                        atlas_dict[contact_name][axis] = coords[i]
-                        atlas_dict[contact_name]['region']=None
-                for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
-                    if loc_name not in atlas_dict:
-                        atlas_dict[loc_name]={}
-                        for axis in 'xyz':
-                            atlas_dict[loc_name][axis] = np.nan
-                    atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
+                pair = self.pairs_frame.loc[i]
+                for pairs_name, (loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
+                    coords = self.localization.get_pair_coordinate(loc_name,pair[['label1','label2']].values,loc_t)
+                    atlas_dict[pairs_name]={}
+                    for i,axis in enumerate('xyz'):
+                        atlas_dict[pairs_name][axis] = coords.squeeze()[i]
+                        atlas_dict[pairs_name]['region'] = None
+                for loc_name,pairs_name in self.ATLAS_NAMES_TABLE.items():
+                    atlas_dict[pairs_name] = {}
+                    for axis in 'xyz':
+                        atlas_dict[pairs_name][axis] = None
+                    atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']])
+
+                contact_dict = {
+                    'atlases': atlas_dict,
+                    'channel_1':self.labels_to_nums[pair['label1']],
+                    'channel_2':self.labels_to_nums[pair['label2']],
+                    'code': '-'.join(pair[['label1','label2']]),
+                    'is_stim_only': False,
+                    'type_1': self.localization.get_contact_type(pair['label1']),
+                    'type_2': self.localization.get_contact_type(pair['label2']),
+                    }
+                contacts[contact_dict['code']] = contact_dict
+
+        else:
+            leads = self.localization._contact_dict['leads']
+            for lead in leads:
+                for contact in leads[lead][name]:
+                    atlas_dict = {}
                     try:
+                        for contact_name,(loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
+                            coords = [None,None,None]
+                            if loc_name in contact['coordinate_spaces']:
+                                coords = contact['coordinate_spaces'][loc_name][loc_t]
+                            atlas_dict[contact_name] = {}
+                            for i,axis in enumerate(['x','y','z']):
+                                atlas_dict[contact_name][axis] = coords[i]
+                                atlas_dict[contact_name]['region']=None
+                        for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
+                            if loc_name not in atlas_dict:
+                                atlas_dict[loc_name]={}
+                                for axis in 'xyz':
+                                    atlas_dict[loc_name][axis] = None
+                            atlas_dict[loc_name]['region'] = contact['atlases'].get(contact_name)
+
                         if name=='contacts':
                             contact_dict = {
                                 'atlases':atlas_dict,
@@ -296,17 +332,17 @@ class CreateMontageTask(PipelineTask):
                         else:
                             raise RuntimeError('bad name')
                         contacts[contact_dict['code']]=contact_dict
-
                     except KeyError as ke:
-                        if 'name' in contact:
-                            logger.info('%s %s not found in jacksheet' %(name.capitalize(),contact['name']))
+                        if name=='contacts':
+                            logger.info('Contact %s not found in jacksheet' %(contact['name']))
                         else:
-                            logger.info('%s %s not found in jacksheet' % (name.capitalize(), '-'.join(contact['names'])))
-                        continue
+                            logger.info('Contacts %s not found in jacksheet'%(contact['names']))
+        logger.debug('%s entries in %s dict'%(len(contacts),name))
         self.contacts_dict[self.subject] = {name:contacts}
-        self.contacts_dict['version'] = self.localization.get('version',neurorad_version)
+        self.contacts_dict['version'] = self.localization.version
         self.create_file(os.path.join(db_folder,'%s.json'%name),
                          clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),name,False)
+        logger.info('%s.json written to %s'%(name,db_folder))
 
 
 

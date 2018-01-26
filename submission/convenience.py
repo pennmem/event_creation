@@ -30,10 +30,10 @@ from .tasks import CleanDbTask, IndexAggregatorTask
 from .log import logger
 from .automation import Importer, ImporterCollection
 
-from ptsa.data.readers.IndexReader import JsonIndexReader
+from ptsa.data.readers import JsonIndexReader
 
 try:
-    from ptsa.data.readers.BaseEventReader import BaseEventReader
+    from ptsa.data.readers import BaseEventReader
 except:
     logger.warn('PTSA NOT LOADED')
 
@@ -399,13 +399,15 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     #     return ephys_success, ImporterCollection(attempted_ephys)
 
 
-def run_montage_import(kwargs, force=False):
+def run_montage_import(kwargs, do_create= True,do_convert = False,force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
-    importer0 = Importer(Importer.CREATE_MONTAGE,**kwargs)
-
-    importer1 = Importer(Importer.CONVERT_MONTAGE, **kwargs)
-    success, importers = attempt_importers([importer0,importer1], force)
+    importers = []
+    if do_create:
+        importers.append( Importer(Importer.CREATE_MONTAGE,**kwargs))
+    if do_convert:
+        importers.append( Importer(Importer.CONVERT_MONTAGE, **kwargs))
+    success, importers = attempt_importers(importers, force)
     return success, ImporterCollection(importers)
 
 def run_localization_import(kwargs, force=False,force_dykstra=False):
@@ -800,13 +802,22 @@ def prompt_for_montage_inputs():
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
             return False
+    reference_scheme = ''
+    while not reference_scheme.startswith('m') and not reference_scheme.startswith('b'):
+        reference_scheme = input('Enter reference scheme \n (monopolar or bipolar) : ')
+
+    if reference_scheme.startswith('m'):
+        reference_scheme = 'monopolar'
+    elif reference_scheme.startswith('b'):
+        reference_scheme = 'bipolar'
 
 
     inputs = dict(
         subject=subject,
         montage=montage,
         code=code,
-        protocol='r1'
+        protocol='r1',
+        reference_scheme = reference_scheme
     )
 
     return inputs
@@ -927,7 +938,7 @@ if __name__ == '__main__':
                 print('Import aborted! Exiting.')
                 exit(0)
         print('Importing montage')
-        success, importer = run_montage_import(inputs, config.force_montage)
+        success, importer = run_montage_import(inputs, force=config.force_montage,do_convert=config.force_convert)
         print('Success:' if success else 'Failed:')
         print(importer.describe())
         exit(0)
