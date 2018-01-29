@@ -25,6 +25,7 @@ dependencies:
 - sympy
 - ptsa
 - bptools
+- h5py
 - pip:
   - pyedflib==0.1.6
   - pywavelets==0.5.1
