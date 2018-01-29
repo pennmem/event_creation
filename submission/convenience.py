@@ -853,7 +853,7 @@ def session_exists(protocol, subject, experiment, session):
 def localization_exists(protocol, subject, localization):
     neurorad_current = os.path.join(paths.db_root, 'protocols', protocol,
                            'subjects', subject,
-                           'localization', localization,
+                           'localizations', localization,
                            'neuroradiology', 'current_processed')
     return os.path.exists(neurorad_current)
 
@@ -947,8 +947,13 @@ if __name__ == '__main__':
         inputs = prompt_for_localization_inputs()
         if not inputs:
             exit(0)
+        exists = localization_exists(inputs['protocol'], inputs['subject'], inputs['localization'])
+        logger.debug('Path %s %s'%(os.path.join(paths.db_root, 'protocols', inputs['protocol'],
+                           'subjects', inputs['subject'],
+                           'localization', inputs['localization'],
+                           'neuroradiology', 'current_processed'),'exists' if exists else 'does not exist'))
         if localization_exists(inputs['protocol'], inputs['subject'], inputs['localization']):
-            if not config('{subject}, loc {loc} already exists. Continue and overwrite? '.format(**inputs)):
+            if not confirm('{subject}, loc {localization} already exists. Continue and overwrite? '.format(**inputs)):
                 print("Import aborted! Exiting.")
                 exit(0)
         print("Importing localization")
