@@ -12,7 +12,7 @@ from ..exc import LogParseError, UnknownExperimentError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.recarray import pformat_rec, to_dict, from_dict
 from ..exc import NoAnnotationError
-
+from . import dtypes
 
 class BaseLogParser(object):
 
@@ -26,36 +26,10 @@ class BaseLogParser(object):
     DO_ALIGNMENT = True
 
     # FORMAT: (NAME, DEFAULT, DTYPE)
-    _BASE_FIELDS = (
-        ('protocol', '', 'S64'),
-        ('subject', '', 'S64'),
-        ('montage', '', 'S64'),
-        ('experiment', '', 'S64'),
-        ('session', -1, 'int16'),
-        ('type', '', 'S64'),
-        ('mstime', -1, 'int64'),
-        ('msoffset', -1, 'int16'),
-        ('eegoffset', -1, 'int64'),
-        ('eegfile', '', 'S256')
-    )
+    _BASE_FIELDS = dtypes.base_fields
 
     # These fields are to be added if include_stim_params is true
-    _STIM_FIELDS = (
-        ('anode_number', -1, 'int16'),
-        ('cathode_number', -1, 'int16'),
-        ('anode_label', '', 'S64'),
-        ('cathode_label', '', 'S64'),
-        ('amplitude', -1, 'float16'),
-        ('pulse_freq', -1, 'int16'),
-        ('n_pulses', -1, 'int16'),
-        ('burst_freq', -1, 'int16'),
-        ('n_bursts', -1, 'int16'),
-        ('pulse_width', -1, 'int16'),
-        ('stim_on', False, bool),
-        ('stim_duration', -1, 'int16'),
-        ('_remove', True, 'b')  # This field is removed before saving, and it used to mark whether it should be output
-                                # to JSON
-    )
+    _STIM_FIELDS = dtypes.stim_fields
 
     # Maximum amount of time after which a valid annotation can appear in a .ann file
     MAX_ANN_LENGTH = 600000
@@ -509,7 +483,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     _TYPE_FIELD = 'event'
     _PHASE_TYPE_FIELD = 'phase_type'
 
-    _BASE_FIELDS = BaseSessionLogParser._BASE_FIELDS + (('phase', '', '<S16'),)
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):
@@ -636,7 +609,7 @@ class RecogParser(BaseSessionLogParser):
         raise NotImplementedError
 
 
-class EventComparator:
+class EventComparator(object):
     """
     Compares two sets of np.recarray events, comparing events with matching types and mstimes and producing a list of
     discrepancies
@@ -644,7 +617,7 @@ class EventComparator:
     # FIXME: Combine with StimComparator??
 
     def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None,
-                 type_switch=None, match_field='mstime'):
+                 type_switch=None, match_field='mstime', same_fields=True):
         """
         :param events1:
         :param events2:
@@ -654,7 +627,27 @@ class EventComparator:
         :param type_ignore: ('type1_to_ignore', 'type2_to_ignore' ...) (ignores events with events.type in type_ignore)
         :param type_switch: {'event1_type': 'event2_type', ...}
         :param match_field: Along with 'type', this field is used to decide which events to compare
+        :param same_fields: Whether to expect that the fields in events1 and events2 are identical. If false,
+                            only compare those fields that are present in both.
         """
+        ev1_names = events1.dtype.names
+        ev2_names = events2.dtype.names
+
+        if not same_fields:
+            names = (n for n in ev1_names if n in ev2_names)
+            events1 = events1[names]
+            events2 = events2[names]
+        else:
+
+            # Make sure we can compare the events
+            for name in ev1_names:
+                if name not in ev2_names and name not in field_switch and name not in field_ignore:
+                    raise EventFieldError(name)
+
+            for name in ev2_names:
+                if name not in ev1_names and name not in field_switch.values() and name not in field_ignore:
+                    raise EventFieldError(name)
+
         self.events1 = events1
         self.events2 = events2
         self.field_switch = field_switch if field_switch else {}
@@ -664,17 +657,6 @@ class EventComparator:
         self.exceptions = exceptions if exceptions else lambda *_: False
         self.match_field = match_field
 
-        ev1_names = events1.dtype.names
-        ev2_names = events2.dtype.names
-
-        # Make sure we can compare the events
-        for name in ev1_names:
-            if name not in ev2_names and name not in field_switch and name not in field_ignore:
-                raise EventFieldError(name)
-
-        for name in ev2_names:
-            if name not in ev1_names and name not in field_switch.values() and name not in field_ignore:
-                raise EventFieldError(name)
 
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:
@@ -858,6 +840,8 @@ class StimComparator(object):
             if this_mismatch:
                 mismatches += this_mismatch + '\n'
         return mismatches
+
+
 
 class EventCombiner(object):
     """

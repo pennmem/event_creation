@@ -5,6 +5,8 @@ from .base_log_parser import BaseSessionLogParser
 from ..viewers.recarray import strip_accents
 from .fr_log_parser import FRSessionLogParser
 from ..quality import fr_tests
+from .dtypes import fr_fields,category_fields
+
 
 class CatFRSessionLogParser(BaseSessionLogParser):
     """
@@ -17,20 +19,7 @@ class CatFRSessionLogParser(BaseSessionLogParser):
         Returns the template for a new FR field
         :return:
         """
-        return (
-            ('list', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('item_name', 'X', 'S16'),
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'int16'),
-            ('rectime', -999, 'int32'),
-            ('exp_version', -1, 'S16'),
-            ('intrusion', -999, 'int16'),
-            ('is_stim', False, 'b1'),
-            ('category', 'X', 'S16'),
-            ('category_num', -999, 'int16'),
-            ('stim_list', False, 'b1'),
-        )
+        return fr_fields + category_fields
 
     # Params specific to FR2
     CATFR2_STIM_DURATION= 4600

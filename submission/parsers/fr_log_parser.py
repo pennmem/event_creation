@@ -1,16 +1,13 @@
-import os
 import re
-import json
-import sqlite3
-
 import numpy as np
-import pandas as pd
-
-from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
-from .system2_log_parser import System2LogParser
+from .base_log_parser import BaseSessionLogParser
 from ..viewers.recarray import strip_accents
 import codecs
 from ..quality import fr_tests
+from .dtypes import fr_fields,ltp_fields
+
+
+
 class FRSessionLogParser(BaseSessionLogParser):
 
     @classmethod
@@ -18,18 +15,7 @@ class FRSessionLogParser(BaseSessionLogParser):
         """
         :return: the template for a new FR field
         """
-        return (
-            ('list', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('item_name', 'X', 'U64'),
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intrusion', -999, 'int16'),
-            ('exp_version', '', 'S64'),
-            ('stim_list', False, 'b1'),
-            ('is_stim', False, 'b1'),
-            ('rectime',-999,'int16'),
-        )
+        return fr_fields
 
     # FR2 specific fields
     FR2_STIM_DURATION= 4600
@@ -71,12 +57,7 @@ class FRSessionLogParser(BaseSessionLogParser):
 
         if protocol == 'ltp':
             self._add_fields(
-                ('artifactMS', -1, 'int32'),
-                ('artifactNum', -1, 'int32'),
-                ('artifactFrac', -1, 'float16'),
-                ('artifactMeanMS', -1, 'float16'),
-                ('badEvent', False, 'b1'),
-                ('badEventChannel', '', 'S8', 132)
+                ltp_fields
             )
 
         self._list = -999
@@ -133,7 +114,7 @@ class FRSessionLogParser(BaseSessionLogParser):
             REC_START=self.event_default,
             REC_END=self.event_default,
             SESS_END=self.event_default,
-            SESSION_SKIPPED=self.event_default,
+            SESSION_SKIPPED=self._event_skip,
             STIM_PARAMS=self.stim_params_event,
             STIM_ON=self.stim_on_event
         )
@@ -147,9 +128,9 @@ class FRSessionLogParser(BaseSessionLogParser):
         if event['type'] == 'WORD':
             return ('list', 'serialpos', 'item_name', 'item_num', 'recalled',
                     'intrusion', 'stim_list', 'subject', 'session', 'eegfile',
-                    'rectime')
+                    'rectime','phase')
         else:
-            return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
+            return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime','phase')
 
 
     def event_default(self, split_line):

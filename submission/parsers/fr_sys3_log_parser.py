@@ -4,6 +4,8 @@ from .base_log_parser import BaseLogParser, BaseSys3_1LogParser
 from collections import defaultdict
 import numpy as np
 from ..quality.fr_tests import test_catfr_categories,test_stim_on_position
+from .dtypes import category_fields
+
 
 def mark_beginning(suffix='START'):
     def with_beginning_marked(f):
@@ -35,24 +37,11 @@ def mark_end(suffix='END'):
 
 class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
-    _STIM_FIELDS = BaseLogParser._STIM_FIELDS + (
-        ('biomarker_value',-1,'float64'),
-        ('id','','S64'),
-        ('position','','S64')
-    )
-
-    _RECOG_FIELDS =  (
-        ('recognized',-999,'int16'),
-        ('rejected',-999,'int16'),
-        ('recog_resp',-999,'int16'),
-        ('recog_rt',-999,'int16'),
-    )
-
     _TESTS = FRSessionLogParser._TESTS + [test_stim_on_position]
 
     @staticmethod
     def persist_fields_during_stim(event):
-        return FRSessionLogParser.persist_fields_during_stim(event)+('phase',)
+        return FRSessionLogParser.persist_fields_during_stim(event)
 
     _ITEM_FIELD = 'word'
     _SERIAL_POS_FIELD = 'serialpos'
@@ -76,7 +65,7 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
         self._recognition = False
         self._was_recognized = False
         self._phase = ''
-        self._add_fields(*self._RECOG_FIELDS)
+
 
         self._type_to_new_event = defaultdict(
             lambda: self.event_default,
@@ -220,10 +209,6 @@ class FRSys3LogParser(FRSessionLogParser,BaseSys3_1LogParser):
 
 
 class catFRSys3LogParser(FRSys3LogParser):
-    _BASE_FIELDS = FRSys3LogParser._BASE_FIELDS + (
-        ('category','X','S64'),
-        ('category_num',-999,'int16')
-    )
 
     _CATEGORY = 'category'
     _CATEGORY_NUM = 'category_num'
@@ -232,6 +217,7 @@ class catFRSys3LogParser(FRSys3LogParser):
 
     def __init__(self, *args, **kwargs):
         super(catFRSys3LogParser, self).__init__(*args, **kwargs)
+        self._add_fields(*category_fields)
 
     def event_word(self, event_json):
         event = super(catFRSys3LogParser, self).event_word(event_json)

@@ -7,9 +7,6 @@ import numpy as np
 
 class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
 
-    _BASE_FIELDS = PALSessionLogParser._BASE_FIELDS + (('phase','','<S64'),)
-
-
     def __init__(self,protocol, subject, montage, experiment, session, files):
 
         super(PALSys3LogParser,self).__init__(protocol, subject, montage, experiment, session, files)
