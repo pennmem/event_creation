@@ -265,7 +265,6 @@ class CreateMontageTask(PipelineTask):
         contacts = {}
         if name == 'pairs' and self.reference_scheme == 'bipolar':
             for i in self.pairs_frame.index:
-                logger.debug('%s, %s'%(str(i),type(i)))
                 atlas_dict = {}
                 pair = self.pairs_frame.loc[i]
                 for pairs_name, (loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
@@ -278,7 +277,11 @@ class CreateMontageTask(PipelineTask):
                     atlas_dict[pairs_name] = {}
                     for axis in 'xyz':
                         atlas_dict[pairs_name][axis] = None
-                    atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']])
+                    try:
+                        atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']].values)
+                    except InvalidContactException as e:
+                        logger.warn('Could not find %s for pair %s-%s'%(pairs_name,pair['label1'],pair['label2']))
+                        atlas_dict[pairs_name]['region'] = None
 
                 contact_dict = {
                     'atlases': atlas_dict,
