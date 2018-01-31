@@ -3,6 +3,7 @@ from __future__ import print_function
 from submission.parsers.fr_log_parser import FRSessionLogParser
 from submission.parsers.catfr_log_parser import CatFRSessionLogParser
 from submission.parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from submission.parsers.mat_converter import FRMatConverter,CatFRMatConverter
 from submission.configuration import paths
 import pandas as pd
 import numpy as np
@@ -39,9 +40,13 @@ reader= JsonIndexReader(os.path.join(paths.rhino_root, 'protocols', 'r1.json'))
 fields_to_skip = ['eegfile','msoffset','eegoffset','stim_params','montage']
 
 def make_files(wordpool,  **kwargs):
+    if 'original_experiment' not in kwargs:
+        kwargs['original_experiment'] = ''
     return {'session_log':  session_log.format(**kwargs),
             'session_sqlite':  session_sql.format(**kwargs),
             'wordpool':  wordpool.format(**kwargs),
+            'matlab_events':os.path.join(paths.rhino_root,'data','events','{original_experiment}','{subject}_events.mat'
+                                         ).format(**kwargs),
             'annotations':list(glob.glob(  ann_files.format(**kwargs)))}
 
 def make_diff(old_events,new_events,fields):
@@ -94,6 +99,7 @@ def test_across_fr_parsers(old_fr_subject, new_fr_subject, ):
         assert old_fr1_events['stim_params'].dtype.names == new_fr1_events['stim_params'].dtype.names
     np.concatenate([old_fr1_events,new_fr1_events])
 
+@pytest.mark.xfail
 def test_against_existing_fr_data(   old_fr_subject):
     session=   reader.sessions(subject=old_fr_subject,experiment='FR1')[0]
     old_events = CMLEventReader(filename=  reader.get_value('task_events', subject=old_fr_subject, experiment='FR1', session=session)
@@ -122,7 +128,7 @@ def test_across_catfr_parsers(   old_catfr_subject, new_catfr_subject):
         assert old_catfr1_events['stim_params'].dtype.names == new_catfr1_events['stim_params'].dtype.names
     np.concatenate([old_catfr1_events,new_catfr1_events])
 
-
+@pytest.mark.xfail
 def test_against_existing_catfr_data(   old_catfr_subject):
     session =    reader.sessions(subject=old_catfr_subject,experiment='catFR1')[0]
 
@@ -139,7 +145,42 @@ def test_against_existing_catfr_data(   old_catfr_subject):
     else:
          return make_diff(old_events,new_events,fields_to_compare)
 
+@pytest.fixture(params=[3,8,10])
+def matlab_fr_subject(request):
+    event_file=  list(glob.glob(
+        os.path.join(paths.rhino_root,'data','events','RAM_FR1','R1*_events.mat')
+    ))[request.param]
+    return event_file.split('/')[-1].split('_')[0]
 
+@pytest.fixture(params=[3,8,10])
+def matlab_catfr_subject(request):
+    event_file=  list(glob.glob(
+        os.path.join(paths.rhino_root,'data','events','RAM_CatFR1','R1*_events.mat')
+    ))[request.param]
+    return event_file.split('/')[-1].split('_')[0]
+
+
+
+def test_matlab_fr_conversion(old_fr_subject,matlab_fr_subject):
+    session=   reader.sessions(subject=old_fr_subject, experiment='FR1')[0]
+    files = make_files(fr_wordpool,subject=old_fr_subject,experiment='FR1',session=session)
+    parsed_events = FRSessionLogParser('r1', old_fr_subject, '0', 'FR1', session, files).parse()
+    session=   reader.sessions(subject=matlab_fr_subject, experiment='FR1')[0]
+
+    files =   make_files(fr_wordpool, subject=matlab_fr_subject, experiment='FR1', session=session, original_experiment='RAM_FR1')
+    converted_events = FRMatConverter('r1', matlab_fr_subject, '0', 'FR1', session, session, files).convert()
+    assert parsed_events.dtype == converted_events.dtype
+
+
+def test_matlab_catfr_conversion(old_catfr_subject, matlab_catfr_subject):
+    session=   reader.sessions(subject=old_catfr_subject, experiment='catFR1')[0]
+    files = make_files(catfr_wordpool, subject=old_catfr_subject, experiment='catFR1', session=session)
+    parsed_events = CatFRSessionLogParser('r1', old_catfr_subject, '0', 'catFR1', session, files).parse()
+    session=   reader.sessions(subject=matlab_catfr_subject, experiment='catFR1')[0]
+
+    files =   make_files(catfr_wordpool, subject=matlab_catfr_subject, experiment='catFR1', session=session, original_experiment='RAM_CatFR1')
+    converted_events = CatFRMatConverter('r1', matlab_catfr_subject, '0', 'catFR1', session, session, files).convert()
+    assert parsed_events.dtype == converted_events.dtype
 
 
 
