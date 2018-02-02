@@ -99,13 +99,13 @@ def test_across_fr_parsers(old_fr_subject, new_fr_subject, ):
         assert old_fr1_events['stim_params'].dtype.names == new_fr1_events['stim_params'].dtype.names
     np.concatenate([old_fr1_events,new_fr1_events])
 
-@pytest.mark.xfail
 def test_against_existing_fr_data(   old_fr_subject):
     session=   reader.sessions(subject=old_fr_subject,experiment='FR1')[0]
     old_events = CMLEventReader(filename=  reader.get_value('task_events', subject=old_fr_subject, experiment='FR1', session=session)
                                 ).read()
     files =   make_files(fr_wordpool,subject=old_fr_subject, experiment='FR1', session=session)
     new_events = FRSessionLogParser('r1', old_fr_subject, '0', 'FR1', session, files).parse()
+    assert all(f in new_events.dtype.names for f in old_events.dtype.names)
     comparison_fields = [f for f in old_events.dtype.names if f not in  fields_to_skip]
     if conftest.from_test:
         for field in comparison_fields:
@@ -128,7 +128,6 @@ def test_across_catfr_parsers(   old_catfr_subject, new_catfr_subject):
         assert old_catfr1_events['stim_params'].dtype.names == new_catfr1_events['stim_params'].dtype.names
     np.concatenate([old_catfr1_events,new_catfr1_events])
 
-@pytest.mark.xfail
 def test_against_existing_catfr_data(   old_catfr_subject):
     session =    reader.sessions(subject=old_catfr_subject,experiment='catFR1')[0]
 
