@@ -534,6 +534,7 @@ def import_sessions_from_json(filename, do_import, do_convert, force_events=Fals
     interrupted = False
     try:
         for inputs in session_inputs_from_json(filename):
+            logger.set_subject(inputs['subject'],inputs['protocol'])
             success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
             if success:
                 successes.append(importers)
@@ -556,7 +557,7 @@ def import_montages_from_json(filename, force=False):
     try:
         for inputs in montage_inputs_from_json(filename):
             if inputs['protocol'] != 'ltp':  # Skip montage import for LTP participants
-                success, importers = run_montage_import(inputs, force)
+                success, importers = run_montage_import(inputs, force,do_convert=True)
                 if success:
                     successes.append(importers)
                 else:
@@ -938,7 +939,10 @@ if __name__ == '__main__':
                 print('Import aborted! Exiting.')
                 exit(0)
         print('Importing montage')
-        success, importer = run_montage_import(inputs, force=config.force_montage,do_convert=config.force_convert)
+        attempt_create = not config.force_convert
+        attempt_convert = config.force_convert or config.allow_convert
+        force = config.force_montage or config.force_convert
+        success, importer = run_montage_import(inputs, attempt_create,attempt_convert, force=force)
         print('Success:' if success else 'Failed:')
         print(importer.describe())
         exit(0)
