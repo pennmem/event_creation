@@ -269,7 +269,8 @@ class EventCreationTask(PipelineTask):
                     events = aligner.align(start_type)
                 else:
                     events = unaligned_events
-                aligner.apply_eeg_file(events)
+                if type(aligner)==System3Aligner:
+                    aligner.apply_eeg_file(events)
             elif self.r1_sys_num == 1.0:
                 aligner = System1Aligner(unaligned_events, files)
                 events = aligner.align()
