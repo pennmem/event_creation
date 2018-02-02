@@ -21,10 +21,7 @@ class System3LogParser(object):
 
     _STIM_PARAMS_FIELD = 'msg_stub'
 
-    _SYS3_FIELDS = BaseLogParser._STIM_FIELDS + (
-        ('host_time', -1, 'int64'),
-        ('id', '', 'S40')
-    )
+    _SYS3_FIELDS = BaseLogParser._STIM_FIELDS
 
     _DICT_TO_FIELD = {
         'amplitude': 'amplitude',

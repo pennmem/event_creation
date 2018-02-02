@@ -36,6 +36,7 @@ stim_fields = (
         ('stim_on', False, bool),
         ('stim_duration', -1, 'int16'),
         ('biomarker_value', -1, 'float64'),
+        ('host_time',-999,'float64'),
         ('id', '', 'S64'),
         ('position', '', 'S64'),
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
