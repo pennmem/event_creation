@@ -274,9 +274,10 @@ class CreateMontageTask(PipelineTask):
                         atlas_dict[pairs_name][axis] = coords.squeeze()[i]
                         atlas_dict[pairs_name]['region'] = None
                 for loc_name,pairs_name in self.ATLAS_NAMES_TABLE.items():
-                    atlas_dict[pairs_name] = {}
-                    for axis in 'xyz':
-                        atlas_dict[pairs_name][axis] = None
+                    if pairs_name not in atlas_dict:
+                        atlas_dict[pairs_name] = {}
+                        for axis in 'xyz':
+                            atlas_dict[pairs_name][axis] = None
                     try:
                         atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']].values)
                     except InvalidContactException as e:
