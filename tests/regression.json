@@ -1,0 +1,22 @@
+{
+  "FR1": [
+    {
+      "subject": "R1111M",
+      "session": 0
+    },
+    {
+      "subject": "R1286P",
+      "session": 0
+    },
+    {
+      "subject": "R1332M",
+      "session": 0,
+    }
+  ],
+  "catFR1": [
+    {
+      "subject":"R1198M",
+      "session":0
+    }
+  ]
+}
