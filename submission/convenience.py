@@ -107,6 +107,13 @@ def get_ltp_subject_sessions_by_experiment(experiment):
 
 
 def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montage_changes=False):
+    """
+
+    :param experiment:
+    :param protocol:
+    :param include_montage_changes:
+    :return: subject, subject_code,  session, original_session, experiment, version
+    """
     json_reader = JsonIndexReader(os.path.join(paths.rhino_root,'protocols','%s.json'%protocol))
     if experiment in json_reader.experiments():
         subjects = json_reader.subjects(experiment=experiment)
@@ -115,7 +122,13 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
                 subject = subject_no_montage if montage == '0' else '%s_%s' % (subject_no_montage, montage)
                 sessions = json_reader.sessions(subject=subject_no_montage, montage=montage, experiment=experiment)
                 for session in sessions:
-                    yield subject_no_montage, subject, len(sessions), session, experiment, '0'
+                    try:
+                        original_session =  json_reader.get_value('original_session',
+                                                                  subject=subject_no_montage,experiment=experiment,
+                                                                  session=session)
+                    except ValueError:
+                        original_session = session # not necessarily robust
+                    yield subject_no_montage, subject,session, original_session,  experiment, '0'
     else:
         if re.match('catFR[0-4]', experiment):
             ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
@@ -900,9 +913,14 @@ if __name__ == '__main__':
         print('Indexes aggregated. Exiting.')
         exit(0)
 
-    if config.db_name:
-        db_builder = IMPORT_DB_BUILDERS[config.db_name]
-        print('Building import database: {}'.format(config.db_name))
+    if config.db.name or config.db.experiment:
+        if config.db.name:
+            db_builder = IMPORT_DB_BUILDERS[config.db.name]
+            print('Building import database: {}'.format(config.db.name))
+        else: #config.db.experiment
+            db_builder = lambda:build_json_import_db('%s_import.json'%config.db.experiment,
+                                                     orig_experiments=[config.db.experiment])
+            print('Building import database: {}'.format(config.db.experiment))
         db_builder()
         print('DB built. Exiting.')
         exit(0)
