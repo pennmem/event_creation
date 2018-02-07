@@ -2,7 +2,7 @@
 paths : &PATHS
   rhino_root     : &RHINO '/'
   data_root      : !join [*RHINO,'data','eeg']
-  loc_db_root    : !join ['/Volumes','rhino_root', 'home2', 'RAM_maint', 'stim']
+  loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
   db_root        : *RHINO
   events_root    : !join [*RHINO, 'data/events']
   freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
@@ -18,6 +18,10 @@ inputs: &INPUTS
   session :
   original_session :
   reference_scheme:
+
+build_db_options: &DB_OPTIONS
+  name:
+  experiment:
 
 
 options:
@@ -71,11 +75,11 @@ options:
     action: store
     default: null
     help: 'Imports all sessions from specified JSON file. Build JSON file with option --build-db'
-  - dest: db_name
+  - dest: db
     arg: build-db
-    action: store
-    default: null
+    action: append
     help: 'Builds a JSON database which can later be imported. Current options are "sharing" or "ram"'
+    options: *DB_OPTIONS
   - dest: view_only
     arg: view-only
     help: 'View information about already-submitted subjects'
