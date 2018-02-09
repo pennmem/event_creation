@@ -1,0 +1,512 @@
+[
+  {
+    "session": "0", 
+    "experiment": "catFR2", 
+    "subject": "R1039M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR2", 
+    "subject": "R1060M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR2", 
+    "subject": "R1050M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS2.1", 
+    "subject": "R1250N"
+  }, 
+  {
+    "session": "4", 
+    "experiment": "catFR1", 
+    "subject": "R1380D"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "catFR1", 
+    "subject": "R1380D"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1347D"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "catFR1", 
+    "subject": "R1347D"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1269E"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "catFR1", 
+    "subject": "R1269E"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "catFR1", 
+    "subject": "R1207J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1207J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1338T"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1290M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1254E"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR1", 
+    "subject": "R1291M"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "catFR1", 
+    "subject": "R1291M"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "THR", 
+    "subject": "R1294C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "THR", 
+    "subject": "R1294C"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "THR", 
+    "subject": "R1305C"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "THR", 
+    "subject": "R1305C"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "THR", 
+    "subject": "R1292E"
+  }, 
+  {
+    "session": "5", 
+    "experiment": "catFR5", 
+    "subject": "R1375C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR5", 
+    "subject": "R1379E"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PS2", 
+    "subject": "R1100D"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "PS2", 
+    "subject": "R1100D"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PS2", 
+    "subject": "R1135E"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PS2", 
+    "subject": "R1138T"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PS2", 
+    "subject": "R1138T"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS3", 
+    "subject": "R1141T"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PS3", 
+    "subject": "R1054J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS3", 
+    "subject": "R1054J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS3", 
+    "subject": "R1067P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PS3", 
+    "subject": "R1067P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS1", 
+    "subject": "R1045E"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS1", 
+    "subject": "R1136N"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PS1", 
+    "subject": "R1054J"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PS1", 
+    "subject": "R1054J"
+  }, 
+  {
+    "session": "6", 
+    "experiment": "THR1", 
+    "subject": "R1328E"
+  }, 
+  {
+    "session": "4", 
+    "experiment": "THR1", 
+    "subject": "R1328E"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "THR1", 
+    "subject": "R1321M"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "THR1", 
+    "subject": "R1328E"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "THR1", 
+    "subject": "R1328E"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PAL1", 
+    "subject": "R1263C"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PAL1", 
+    "subject": "R1263C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL1", 
+    "subject": "R1215M"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PAL1", 
+    "subject": "R1215M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL1", 
+    "subject": "R1303E"
+  }, 
+  {
+    "session": "5", 
+    "experiment": "PAL1", 
+    "subject": "R1365N"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PAL1", 
+    "subject": "R1365N"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "PAL1", 
+    "subject": "R1353N"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "PAL1", 
+    "subject": "R1353N"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC2", 
+    "subject": "R1027J"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "YC2", 
+    "subject": "R1027J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC2", 
+    "subject": "R1017J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC2", 
+    "subject": "R1061T"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "YC1", 
+    "subject": "R1006P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC1", 
+    "subject": "R1006P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC1", 
+    "subject": "R1067P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "YC1", 
+    "subject": "R1114C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL2", 
+    "subject": "R1149N"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL2", 
+    "subject": "R1112M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL2", 
+    "subject": "R1130M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "TH3", 
+    "subject": "R1201P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "TH3", 
+    "subject": "R1201P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "TH1", 
+    "subject": "R1198M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "TH1", 
+    "subject": "R1198M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "TH1", 
+    "subject": "R1201P"
+  }, 
+  {
+    "session": "4", 
+    "experiment": "TH1", 
+    "subject": "R1201P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "TH1", 
+    "subject": "R1230J"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "TH1", 
+    "subject": "R1259E"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "TH1", 
+    "subject": "R1259E"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR3", 
+    "subject": "R1201P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR3", 
+    "subject": "R1293P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR2", 
+    "subject": "R1101T"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR2", 
+    "subject": "R1069M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR2", 
+    "subject": "R1085C"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR1", 
+    "subject": "R1221P"
+  }, 
+  {
+    "session": "2", 
+    "experiment": "FR1", 
+    "subject": "R1212P"
+  }, 
+  {
+    "session": "10", 
+    "experiment": "FR1", 
+    "subject": "R1212P"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR1", 
+    "subject": "R1325C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1325C"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR1", 
+    "subject": "R1230J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1230J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1361C"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR1", 
+    "subject": "R1361C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1351M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1391T"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR1", 
+    "subject": "R1391T"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR1", 
+    "subject": "R1381T"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR5", 
+    "subject": "R1304N"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "FR5", 
+    "subject": "R1351M"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "FR5", 
+    "subject": "R1351M"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR3", 
+    "subject": "R1277J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR3", 
+    "subject": "R1247P"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "catFR3", 
+    "subject": "R1286J"
+  }, 
+  {
+    "session": "1", 
+    "experiment": "catFR3", 
+    "subject": "R1286J"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL3", 
+    "subject": "R1297T"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PAL3", 
+    "subject": "R1263C"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL3", 
+    "subject": "R1263C"
+  }, 
+  {
+    "session": "3", 
+    "experiment": "PAL5", 
+    "subject": "R1333N"
+  }, 
+  {
+    "session": "0", 
+    "experiment": "PAL5", 
+    "subject": "R1318N"
+  }
+]
