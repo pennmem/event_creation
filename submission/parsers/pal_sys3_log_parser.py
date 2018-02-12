@@ -114,11 +114,14 @@ class PALSys3LogParser(PALSessionLogParser,BaseSys3_1LogParser):
 
     def modify_test(self, events):
         this_pair = ((events.serialpos==self._serialpos) | (events.probepos==self._probepos)) & (events.list==self._list)
-        events[this_pair].serialpos=self._serialpos
-        events[this_pair].probepos=self._probepos
+        new_events = events[this_pair]
+        new_events['serialpos'] = self._serialpos
+        new_events['probepos'] = self._probepos
+
         if self._study_1:
-            events[this_pair].study_1 = self._study_1
-            events[this_pair].study_2 = self._study_2
+            new_events['study_1'] = self._study_1
+            new_events['study_2'] = self._study_2
+        events[this_pair] = new_events
         return events
 
     def modify_recalls(self, events):
