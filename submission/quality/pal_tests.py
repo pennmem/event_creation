@@ -25,5 +25,5 @@ def test_words_per_list(events,files):
     for type_ in ['STUDY_PAIR','REC_EVENT']:
         for field in ['serialpos','probepos']:
             words = pd.DataFrame.from_records([e for e in events[events.type == type_]], columns=events.dtype.names)
-            assert words.groupby(field).apply(len) <= len(words.list.unique()), '%s repeated for type %s'%(field,type_)
-            assert words.groupby(field).apply(len) >= len(words.list.unique()), 'List missing %s for type %s'%(field,type_)
+            assert (words.groupby(field).apply(len) <= len(words.list.unique())).all(), '%s repeated for type %s'%(field,type_)
+            assert (words.groupby(field).apply(len) >= len(words.list.unique())).all(), 'List missing %s for type %s'%(field,type_)
