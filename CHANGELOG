@@ -1,8 +1,12 @@
-2018-1-16
+UPCOMING
 =========
-- Added brainshift-corrected MNI coordinates to localization
-- Fixed bug in which event pipeline would crash if electrode config file didn't have a name
-- Added call to brain visualization API at end of localization pipeline
+* Added brainshift-corrected MNI coordinates to localization
+* Fixed bug in which event pipeline would crash if electrode config file didn't have a name
+* Added call to brain visualization API at end of localization pipeline
+* Updates to PS4 experiment suite:
+    - all_events.json now created for PS4 experiments
+    - PS4_* now their own set of experiments
+    - anode_label,cathode_label,anode_num,cathode_num,amplitude fields moved from top level of PS4 events to stim_params
 
 2017-12-5
 =========
