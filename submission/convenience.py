@@ -705,7 +705,6 @@ def prompt_for_session_inputs(inputs, **opts):
                 original_experiment = 'PS'
             else:
                 original_experiment = experiment
-                groups += ('ps4',)
         else:
             original_experiment = experiment
 

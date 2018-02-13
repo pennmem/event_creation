@@ -152,7 +152,7 @@ class EventCreationTask(PipelineTask):
             'PAL': PALSessionLogParser,
             'catFR': CatFRSessionLogParser,
             'math': MathLogParser,
-            'PS': PSLogParser,
+            'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
         },
@@ -178,6 +178,8 @@ class EventCreationTask(PipelineTask):
             'FR': FRSys3LogParser,
             'catFR': catFRSys3LogParser,
             'PS': PSLogParser,
+            'PS_FR':PSLogParser,
+            'PS_catFR':PSLogParser,
             'PAL': PALSys3LogParser,
             'THR': THRSessionLogParser,
             'math': MathLogParser,
@@ -186,7 +188,9 @@ class EventCreationTask(PipelineTask):
             'FR': FRHostPCLogParser,
             'catFR':catFRHostPCLogParser,
             'math': MathUnityLogParser,
-            'PS':PSLogParser
+            'PS':PSLogParser,
+            'PS_FR':PSLogParser,
+            'PS_catFR':PSLogParser,
         }
     }
     LTP_PARSERS = {
@@ -206,7 +210,7 @@ class EventCreationTask(PipelineTask):
     def parser_type(self):
         if self._parser_type is None:
             if self.protocol == 'r1':
-                new_experiment = self.kwargs.get('new_experiment') or self.experiment if self.event_label=='task' else self.event_label
+                new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:

@@ -1,5 +1,6 @@
 from .base_log_parser import BaseSessionLogParser, LogParseError, BaseSys3LogParser
 from .system2_log_parser import System2LogParser
+from .hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 import numpy as np
 import re
 import json
@@ -20,6 +21,10 @@ def PSLogParser(protocol, subject, montage, experiment, session, files):
     if 'event_log' in files:
         if 'PS4' in experiment:
             return PS4Sys3LogParser(protocol,subject,montage,experiment,session,files)
+        elif 'PS5' in experiment:
+            return (catFRHostPCLogParser if 'cat' in experiment else FRHostPCLogParser)(
+                protocol,subject,montage,experiment,session,files
+            )
         else:
             return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
     elif 'session_log' in files:

@@ -85,10 +85,11 @@ class BaseHostPCLogParser(BaseSessionLogParser):
             all_contents = []
             for log in self._primary_log:
                 with open(log,'r') as primary_log:
-                    contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
-                    contents = pd.concat(
-                        [contents, pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])],
-                        axis=1)
+                    contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(
+                        subset=['msg_stub']).reset_index()
+                    messages = pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])
+                    contents = pd.concat([contents, messages],
+                                         axis=1)
                 all_contents.extend([e.to_dict() for _, e in contents.iterrows()])
             return all_contents
 
