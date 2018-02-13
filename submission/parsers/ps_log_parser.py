@@ -7,7 +7,7 @@ from .electrode_config_parser import ElectrodeConfig
 from ..alignment.system3 import System3Aligner
 import codecs
 
-def PSLogParser(protocol, subject, montage, experiment, session,  files):
+def PSLogParser(protocol, subject, montage, experiment, session, files):
     """
     Decides which of the PS parsers to use
     :param protocol:
@@ -17,12 +17,15 @@ def PSLogParser(protocol, subject, montage, experiment, session,  files):
     :param files:
     :return:
     """
-    if 'session_log' in files:
+    if 'event_log' in files:
+        if 'PS4' in experiment:
+            return PS4Sys3LogParser(protocol,subject,montage,experiment,session,files)
+        else:
+            return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
+    elif 'session_log' in files:
         return PSSessionLogParser(protocol, subject, montage, experiment, session, files)
     elif 'host_logs' in files:
         return PSHostLogParser(protocol, subject, montage, experiment, session, files)
-    elif 'event_log' in files:
-        return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
     else:
         raise Exception("Could not determine system 1, 2, or 3 from inputs")
 
