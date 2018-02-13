@@ -1,42 +1,83 @@
-from submission import convenience
-from submission.configuration import config
+from __future__ import print_function
 import os,tempfile,shutil,json,traceback
-from ptsa.data.readers import JsonIndexReader,CMLEventReader
+from ptsa.data.readers import JsonIndexReader,CMLEventReader,LocReader
+import sys
+import argparse
 
 
 class init_db_root(object):
-    """Context generator that makes a temporary directory,
-    and removes it if no error occurs"""
-    def __init__(self):
-        self.db_root = tempfile.mkdtemp()
+    def __init__(self,db_root = None,whitelist = (KeyboardInterrupt,)):
+        """
+        Context generator that makes a temporary directory,
+        and removes it if no unexpected error occurs.
+        :param whitelist: A tuple of exception classes that still let us clean up the directory
+        """
+        self.erase = False
+        if db_root is None:
+            self.db_root = tempfile.mkdtemp()
+            self.erase = True
+        else:
+            self.db_root = db_root
+        self.whitelist = whitelist
 
     def __enter__(self):
         return self.db_root
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None:
-            shutil.rmtree(self.db_root)
+        if exc_type is None or isinstance(exc_type,self.whitelist):
+            if self.erase:
+                shutil.rmtree(self.db_root)
+                print('Removing %s'%self.db_root, file=sys.stderr)
+            return True
         return False
 
+def run_localization_import(subject_code,localization_number):
+    from submission import convenience
+    subject = subject_code.split('_')[0]
+    localization_inputs = {'subject':subject,'code':subject_code,'localization':localization_number,'protocol':'r1'    }
+    return convenience.run_localization_import(localization_inputs)
 
-def run_session_import(subject_code,experiment,session,db_root):
-    config.parse_args('--path', 'db_root=%s' % db_root,
-                      '--set-input', 'code={}:experiment={}:session={}'.format(subject_code, experiment, session))
-    subject,montage = subject_code.split('_')
+
+def run_session_import(subject_code,experiment,session):
+    from submission import convenience
+    subject,montage = subject_code.split('_') if '_' in subject_code else (subject_code,'')
+
     if not montage:
         montage = '0.0'
     else:
         montage = '0.%s'%montage
+
+    config.parse_args(['--set-input', 'code={}:experiment={}:session={}:montage={}'.format(
+        subject_code, experiment, session,montage)])
+
     montage_inputs = {'code':subject_code,'montage':montage,'protocol':'r1','subject':subject,'reference_scheme':'monopolar'}
-    convenience.run_montage_import(montage_inputs,do_convert=True)
-    session_inputs = convenience.prompt_for_session_inputs(**config.options)
+    success, _ = convenience.run_montage_import(montage_inputs,do_convert=True)
+    if not success:
+        montage_root = os.path.join('protocols','r1','subjects',subject,
+                                 'localizations',0,'montages',montage.split('.')[-1],
+                                    'neuroradiology','current_processed')
+        os.makedirs(os.path.join(db_root,montage_root))
+        shutil.copytree(os.path.join(config.paths.rhino_root,montage_root),
+                        os.path.join(db_root,montage_root),
+                        symlinks=True)
+
+    session_inputs = convenience.prompt_for_session_inputs(config.inputs,)
     return convenience.run_session_import(session_inputs)
 
+def compare_equal_localizations(subject_code,localization_number):
+    run_localization_import(subject_code,localization_number)
+    new_localization  = LocReader(filename=os.path.join(db_root,'protocols','r1','subjects',subject_code.split('_')[0],
+                                                        'localizations',localization_number,
+                                                        'neuroradiology','current_processed','localization.json')).read()
+    old_localization = LocReader(
+        filename=os.path.join(config.paths.rhino_root, 'protocols', 'r1', 'subjects', subject_code.split('_')[0],
+                              'localizations', localization_number,
+                              'neuroradiology', 'current_processed', 'localization.json')).read()
+    return (old_localization==new_localization).all()
 
-def compare_equal(subject,experiment,session,db_root=None):
-    if db_root is  None:
-        db_root = init_db_root().db_root
-    run_session_import(subject, experiment, session, db_root)
+
+def compare_equal_events(subject, experiment, session):
+    run_session_import(subject, experiment, session)
     new_jr = JsonIndexReader(os.path.join(db_root,'protocols','r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
@@ -46,10 +87,7 @@ def compare_equal(subject,experiment,session,db_root=None):
     return (old_events==new_events).all()
 
 
-def compare_contains(subject,experiment,session,db_root=None):
-    if db_root is  None:
-        db_root = init_db_root().db_root
-
+def compare_contains(subject,experiment,session):
     run_session_import(subject, experiment, session,db_root)
     new_jr = JsonIndexReader(os.path.join(db_root, 'protocols', 'r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events', subject=subject,
@@ -65,35 +103,62 @@ def compare_contains(subject,experiment,session,db_root=None):
         return False
 
 
-def test():
-    with init_db_root():
-        with open('regression.json') as jf:
-            test_cases = json.load(jf)
-        successes = []
-        failures = []
-        crashes = []
-        for case in test_cases:
+def run_test(test_function,input_file,experiments = tuple()):
+    with open(input_file) as ifj:
+        test_cases = json.load(ifj)
+    successes = []
+    failures = []
+    crashes = []
+    for case in test_cases:
+        if not experiments or case['experiment'] in experiments:
             try:
-                if compare_equal(**case):
+                if test_function(**case):
                     successes.append(case)
-                else: failures.append(case)
-            except Exception :
+                else:
+                    failures.append(case)
+            except Exception:
                 tb = traceback.print_exc()
                 case['error'] = tb
                 crashes.append(case)
     return successes,failures,crashes
 
+def parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--db-root')
+    parser.add_argument('--experiments',action = 'append')
+    return parser
+
 if __name__ == '__main__':
+    args = parser().parse_args()
+    from submission.configuration import config
     import smtplib
     from email.mime.text import MIMEText
+    successes = {}
+    failures = {}
+    crashes = {}
 
-    successes,failures,crashes = test()
-    result_summary = MIMEText('Successes: \n%s\nFailures: \n%s\nCrashes:\n%s\n'%(successes,failures,crashes))
-    from_ =  'leond@rhino2.psych.upenn.edu'
+
+
+
+    with init_db_root(db_root=args.db_root) as db_root:
+        config.parse_args(['--path','db_root=%s'%db_root])
+        successes['events'],failures['events'],crashes['events'] = run_test(compare_equal_events,
+                                                                            os.path.join(os.path.dirname(__file__),
+                                                                                         'regression_sessions.json'),
+                                                                            experiments=args.experiments)
+        # TODO: Add this back in
+        # successes['localization'],failures['localization'],crashes['localization'] = run_test(compare_equal_localizations,
+        #                                                                                       'regression.json',db_root)
+    result_summary = MIMEText('Successes: \n%s\nFailures: \n%s\nCrashes:\n%s\ndb_root:%s'%(
+        json.dumps(successes,indent=2),json.dumps(failures,indent=2),json.dumps(crashes,indent=2),db_root))
+
+    # Email addresses should be configurable?
+
+    from_ = 'RAM_maint@rhino2.psych.upenn.edu'
     to_ = 'leond@sas.upenn.edu'
-    result_summary['Subject'] = 'Event_creation Regression Tests'
+    result_summary['Subject'] = 'Post_Processing Regression Tests'
     result_summary['From'] = from_
     result_summary['To'] = to_
-    s = smtplib.SMTP('localhost')
+    s = smtplib.SMTP('rhino2.psych.upenn.edu')
     s.sendmail(from_, [to_], result_summary.as_string())
     s.quit()
