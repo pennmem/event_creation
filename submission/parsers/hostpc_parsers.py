@@ -36,6 +36,8 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
     ADD_STIM_EVENTS = False
 
+    _MESSAGE_CLASS = 'StoreEventMessage'
+
     _STIM_FIELDS = (
         ('anode_label','','S64'),
         ('anode_number',-1,'int16'),
@@ -74,8 +76,9 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         if isinstance(self._primary_log,(str,unicode)):
 
             with open(self._primary_log,'r') as primary_log:
-                contents = pd.DataFrame.from_records(json.load(primary_log)['events'])
-                contents = pd.concat([contents,pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])],
+                contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(subset=['msg_stub']).reset_index()
+                messages = pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])
+                contents = pd.concat([contents,messages],
                                      axis=1)
                 return [e.to_dict() for _, e in contents.iterrows()]
         elif isinstance(self._primary_log,list):
@@ -161,10 +164,10 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             RETRIEVAL = self.event_recall,
             WORD = self.event_word,
             DISTRACT = self.event_default,
-            FEATURES = self.event_default,
+            FEATURES = self._event_skip,
             WAITING = self._event_skip,
             STIM = self.event_stim,
-            BIOMARKER = self.event_biomarker
+            BIOMARKER = self._event_skip,
         )
 
         self._add_type_to_modify_events(
@@ -201,9 +204,9 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     @with_offset
     def event_default(self, event_json):
         event = FRSys3LogParser.event_default(self,event_json)
+        event.list  = self._list
         event.phase = self._phase
         event.stim_list = self.stim_list
-        event['mstime'] = int(np.round(event_json[self._MSTIME_FIELD]))
         if event_json[self._VALUE_FIELD]:
             event['type'] = '%s_START'%event['type']
         else:
@@ -232,6 +235,8 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
             if self._list == -999:
                 self._list = -1
+            else:
+                self._list = int(event_json.get('current_trial',self._list))
             self._serialpos = 1
         event = self.event_default(event_json)
         return event
@@ -242,7 +247,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         if event_json[self._VALUE_FIELD]:
             event.type='REC_START'
         else:
-            if not event_json[self._VALUE_FIELD]:
+            if not event_json[self._VALUE_FIELD] and not event_json.get('current_trial'):
                 if self._list == -1:
                     self._list = 1
                 else:
@@ -336,3 +341,17 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         rec_events['category_num']=category_nums
         events[is_rec] = rec_events
         return events
+
+
+class PS5FRLogParser(FRHostPCLogParser):
+
+    def event_stim(self,event_json):
+        event_json[self._MSTIME_FIELD] *= 1e3
+        return super(PS5FRLogParser, self).event_stim(event_json)
+
+
+class PS5catFRLogParser(catFRHostPCLogParser):
+
+    def event_stim(self,event_json):
+        event_json[self._MSTIME_FIELD] *= 1e3
+        return super(catFRHostPCLogParser, self).event_stim(event_json)
