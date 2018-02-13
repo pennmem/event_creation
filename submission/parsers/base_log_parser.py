@@ -220,11 +220,15 @@ class BaseLogParser(object):
 
         if 'anode_label' in params and 'anode_number' not in params:
             reverse_jacksheet = {v: k for k, v in jacksheet.items()}
-            event.stim_params[index]['anode_number'] = reverse_jacksheet[params['anode_label'].upper()]
+            event.stim_params[index]['anode_number'] = reverse_jacksheet.get(params['anode_label'].upper(),
+                                                                             reverse_jacksheet[params['anode_label']]
+                                                                             )
 
         if 'cathode_label' in params and 'cathode_number' not in params:
             reverse_jacksheet = {v: k for k, v in jacksheet.items()}
-            event.stim_params[index]['cathode_number'] = reverse_jacksheet[params['cathode_label'].upper()]
+            event.stim_params[index]['cathode_number'] = reverse_jacksheet.get(params['cathode_label'].upper(),
+                                                                               reverse_jacksheet[params['cathode_label']])
+
 
         if 'anode_number' in params and 'anode_label' not in params:
             event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']].upper()
