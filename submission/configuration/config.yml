@@ -1,9 +1,9 @@
 
 paths : &PATHS
-  rhino_root     : &RHINO '/Volumes/rhino_root'
+  rhino_root     : &RHINO '/'
   data_root      : !join [*RHINO,'data','eeg']
   loc_db_root    : !join ['/Volumes','rhino_root', 'home2', 'RAM_maint', 'stim']
-  db_root        : /Users/leond
+  db_root        : *RHINO
   events_root    : !join [*RHINO, 'data/events']
   freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
 
