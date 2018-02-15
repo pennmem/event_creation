@@ -1,4 +1,16 @@
-UPCOMING
+2018-1-15
+=========
+- Added support for PS5, FR6
+- both CatFR* and catFR* are acceptible names for catFR experiments (though not PS*_catFR*)
+- Added parsers.dtypes module; all experiments with the same name should now create events with the same fields
+
+
+Outstanding Issues
+------------------
+- mstime field in events produced by HostPCLogParser do not use a unified clock
+
+
+2018-1-16
 =========
 * Added brainshift-corrected MNI coordinates to localization
 * Fixed bug in which event pipeline would crash if electrode config file didn't have a name
