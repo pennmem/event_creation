@@ -190,6 +190,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     @with_offset
     def event_stim(self,event_json):
         event = super(FRHostPCLogParser, self).event_stim(event_json)
+        self.apply_word(event)
         if self._stim_on:
             event.stim_params['biomarker_value']=self._biomarker_value
         self._stim_on = True
