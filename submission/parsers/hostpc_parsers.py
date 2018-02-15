@@ -349,27 +349,3 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         events[is_rec] = rec_events
         return events
 
-
-class PS5FRLogParser(FRHostPCLogParser):
-
-    def event_stim(self,event_json):
-        event_json[self._MSTIME_FIELD] *= 1e3
-        return super(PS5FRLogParser, self).event_stim(event_json)
-
-
-class PS5catFRLogParser(catFRHostPCLogParser):
-
-    def event_stim(self,event_json):
-        event_json[self._MSTIME_FIELD] *= 1e3
-        return super(catFRHostPCLogParser, self).event_stim(event_json)
-
-
-class PSHostPCLogParser(BaseHostPCLogParser):
-
-    _PS_STIM_PARAMS_FIELDS = (
-        ('trigger_anode','X','S'),
-        ('trigger_cathode','X','S'),
-        ('anode','X','S',),
-        ('cathode','X','S'),
-
-    )
