@@ -696,6 +696,9 @@ def prompt_for_session_inputs(inputs, **opts):
     experiment = inputs.experiment
     if experiment is None:
         experiment = input('Enter experiment name: ')
+    if experiment.upper().startswith('CAT'): # Stupid hack so that catFR6 can be case insensitive
+        inputs.original_experiment = experiment
+        experiment = experiment[0].lower() + experiment[1:]
 
     protocol = inputs.protocol
     if protocol is None:
