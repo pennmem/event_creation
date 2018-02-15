@@ -293,6 +293,11 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         return events
 
 
+    def clean_events(self, events):
+        events.sort(order = ['list','eegoffset','mstime'],)
+        return events
+
+
 class catFRHostPCLogParser(FRHostPCLogParser):
 
     _catFR_FIELDS = (
