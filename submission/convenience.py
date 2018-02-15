@@ -300,36 +300,6 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 
     attempted_importers = []
     successes = [True]
-    # logger.set_subject(kwargs['subject'], kwargs['protocol'])
-    # logger.set_label('PS4 session importer')
-
-
-    # if not kwargs['protocol']=='ltp' and kwargs['PS4']:
-    #     ps4_kwargs = deepcopy(kwargs)
-    #     ps4_kwargs['new_experiment'] = 'PS4'
-    #     ps4_kwargs['do_math']=False
-    #
-    #     ephys_builder = Importer(Importer.BUILD_EPHYS,**ps4_kwargs)
-    #     success, attempts = attempt_importers([ephys_builder],force_eeg)
-    #     attempted_importers.extend(attempts)
-    #     successes.append(success)
-    #     if success:
-    #         events_builder = Importer(Importer.BUILD_EVENTS,**ps4_kwargs)
-    #         events_success, attempts = attempt_importers([events_builder],force_events)
-    #         attempted_importers.extend(attempts)
-    #         successes.append(events_success)
-    #         if not events_success:
-    #             logger.info('PS4 Events builder failed. Unwinding.')
-    #             events_builder.remove()
-    #     else:
-    #         logger.info('PS4 Ephys builder failed. Unwinding.')
-    #         ephys_builder.remove()
-    #
-    #
-    # logger.set_label('Session Importer')
-
-    # ephys_importers = []
-    # events_importers = []
 
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS,**kwargs)
@@ -751,8 +721,6 @@ def prompt_for_session_inputs(inputs, **opts):
                 original_experiment = 'PS'
             else:
                 original_experiment = experiment
-                experiment = experiment.split('_')[-1]
-                groups += ('ps4',)
         else:
             original_experiment = experiment
 

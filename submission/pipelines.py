@@ -41,12 +41,12 @@ N_PS4_SESSIONS = 10
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
 
-    if 'PS4' in full_experiment:
-        groups += ('PS4',)
+    if '_' in full_experiment:
+        groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]
     else:
         experiment = full_experiment
-    if protocol == 'r1' and experiment.endswith('5') and 'PS4' not in groups:
+    if protocol == 'r1' and 'FR5' in experiment:
         groups += ('recog',)
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
@@ -98,9 +98,6 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                          ", but this will likely fail very soon!".format(sys))
         groups += (sys,)
 
-        # FIXME: this is a dangerous way of determining stim experiments
-        if experiment[-1] in ["3", "5", "6"]:
-            groups += ("stim", )
     return groups
 
 def r1_system_match(experiment, transfer_cfg, sys):
@@ -335,11 +332,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     try:
         kwargs['sync_folder'], kwargs['sync_filename'] = find_sync_file(code, experiment, original_session)
-    except:
+    except Exception:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 
     groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
+    try:
+        if any('PS' in g and int(re.sub(r'PS','',g))>3 for g in groups):
+            do_math = True
+    except Exception:
+        pass
 
     transferer = generate_session_transferer(subject, experiment, session, protocol, groups,
                                              code=code, **kwargs)
@@ -350,8 +352,16 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         system = [x for x in groups if 'system' in x][0]
         system = system.partition('_')[-1]
         tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
-
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('ps4' not in groups), **kwargs))
+        if kwargs.get('new_experiment'):
+            new_exp = kwargs['new_experiment']
+            if 'PS4_' in new_exp:
+                task_kwargs = dict(**kwargs)
+                task_kwargs['new_experiment'] = new_exp.split('_')[-1]
+            else:
+                task_kwargs = kwargs
+        else:
+            task_kwargs = kwargs
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('PS4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         if experiment == 'ltpFR':
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
@@ -367,9 +377,9 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     other_events = ()
 
-    if 'ps4' in groups:
+    if 'PS4' in groups:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'ps4', parser_type=PS4Sys3LogParser, **kwargs))
+                                       event_label='ps4', **kwargs))
         other_events += ('ps4',)
 
     if do_math:

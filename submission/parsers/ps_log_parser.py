@@ -1,5 +1,6 @@
 from .base_log_parser import BaseSessionLogParser, LogParseError, BaseSys3LogParser
 from .system2_log_parser import System2LogParser
+from .hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 import numpy as np
 import re
 import json
@@ -7,7 +8,7 @@ from .electrode_config_parser import ElectrodeConfig
 from ..alignment.system3 import System3Aligner
 import codecs
 
-def PSLogParser(protocol, subject, montage, experiment, session,  files):
+def PSLogParser(protocol, subject, montage, experiment, session, files):
     """
     Decides which of the PS parsers to use
     :param protocol:
@@ -17,12 +18,19 @@ def PSLogParser(protocol, subject, montage, experiment, session,  files):
     :param files:
     :return:
     """
-    if 'session_log' in files:
+    if 'event_log' in files:
+        if 'PS4' in experiment:
+            return PS4Sys3LogParser(protocol,subject,montage,experiment,session,files)
+        elif 'PS5' in experiment:
+            return (catFRHostPCLogParser if 'cat' in experiment else FRHostPCLogParser)(
+                protocol,subject,montage,experiment,session,files
+            )
+        else:
+            return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
+    elif 'session_log' in files:
         return PSSessionLogParser(protocol, subject, montage, experiment, session, files)
     elif 'host_logs' in files:
         return PSHostLogParser(protocol, subject, montage, experiment, session, files)
-    elif 'event_log' in files:
-        return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
     else:
         raise Exception("Could not determine system 1, 2, or 3 from inputs")
 
@@ -438,11 +446,6 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         ('biomarker_value',-999,'float64'),
         ('position','None','S10'),
         ('delta_classifier',-999,'float64'),
-        ('anode_label','','S20'),
-        ('cathode_label','','S20'),
-        ('anode_num',-999,'int16'),
-        ('cathode_num',-999,'int16'),
-        ('amplitude',-999,'int16'),
         ('list_phase','','S16'),
         ('loc1', BaseSessionLogParser.event_from_template(_LOC_FIELDS),
          BaseSessionLogParser.dtype_from_template(_LOC_FIELDS)),
@@ -479,6 +482,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         self._add_type_to_modify_events(
             STIM = self.modify_with_stim_params,
             BIOMARKER = self.modify_with_stim_params,
+            FEATURES = self.modify_with_stim_params,
             OPTIMIZATION = self.modify_with_stim_params
         )
 
@@ -496,19 +500,20 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         if events.shape:
             event_id = events[-1]['id']
             matches = [events['id']==event_id]
-            new_events = self.apply_stim_params(events[matches])
-            events[matches] = new_events
+            new_params= self.apply_stim_params(events[matches].stim_params)
+            events['stim_params'][matches]= new_params
         return events
 
 
 
     def apply_stim_params(self,event):
-        event.anode_label  = self._anode
-        event.cathode_label = self._cathode
-        event.anode_num = self._anode_num
-        event.cathode_num = self._cathode_num
-        event.amplitude = self._amplitude
-        event.frequency = self._frequency
+        event[:,0].anode_label  = self._anode
+        event[:,0].cathode_label = self._cathode
+        event[:,0].anode_number = self._anode_num
+        event[:,0].cathode_number = self._cathode_num
+        event[:,0].amplitude = self._amplitude
+        event[:,0].frequency = self._frequency
+        event[:,0]['_remove']= False
         return event
 
     def event_default(self, event_json):
@@ -579,11 +584,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
                     self._amplitude = stim_params_dict['stim_channels'][stim_pair]['amplitude']
                     self._frequency = stim_params_dict['stim_channels'][stim_pair]['pulse_freq'] / 1000
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
-        event = self.event_default(event_json)
-        event.list_phase = self._list_phase
-        event.id = self._id
-        event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
-        return event
+        return False
 
     def event_decision(self,event_json):
         event = self.event_default(event_json)

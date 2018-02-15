@@ -33,7 +33,7 @@ from .parsers.ps_log_parser import PSLogParser,PS4Sys3LogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathLogParser,MathUnityLogParser
-from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
+from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser,PSHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 
@@ -152,7 +152,7 @@ class EventCreationTask(PipelineTask):
             'PAL': PALSessionLogParser,
             'catFR': CatFRSessionLogParser,
             'math': MathLogParser,
-            'PS': PSLogParser,
+            'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
         },
@@ -177,7 +177,9 @@ class EventCreationTask(PipelineTask):
         3.1: {
             'FR': FRSys3LogParser,
             'catFR': catFRSys3LogParser,
-            'PS': PS4Sys3LogParser,
+            'PS': PSLogParser,
+            'PS_FR':PSLogParser,
+            'PS_catFR':PSLogParser,
             'PAL': PALSys3LogParser,
             'THR': THRSessionLogParser,
             'math': MathLogParser,
@@ -186,6 +188,9 @@ class EventCreationTask(PipelineTask):
             'FR': FRHostPCLogParser,
             'catFR':catFRHostPCLogParser,
             'math': MathUnityLogParser,
+            'PS':PSLogParser,
+            'PS_FR':PSLogParser,
+            'PS_catFR':PSLogParser,
         }
     }
     LTP_PARSERS = {
@@ -205,7 +210,7 @@ class EventCreationTask(PipelineTask):
     def parser_type(self):
         if self._parser_type is None:
             if self.protocol == 'r1':
-                new_experiment = self.kwargs.get('new_experiment') or self.experiment if self.event_label=='task' else self.event_label
+                new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:
@@ -218,8 +223,8 @@ class EventCreationTask(PipelineTask):
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
-        new_experiment = kwargs.get('new_experiment') or experiment
-        self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp= new_experiment, sess=session)
+        experiment = kwargs.get('new_experiment') or experiment
+        self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp= experiment, sess=session)
         self.protocol = protocol
         self.subject = subject
         self.montage = montage

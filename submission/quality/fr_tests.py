@@ -103,7 +103,7 @@ def test_stim_on_position(events,files):
         except KeyError:
             return
 
-        trial_0 = events[events.type=='TRIAL'][0]
+        trial_0 = events[(events.type=='TRIAL') | (events.type=='ENCODING_START')][0]
         n_early_stims = (stim_events.mstime<=trial_0.mstime).sum()
         assert n_early_stims<= n_artifact_stims, '%s unexpected stim events before experiment begins'%(n_early_stims-n_artifact_stims)
 def test_rec_bracket(events,files):
