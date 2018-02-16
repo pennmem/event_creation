@@ -3,6 +3,8 @@ import os,tempfile,shutil,json,traceback
 from ptsa.data.readers import JsonIndexReader,CMLEventReader,LocReader
 import sys
 import argparse
+import matplotlib
+matplotlib.use('agg')
 
 
 class init_db_root(object):
@@ -53,13 +55,12 @@ def run_session_import(subject_code,experiment,session):
     montage_inputs = {'code':subject_code,'montage':montage,'protocol':'r1','subject':subject,'reference_scheme':'monopolar'}
     success, _ = convenience.run_montage_import(montage_inputs,do_convert=True)
     if not success:
-        montage_root = os.path.join('protocols','r1','subjects',subject,
-                                 'localizations',0,'montages',montage.split('.')[-1],
-                                    'neuroradiology','current_processed')
-        os.makedirs(os.path.join(db_root,montage_root))
-        shutil.copytree(os.path.join(config.paths.rhino_root,montage_root),
-                        os.path.join(db_root,montage_root),
-                        symlinks=True)
+        localization_root = os.path.join('protocols','r1','subjects',subject,
+                                 'localizations','0')
+        if not os.path.isdir(localization_root):
+            shutil.copytree(os.path.join(config.paths.rhino_root,localization_root),
+                            os.path.join(db_root,localization_root),
+                            symlinks=True)
 
     session_inputs = convenience.prompt_for_session_inputs(config.inputs,)
     return convenience.run_session_import(session_inputs)
@@ -77,7 +78,7 @@ def compare_equal_localizations(subject_code,localization_number):
 
 
 def compare_equal_events(subject, experiment, session):
-    run_session_import(subject, experiment, session)
+    assert run_session_import(subject, experiment, session)[0]
     new_jr = JsonIndexReader(os.path.join(db_root,'protocols','r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
@@ -117,7 +118,7 @@ def run_test(test_function,input_file,experiments = tuple()):
                 else:
                     failures.append(case)
             except Exception:
-                tb = traceback.print_exc()
+                tb = traceback.format_exc()
                 case['error'] = tb
                 crashes.append(case)
     return successes,failures,crashes
@@ -159,6 +160,6 @@ if __name__ == '__main__':
     result_summary['Subject'] = 'Post_Processing Regression Tests'
     result_summary['From'] = from_
     result_summary['To'] = to_
-    s = smtplib.SMTP('rhino2.psych.upenn.edu')
+    s = smtplib.SMTP('localhost')
     s.sendmail(from_, [to_], result_summary.as_string())
     s.quit()
