@@ -89,7 +89,7 @@ def compare_equal_events(subject, experiment, session):
 
 
 def compare_contains(subject,experiment,session):
-    run_session_import(subject, experiment, session,db_root)
+    run_session_import(subject, experiment, session)
     new_jr = JsonIndexReader(os.path.join(db_root, 'protocols', 'r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events', subject=subject,
                                                           experiment=experiment, session=session)).read()
@@ -137,10 +137,6 @@ if __name__ == '__main__':
     successes = {}
     failures = {}
     crashes = {}
-
-
-
-
     with init_db_root(db_root=args.db_root) as db_root:
         config.parse_args(['--path','db_root=%s'%db_root])
         successes['events'],failures['events'],crashes['events'] = run_test(compare_equal_events,
