@@ -29,6 +29,7 @@ GROUPS = {
     'FR': ('verbal', 'stim'),
     'PAL': ('verbal', 'stim'),
     'catFR': ('verbal', 'stim'),
+    'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
     'ltpFR': ('verbal',)
 }
