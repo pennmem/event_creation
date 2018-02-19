@@ -4,34 +4,34 @@ from ptsa.data.readers import JsonIndexReader,CMLEventReader,LocReader
 import sys
 import argparse
 import matplotlib
+import contextlib
 matplotlib.use('agg')
 
+@contextlib.contextmanager
+def init_db_root(db_root = None,whitelist = (KeyboardInterrupt,)):
+    """
+    Context generator that makes a temporary directory,
+    and removes it if no unexpected error occurs.
+    :param whitelist: A tuple of exception classes that still let us clean up the directory
+    """
 
-class init_db_root(object):
-    def __init__(self,db_root = None,whitelist = (KeyboardInterrupt,)):
-        """
-        Context generator that makes a temporary directory,
-        and removes it if no unexpected error occurs.
-        :param whitelist: A tuple of exception classes that still let us clean up the directory
-        """
-        self.erase = False
-        if db_root is None:
-            self.db_root = tempfile.mkdtemp()
-            self.erase = True
+    erase = False
+    if db_root is None:
+        db_root = tempfile.mkdtemp()
+        erase = True
+    else:
+        db_root = db_root
+    whitelist = whitelist
+    try:
+        yield db_root
+    except Exception as e:
+        if issubclass(type(e),whitelist):
+            erase = True
         else:
-            self.db_root = db_root
-        self.whitelist = whitelist
-
-    def __enter__(self):
-        return self.db_root
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if exc_type is None or isinstance(exc_type,self.whitelist):
-            if self.erase:
-                shutil.rmtree(self.db_root)
-                print('Removing %s'%self.db_root, file=sys.stderr)
-            return True
-        return False
+            erase = False
+    finally:
+        if erase:
+            shutil.rmtree(db_root)
 
 def run_localization_import(subject_code,localization_number):
     from submission import convenience
