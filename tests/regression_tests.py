@@ -1,7 +1,7 @@
 from __future__ import print_function
 import os,tempfile,shutil,json,traceback
 from ptsa.data.readers import JsonIndexReader,CMLEventReader,LocReader
-import sys
+from submission.parsers.base_log_parser import EventComparator,StimComparator
 import argparse
 import matplotlib
 import contextlib
@@ -29,6 +29,7 @@ def init_db_root(db_root = None,whitelist = (KeyboardInterrupt,)):
             erase = True
         else:
             erase = False
+            raise
     finally:
         if erase:
             shutil.rmtree(db_root)
@@ -36,7 +37,7 @@ def init_db_root(db_root = None,whitelist = (KeyboardInterrupt,)):
 def run_localization_import(subject_code,localization_number):
     from submission import convenience
     subject = subject_code.split('_')[0]
-    localization_inputs = {'subject':subject,'code':subject_code,'localization':localization_number,'protocol':'r1'    }
+    localization_inputs = {'subject':subject,'code':subject_code,'localization':localization_number,'protocol':'r1'}
     return convenience.run_localization_import(localization_inputs)
 
 
@@ -63,7 +64,9 @@ def run_session_import(subject_code,experiment,session):
                             symlinks=True)
 
     session_inputs = convenience.prompt_for_session_inputs(config.inputs,)
-    return convenience.run_session_import(session_inputs)
+    success,_ = convenience.run_session_import(session_inputs)
+    convenience.IndexAggregatorTask().run_single_subject(subject,'r1')
+    return success
 
 def compare_equal_localizations(subject_code,localization_number):
     run_localization_import(subject_code,localization_number)
@@ -74,22 +77,26 @@ def compare_equal_localizations(subject_code,localization_number):
         filename=os.path.join(config.paths.rhino_root, 'protocols', 'r1', 'subjects', subject_code.split('_')[0],
                               'localizations', localization_number,
                               'neuroradiology', 'current_processed', 'localization.json')).read()
+
     return (old_localization==new_localization).all()
 
 
 def compare_equal_events(subject, experiment, session):
-    assert run_session_import(subject, experiment, session)[0]
+    assert run_session_import(subject, experiment, session)
     new_jr = JsonIndexReader(os.path.join(db_root,'protocols','r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
     old_jr = JsonIndexReader(os.path.join(config.paths.rhino_root,'protocols','r1.json'))
     old_events = CMLEventReader(filename=old_jr.get_value('all_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
-    return (old_events==new_events).all()
+    flat_comparison = EventComparator(events1=old_events,events2=new_events,
+                                      field_ignore=('stim_params','test','eegfile','msoffset'))
+
+    return flat_comparison.compare()
 
 
 def compare_contains(subject,experiment,session):
-    run_session_import(subject, experiment, session)
+    assert run_session_import(subject, experiment, session)
     new_jr = JsonIndexReader(os.path.join(db_root, 'protocols', 'r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events', subject=subject,
                                                           experiment=experiment, session=session)).read()
@@ -109,19 +116,15 @@ def run_test(test_function,input_file,experiments = tuple()):
         test_cases = json.load(ifj)
     successes = []
     failures = []
-    crashes = []
     for case in test_cases:
         if not experiments or case['experiment'] in experiments:
-            try:
-                if test_function(**case):
-                    successes.append(case)
-                else:
-                    failures.append(case)
-            except Exception:
-                tb = traceback.format_exc()
-                case['error'] = tb
-                crashes.append(case)
-    return successes,failures,crashes
+            success, msg = test_function(**case)
+            if success:
+                successes.append(case)
+            else:
+                case['error']=msg
+                failures.append(case)
+    return successes,failures
 
 def parser():
     parser = argparse.ArgumentParser()
@@ -139,15 +142,15 @@ if __name__ == '__main__':
     crashes = {}
     with init_db_root(db_root=args.db_root) as db_root:
         config.parse_args(['--path','db_root=%s'%db_root])
-        successes['events'],failures['events'],crashes['events'] = run_test(compare_equal_events,
+        successes['events'],failures['events'] = run_test(compare_equal_events,
                                                                             os.path.join(os.path.dirname(__file__),
                                                                                          'regression_sessions.json'),
                                                                             experiments=args.experiments)
         # TODO: Add this back in
         # successes['localization'],failures['localization'],crashes['localization'] = run_test(compare_equal_localizations,
         #                                                                                       'regression.json',db_root)
-    result_summary = MIMEText('Successes: \n%s\nFailures: \n%s\nCrashes:\n%s\ndb_root:%s'%(
-        json.dumps(successes,indent=2),json.dumps(failures,indent=2),json.dumps(crashes,indent=2),db_root))
+    result_summary = MIMEText('Successes: \n%s\nFailures: \n%s\ndb_root:%s'%(
+        json.dumps(successes,indent=2),json.dumps(failures,indent=2),db_root))
 
     # Email addresses should be configurable?
 

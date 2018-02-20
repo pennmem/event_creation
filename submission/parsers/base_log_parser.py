@@ -678,6 +678,7 @@ class EventComparator(object):
         :return:
         """
         mismatch = []
+        event1,event2 = (ev if not ev.shape else ev[0] for ev in (event1,event2))
         if subfield:
             ev1 = event1[subfield]
             ev2 = event2[subfield]
@@ -689,7 +690,7 @@ class EventComparator(object):
         for field in names:
             if isinstance(ev1[field], np.void) and ev2[field].dtype.names:  # Why is this typing as void?
                 mismatch.extend(self._get_field_mismatch(event1, event2, field))
-            elif ev1[field] != ev2[field] and not self.exceptions(event1, event2, field, subfield):
+            elif ev2[field]!= ev1[field] and not self.exceptions(event1, event2, field, subfield):
                 mismatch.append('%s: %s v. %s' % (field, ev1[field], ev2[field]))
         return mismatch
 
