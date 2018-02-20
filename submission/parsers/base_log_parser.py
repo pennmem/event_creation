@@ -132,7 +132,7 @@ class BaseLogParser(object):
         for test in self._TESTS:
             try:
                 test(events,files)
-            except AssertionError as e:
+            except Exception as e:
                 msgs.append('{}.{}: {}'.format(type(self).__name__,test.__name__,e.message))
         return msgs
 
