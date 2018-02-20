@@ -22,7 +22,8 @@ from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_import_montage_transferer, generate_create_montage_transferer,TransferError, TRANSFER_INPUTS, find_sync_file
+                       generate_import_montage_transferer, generate_create_montage_transferer, TRANSFER_INPUTS, find_sync_file
+from .exc import TransferError
 from .log import logger
 
 GROUPS = {
@@ -68,7 +69,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         inputs.update(**paths.options)
 
         systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0')
-
+        misses = {}
         for sys in systems:
             try:
                 logger.info("Checking if this system is {}".format(sys))
@@ -92,11 +93,11 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
             except Exception as e:
                 logger.debug("This system is probably not {} due to error: {}".format(sys, e))
+                misses[sys] = e
                 continue
         else:
-            logger.debug("System_# determination failed. I'm a failure. Nobody loves me.")
-            logger.error("Could not determine system of r1 subject. Continuing as if system is {}"
-                         ", but this will likely fail very soon!".format(sys))
+            raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
+                                + "System is most likely %d"%min(*misses.items(),key=lambda x:len(x[1]))[0])
         groups += (sys,)
 
     return groups
