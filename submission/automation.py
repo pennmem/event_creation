@@ -33,33 +33,57 @@ class ImporterCollection(object):
         label += '\n\t\t'.join([k + ': ' + ', '.join([str(v_o) for v_o in v]) for k, v in self.kwargs.items()])
         statuses = [label]
 
-        initialization_statuses = '\tInitialization statuses: '
-        initialization_statuses += ', '.join([i.describe_initialization() for  i in self.importers])
+        initialization_statuses = self.describe_initializations()
         statuses.append(initialization_statuses)
 
-        transfer_statuses = '\tTransfer statuses: '
-        transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
+        transfer_statuses = self.describe_transfers()
         statuses.append(transfer_statuses)
 
-        processing_statuses = '\tProcessing statuses: '
-        processing_statuses += ', '.join([i.describe_processing() for i in self.importers])
+        processing_statuses = self.describe_processings()
         statuses.append(processing_statuses)
 
-        if any([importer.errored for importer in self.importers]):
-            error_status = '\tErrors:\n'
-            for importer in self.importers:
-                if importer.errored:
-                    error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
-
+        error_status = self.describe_errors()
+        if error_status:
             statuses.append(error_status)
-        if any([any(importer.tests) for importer in self.importers]):
-            warning_status = '\tTest Results: \n'
-            for importer in self.importers:
-                if any(importer.tests):
-                    warning_status += '\n%s:\n%s'%(importer.label,importer.describe_tests())
+
+        warning_status = self.describe_tests()
+        if warning_status:
             statuses.append(warning_status)
 
         return '\n'.join(statuses)
+
+    def describe_tests(self):
+        warning_status = ''
+        if any([any(importer.tests) for importer in self.importers]):
+            warning_status += '\tTest Results: \n'
+            for importer in self.importers:
+                if any(importer.tests):
+                    warning_status += '\n%s:\n%s' % (importer.label, importer.describe_tests())
+        return warning_status
+
+    def describe_processings(self):
+        processing_statuses = '\tProcessing statuses: '
+        processing_statuses += ', '.join([i.describe_processing() for i in self.importers])
+        return processing_statuses
+
+    def describe_errors(self):
+        error_status = ''
+        if any([importer.errored for importer in self.importers]):
+            error_status += '\tErrors:\n'
+            for importer in self.importers:
+                if importer.errored:
+                    error_status += '\n' + importer.label + ':\n' + importer.describe_errors()
+        return error_status
+
+    def describe_transfers(self):
+        transfer_statuses = '\tTransfer statuses: '
+        transfer_statuses += ', '.join([i.describe_transfers() for i in self.importers])
+        return transfer_statuses
+
+    def describe_initializations(self):
+        initialization_statuses = '\tInitialization statuses: '
+        initialization_statuses += ', '.join([i.describe_initializations() for i in self.importers])
+        return initialization_statuses
 
 
 class Importer(object):
