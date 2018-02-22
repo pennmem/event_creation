@@ -637,23 +637,6 @@ class EventComparator(object):
         ev1_names = events1.dtype.names
         ev2_names = events2.dtype.names
 
-        if not same_fields:
-            names = (n for n in ev1_names if n in ev2_names)
-            events1 = events1[names]
-            events2 = events2[names]
-        else:
-
-            # Make sure we can compare the events
-            for name in ev1_names:
-                if name not in ev2_names and name not in field_switch and name not in field_ignore:
-                    raise EventFieldError(name)
-
-            for name in ev2_names:
-                if name not in ev1_names and name not in field_switch.values() and name not in field_ignore:
-                    raise EventFieldError(name)
-
-        self.events1 = events1
-        self.events2 = events2
         self.field_switch = field_switch if field_switch else {}
         self.type_switch = type_switch if type_switch else {}
         self.field_ignore = field_ignore if field_ignore else []
@@ -661,6 +644,24 @@ class EventComparator(object):
         self.exceptions = exceptions if exceptions else lambda *_: False
         self.match_field = match_field
 
+
+        if not same_fields:
+            names = [n for n in ev1_names if n in ev2_names]
+            events1 = events1[names]
+            events2 = events2[names]
+        else:
+
+            # Make sure we can compare the events
+            for name in ev1_names:
+                if name not in ev2_names and name not in self.field_switch and name not in self.field_ignore:
+                    raise EventFieldError(name)
+
+            for name in ev2_names:
+                if name not in ev1_names and name not in self.field_switch.values() and name not in self.field_ignore:
+                    raise EventFieldError(name)
+
+        self.events1 = events1
+        self.events2 = events2
 
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:
