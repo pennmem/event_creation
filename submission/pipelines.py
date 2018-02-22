@@ -17,8 +17,6 @@ from .parsers.base_log_parser import get_version_num
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from .parsers.mat_converter import MathMatConverter
-from .parsers.ps_log_parser import PS4Sys3LogParser
-from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
@@ -81,6 +79,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                 if len(missing_files) > 0:
                     names = [missing_file.name for missing_file in missing_files]
                     logger.info("Determined due to missing files ({}) that this system is not {}".format(names, sys))
+                    misses[sys] = str(names)
                     continue
 
                 match = r1_system_match(full_experiment, transfer_cfg, sys)
@@ -90,14 +89,14 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                     break
                 else:
                     logger.info("Determined from log files that this system is not {}".format(sys))
-
+                    misses[sys] = ''
             except Exception as e:
                 logger.debug("This system is probably not {} due to error: {}".format(sys, e))
-                misses[sys] = e
+                misses[sys] = str(e)
                 continue
         else:
             raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
-                                + "System is most likely %d"%min(*misses.items(),key=lambda x:len(x[1]))[0])
+                                + "System is most likely %s"%min(*misses,key=lambda x:len(x[1])))
         groups += (sys,)
 
     return groups
