@@ -1,0 +1,40 @@
+package:
+  name: event_creation
+  version: "0.1.0" # while testing build functionality; once conda build works, will be 1.0.0
+
+source:
+  path: ../
+
+build:
+  number: 0
+
+requirements:
+  build:
+    - python
+    - setuptools
+
+  run:
+    - xlrd
+    - matplotlib
+    - pyyaml
+    - sympy
+    - h5py
+    - pandas
+    - ptsa
+    - bptools
+    - pip:
+      - pyedflib
+      - pywavelets
+      - nibabel
+      - mne
+      - requests
+      - scikit-image
+
+  test:
+    - imports:
+      - event_creation
+      - event_creation.submission
+      - event_creation.neurorad
+
+
+
