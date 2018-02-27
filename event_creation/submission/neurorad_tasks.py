@@ -2,9 +2,9 @@ import os
 import requests
 import bptools.pairs
 
-from neurorad.json_cleaner import clean_json_dumps
-from neurorad.localization import Localization,InvalidContactException
-from neurorad import (vox_mother_converter, calculate_transformation, add_locations,
+from ..neurorad.json_cleaner import clean_json_dumps
+from ..neurorad.localization import Localization,InvalidContactException
+from ..neurorad import (vox_mother_converter, calculate_transformation, add_locations,
                       brainshift_correct,make_outer_surface,map_mni_coords,)
 
 from .log import logger

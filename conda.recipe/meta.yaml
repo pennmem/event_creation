@@ -1,6 +1,8 @@
+{% set setup_data = load_setup_py_data() %}
+
 package:
   name: event_creation
-  version: "0.1.0" # while testing build functionality; once conda build works, will be 1.0.0
+  version: {{ setup_data['version'] }}
 
 source:
   path: ../
@@ -22,16 +24,9 @@ requirements:
     - pandas
     - ptsa
     - bptools
-    - pip:
-      - pyedflib
-      - pywavelets
-      - nibabel
-      - mne
-      - requests
-      - scikit-image
 
   test:
-    - imports:
+    imports:
       - event_creation
       - event_creation.submission
       - event_creation.neurorad

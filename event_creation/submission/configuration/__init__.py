@@ -1,6 +1,6 @@
-import neurorad.config
+from ...neurorad import config as neurorad_config
 from .config import Configuration
 
 config = Configuration()
 paths = config.paths
-neurorad.config.paths = paths
+neurorad_config.paths = paths

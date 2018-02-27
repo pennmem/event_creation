@@ -2,6 +2,9 @@ from __future__ import print_function
 import os,socket
 import runpy
 import sys
+
+__version___ = "0.1.0"
+
 if sys.version_info[0] < 3:
     input = raw_input
 
@@ -24,10 +27,10 @@ def submit():
     if "node" not in host:
         print("This script is best run from a node not the headnode (use qlogin)")
         confirm("Are you sure you want to continue? ")
-    runpy._run_module_as_main("submission.convenience")
+    runpy._run_module_as_main("event_creation.submission.convenience")
 
 
 def split():
-    runpy._run_module_as_main("submission.readers.eeg_splitter")
+    runpy._run_module_as_main("event_creation.submission.readers.eeg_splitter")
 
 
