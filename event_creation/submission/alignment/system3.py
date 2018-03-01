@@ -145,7 +145,7 @@ class System3Aligner(object):
         if len(coefs) == 0:
             raise AlignmentError("Could not find enough events to determine coefficients!")
 
-        return coefs, ends
+        return np.array(coefs), np.array(ends)
 
     def align(self, start_type=None):
 
@@ -179,7 +179,7 @@ class System3Aligner(object):
             if len(inds) == 0:
                 ind = len(self.host_ends)-1
             else:
-                ind = inds[-1]
+                ind = inds[0]
 
             task_time = self.apply_coefficients_backwards(0, self.task_to_ens_coefs[ind])
 

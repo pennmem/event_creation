@@ -210,7 +210,10 @@ class EventCreationTask(PipelineTask):
     def parser_type(self):
         if self._parser_type is None:
             if self.protocol == 'r1':
-                new_experiment = self.kwargs.get('new_experiment') or self.experiment
+                if self.event_label == 'math':
+                    new_experiment = 'math'
+                else:
+                    new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:
