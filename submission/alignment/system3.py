@@ -287,6 +287,7 @@ class System3Aligner(object):
         plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
                                                                                 ext='.png')))
         plt.show()
+        plt.close()
 
 if __name__ == '__main__':
     files = {
