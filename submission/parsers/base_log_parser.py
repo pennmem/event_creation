@@ -621,7 +621,7 @@ class EventComparator(object):
     # FIXME: Combine with StimComparator??
 
     def __init__(self, events1, events2, field_switch=None, field_ignore=None, exceptions=None, type_ignore=None,
-                 type_switch=None, match_field='mstime', same_fields=True):
+                 type_switch=None, match_field='mstime', same_fields=True,verbose=True):
         """
         :param events1:
         :param events2:
@@ -643,6 +643,7 @@ class EventComparator(object):
         self.type_ignore = type_ignore if type_ignore else []
         self.exceptions = exceptions if exceptions else lambda *_: False
         self.match_field = match_field
+        self.verbose=verbose
 
 
         if not same_fields:
@@ -740,19 +741,20 @@ class EventComparator(object):
             # Mark that these events have been seen
             mask2[this_mask2] = False
 
-        # Gather any bad events from events1
-        if bad_events1.size > 1:
-            for bad_event1 in bad_events1[1:]:
-                if not self.exceptions(bad_event1, None, None):
-                    found_bad = True
-                    err_msg += '\n--1--\n' + pformat_rec(bad_event1)
+        if self.verbose:
+            # Gather any bad events from events1
+            if bad_events1.size > 1:
+                for bad_event1 in bad_events1[1:]:
+                    if not self.exceptions(bad_event1, None, None):
+                        found_bad = True
+                        err_msg += '\n--1--\n' + pformat_rec(bad_event1)
 
-        # Gather any bad events from events2
-        if mask2.any():
-            for bad_event2 in self.events2[mask2]:
-                if not self.exceptions(None, bad_event2, None):
-                    found_bad = True
-                    err_msg += '\n--2--\n' + pformat_rec(bad_event2)
+            # Gather any bad events from events2
+            if mask2.any():
+                for bad_event2 in self.events2[mask2]:
+                    if not self.exceptions(None, bad_event2, None):
+                        found_bad = True
+                        err_msg += '\n--2--\n' + pformat_rec(bad_event2)
 
         return found_bad, err_msg
 
