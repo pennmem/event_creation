@@ -64,6 +64,7 @@ def run_session_import(subject_code,experiment,session):
                         symlinks=True)
 
     session_inputs = convenience.prompt_for_session_inputs(config.inputs,)
+    session_inputs['exp_version']=-1
     success, importer_collection = convenience.run_session_import(session_inputs,do_import=True,force_events=True)
     convenience.IndexAggregatorTask().run_single_subject(subject,'r1')
     return success , importer_collection.describe_errors()
@@ -82,8 +83,9 @@ def run_session_import(subject_code,experiment,session):
 #
 
 def compare_equal_events(subject, experiment, session):
-    if not run_session_import(subject, experiment, session):
-        return False, 'Import Failed for %s %s_%s'%(subject,experiment,session)
+    success, msg = run_session_import(subject, experiment, session)
+    if not success:
+            return False, 'Import Failed for %s %s_%s : %s'%(subject,experiment,session,msg)
     new_jr = JsonIndexReader(os.path.join(db_root,'protocols','r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('task_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
@@ -91,9 +93,11 @@ def compare_equal_events(subject, experiment, session):
     old_events = CMLEventReader(filename=old_jr.get_value('task_events',subject=subject,
                                                           experiment=experiment,session=session)).read()
     flat_comparison = EventComparator(events1=old_events,events2=new_events,same_fields=False,
-                                      field_ignore=['stim_params','test','eegfile','msoffset'])
+                                      field_ignore=['stim_params','test','eegfile','msoffset','exp_version'],
+                                      verbose=True)
 
-    return flat_comparison.compare()
+    failure,msg= flat_comparison.compare()
+    return not failure, msg
 
 
 def compare_contains(subject,experiment,session):
@@ -112,13 +116,13 @@ def compare_contains(subject,experiment,session):
         return False
 
 
-def run_test(test_function,input_file,experiments = tuple()):
+def run_test(test_function,input_file,experiments = tuple(),subjects=tuple()):
     with open(input_file) as ifj:
         test_cases = json.load(ifj)
     successes = []
     failures = []
-    for case in test_cases:
-        if not experiments or case['experiment'] in experiments:
+    for case in sorted(test_cases):
+        if (not experiments or case['experiment'] in experiments) and (not subjects or case['subject'] in subjects):
             try:
                 success, msg = test_function(**case)
                 if success:
@@ -137,12 +141,13 @@ def run_test(test_function,input_file,experiments = tuple()):
 def parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--db-root')
-    parser.add_argument('--experiments',action = 'append')
+    parser.add_argument('--experiments',nargs = '*')
     parser.add_argument('--debug',action='store_true')
+    parser.add_argument('--subjects', nargs = '*')
     return parser
 
 
-def format_results(success_records, failure_records):
+def format_result_summary(success_records, failure_records):
     full_template = """
     Regression Test Results:
 
@@ -158,8 +163,22 @@ def format_results(success_records, failure_records):
     db_root = %s
     """
     success_str = '\n'.join(['{subject}, {experiment}_{session}'.format(**s) for s in success_records])
-    failure_str = '\n'.join(['{subject}, {experiment}_{session}: {error}'.format(**f) for f in failure_records])
-    return full_template%(success_str,failure_str,db_root)
+    failure_str = '\n'.join(['{subject}, {experiment}_{session}'.format(**f) for f in failure_records])
+    return full_template%(len(success_records),success_str,len(failure_records),failure_str,db_root)
+
+
+def format_errors(error_records):
+    """
+    :param error_records: {List[Dict["subject","experiment","session","error"]]}
+    :return:
+    """
+    err_template = """
+    {subject}\t{experiment}\t{session}\t
+    Error:
+    {error}
+    ###
+    """
+    return '\n'.join([err_template.format(**case) for case in error_records])
 
 if __name__ == '__main__':
     args = parser().parse_args()
@@ -167,29 +186,34 @@ if __name__ == '__main__':
     from submission.configuration import config
     import smtplib
     from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.application import MIMEApplication
     successes = {}
     failures = {}
     crashes = {}
     here = os.path.dirname(__file__)
     with init_db_root(db_root=args.db_root) as db_root:
         config.parse_args(['--path','db_root=%s'%db_root])
-        successes['events'],failures['events'] = run_test(compare_equal_events,
-                                                                            os.path.join(here,
-                                                                                         'regression_sessions.json'),
-                                                                            experiments=args.experiments)
+        successes,failures = run_test(compare_equal_events,os.path.join(here,'regression_sessions.json'),
+                                      experiments=args.experiments,subjects=args.subjects)
         # TODO: Add this back in
         # successes['localization'],failures['localization'],crashes['localization'] = run_test(compare_equal_localizations,
         #                                                                                       'regression.json',db_root)
-    result_summary = MIMEText(format_results(successes,failures))
-    with open(os.path.join(here,'regression_results.txt'),'w') as results:
-        results.write(result_summary.as_string())
+    result_summary = MIMEText(format_result_summary(successes, failures))
+    err_msg = format_errors(failures)
+    with open(os.path.join(here,'regression_errors.txt'),'w') as results:
+        results.write(err_msg)
+    err_attatchment = MIMEApplication(err_msg,Name='regression_errors.txt')
+    err_attatchment['Content-Disposition'] = 'attachment; filename=regression_errors.txt'
     # Email addresses should be configurable?
-
+    message = MIMEMultipart()
     from_ = 'RAM_maint@rhino2.psych.upenn.edu'
     to_ = 'leond@sas.upenn.edu'
-    result_summary['Subject'] = 'Post_Processing Regression Tests'
-    result_summary['From'] = from_
-    result_summary['To'] = to_
+    message['Subject'] = 'Post_Processing Regression Tests'
+    message['From'] = from_
+    message['To'] = to_
+    message.attach(result_summary)
+    message.attach(err_attatchment)
     s = smtplib.SMTP('localhost')
-    s.sendmail(from_, [to_], result_summary.as_string())
+    s.sendmail(from_, [to_], message.as_string())
     s.quit()
