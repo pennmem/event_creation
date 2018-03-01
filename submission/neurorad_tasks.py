@@ -183,7 +183,6 @@ class BrainBuilderWebhookTask(PipelineTask):
             raise BrainBuilderError('Request failed with message %s'%response.text)
 
 
-
 class CreateMontageTask(PipelineTask):
 
     FIELD_NAMES_TABLE = {
@@ -203,8 +202,6 @@ class CreateMontageTask(PipelineTask):
         'manual':'stein',
     }
 
-
-
     def __init__(self,subject,localization,montage,reference_scheme='bipolar',critical=True):
         super(CreateMontageTask, self).__init__(critical=critical)
         self.subject=subject
@@ -214,7 +211,6 @@ class CreateMontageTask(PipelineTask):
         self.contacts_dict = {}
         self.pairs_dict = {}
         self.pairs_frame = None # pandas.DataFrame
-
 
     def _run(self, files, db_folder):
         """
@@ -253,13 +249,6 @@ class CreateMontageTask(PipelineTask):
         self.labels_to_nums = labels_to_nums
         if self.reference_scheme == 'bipolar':
             self.pairs_frame = bptools.pairs.create_pairs(jacksheet)
-
-    # def load_localization(self,localization_file):
-    #     try:
-    #         self.localization = Localization.import_json(localization_file)
-    #     except Exception:
-    #         with open(localization_file) as loc_fid:
-    #             self.localization = json.load(loc_fid)
 
     def build_contacts_dict(self,db_folder,name):
         contacts = {}
