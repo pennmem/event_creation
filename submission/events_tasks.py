@@ -32,7 +32,7 @@ from .parsers.pal_sys3_log_parser import PALSys3LogParser
 from .parsers.ps_log_parser import PSLogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from .parsers.math_parser import MathLogParser,MathUnityLogParser
+from .parsers.math_parser import MathSessionLogParser,MathUnityLogParser
 from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
@@ -40,7 +40,7 @@ from .tasks import PipelineTask
 from .viewers.recarray import to_json, from_json
 from .log import logger
 from .exc import NoEventsError, ProcessingError
-
+import json
 
 class SplitEEGTask(PipelineTask):
 
@@ -146,53 +146,42 @@ class MatlabEEGConversionTask(PipelineTask):
 
 
 class EventCreationTask(PipelineTask):
-    R1_PARSERS = {
-        1.0: {
+
+    @classmethod
+    def R1_PARSERS(cls,sys_num):
+        if sys_num<=3.0:
+            return {
             'FR': FRSessionLogParser,
             'PAL': PALSessionLogParser,
             'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
-        },
-        2.0: {
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
-            'PS': PSLogParser,
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser
-        },
-        3.0: {
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'math': MathLogParser,
-            'PS': PSLogParser,
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser
-        },
-        3.1: {
-            'FR': FRSys3LogParser,
-            'catFR': catFRSys3LogParser,
-            'PS': PSLogParser,
-            'PS_FR':PSLogParser,
-            'PS_catFR':PSLogParser,
-            'PAL': PALSys3LogParser,
-            'THR': THRSessionLogParser,
-            'math': MathLogParser,
-        },
-        3.3:{
-            'FR': FRHostPCLogParser,
-            'catFR':catFRHostPCLogParser,
-            'math': MathUnityLogParser,
-            'PS':PSLogParser,
-            'PS_FR':PSLogParser,
-            'PS_catFR':PSLogParser,
         }
-    }
+        elif sys_num<3.3:
+            return {
+                'FR': FRSys3LogParser,
+                'catFR': catFRSys3LogParser,
+                'PS': PSLogParser,
+                'PS_FR':PSLogParser,
+                'PS_catFR':PSLogParser,
+                'PAL': PALSys3LogParser,
+                'THR': THRSessionLogParser,
+            }
+        elif sys_num==3.3:
+            return {
+                'FR': FRHostPCLogParser,
+                'catFR':catFRHostPCLogParser,
+                'PS':PSLogParser,
+                'PS_FR':PSLogParser,
+                'PS_catFR':PSLogParser,
+            }
+        else:
+            raise KeyError
+
+
+
+
     LTP_PARSERS = {
         'ltpFR': LTPFRSessionLogParser,
         'ltpFR2': LTPFR2SessionLogParser,
@@ -215,7 +204,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
-                    self._parser_type = self.R1_PARSERS[self.r1_sys_num][re.sub(r'[\d.]', '', new_experiment)]
+                    self._parser_type = self.R1_PARSERS(self.r1_sys_num)[re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:
                     raise  KeyError('Experiment %s not supported for system %s'%(new_experiment,self.r1_sys_num))
             elif self.protocol == 'ltp':
@@ -245,7 +234,13 @@ class EventCreationTask(PipelineTask):
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
+        logger.debug('self._parser_type is %s'%(None if not self._parser_type else str(self._parser_type)))
+        if self.r1_sys_num>=3:
+            with open(files['event_log'][0]) as event_log:
+                self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.','_')
+
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
+        logger.debug('Using %s'%str(self.parser_type))
         unaligned_events = parser.parse()
         if self.protocol == 'ltp':
                 aligner = LTPAligner(unaligned_events, files, db_folder)
@@ -257,33 +252,37 @@ class EventCreationTask(PipelineTask):
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
                 events = unaligned_events
-            elif self.r1_sys_num in (2.0,3.0,3.1,3.3):
-                if self.r1_sys_num == 2.0:
-                    aligner = System2Aligner(unaligned_events, files, db_folder)
-                else:
-                    aligner = System3Aligner(unaligned_events, files, db_folder)
-
-                if parser.ADD_STIM_EVENTS:
-                    logger.debug("Adding stimulation events")
-                    aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
-
-                if self.experiment.startswith("TH"):
-                    start_type = "CHEST"
-                elif self.experiment == 'PS21':
-                    start_type = 'NP_POLL'
-                else:
-                    start_type = "SESS_START"
-                if parser.DO_ALIGNMENT:
-                    events = aligner.align(start_type)
-                else:
-                    events = unaligned_events
-                if type(aligner)==System3Aligner:
-                    aligner.apply_eeg_file(events)
-            elif self.r1_sys_num == 1.0:
-                aligner = System1Aligner(unaligned_events, files)
-                events = aligner.align()
             else:
-                raise ProcessingError("r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(self.r1_sys_num))
+                if self.r1_sys_num == 1.0:
+                    aligner = System1Aligner(unaligned_events, files)
+                    events = aligner.align()
+                else:
+                    if self.r1_sys_num == 2.0:
+                        aligner = System2Aligner(unaligned_events, files, db_folder)
+                    elif 3.0<=self.r1_sys_num<=3.3:
+                        aligner = System3Aligner(unaligned_events, files, db_folder)
+                    else:
+                        raise ProcessingError(
+                            "r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(
+                                self.r1_sys_num))
+
+                    if parser.ADD_STIM_EVENTS:
+                        logger.debug("Adding stimulation events")
+                        aligner.add_stim_events(parser.event_template, parser.persist_fields_during_stim)
+
+                    if self.experiment.startswith("TH"):
+                        start_type = "CHEST"
+                    elif self.experiment == 'PS21':
+                        start_type = 'NP_POLL'
+                    else:
+                        start_type = "SESS_START"
+                    if parser.DO_ALIGNMENT:
+                        events = aligner.align(start_type)
+                    else:
+                        events = unaligned_events
+                    if type(aligner)==System3Aligner:
+                        aligner.apply_eeg_file(events)
+
         events = parser.clean_events(events) if events.shape != () else events
         self.pipeline.importer.tests.extend(parser.check_event_quality(events,files))
         self.create_file(self.filename, to_json(events),
@@ -414,7 +413,7 @@ class ImportEventsTask(PipelineTask):
         'FR': FRSessionLogParser,
         'PAL': PALSessionLogParser,
         'catFR': CatFRSessionLogParser,
-        'math': MathLogParser,
+        'math': MathSessionLogParser,
         'PS': PSLogParser,
     }
 

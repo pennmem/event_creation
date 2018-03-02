@@ -77,12 +77,12 @@ class ImporterCollection(object):
 
     def describe_transfers(self):
         transfer_statuses = '\tTransfer statuses: '
-        transfer_statuses += ', '.join([i.describe_transfers() for i in self.importers])
+        transfer_statuses += ', '.join([i.describe_transfer() for i in self.importers])
         return transfer_statuses
 
     def describe_initializations(self):
         initialization_statuses = '\tInitialization statuses: '
-        initialization_statuses += ', '.join([i.describe_initializations() for i in self.importers])
+        initialization_statuses += ', '.join([i.describe_initialization() for i in self.importers])
         return initialization_statuses
 
 
