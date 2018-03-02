@@ -130,6 +130,7 @@ files:
   - name: sound_files
     << : *FILE
     multiple: true
+    required: false
     groups: [r1, transfer, verbal]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.wav'

@@ -12,7 +12,7 @@ from .base_log_parser import BaseSessionLogParser
 from .fr_log_parser import FRSessionLogParser
 from .catfr_log_parser import CatFRSessionLogParser
 from .pal_log_parser import PALSessionLogParser
-from .math_parser import MathLogParser
+from .math_parser import MathSessionLogParser
 from .ps_log_parser import PSSessionLogParser
 
 from ..readers import eeg_reader
@@ -827,7 +827,7 @@ class MathMatConverter(BaseMatConverter):
         'rectime': 'rectime',
     }
 
-    _MATH_FIELDS = MathLogParser._math_fields()
+    _MATH_FIELDS = MathSessionLogParser._math_fields()
 
     def __init__(self, protocol, subject, montage, experiment, session, original_session, files):
         super(MathMatConverter, self).__init__(protocol, subject, montage, experiment, session, original_session, files,

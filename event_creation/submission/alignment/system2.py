@@ -205,6 +205,7 @@ class System2TaskAligner(object):
             ax.set_ylabel('Error in estimated time difference between start of recordings')
             ax.set_title('Accuracy of multiple-nsx file match-up')
             plt.savefig(os.path.join(self.plot_save_dir, 'multi-ns2{ext}'.format(ext=self.PLOT_SAVE_FILE_EXT)))
+            plt.close()
 
         return nsx_file_combinations[best_index]
 

@@ -109,8 +109,3 @@ class Configuration(object):
             return vars(self)[item]
         except KeyError:
             return self.options[item]
-
-if __name__ == '__main__':
-    config = Configuration()
-    config.parse_args(['--path','rhino_root=abc'])
-    print(config)

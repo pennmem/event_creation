@@ -1,9 +1,30 @@
 from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
 from .system2_log_parser import System2LogParser
 import pandas as pd
-from collections import defaultdict
+from ..exc import UnknownExperimentError
 
-class MathLogParser(BaseSessionLogParser):
+
+def MathLogParser(protocol,subject,montage,experiment,session,files):
+    """
+    As with PSLogParser, we're using an additional level of indirection to choose which math log parser is
+    most appropriate.
+    :param protocol:
+    :param subject:
+    :param montage:
+    :param experiment:
+    :param session:
+    :param files:
+    :return: Union[MathSessionLogParser,MathUnityLogParser]
+    """
+    if 'math_log' in files:
+        return MathSessionLogParser(protocol,subject,montage,experiment,session,files)
+    elif 'session_log_json' in files:
+        return MathUnityLogParser(protocol,subject,montage,experiment,session,files)
+    else:
+        raise UnknownExperimentError('Uknown math log file')
+
+
+class MathSessionLogParser(BaseSessionLogParser):
 
     _STIM_PARAM_FIELDS = System2LogParser.sys2_fields()
 
@@ -46,8 +67,8 @@ class MathLogParser(BaseSessionLogParser):
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        super(MathLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
-                                            primary_log='math_log')
+        super(MathSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
+                                                   primary_log='math_log')
         self._list = -999
         self._test = ''
         self._answer = ''
@@ -127,7 +148,7 @@ class MathUnityLogParser(BaseSys3_1LogParser):
         super(MathUnityLogParser, self).__init__(protocol,subject,montage,experiment,session,files,
                                                  primary_log='session_log_json')
 
-        self._add_fields(*MathLogParser._math_fields())
+        self._add_fields(*MathSessionLogParser._math_fields())
         self._add_type_to_new_event(
             MATH=self.events_math,
             DISTRACT = self.event_distract,
