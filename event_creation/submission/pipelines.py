@@ -14,15 +14,15 @@ from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, C
                              AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask,
                              BrainBuilderWebhookTask)
 from .parsers.base_log_parser import get_version_num
+from .parsers.math_parser import MathLogParser
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from .parsers.mat_converter import MathMatConverter
-from .parsers.ps_log_parser import PS4Sys3LogParser
-from .parsers.math_parser import MathLogParser
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
 from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_import_montage_transferer, generate_create_montage_transferer,TransferError, TRANSFER_INPUTS, find_sync_file
+                       generate_import_montage_transferer, generate_create_montage_transferer, TRANSFER_INPUTS, find_sync_file
+from .exc import TransferError
 from .log import logger
 
 GROUPS = {
@@ -68,7 +68,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         inputs.update(**paths.options)
 
         systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0')
-
+        misses = {}
         for sys in systems:
             try:
                 logger.info("Checking if this system is {}".format(sys))
@@ -80,6 +80,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                 if len(missing_files) > 0:
                     names = [missing_file.name for missing_file in missing_files]
                     logger.info("Determined due to missing files ({}) that this system is not {}".format(names, sys))
+                    misses[sys] = str(names)
                     continue
 
                 match = r1_system_match(full_experiment, transfer_cfg, sys)
@@ -89,14 +90,14 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                     break
                 else:
                     logger.info("Determined from log files that this system is not {}".format(sys))
-
+                    misses[sys] = ''
             except Exception as e:
                 logger.debug("This system is probably not {} due to error: {}".format(sys, e))
+                misses[sys] = str(e)
                 continue
         else:
-            logger.debug("System_# determination failed. I'm a failure. Nobody loves me.")
-            logger.error("Could not determine system of r1 subject. Continuing as if system is {}"
-                         ", but this will likely fail very soon!".format(sys))
+            raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
+                                + "System is most likely %s"%min(*misses,key=lambda x:len(x[1])))
         groups += (sys,)
 
     return groups
@@ -385,7 +386,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', critical=False, **kwargs))
+                                       'math', critical=False, parser_type=MathLogParser,**kwargs))
         other_events += ('math',)
 
     if other_events:
