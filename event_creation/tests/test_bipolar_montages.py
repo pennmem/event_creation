@@ -1,11 +1,11 @@
-from submission.convenience import run_montage_import
-from submission.configuration import config
+from ..submission.convenience import run_montage_import
+from ..submission.configuration import config
 import os
 osp = os.path
 from ptsa.data.readers import TalReader,CMLEventReader,JsonIndexReader,EEGReader
 import numpy as np
 import re
-from submission.log import logger
+from ..submission.log import logger
 
 
 bipolar_subjects = ['R1370E','R1364C','R1377M']
