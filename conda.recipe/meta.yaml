@@ -15,15 +15,7 @@ requirements:
     - python
     - setuptools
 
-  run:
-    - xlrd
-    - matplotlib
-    - pyyaml
-    - sympy
-    - h5py
-    - pandas
-    - ptsa
-    - bptools
+  run: {{ environ.get('DEPENDENCIES') }}
 
   test:
     imports:
