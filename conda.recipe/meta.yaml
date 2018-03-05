@@ -8,14 +8,15 @@ source:
   path: ../
 
 build:
-  number: 0
+  number: 5 
 
 requirements:
   build:
-    - python
+    - python {{ python }}
     - setuptools
 
   run:
+    - python {{ python }}
     - xlrd
     - matplotlib
     - pyyaml
