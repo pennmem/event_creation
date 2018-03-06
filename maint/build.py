@@ -22,7 +22,7 @@ parser.add_argument("--no-convert", action="store_true",
 parser.add_argument("--python", "-p", nargs="+", default=["2.7", "3.6"],
                     help="python versions to build for (otherwise build all)")
 parser.add_argument("--upload", action="store_true")
-parser.add_argument("--buildnum","-b",default=0)
+parser.add_argument("--buildnum","-b",default='0')
 
 def clean():
     """Clean the build directory."""
