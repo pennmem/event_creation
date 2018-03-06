@@ -8,7 +8,7 @@ source:
   path: ../
 
 build:
-  number: 0
+  number: {{ environ.get('BUILDNUM',0) }}
 
 requirements:
   build:

@@ -22,7 +22,7 @@ parser.add_argument("--no-convert", action="store_true",
 parser.add_argument("--python", "-p", nargs="+", default=["2.7", "3.6"],
                     help="python versions to build for (otherwise build all)")
 parser.add_argument("--upload", action="store_true")
-
+parser.add_argument("--buildnum",default=0)
 
 def clean():
     """Clean the build directory."""
@@ -34,7 +34,7 @@ def clean():
         pass
 
 
-def build(pyver):
+def build(pyver,buildnum):
     """Build a conda package.
 
     :param str pyver: Python version to build for
@@ -44,7 +44,7 @@ def build(pyver):
     with open(os.path.join(pkg_root,'conda_environment.yml')) as env_file:
         dependencies = yaml.load(env_file)['dependencies']
     os.environ['DEPENDENCIES'] = '\n'.join('- '+d for d in dependencies)
-
+    os.environ['BUILDNUM'] = buildnum
     build_cmd = [
         "conda", "build",
         "--output-folder=build/",
@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
     if not args.no_build:
         for pyver in args.python:
-            build(pyver)
+            build(pyver,args.buildnum)
 
     if not args.no_convert:
         convert()
