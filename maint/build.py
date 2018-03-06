@@ -40,7 +40,7 @@ def build(pyver):
     :param str pyver: Python version to build for
 
     """
-    pkg_root = os.path.dirname(__file__)
+    pkg_root = os.path.dirname(os.path.dirname(__file__))
     with open(os.path.join(pkg_root,'conda_environment.yml')) as env_file:
         dependencies = yaml.load(env_file)['dependencies']
     os.environ['DEPENDENCIES'] = '\n'.join('- '+d for d in dependencies)
