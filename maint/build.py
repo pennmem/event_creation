@@ -61,11 +61,14 @@ def build(pyver):
 
 def convert():
     """Convert conda packages to other platforms."""
-    os_name = {
-        'darwin': 'osx',
-        'win32': 'win',
-        'linux': 'linux'
-    }[sys.platform]
+    if sys.platform.startswith('linux'):
+        os_name = 'linux'
+    elif sys.platform.startswith('win32'):
+        os_name = 'win'
+    elif sys.platform.startswith('darwin'):
+        os_name = 'darwin'
+    else:
+        os_name = 'noarch'
     dirname = '{}-{}'.format(os_name, platform.architecture()[0][:2])
     files = glob.glob('build/{}/*.tar.bz2'.format(dirname))
 
