@@ -1,5 +1,5 @@
 {% set setup_data = load_setup_py_data() %}
-
+{% set dependency_lst = environ.get('DEPENDENCIES').split('\n') %}
 package:
   name: event_creation
   version: {{ setup_data['version'] }}
@@ -8,7 +8,7 @@ source:
   path: ../
 
 build:
-  number: 5 
+  number: 2
 
 requirements:
   build:
@@ -16,7 +16,10 @@ requirements:
     - setuptools
 
 
-  run: {{ environ.get('DEPENDENCIES') }}
+  run:
+    {% for d in dependency_lst %}
+    {{ d }}
+    {% endfor %}
 
   test:
     imports:
