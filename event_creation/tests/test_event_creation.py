@@ -76,8 +76,7 @@ parsers = {
     'FR': FRSessionLogParser,
     'PAL': PALSessionLogParser,
     'catFR': CatFRSessionLogParser,
-    'math': MathSessionLogParser
-}
+    'math': MathLogParser}
 
 def compare_stimulation_parameters(event1, event2):
     pass
