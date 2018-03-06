@@ -1,7 +1,7 @@
 from __future__ import print_function
 import os,tempfile,shutil,json,traceback
 from ptsa.data.readers import JsonIndexReader,CMLEventReader
-from submission.parsers.base_log_parser import EventComparator
+from event_creation.submission.parsers.base_log_parser import EventComparator
 import argparse
 import matplotlib
 import contextlib
@@ -37,14 +37,14 @@ def init_db_root(db_root = None,whitelist = (KeyboardInterrupt,)):
             shutil.rmtree(db_root)
 
 def run_localization_import(subject_code,localization_number):
-    from submission import convenience
+    from event_creation.submission import convenience
     subject = subject_code.split('_')[0]
     localization_inputs = {'subject':subject,'code':subject_code,'localization':localization_number,'protocol':'r1'}
     return convenience.run_localization_import(localization_inputs)
 
 
 def run_session_import(subject_code,experiment,session):
-    from submission import convenience
+    from event_creation.submission import convenience
     subject,montage = subject_code.split('_') if '_' in subject_code else (subject_code,'')
 
     if not montage:
@@ -183,7 +183,7 @@ def format_errors(error_records):
 if __name__ == '__main__':
     args = parser().parse_args()
     debug = args.debug
-    from submission.configuration import config
+    from event_creation.submission.configuration import config
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
