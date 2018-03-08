@@ -204,7 +204,10 @@ class System2TaskAligner(object):
             ax.bar(error_indices, min_errors)
             ax.set_ylabel('Error in estimated time difference between start of recordings')
             ax.set_title('Accuracy of multiple-nsx file match-up')
-            plt.savefig(os.path.join(self.plot_save_dir, 'multi-ns2{ext}'.format(ext=self.PLOT_SAVE_FILE_EXT)))
+            try:
+                plt.savefig(os.path.join(self.plot_save_dir, 'multi-ns2{ext}'.format(ext=self.PLOT_SAVE_FILE_EXT)))
+            except Exception:
+                logger.log('Could not save plot')
             plt.close()
 
         return nsx_file_combinations[best_index]
@@ -328,7 +331,10 @@ class System2TaskAligner(object):
         # Get the coefficients, and the times at which they start and stop applying
         for (host_time, np_time) in zip(split_host, split_np):
             coefficients.append(cls.get_fit(host_time, np_time))
-            cls.plot_fit(host_time, np_time, coefficients[-1], plot_save_dir, 'host_np')
+            try:
+                cls.plot_fit(host_time, np_time, coefficients[-1], plot_save_dir, 'host_np')
+            except Exception:
+                pass
             host_starts.append(cls.apply_coefficients_backwards(0, coefficients[-1]))
             host_ends.append(host_time[-1])
         return coefficients, host_starts, host_ends
@@ -393,8 +399,10 @@ class System2TaskAligner(object):
         host_starts = host_times[0]
         host_ends = host_times[-1]
 
-        self.plot_fit(task_times, host_times, coefficients, plot_save_dir, 'task_host')
-
+        try:
+            self.plot_fit(task_times, host_times, coefficients, plot_save_dir, 'task_host')
+        except Exception:
+            pass
         # Wrap in list, in case function has to return multiple of each
         return [coefficients], [host_starts], [host_ends]
 

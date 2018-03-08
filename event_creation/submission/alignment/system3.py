@@ -284,8 +284,11 @@ class System3Aligner(object):
         plt.xlabel("Timestamp (ms)")
         plt.ylabel("Best-fit residuals")
         plt.xlim(min(x), max(x))
-        plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
+        try:
+            plt.savefig(os.path.join(plot_save_dir, '{label}_fit{ext}'.format(label=plot_save_label,
                                                                                 ext='.png')))
+        except Exception:
+            logger.debug("Could not save plot %s"%plot_save_label)
         plt.show()
         plt.close()
 

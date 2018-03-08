@@ -1,13 +1,19 @@
 from __future__ import print_function
 import os,tempfile,shutil,json,traceback
 from ptsa.data.readers import JsonIndexReader,CMLEventReader
-from event_creation.submission.parsers.base_log_parser import EventComparator
 import argparse
 import matplotlib
 import contextlib
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+
 matplotlib.use('agg')
 
+
 debug = False
+db_root = None
 
 @contextlib.contextmanager
 def init_db_root(db_root = None,whitelist = (KeyboardInterrupt,)):
@@ -43,7 +49,7 @@ def run_localization_import(subject_code,localization_number):
     return convenience.run_localization_import(localization_inputs)
 
 
-def run_session_import(subject_code,experiment,session):
+def run_session_import(subject_code, experiment, session, config, db_root):
     from event_creation.submission import convenience
     subject,montage = subject_code.split('_') if '_' in subject_code else (subject_code,'')
 
@@ -82,8 +88,9 @@ def run_session_import(subject_code,experiment,session):
 #     return (old_localization==new_localization).all()
 #
 
-def compare_equal_events(subject, experiment, session):
-    success, msg = run_session_import(subject, experiment, session)
+def compare_equal_events(subject, experiment, session, config,db_root='/'):
+    from event_creation.submission.parsers.base_log_parser import EventComparator
+    success, msg = run_session_import(subject, experiment, session, config,db_root)
     if not success:
             return False, 'Import Failed for %s %s_%s : %s'%(subject,experiment,session,msg)
     new_jr = JsonIndexReader(os.path.join(db_root,'protocols','r1.json'))
@@ -100,8 +107,8 @@ def compare_equal_events(subject, experiment, session):
     return not failure, msg
 
 
-def compare_contains(subject,experiment,session):
-    assert run_session_import(subject, experiment, session)
+def compare_contains(subject, experiment, session, config):
+    assert run_session_import(subject, experiment, session, config)
     new_jr = JsonIndexReader(os.path.join(db_root, 'protocols', 'r1.json'))
     new_events = CMLEventReader(filename=new_jr.get_value('all_events', subject=subject,
                                                           experiment=experiment, session=session)).read()
@@ -116,7 +123,9 @@ def compare_contains(subject,experiment,session):
         return False
 
 
-def run_test(test_function,input_file,experiments = tuple(),subjects=tuple()):
+def run_test(test_function, input_file, experiments=tuple(), subjects=tuple(), db_root='/',config=None):
+    if config is None:
+        from event_creation.submission.configuration import config
     with open(input_file) as ifj:
         test_cases = json.load(ifj)
     successes = []
@@ -124,7 +133,7 @@ def run_test(test_function,input_file,experiments = tuple(),subjects=tuple()):
     for case in sorted(test_cases):
         if (not experiments or case['experiment'] in experiments) and (not subjects or case['subject'] in subjects):
             try:
-                success, msg = test_function(**case)
+                success, msg = test_function(db_root=db_root,config=config,**case)
                 if success:
                     successes.append(case)
                 else:
@@ -180,22 +189,23 @@ def format_errors(error_records):
     """
     return '\n'.join([err_template.format(**case) for case in error_records])
 
-if __name__ == '__main__':
-    args = parser().parse_args()
+
+def main(args=None):
+    if args is None:
+        args = parser().parse_args()
+    else:
+        args = parser().parse_args(args)
+    global debug
     debug = args.debug
-    from event_creation.submission.configuration import config
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.application import MIMEApplication
     successes = {}
     failures = {}
     crashes = {}
+    from event_creation.submission.configuration import config
     here = os.path.dirname(__file__)
     with init_db_root(db_root=args.db_root) as db_root:
         config.parse_args(['--path','db_root=%s'%db_root])
-        successes,failures = run_test(compare_equal_events,os.path.join(here,'regression_sessions.json'),
-                                      experiments=args.experiments,subjects=args.subjects)
+        successes,failures = run_test(compare_equal_events, os.path.join(here, 'regression_sessions.json'),
+                                      experiments=args.experiments, subjects=args.subjects,config=config,db_root=db_root)
         # TODO: Add this back in
         # successes['localization'],failures['localization'],crashes['localization'] = run_test(compare_equal_localizations,
         #                                                                                       'regression.json',db_root)
@@ -217,3 +227,6 @@ if __name__ == '__main__':
     s = smtplib.SMTP('localhost')
     s.sendmail(from_, [to_], message.as_string())
     s.quit()
+
+if __name__ == '__main__':
+    main()
