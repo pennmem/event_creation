@@ -6,8 +6,8 @@ import traceback
 import numpy as np
 from ptsa.data.readers import BaseEventReader
 
-# FIXME: move tests into package
-from tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
+
+from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
 
 from .alignment.LTPAligner import LTPAligner

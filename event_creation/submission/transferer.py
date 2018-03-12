@@ -11,16 +11,8 @@ from .exc import TransferError
 from .configuration import paths
 from .log import logger
 from .transfer_config import TransferConfig
+from .transfer_inputs import TRANSFER_INPUTS
 
-TRANSFER_INPUTS_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)),'transfer_inputs')
-
-TRANSFER_INPUTS = {
-    'behavioral': os.path.join(TRANSFER_INPUTS_DIR, 'behavioral_inputs.yml'),
-    'ephys': os.path.join(TRANSFER_INPUTS_DIR, 'ephys_inputs.yml'),
-    'montage': os.path.join(TRANSFER_INPUTS_DIR, 'montage_inputs.yml'),
-    'localization': os.path.join(TRANSFER_INPUTS_DIR, 'localization_inputs.yml'),
-    # 'wav':os.path.join(TRANSFER_INPUTS_DIR,'wav_inputs.yml')
-}
 
 
 def yml_join(loader, node):

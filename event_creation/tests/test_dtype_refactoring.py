@@ -1,10 +1,10 @@
 from __future__ import print_function
 
-from submission.parsers.fr_log_parser import FRSessionLogParser
-from submission.parsers.catfr_log_parser import CatFRSessionLogParser
-from submission.parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
-from submission.parsers.mat_converter import FRMatConverter,CatFRMatConverter
-from submission.configuration import paths
+from ..submission.parsers.fr_log_parser import FRSessionLogParser
+from ..submission.parsers.catfr_log_parser import CatFRSessionLogParser
+from ..submission.parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from ..submission.parsers.mat_converter import FRMatConverter,CatFRMatConverter
+from ..submission.configuration import paths
 import pandas as pd
 import numpy as np
 
