@@ -1,11 +1,11 @@
 from __future__ import print_function
 
 import sys
-
+from event_creation import confirm
 if sys.version_info[0] < 3:
     input = raw_input
-
 from .configuration import config
+
 if __name__ == '__main__':
     config.parse_args()
     import matplotlib
@@ -855,15 +855,7 @@ def montage_exists(protocol, subject, montage):
     return os.path.exists(neurorad_current)
 
 
-def confirm(prompt):
-    while True:
-        resp = input(prompt)
-        if resp.lower() in ('y','n', 'yes', 'no'):
-            return resp.lower() == 'y' or resp.lower() == 'yes'
-        print('Please enter y or n')
-
-
-if __name__ == '__main__':
+def main():
     if config.log_debug:
         logger.set_stdout_level(0)
 
@@ -979,3 +971,6 @@ if __name__ == '__main__':
     print('Success:' if success else "Failed:")
     print(importers.describe())
     exit(0)
+
+if __name__ == "__main__":
+    main()

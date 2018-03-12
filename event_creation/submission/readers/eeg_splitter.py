@@ -5,9 +5,10 @@ import json
 import os
 import glob
 
-from ..configuration import config, paths
+from ..configuration import config
+config.parse_args()
+
 if __name__ == '__main__':
-    config.parse_args()
     import matplotlib
     if not config.show_plots:
         matplotlib.use('agg')

@@ -10,6 +10,19 @@ actually a collection of directories and is not a true database.
 
 ## Installation
 
+### Anaconda
+
+This package can be installed via conda using 
+```
+conda install [-c pennmem -c conda-forge] event_creation
+```
+If you have configured your conda installation so that either channel
+is in your default channel list, you can omit that channel from the command.
+
+Note that this package will only install correctly when using conda v.4+.
+
+### GitHub
+
 After cloning the repository, execute the following two commands:
 ```
 git submodule init

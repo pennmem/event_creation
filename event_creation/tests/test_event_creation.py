@@ -1,12 +1,12 @@
 import os
 
 import numpy as np
-from submission.parsers.base_log_parser import StimComparator
-from submission.parsers.catfr_log_parser import CatFRSessionLogParser
-from submission.parsers.fr_log_parser import FRSessionLogParser
-from submission.parsers.pal_log_parser import PALSessionLogParser
+from ..submission.parsers.base_log_parser import StimComparator
+from ..submission.parsers.catfr_log_parser import CatFRSessionLogParser
+from ..submission.parsers.fr_log_parser import FRSessionLogParser
+from ..submission.parsers.pal_log_parser import PALSessionLogParser
 
-from submission.parsers.math_parser import MathLogParser
+from ..submission.parsers.math_parser import MathLogParser
 
 DATA_ROOT = '/Volumes/rhino_mount/data/eeg/'
 
@@ -76,8 +76,7 @@ parsers = {
     'FR': FRSessionLogParser,
     'PAL': PALSessionLogParser,
     'catFR': CatFRSessionLogParser,
-    'math': MathLogParser
-}
+    'math': MathLogParser}
 
 def compare_stimulation_parameters(event1, event2):
     pass
