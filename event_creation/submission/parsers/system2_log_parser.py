@@ -76,6 +76,7 @@ class System2LogParser:
         tasks = np.unique(events['experiment'])
         task = tasks[tasks != ''][0]
         task = re.sub(r'[\d.]', '',task)
+        task = re.sub(r'cat','',task)
         item_field = self._EXPERIMENT_TO_ITEM_FIELD[task]
 
         marked_stim_items = events[(events['is_stim']==True) &
