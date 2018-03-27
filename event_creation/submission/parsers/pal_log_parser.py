@@ -1,7 +1,5 @@
 from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
-from .system2_log_parser import System2LogParser
 import numpy as np
-import os
 import warnings
 import re
 from ..quality import pal_tests

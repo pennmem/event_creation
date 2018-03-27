@@ -174,6 +174,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._add_type_to_modify_events(
             RETRIEVAL = self.modify_recalls,
             BIOMARKER = self.modify_biomarker,
+            ENCODING = self.modify_stim,
         )
         self._biomarker_value =-1
         self._stim_on = False
@@ -267,15 +268,18 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
 
     def modify_stim(self,events):
-        in_list = events.list==self._list
-        list_stim_events = events[(events.type=='STIM_ON') & in_list]
-        for duration in np.unique([x['stim_duration'] for x in self._stim_params.values()]):
-            stim_off_events = deepcopy(list_stim_events)
-            stim_off_events.mstime += duration
-            stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
-            stim_off_events.type='STIM_OFF'
-            events = np.concatenate([events,stim_off_events])
-        events.sort(order='mstime')
+        if events[-1].type=='ENCODING_END':
+            in_list = events.list==self._list
+            list_stim_events = events[(events.type=='STIM_ON') & in_list]
+            list_events= events[in_list]
+            for duration in np.unique([x['stim_duration'] for x in self._stim_params.values()]):
+                stim_off_events = deepcopy(list_stim_events)
+                stim_off_events.mstime += duration
+                stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
+                stim_off_events.type='STIM_OFF'
+                list_events = np.concatenate([list_events,stim_off_events])
+                list_events.sort(order='eegoffset')
+            events = np.rec.array(np.concatenate([events[~in_list],list_events]))
         return events
 
     def modify_biomarker(self,events):
@@ -292,12 +296,6 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._biomarker_value = -1
         events[events.mstime>=last_word.mstime]= events_to_modify
         return events
-
-
-    def clean_events(self, events):
-        events.sort(order = ['list','eegoffset','mstime'],)
-        return events
-
 
 class catFRHostPCLogParser(FRHostPCLogParser):
 
