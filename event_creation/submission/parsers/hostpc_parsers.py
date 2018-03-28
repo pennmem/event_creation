@@ -144,6 +144,14 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
         return event
 
+    def clean_events(self, events):
+        events.protocol = self._protocol
+        events.experiment = self._experiment
+        events.subject = self._subject
+        events.session = self._session
+        events.montage = self._montage
+        return events
+
 
 class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 

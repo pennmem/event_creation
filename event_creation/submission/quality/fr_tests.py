@@ -3,6 +3,12 @@ import pandas as pd
 import json
 from ..log import logger
 
+def with_time_field(function):
+    def wrapped(events,files):
+        time_field='eegoffset' if 'FR6' in events[0]['experiment'] else 'mstime'
+        return function(events,files,time_field)
+    return wrapped
+
 def test_catfr_categories(events,files):
     """
     This function makes the following assertions about an event structure:
@@ -68,8 +74,8 @@ def test_words_per_list(events,files):
     assert (words.groupby('serialpos').apply(len) <= len(words.list.unique())).all(), 'Serial position repeated'
     assert (words.groupby('serialpos').apply(len) >= len(words.list.unique())).all() , 'List missing serial position'
 
-
-def test_rec_word_position(events,files):
+@with_time_field
+def test_rec_word_position(events,files,time_field):
     """
     Asserts that all REC_WORD events are preceded by a REC_START event and followed by a REC_END event
     :param events:
@@ -81,11 +87,12 @@ def test_rec_word_position(events,files):
         rec_end = events[(events.list==lst) & (events.type=='REC_END')]
         rec_words = events[(events.list==lst) & (events.type=='REC_WORD')]
         if len(rec_start):
-            assert (rec_words.mstime>rec_start.mstime).all(),'REC_WORD occurs before REC_START in list %s'%lst
+            assert (rec_words[time_field]>rec_start[time_field]).all(),'REC_WORD occurs before REC_START in list %s'%lst
         if len(rec_end):
-            assert (rec_words.mstime < rec_end.mstime).all(), 'REC_WORD occurs after REC_END in list %s'%lst
+            assert (rec_words[time_field] < rec_end[time_field]).all(), 'REC_WORD occurs after REC_END in list %s'%lst
 
-def test_stim_on_position(events,files):
+@with_time_field
+def test_stim_on_position(events,files,time_field):
     """
     Asserts that all STIM_ON events are preceded by a TRIAL event
     :param events:
@@ -104,8 +111,9 @@ def test_stim_on_position(events,files):
             return
 
         trial_0 = events[(events.type=='TRIAL') | (events.type=='ENCODING_START')][0]
-        n_early_stims = (stim_events.mstime<=trial_0.mstime).sum()
+        n_early_stims = (stim_events[time_field]<=trial_0[time_field]).sum()
         assert n_early_stims<= n_artifact_stims, '%s unexpected stim events before experiment begins'%(n_early_stims-n_artifact_stims)
+
 def test_rec_bracket(events,files):
     events =events.view(np.recarray)
     for lst in np.unique(events.list):

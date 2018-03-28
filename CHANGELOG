@@ -1,9 +1,10 @@
+2018-3-28
+=========
+- STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures
+
 2018-3-6
 ========
 - Refactored event_creation and bundled it into a conda package
-
-
-
 
 2018-1-15
 =========

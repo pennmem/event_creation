@@ -320,7 +320,6 @@ class Sys3EventsParser(BaseSys3LogParser):
 
     def parse(self):
         events = BaseSys3LogParser.parse(self).view(np.recarray)
-        events.sort(order='mstime')
         for stim_event in events[events.type == 'STIM_ON']:
             matched_events = events[((events.stim_params.id == stim_event.stim_params['id'])[:,0]) & (events.type == 'BIOMARKER')]
             stim_fields = list(self.stim_parser.empty_stim_params().dtype.names)
