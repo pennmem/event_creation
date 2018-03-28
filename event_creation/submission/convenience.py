@@ -27,6 +27,7 @@ from . import fileutil
 from .configuration import  paths
 from .exc import MontageError
 from .tasks import CleanDbTask, IndexAggregatorTask
+from .events_tasks import ReportLaunchTask
 from .log import logger
 from .automation import Importer, ImporterCollection
 
@@ -338,48 +339,6 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
             logger.info('Events %s conversion failed')
             ephys_converter.remove()
     return all(successes), ImporterCollection(attempted_importers)
-
-
-            # if do_import:
-    #     ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
-    #     events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
-    #     if ephys_builder.initialized or not do_convert: # Attempt the importer even if it failed if it's the only option
-    #         ephys_importers.append(ephys_builder)
-    #     else:
-    #         logger.warn("Could not initialize ephys builder")
-    #     if events_builder.initialized or not do_convert:
-    #         events_importers.append(events_builder)
-    #
-    # if do_convert:
-    #     logger.debug("Initializing converters")
-    #     ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
-    #     events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
-    #     if ephys_converter.initialized or not do_import:
-    #         if ephys_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-    #             ephys_importers = [ephys_converter] + ephys_importers
-    #         else:
-    #             ephys_importers.append(ephys_converter)
-    #
-    #     if events_converter.initialized or not do_import or len(events_importers) == 0:
-    #         if events_converter.previous_transfer_type() == MATLAB_CONVERSION_TYPE:
-    #             events_importers = [events_converter] + events_importers
-    #         else:
-    #             events_importers.append(events_converter)
-    #
-    # ephys_success, attempted_ephys = attempt_importers(ephys_importers, force_eeg)
-    #
-    # if ephys_success:
-    #     logger.debug("Attempting events importers")
-    #     events_success, attempted_events = attempt_importers(events_importers, force_events)
-    #     if attempted_events[-1].
-    #     logger.unset_subject()
-    #     return events_success and ephys_success, ImporterCollection(attempted_ephys + attempted_events)
-    # else:
-    #     logger.debug("Ephys failed.")
-    #     for importer in events_importers:
-    #         importer.remove()
-    #     logger.unset_subject()
-    #     return ephys_success, ImporterCollection(attempted_ephys)
 
 
 def run_montage_import(kwargs, do_create= True,do_convert = False,force=False):
@@ -968,6 +927,8 @@ def main():
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
+        print("Requesting report")
+        ReportLaunchTask(subject=inputs['subject'],experiment=inputs['experiment'],session=inputs['session']).request()
     print('Success:' if success else "Failed:")
     print(importers.describe())
     exit(0)

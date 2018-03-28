@@ -1,3 +1,5 @@
+api_url: 'http://rhino2.psych.upenn.edu:8080/api/v1/reports/build/'
+
 directories:
   protcol_db_dir    : &PROTOCOL_DB '{db_root}/protocols/{protocol}'
   subject_db_dir    : &SUBJ_DB !join [*PROTOCOL_DB, 'subjects/{subject}']

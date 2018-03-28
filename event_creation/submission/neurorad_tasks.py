@@ -9,7 +9,7 @@ from ..neurorad import (vox_mother_converter, calculate_transformation, add_loca
 
 from .log import logger
 from .tasks import PipelineTask
-from .exc import BrainBuilderError
+from .exc import WebAPIError
 
 class LoadVoxelCoordinatesTask(PipelineTask):
 
@@ -173,14 +173,15 @@ class BrainBuilderWebhookTask(PipelineTask):
 
 
     def _run(self, files, db_folder):
-        config = self.pipeline.transferer.transfer_config
-        api_url = config._raw_config['api_url']
+        from .configuration import paths
+
+        api_url = paths.brainviz_url
         parameters={'subject':self.subject,
                     'username':'cmlbrainbuilder',
                     'password':'BoBtheBuilder'}
         response  = requests.post(api_url,data=parameters)
         if response.status_code != 200:
-            raise BrainBuilderError('Request failed with message %s'%response.text)
+            raise WebAPIError('Request failed with message %s' % response.text)
 
 
 class CreateMontageTask(PipelineTask):

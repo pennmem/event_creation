@@ -2,9 +2,10 @@ import glob
 import os
 import re
 import traceback
+import requests
 
 import numpy as np
-from ptsa.data.readers import BaseEventReader
+from ptsa.data.readers import BaseEventReader,JsonIndexReader
 
 
 from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
@@ -39,7 +40,7 @@ from .tasks import PipelineTask
 
 from .viewers.recarray import to_json, from_json
 from .log import logger
-from .exc import NoEventsError, ProcessingError
+from .exc import NoEventsError, ProcessingError,WebAPIError
 import json
 
 class SplitEEGTask(PipelineTask):
@@ -311,6 +312,53 @@ class RecognitionFlagTask(PipelineTask):
         event_file = os.path.join(db_folder, 'task_events.json')
         events = from_json(event_file)
         self.pipeline.register_info('Recognition', any(['RECOG' in tipe for tipe in np.unique(events.type)]))
+
+
+class ReportLaunchTask(PipelineTask):
+
+    def __init__(self,subject,experiment,session):
+        super(ReportLaunchTask, self).__init__(critical=False)
+        self.subject = subject
+        self.experiment = experiment
+        self.session=session
+
+    def request(self):
+        from configuration import paths
+        api_url = paths.report_url
+        parameters = {
+            'username':'cmlbrainbuilder',
+            'password':'BoBtheBuilder',
+            'subject': self.subject,
+            'experiment':self.experiment,
+            'sessions':self.session,
+            'joint_report':False,
+            'rerun': True,
+            'use_classifier_excluded_leads': False,
+            'save_location':'/scratch/leond/new_reports', # TODO: CHANGE/PARAMETRIZE THIS
+            'report_database':'/scratch/report_database'
+        }
+        response = requests.post(api_url,data=parameters)
+        if response.status_code != 200:
+            raise WebAPIError('Request failed with message %s'%response.text)
+
+    def _run(self, files, db_folder):
+        config = self.pipeline.transferer.transfer_config
+        api_url = config._raw_config['api_url']
+        parameters = {
+            'username':'cmlbrainbuilder',
+            'password':'BoBtheBuilder',
+            'subject': self.subject,
+            'experiment':self.experiment,
+            'sessions':self.session,
+            'joint_report':False,
+            'rerun': True,
+            'use_classifier_excluded_leads': False,
+            'save_location':'/scratch/leond/new_reports', # TODO: CHANGE/PARAMETRIZE THIS
+            'report_database':'/scratch/report_database'
+        }
+        response = requests.post(api_url,data=parameters)
+        if response.status_code != 200:
+            raise WebAPIError('Request failed with message %s'%response.text)
 
 
 class EventCombinationTask(PipelineTask):
