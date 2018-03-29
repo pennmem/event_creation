@@ -339,26 +339,10 @@ class ReportLaunchTask(PipelineTask):
         }
         response = requests.post(api_url,data=parameters)
         if response.status_code != 200:
-            raise WebAPIError('Request failed with message %s'%response.text)
+            logger.error('Request failed with message %s'%response.text)
 
     def _run(self, files, db_folder):
-        config = self.pipeline.transferer.transfer_config
-        api_url = config._raw_config['api_url']
-        parameters = {
-            'username':'cmlbrainbuilder',
-            'password':'BoBtheBuilder',
-            'subject': self.subject,
-            'experiment':self.experiment,
-            'sessions':self.session,
-            'joint_report':False,
-            'rerun': True,
-            'use_classifier_excluded_leads': False,
-            'save_location':'/scratch/leond/new_reports', # TODO: CHANGE/PARAMETRIZE THIS
-            'report_database':'/scratch/report_database'
-        }
-        response = requests.post(api_url,data=parameters)
-        if response.status_code != 200:
-            raise WebAPIError('Request failed with message %s'%response.text)
+        self.request()
 
 
 class EventCombinationTask(PipelineTask):
