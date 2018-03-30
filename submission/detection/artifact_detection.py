@@ -1,5 +1,6 @@
 import os
 import mne
+import nolds
 import numpy as np
 import scipy.stats as ss
 from ..log import logger
@@ -23,6 +24,7 @@ class ArtifactDetector:
         self.eeg = eeg
         self.ephys_dir = ephys_dir
 
+        self.system = None
         self.chans = None
         self.n_chans = None
         self.eog_chans = None
@@ -45,9 +47,11 @@ class ArtifactDetector:
 
                 # Prepare settings depending on the EEG system that was used
                 if self.eegfile.endswith('.bdf'):
+                    self.system = 'bio'
                     self.left_eog = ['EXG3', 'EXG1']
                     self.right_eog = ['EXG4', 'EXG2']
                 elif self.eegfile.endswith('.mff') or self.eegfile.endswith('.raw'):
+                    self.system = 'egi'
                     self.left_eog = ['E25', 'E127']
                     self.right_eog = ['E8', 'E126']
                 else:
@@ -89,67 +93,93 @@ class ArtifactDetector:
 
     def mark_bad_channels(self):
         """
-        Runs several bad channel detection tests and records the test scores and automatically marked bad channels in
-        a TSV file. The detection methods are as follows:
+        Runs several bad channel detection tests, records the test scores in a TSV file, and saves the list of bad
+        channels to a text file. The detection methods are as follows:
 
-        1) Average absolute voltage offset from the reference channel. This corresponds to the electrode offset screen
-        in BioSemi's ActiView (though also appears to be effective for EGI sessions), and can be used to identify
-        channels with poor connection to the scalp.
+        1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
+        ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
+        during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
+        15% of the total duration of the recording above this offset threshold is marked as bad.
 
-        2) Low average correlation with all other channels. As signals on the scalp are rather diffuse, a properly
-        functioning channel should have some degree of correlation many other channels. Therefore, a channel with
-        extremely low average correlation is likely broken or not actually connected to the scalp. Note that the
-        absolute values of the correlation coefficients are used, such that the average correlation is always
-        nonnegative and low z-scores indicate low correlations rather than strong negative correlations.
+        2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
+        extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
+        variance allows for more reliable detection of outliers.
 
-        3) Variance of the channel. Extremely high variance indicates a noisy channel, while extremely low variance
-        indicates a flat channel.
+        3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
+        As physiological signals consistently have a Hurst exponent of around .7, channels with extreme deviations from
+        this value are unlikely to be measuring physiological activity.
 
-        4) Log-transformed variance of the channel. Testing of method 3 revealed that variance is distributed in such
-        a way that it is nearly impossible for channels to have highly negative z-scored variance. Flat channels are
-        detected much more reliably after the variance values have been log-transformed.
+        Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
+        as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
 
-        Channels are automatically marked as bad if the average reference offset is greater than 50 millivolts, if the
-        z-scored average correlation is less than -3, or if the z-scored variance or log-transformed variance is
-        greater than 3 or less than -3. Z-scores are calculated using the mean and standard deviation across all EEG
-        channels (EOG channels are excluded). Note that methods 2 and 3 are adapted from the "FASTER" method by Nolan,
-        Whelan, and Reilly (2010).
+        Through parameter optimization, it was found that channels should be marked as bad if they have a z-scored Hurst
+        exponent greater than 3.1 or z-scored log variance less than -1.9 or greater than 1.7. This combination of
+        thresholds, alongside the voltage offset test, successfully identified ~80.5% of bad channels with a false
+        positive rate of ~2.9% when tested on a set of 20 manually-annotated sessions. It was additionally found that
+        marking bad channels based on a low Hurst exponent failed to identify any channels that had not already marked
+        by the log-transformed variance test. Similarly, marking channels that were poorly correlated with other
+        channels as bad (see the "FASTER" method by Nolan, Whelan, and Reilly (2010)) was an accurate metric, but did
+        not improve the hit rate beyond what the log-transformed variance and Hurst exponent could achieve on their own.
 
-        Afterwards, a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan.tsv is created where the
-        scores for each EEG channel are recorded, including a column for whether each channel has been automatically
-        determined to be a bad channel.
+        Optimization was performed using a simple grid search of z-score threshold combinations for the different bad
+        channel detection methods, with the goal of optimizing the trade-off between hit rate and false positive rate
+        (hit_rate - false_positive_rate). The false positive rate was weighted at either 5 or 10 times the hit rate, to
+        strongly penalize the system for throwing out good channels (both weightings produced similar optimal
+        thresholds).
+
+        Following bad channel detection, two bad channel files are created. The first is a file named
+        <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
+        as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
+        contains the actual detection scores for each EEG channel.
 
         :return: None
         """
         logger.debug('Identifying bad channels for %s' % self.eegfile)
 
-        # Method 1: High voltage offset from the reference channel
-        ref_offset = np.abs(self.eeg[self.eegfile]._data[self.eeg_mask, :]).mean(axis=1)
+        # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
+        offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
+        offset_rate_th = .15  # If >15% of the recording has poor scalp contact, mark as bad (BioSemi only)
+        low_var_th = -1.9  # If z-scored log variance < 1.9, channel is most likely flat
+        high_var_th = 1.7  # If z-scored log variance > 1.7, channel is likely too noisy to analyze
+        hurst_th = 3.1  # If z-scored Hurst exponent > 3.1, channel is unlikely to be physiological
 
-        # Method 2: Low correlation with other channels
-        corr = np.corrcoef(self.eeg[self.eegfile]._data[self.eeg_mask, :])
-        corr = np.abs(corr)
-        corr = corr.mean(axis=0)
+        # Select EEG channels (not EOG or other channels) from just the currently active EEG file
+        eeg = self.eeg[self.eegfile].copy()
+        eeg.pick_types(eeg=True, eog=False)
 
-        # Method 3: High/Low variance
-        var = np.var(self.eeg[self.eegfile]._data[self.eeg_mask, :], axis=1)
+        # Method 1: Percent of samples with a high voltage offset (>30 mV) from the reference channel
+        if self.system == 'bio':
+            ref_offset = np.mean(np.abs(eeg._data) > offset_th, axis=1)
+        else:
+            ref_offset = np.zeros(self.n_chans)
 
-        # Method 4: High/Low log-transformed variance
-        log_var = np.log10(var)
+        # Apply .5 Hz high pass filter to prevent baseline drift from affecting the variance and Hurst exponent
+        eeg.filter(.5, None, fir_design='firwin')
 
-        # Make automated estimates of which channels are bad
-        bad = np.where(np.logical_or.reduce((np.abs(ref_offset) > .05, ss.zscore(corr) < -3,
-                                             np.abs(ss.zscore(var)) > 3, np.abs(ss.zscore(log_var)) > 3)))
-        badch = np.zeros(self.n_chans, dtype=int)
-        badch[bad] = True
+        # Method 2: High or low log-transformed variance
+        var = np.log(np.var(eeg._data, axis=1))
+        zvar = ss.zscore(var)
 
-        # Save a TSV file with the scores from each of the detection methods for each EEG channel
-        bad_chan_file = os.path.join(self.ephys_dir, os.path.splitext(os.path.basename(self.eegfile))[0] + '_bad_chan.tsv')
-        with open(bad_chan_file, 'w') as f:
-            f.write('name\tref_offset\tcorr\tvar\tlog_var\tbad\n')
-            for i, ch in enumerate(self.chans[self.eeg_mask]):
-                    f.write('%s\t%f\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], corr[i], var[i], log_var[i], badch[i]))
+        # Method 3: High Hurst exponent
+        hurst = np.zeros(self.n_chans)
+        for i in range(len(hurst)):
+            hurst[i] = nolds.hurst_rs(eeg._data[i, :])
+        zhurst = ss.zscore(hurst)
 
+        # Identify bad channels using optimized thresholds
+        bad = np.where((ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th))
+        badch = self.chans[bad]
+
+        # Save list of bad channels to a text file
+        badchan_file = os.path.join(self.ephys_dir, os.path.splitext(os.path.basename(self.eegfile))[0] + '_bad_chan.txt')
+        np.savetxt(badchan_file, badch, fmt='%s')
+
+        # Save a TSV file with extended info about each channel's scores
+        badchan_file = os.path.join(self.ephys_dir, os.path.splitext(os.path.basename(self.eegfile))[0] + '_bad_chan_info.tsv')
+        with open(badchan_file, 'w') as f:
+            f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
+            for i, ch in enumerate(self.chans):
+                    f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
 
     def mark_bad_epochs(self):
         """
