@@ -3,7 +3,7 @@ import os,socket,getpass
 import runpy
 import sys
 
-__version___ = "1.0.0"
+__version___ = "1.0.1"
 
 if sys.version_info[0] < 3:
     input = raw_input

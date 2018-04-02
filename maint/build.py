@@ -66,7 +66,7 @@ def convert():
     elif sys.platform.startswith('win32'):
         os_name = 'win'
     elif sys.platform.startswith('darwin'):
-        os_name = 'darwin'
+        os_name = 'osx'
     else:
         os_name = 'noarch'
     dirname = '{}-{}'.format(os_name, platform.architecture()[0][:2])
