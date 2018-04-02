@@ -339,7 +339,7 @@ class ReportLaunchTask(PipelineTask):
         }
         response = requests.post(api_url,data=parameters)
         if response.status_code != 200:
-            logger.error('Request failed with message %s'%response.text)
+            logger.error('Request failed with error code %s'%response.status_code)
 
     def _run(self, files, db_folder):
         self.request()
