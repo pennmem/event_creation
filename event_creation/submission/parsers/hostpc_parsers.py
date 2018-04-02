@@ -122,6 +122,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     # the task laptop side, and therefore their structure is independent of the task being run.
 
     def event_stim(self,event_json):
+        event_json[self._MSTIME_FIELD] *= 1000
         event = self.event_default(event_json)
         event.type = 'STIM_ON'
         stim_params = event_json['msg_stub']['stim_channels']
