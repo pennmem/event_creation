@@ -6,9 +6,9 @@ paths : &PATHS
   db_root        : *RHINO
   events_root    : !join [*RHINO, 'data/events']
   freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
-  api_url_base   : &API_BASE 'http://rhino2.psych.upenn.edu:8080/api/v1/'
-  brainviz_url   : !join [*API_BASE, 'brain', 'build']
-  report_url     : !join [*API_BASE, 'reports','build']
+  api_url_base   : &API_BASE 'http://rhino2.psych.upenn.edu:8083/api/v1/'
+  brainviz_url   : !join [*API_BASE, 'brain/build/',]
+  report_url     : !join [*API_BASE, 'reports/build/']
 
 inputs: &INPUTS
   protocol :

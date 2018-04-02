@@ -334,7 +334,7 @@ class ReportLaunchTask(PipelineTask):
             'joint_report':False,
             'rerun': True,
             'use_classifier_excluded_leads': False,
-            'save_location':'/scratch/leond/new_reports', # TODO: CHANGE/PARAMETRIZE THIS
+            'save_location':'/scratch/report_database/html_reports', # TODO: CHANGE/PARAMETRIZE THIS
             'report_database':'/scratch/report_database'
         }
         response = requests.post(api_url,data=parameters)
