@@ -176,6 +176,7 @@ class EventCreationTask(PipelineTask):
                 'PS':PSLogParser,
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
+                'PAL':PALSys3LogParser,
             }
         else:
             raise KeyError
