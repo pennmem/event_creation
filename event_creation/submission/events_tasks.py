@@ -36,6 +36,7 @@ from .parsers.math_parser import MathSessionLogParser,MathUnityLogParser
 from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
+from .quality.util import get_time_field
 
 from .viewers.recarray import to_json, from_json
 from .log import logger
@@ -317,17 +318,21 @@ class EventCombinationTask(PipelineTask):
 
     COMBINED_LABEL='all'
 
-    def __init__(self, event_labels, sort_field='mstime', critical=True):
+    def __init__(self, event_labels, sort_field=None, critical=True):
         super(EventCombinationTask, self).__init__(critical)
         self.name = 'Event combination: {}'.format(event_labels)
         self.event_labels = event_labels
         self.sort_field = sort_field
 
     def _run(self, files, db_folder):
+        if self.sort_field is None:
+            sort_field = get_time_field(files)
+        else:
+            sort_field = self.sort_field
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
         event_files = [f for f in event_files if os.path.isfile(f)]
         events = [from_json(event_file) for event_file in event_files]
-        combiner = EventCombiner(events)
+        combiner = EventCombiner(events,sort_field=sort_field)
         combined_events = combiner.combine()
 
         self.create_file('{}_events.json'.format(self.COMBINED_LABEL),
