@@ -3,7 +3,7 @@ channels:
 - pennmem
 - conda-forge
 dependencies:
-- hdf5=1.8.17=1
+- hdf5=1.8.17
 - matplotlib
 - nose=1.3.7=py27_1
 - numpy=1.13

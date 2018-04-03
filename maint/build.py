@@ -91,7 +91,7 @@ def upload():
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    if not args.no_clean:
+    if not args.no_clean or not args.no_build:
         clean()
 
     if not args.no_build:

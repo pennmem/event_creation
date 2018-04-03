@@ -1,6 +1,7 @@
 2018-3-28
 =========
 - STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures
+- Successfully running the event creation pipeline now sends a request to the web reporting API
 
 2018-3-6
 ========
