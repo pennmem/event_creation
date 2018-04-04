@@ -9,6 +9,7 @@ import numpy as np
 from ..quality import fr_tests
 import os
 
+
 def with_offset(event_handler):
     """
     Decorator for event handlers.
@@ -24,6 +25,7 @@ def with_offset(event_handler):
         return self.set_offset(event,event_json)
     return handle_and_add_offset
 
+
 class BaseHostPCLogParser(BaseSessionLogParser):
     """
     This class implements the basic logic for producing event structures from event_log.json files written by the
@@ -37,19 +39,6 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     ADD_STIM_EVENTS = False
 
     _MESSAGE_CLASS = 'StoreEventMessage'
-
-    _STIM_FIELDS = (
-        ('anode_label','','S64'),
-        ('anode_number',-1,'int16'),
-        ('cathode_label','','S64'),
-        ('cathode_number',-1,'int16'),
-        ('amplitude',    -1,'int16'),
-        ('pulse_freq',   -1,'int16'),
-        ('stim_duration',-1,'int16'),
-        ('biomarker_value',-1.0,'float'),
-        ('_remove',True,'bool'),
-        )
-
 
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='event_log', allow_unparsed_events=False, include_stim_params=False):
@@ -98,7 +87,6 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                        else self.files['experiment_config'])
         with open(config_file,'r') as ecf:
             self._experiment_config = json.load(ecf)
-
 
     def parse(self):
         """
@@ -306,6 +294,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         events[events.mstime>=last_word.mstime]= events_to_modify
         return events
 
+
 class catFRHostPCLogParser(FRHostPCLogParser):
 
     _catFR_FIELDS = (
@@ -317,7 +306,6 @@ class catFRHostPCLogParser(FRHostPCLogParser):
     _CATEGORY_NUM = 'category_num'
 
     _TESTS = FRHostPCLogParser._TESTS + [fr_tests.test_catfr_categories]
-
 
     def __init__(self,*args,**kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
@@ -337,7 +325,6 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         if len(category_num):
             event.category_num=category_num[0][0]
         return event
-
 
     def clean_events(self, events):
         """
