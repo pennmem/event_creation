@@ -134,11 +134,11 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         return event
 
     def clean_events(self, events):
-        events.protocol = self._protocol
-        events.experiment = self._experiment
-        events.subject = self._subject
-        events.session = self._session
-        events.montage = self._montage
+        events['protocol'] = self._protocol
+        events['experiment'] = self._experiment
+        events['subject'] = self._subject
+        events['session'] = self._session
+        events['montage'] = self._montage
         return events
 
 
