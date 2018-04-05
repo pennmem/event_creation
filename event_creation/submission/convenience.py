@@ -499,7 +499,7 @@ def import_montages_from_json(filename, force=False):
     try:
         for inputs in montage_inputs_from_json(filename):
             if inputs['protocol'] != 'ltp':  # Skip montage import for LTP participants
-                success, importers = run_montage_import(inputs, force,do_convert=True)
+                success, importers = run_montage_import(inputs, do_convert=True,force=force)
                 if success:
                     successes.append(importers)
                 else:

@@ -516,7 +516,7 @@ def build_import_montage_pipeline(subject, montage, protocol, code,**kwargs):
     return TransferPipeline(transferer, *tasks)
 
 
-def build_create_montage_pipeline(subject,montage,protocol, reference_scheme,code):
+def build_create_montage_pipeline(subject, montage, protocol, code, reference_scheme='monopolar'):
 
     localization  = int(montage.split('.')[0])
     transferer = generate_create_montage_transferer(subject, montage, protocol, code)
