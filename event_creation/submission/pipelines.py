@@ -496,7 +496,7 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
         LoadVoxelCoordinatesTask(subject, localization, is_new),
         CreateDuralSurfaceTask(subject,localization,True),
         CalculateTransformsTask(subject, localization,critical=True),
-        CorrectCoordinatesTask(subject, localization,overwrite=force_dykstra,critical=True),
+        CorrectCoordinatesTask(subject, localization,code=code,overwrite=force_dykstra,critical=True),
         GetFsAverageCoordsTask(subject,localization,critical=False),
         AddContactLabelsTask(subject, localization),
         AddMNICoordinatesTask(subject, localization,critical=False),

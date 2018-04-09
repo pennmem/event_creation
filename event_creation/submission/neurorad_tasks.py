@@ -87,11 +87,12 @@ class CalculateTransformsTask(PipelineTask):
 
 class CorrectCoordinatesTask(PipelineTask):
 
-    def __init__(self, subject, localization, overwrite=False,critical=False):
+    def __init__(self, subject, localization, code,overwrite=False,critical=False):
         super(CorrectCoordinatesTask, self).__init__(critical)
         self.name = 'Correcting coordinates {} loc {}'.format(subject, localization)
-        self.subject=subject
-        self.overwrite=overwrite
+        self.subject = subject
+        self.overwrite = overwrite
+        self.code = code
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
@@ -111,7 +112,7 @@ class CorrectCoordinatesTask(PipelineTask):
         Norig = self.pipeline.retrieve_object('Norig')
         talxfm = self.pipeline.retrieve_object('talxfm')
         calculate_transformation.invert_transformed_coords(localization,Torig,Norig,talxfm)
-        map_mni_coords.add_corrected_mni_cordinates(localization,imaging_root,self.subject)
+        map_mni_coords.add_corrected_mni_cordinates(localization,imaging_root,self.code)
 
 
 class AddContactLabelsTask(PipelineTask):
