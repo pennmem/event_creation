@@ -928,7 +928,7 @@ def main():
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
         print("Requesting report")
-        ReportLaunchTask(subject=inputs['subject'],experiment=inputs['experiment'],session=inputs['session']).request()
+        ReportLaunchTask(subject=inputs['code'],experiment=inputs['experiment'],session=inputs['session']).request()
     print('Success:' if success else "Failed:")
     print(importers.describe())
     exit(0)
