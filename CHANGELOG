@@ -2,6 +2,8 @@
 =========
 - STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures
 - Successfully running the event creation pipeline now sends a request to the web reporting API
+- HostPCLogParser now uses the same stim_params fields as everyone else
+- neurorad_tasks.CorrectCoordinatesTask now uses `code` instead of `subject` when correcting MNI coordinates
 
 2018-3-6
 ========
