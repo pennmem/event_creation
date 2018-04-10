@@ -1,8 +1,5 @@
-import os
 import mne
-import nolds
 import numpy as np
-import scipy.stats as ss
 from ..log import logger
 
 
@@ -62,7 +59,7 @@ class ArtifactDetector:
                 self.eeg[self.eegfile] = mne.set_bipolar_reference(self.eeg[self.eegfile], anode=[self.left_eog[0],
                                                     self.right_eog[0]], cathode=[self.left_eog[1], self.right_eog[1]])
 
-                # Get a list of the channels names, and make sure we have 130 channels as intended (128 +
+                # Get a list of the channels names, and make sure we have the proper number of channels
                 self.chans = np.array(self.eeg[self.eegfile].ch_names)
                 self.n_chans = len(self.chans)
                 if (self.eegfile.endswith('.mff') or self.eegfile.endswith('.raw')) and self.n_chans != 126:
@@ -85,101 +82,33 @@ class ArtifactDetector:
                 self.eeg_mask[self.leog_ind] = False
 
                 # Run artifact detection
-                self.mark_bad_channels()
+                #self.mark_artifacts()
                 self.mark_bad_epochs()
 
         return self.events
 
+    def mark_artifacts(self):
 
-    def mark_bad_channels(self):
-        """
-        Runs several bad channel detection tests, records the test scores in a TSV file, and saves the list of bad
-        channels to a text file. The detection methods are as follows:
+        # Access currently selected EEG file
+        eeg = self.eeg[self.eegfile]
 
-        1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
-        ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
-        during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
-        15% of the total duration of the recording above this offset threshold is marked as bad.
+        # Find the interquartile range of each channel
+        p75 = np.percentile(eeg._data, 75, axis=1)
+        p25 = np.percentile(eeg._data, 25, axis=1)
+        iqr = p75 - p25
 
-        2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
-        extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
-        variance allows for more reliable detection of outliers.
+        # Set the artifact threshold as 3 * IQR outside of the interquartile range
+        tpos = p75 + 3 * iqr
+        tneg = p25 - 3 * iqr
 
-        3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
-        As physiological signals consistently have a Hurst exponent of around .7, channels with extreme deviations from
-        this value are unlikely to be measuring physiological activity.
+        # Mark the locations of artifacts on each channel
+        art = np.zeros(eeg._data.shape, dtype=bool)
+        for i in range(eeg._data.shape[0]):
+            art[i, :] = (eeg._data[i, :] - p75[i]) > tpos[i]
+            art[i, :] |= (eeg._data[i, :] - p25[i]) < tneg[i]
 
-        Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
-        as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
-
-        Through parameter optimization, it was found that channels should be marked as bad if they have a z-scored Hurst
-        exponent greater than 3.1 or z-scored log variance less than -1.9 or greater than 1.7. This combination of
-        thresholds, alongside the voltage offset test, successfully identified ~80.5% of bad channels with a false
-        positive rate of ~2.9% when tested on a set of 20 manually-annotated sessions. It was additionally found that
-        marking bad channels based on a low Hurst exponent failed to identify any channels that had not already marked
-        by the log-transformed variance test. Similarly, marking channels that were poorly correlated with other
-        channels as bad (see the "FASTER" method by Nolan, Whelan, and Reilly (2010)) was an accurate metric, but did
-        not improve the hit rate beyond what the log-transformed variance and Hurst exponent could achieve on their own.
-
-        Optimization was performed using a simple grid search of z-score threshold combinations for the different bad
-        channel detection methods, with the goal of optimizing the trade-off between hit rate and false positive rate
-        (hit_rate - false_positive_rate). The false positive rate was weighted at either 5 or 10 times the hit rate, to
-        strongly penalize the system for throwing out good channels (both weightings produced similar optimal
-        thresholds).
-
-        Following bad channel detection, two bad channel files are created. The first is a file named
-        <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
-        as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
-        contains the actual detection scores for each EEG channel.
-
-        :return: None
-        """
-        logger.debug('Identifying bad channels for %s' % self.eegfile)
-
-        # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
-        offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
-        offset_rate_th = .15  # If >15% of the recording has poor scalp contact, mark as bad (BioSemi only)
-        low_var_th = -1.9  # If z-scored log variance < 1.9, channel is most likely flat
-        high_var_th = 1.7  # If z-scored log variance > 1.7, channel is likely too noisy to analyze
-        hurst_th = 3.1  # If z-scored Hurst exponent > 3.1, channel is unlikely to be physiological
-
-        # Select EEG channels (not EOG or other channels) from just the currently active EEG file
-        eeg = self.eeg[self.eegfile].copy()
-        eeg.pick_types(eeg=True, eog=False)
-
-        # Method 1: Percent of samples with a high voltage offset (>30 mV) from the reference channel
-        if self.system == 'bio':
-            ref_offset = np.mean(np.abs(eeg._data) > offset_th, axis=1)
-        else:
-            ref_offset = np.zeros(self.n_chans)
-
-        # Apply .5 Hz high pass filter to prevent baseline drift from affecting the variance and Hurst exponent
-        eeg.filter(.5, None, fir_design='firwin')
-
-        # Method 2: High or low log-transformed variance
-        var = np.log(np.var(eeg._data, axis=1))
-        zvar = ss.zscore(var)
-
-        # Method 3: High Hurst exponent
-        hurst = np.zeros(self.n_chans)
-        for i in range(len(hurst)):
-            hurst[i] = nolds.hurst_rs(eeg._data[i, :])
-        zhurst = ss.zscore(hurst)
-
-        # Identify bad channels using optimized thresholds
-        bad = np.where((ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th))
-        badch = self.chans[bad]
-
-        # Save list of bad channels to a text file
-        badchan_file = os.path.join(self.ephys_dir, os.path.splitext(os.path.basename(self.eegfile))[0] + '_bad_chan.txt')
-        np.savetxt(badchan_file, badch, fmt='%s')
-
-        # Save a TSV file with extended info about each channel's scores
-        badchan_file = os.path.join(self.ephys_dir, os.path.splitext(os.path.basename(self.eegfile))[0] + '_bad_chan_info.tsv')
-        with open(badchan_file, 'w') as f:
-            f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
-            for i, ch in enumerate(self.chans):
-                    f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
+        left_eog_art = art[self.leog_ind, :]
+        right_eog_art = art[self.reog_ind, :]
 
     def mark_bad_epochs(self):
         """
@@ -247,8 +176,10 @@ class ArtifactDetector:
             WORD=0
         )
 
-        offsets = [o for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
-        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset) if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
+        offsets = [o for i,o in enumerate(self.events.eegoffset)
+                   if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
+        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset)
+               if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
         if len(ids) == 0:
             logger.warn('Skipping artifact detection for file %s due to it having no presentation events!' % self.eegfile)
             return
@@ -278,7 +209,7 @@ class ArtifactDetector:
 
         # Apply baseline correction on epoch data before analyzing individual channels across events
         ep.apply_baseline((0, None))
-
+        """
         # Method 1: High variance on individual channels during event
         variance = np.var(ep._data, axis=2)
         avg_variance = variance[:, self.eeg_mask].mean(axis=1)
@@ -290,7 +221,7 @@ class ArtifactDetector:
         # Method 3: High voltage range on individual channels during event
         amp_range = ep._data.max(axis=2) - ep._data.min(axis=2)
         avg_amp_range = amp_range[:, self.eeg_mask].mean(axis=1)
-
+        """
         # Method 4: Large deviation of voltage from interquartile range on individual channels during event
         # Find the interquartile range of each channel, across time and across all events
         p75 = np.percentile(ep._data, 75, axis=[2, 0])
@@ -301,14 +232,14 @@ class ArtifactDetector:
         amp_max_iqr[amp_max_iqr < 0] = 0
         amp_min_iqr = (ep._data.min(axis=2) - p25) / iqr
         amp_min_iqr[amp_min_iqr > 0] = 0
-
+        """
         # Mark entire events as bad if they have a high voltage range or variance across channels
         bad_epoch = np.logical_or(ss.zscore(avg_amp_range) > 3, ss.zscore(avg_variance) > 3)
 
         # Create events x channels matrices of booleans indicating whether each EEG channel is bad during each event
         eeg_art = np.logical_or.reduce((ss.zscore(variance, axis=0) > 3, ss.zscore(gradient, axis=0) > 3,
                                     ss.zscore(amp_range, axis=0) > 3, amp_max_iqr > 3, amp_min_iqr < -3))
-
+        """
         # Use only method 4 to search for blinks/eye movements in each EOG channel
         right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
         left_eog_art = np.logical_or(amp_max_iqr[:, self.leog_ind] > 3, amp_min_iqr[:, self.leog_ind] < -3)
@@ -324,10 +255,12 @@ class ArtifactDetector:
 
         # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
         event_mask = np.where([ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
+
         # Also skip any events that run beyond the bounds of the EEG file
         event_mask = event_mask[truncated_events_pre:]
         event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
 
+        """
         # badEpoch is True if abnormally high range or variance occurs across EEG channels
         self.events.badEpoch[event_mask] = bad_epoch
         # artifactChannels is a 128-item array indicating whether each EEG channel is bad during each event
@@ -343,6 +276,7 @@ class ArtifactDetector:
         self.events.iqrDevMax[event_mask, :self.n_chans-2] = amp_max_iqr[:, self.eeg_mask]
         # iqrDevMin is a 128-item array how many IQRs below the 25th %ile each channel reaches during the event
         self.events.iqrDevMin[event_mask, :self.n_chans-2] = amp_min_iqr[:, self.eeg_mask]
+        """
 
         # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
         self.events.eogArtifact[event_mask] = 0
