@@ -1077,6 +1077,10 @@ class ScalpReader(EEG_reader):
         # Re-reference EEG data to the common average of all non-bad channels
         self.data.set_eeg_reference(projection=False)
 
+        # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
+        # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA uses.
+        self.data._data = self.data._data.astype(np.float32)
+
         # Run ICA and save the ICA solution to file
         logger.debug('Running ICA on {}'.format(basename))
         self.run_ica()
