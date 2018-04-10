@@ -998,7 +998,7 @@ class ScalpReader(EEG_reader):
         zhurst = ss.zscore(hurst)
 
         # Identify bad channels using optimized thresholds
-        bad = np.where((ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th))
+        bad = np.where((ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th))[0]
         badch = np.array(self.data.ch_names)[bad]
 
         # Mark MNE data with bad channel info
