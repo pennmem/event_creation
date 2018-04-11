@@ -33,3 +33,4 @@ dependencies:
   - nibabel==2.1.0
   - mne==0.15.0
   - scikit-image
+  - nolds

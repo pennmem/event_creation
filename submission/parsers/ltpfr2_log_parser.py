@@ -23,14 +23,6 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             ('intruded', 0, 'int16'),
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
-
-            ('badEpoch', -1, 'int8'),
-            ('artifactChannels', -1, 'int8', 128),
-            ('variance', np.nan, 'float', 128),
-            ('medGradient', np.nan, 'float', 128),
-            ('ampRange', np.nan, 'float', 128),
-            ('iqrDevMax', np.nan, 'float', 128),
-            ('iqrDevMin', np.nan, 'float', 128),
             ('eogArtifact', -1, 'int8')
         )
 

@@ -13,6 +13,8 @@ from scipy.linalg import pinv
 
 import tables
 import mne
+import scipy.stats as ss
+from nolds import hurst_rs
 
 try:
     import pyedflib
@@ -866,6 +868,9 @@ class ScalpReader(EEG_reader):
         self.left_eog = None
         self.right_eog = None
         self.filetype = None
+        self.save_loc = None
+        self.basename = None
+        self.highpassed = False
         self.DATA_FORMAT = self.filetype
 
     def get_data(self):
@@ -908,47 +913,154 @@ class ScalpReader(EEG_reader):
             else:
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
 
+            # Drop EOG, sync pulse, and any unused miscellaneous channels
+            self.data.pick_types(eeg=True, eog=False)
+
             logger.debug('Finished parsing EEG data.')
             return True
         except:
             logger.warn('Unable to parse EEG data file!')
             return False
 
-
-    def run_ica(self, save_path):
+    def mark_bad_channels(self):
         """
-        Run ICA on entire session using mne's ICA class. Then identify artifactual components based on high correlation
-        with EOG channels, low skewness, low kurtosis, or high variance (via mne's detect_artifacts workflow).
+        Runs several bad channel detection tests, records the test scores in a TSV file, and saves the list of bad
+        channels to a text file. The detection methods are as follows:
 
-        :param save_path: The filepath where the ICA solution will be saved. To conform with MNE standards, this path
-        should end with "-ica.fif".
+        1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
+        ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
+        during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
+        15% of the total duration of the recording above this offset threshold is marked as bad.
+
+        2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
+        extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
+        variance allows for more reliable detection of outliers.
+
+        3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
+        As physiological signals consistently have a Hurst exponent of around .7, channels with extreme deviations from
+        this value are unlikely to be measuring physiological activity.
+
+        Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
+        as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
+
+        Through parameter optimization, it was found that channels should be marked as bad if they have a z-scored Hurst
+        exponent greater than 3.1 or z-scored log variance less than -1.9 or greater than 1.7. This combination of
+        thresholds, alongside the voltage offset test, successfully identified ~80.5% of bad channels with a false
+        positive rate of ~2.9% when tested on a set of 20 manually-annotated sessions. It was additionally found that
+        marking bad channels based on a low Hurst exponent failed to identify any channels that had not already marked
+        by the log-transformed variance test. Similarly, marking channels that were poorly correlated with other
+        channels as bad (see the "FASTER" method by Nolan, Whelan, and Reilly (2010)) was an accurate metric, but did
+        not improve the hit rate beyond what the log-transformed variance and Hurst exponent could achieve on their own.
+
+        Optimization was performed using a simple grid search of z-score threshold combinations for the different bad
+        channel detection methods, with the goal of optimizing the trade-off between hit rate and false positive rate
+        (hit_rate - false_positive_rate). The false positive rate was weighted at either 5 or 10 times the hit rate, to
+        strongly penalize the system for throwing out good channels (both weightings produced similar optimal
+        thresholds).
+
+        Following bad channel detection, two bad channel files are created. The first is a file named
+        <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
+        as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
+        contains the actual detection scores for each EEG channel.
+
+        :return: None
         """
-        # MNE recommends high pass filtering at 1 Hz before running ICA
-        self.data.filter(1., None, fir_design='firwin')
+        logger.debug('Identifying bad channels for %s' % self.basename)
 
-        # Run ICA and check for artifactual components based on EOG correlation, skewness, kurtosis, and variance
+        # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
+        offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
+        offset_rate_th = .15  # If >15% of the recording has poor scalp contact, mark as bad (BioSemi only)
+        low_var_th = -1.9  # If z-scored log variance < 1.9, channel is most likely flat
+        high_var_th = 1.7  # If z-scored log variance > 1.7, channel is likely too noisy to analyze
+        hurst_th = 3.1  # If z-scored Hurst exponent > 3.1, channel is unlikely to be physiological
+
+        n_chans = self.data._data.shape[0]
+        # Method 1: Percent of samples with a high voltage offset (>30 mV) from the reference channel
+        if self.filetype == '.bdf':
+            ref_offset = np.mean(np.abs(self.data._data) > offset_th, axis=1)
+        else:
+            ref_offset = np.zeros(n_chans)
+
+        # Apply .5 Hz high pass filter to prevent baseline drift from affecting the variance and Hurst exponent
+        # This high-pass filter is also needed later for ICA
+        if not self.highpassed:
+            self.data.filter(.5, None, fir_design='firwin')
+            self.highpassed = True
+
+        # Method 2: High or low log-transformed variance
+        var = np.log(np.var(self.data._data, axis=1))
+        zvar = ss.zscore(var)
+
+        # Method 3: High Hurst exponent
+        hurst = np.zeros(n_chans)
+        for i in range(n_chans):
+            hurst[i] = hurst_rs(self.data._data[i, :])
+        zhurst = ss.zscore(hurst)
+
+        # Identify bad channels using optimized thresholds
+        bad = (ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th)
+        badch = np.array(self.data.ch_names)[bad]
+
+        # Mark MNE data with bad channel info
+        self.data.info['bads'] = badch.tolist()
+
+        # Save list of bad channels to a text file
+        badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan.txt')
+        np.savetxt(badchan_file, badch, fmt='%s')
+
+        # Save a TSV file with extended info about each channel's scores
+        badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan_info.tsv')
+        with open(badchan_file, 'w') as f:
+            f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
+            for i, ch in enumerate(self.data.ch_names):
+                f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
+
+    def run_ica(self):
+        """
+        Run ICA on entire session using MNE's ICA class. EOG channels are not included in the ICA calculation. Note that
+        it is important to high-pass filter the data before running ICA. In the standard workflow, high-pass filtering
+        will have already been applied during bad channel detection, so it will not need to run again here. The ICA
+        solution is saved out to a file ending with "-ica.fif" in the current_processed ephys folder.
+        """
+        # High-pass filter the data if we have not already done so. ICA will not work properly if the baseline drifts.
+        if not self.highpassed:
+            self.data.filter(.5, None, fir_design='firwin')
+            self.highpassed = True
+
+        # Clear the list of bad channels, as MNE will otherwise automatically exclude bad channels from the ICA solution
+        self.data.info['bads'] = []
+
+        # Fit ICA to EEG channels only using FastICA algorithm
         logger.debug('Running ICA')
-        # Set ICA to use decimation based on the sample rate of the recording, or else ICA will take a very long time
-        decimation_level = int(self.data.info['sfreq'] // 250) if self.data.info['sfreq'] >= 500 else None
-        # Run fit ICA to EEG channels only using FastICA algorithm
         ica = mne.preprocessing.ICA(method='fastica')
-        ica.fit(self.data, picks=mne.pick_types(self.data.info, eeg=True, eog=True), decim=decimation_level)
-        # Automatically identify bad components using MNE
-        ica.detect_artifacts(self.data, eog_ch=self.left_eog + self.right_eog)
-        # Save the MNE ICA object to a .fif file
-        ica.save(save_path)
+        ica.fit(self.data)
+
+        # Save the ICA solution to a .fif file that can be read back in later by MNE
+        logger.debug('Saving ICA solution')
+        ica.save(os.path.join(self.save_loc, self.basename + '-ica.fif'))
 
     def split_data(self, location, basename):
         """
-        This function runs the full EEG post-processing regimen on the recording. Note that "split data" is a misnomer
+        This function runs the full EEG pre-processing regimen on the recording. Note that "split data" is a misnomer
         for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, Scalp Lab data is left
         as raw .mff/.raw/.bdf data files and ICA post-processing results are saved to a .fif file using MNE.
+
+        As part of this process, data is loaded using MNE. All EOG, sync pulse, and other miscellaneous channels are
+        dropped, leaving only the actual EEG channels. Bad channel detection is then performed using several criteria
+        that were optimized on a set of human-annotated sessions (see the docstring for mark_bad_channels). The data
+        is high-pass filtered during bad channel detection to eliminate baseline drift, which could invalidate the
+        bad channel criteria and ICA calculation. The data is then re-referenced to the common average of all non-bad
+        electrodes. Finally, ICA is run on the session, and the resulting solution (i.e. the mixing/unmixing matrix) is
+        saved out to a file in the ephys directory.
 
         :param location: A string denoting the directory in which the channel files are to be written
         :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
         be appended to the path for the EEG save file and "-ica.fif" will be appended to the path for the ICA save file.
         """
-        logger.info("Post-processing EEG data into {}/{}".format(location, basename))
+        logger.info("Pre-processing EEG data into {}/{}".format(location, basename))
+        self.save_loc = location
+        self.basename = os.path.splitext(basename)[0]
+
         # Load data if we have not already done so
         if self.data is None:
             success = self.get_data()
@@ -958,13 +1070,23 @@ class ScalpReader(EEG_reader):
         # Create a link to the raw data file in the ephys current_processed directory
         os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
 
-        # Run ICA, mark bad components, and save ICA solution to file
-        ica_filename = os.path.join(location, os.path.splitext(basename)[0] + '-ica.fif')
-        self.run_ica(ica_filename)
+        # Run bad channel detection and write bad channel information to files
+        logger.debug('Marking bad channels for {}'.format(basename))
+        self.mark_bad_channels()
+
+        # Re-reference EEG data to the common average of all non-bad channels
+        self.data.set_eeg_reference(projection=False)
+
+        # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
+        # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA uses.
+        self.data._data = self.data._data.astype(np.float32)
+
+        # Run ICA and save the ICA solution to file
+        logger.debug('Running ICA on {}'.format(basename))
+        self.run_ica()
 
         self.write_sources(location, basename)
         return True
-
 
     def get_start_time(self):
         # Read header info if have not already done so, as the header contains the start time info
