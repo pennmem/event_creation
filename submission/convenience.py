@@ -269,7 +269,7 @@ def attempt_importers(importers, force):
     return success, importers[:i+1]
 
 
-def run_session_import(kwargs, do_import=True, do_convert=False, force_events=False, force_eeg=False):
+def run_session_import(kwargs, do_import=True, do_convert=False, force_events=True, force_eeg=True):
     """
     :param kwargs:
     :param do_import:
