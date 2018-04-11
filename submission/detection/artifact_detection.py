@@ -9,17 +9,20 @@ class ArtifactDetector:
     conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
     """
 
-    def __init__(self, events, eeg, ephys_dir):
+    def __init__(self, events, eeg, ephys_dir, experiment):
         """
         :param events: The events structure (a recarray) for the session
         :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with 
         multiple recordings from a single session).
         :param ephys_dir: The path to the current_processed ephys folder for the current session.
+        :param experiment: The name of the experiment. This can be used to modify event types and timings for different
+        experiments.
         """
         self.events = events
         self.eegfile = None  # Used for tracking the path to the recording which is currently being processed
         self.eeg = eeg
         self.ephys_dir = ephys_dir
+        self.experiment = experiment
 
         self.system = None
         self.chans = None
@@ -188,7 +191,7 @@ class ArtifactDetector:
         mne_evs[:, 2] = ids
 
         tmin = 0.
-        tmax = 1.6
+        tmax = 3.0 if self.experiment == 'ltpFR' else 1.6
         # Remove any events that run beyond the bounds of the EEG file
         truncated_events_pre = 0
         truncated_events_post = 0
