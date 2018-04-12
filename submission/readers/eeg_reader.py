@@ -899,7 +899,9 @@ class ScalpReader(EEG_reader):
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
-                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=True)
+                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
+                                                misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status',
+                                                montage='biosemi128', preload=True)
                 self.left_eog = ['EXG3', 'EXG1']
                 self.right_eog = ['EXG4', 'EXG2']
 
@@ -1033,7 +1035,18 @@ class ScalpReader(EEG_reader):
         # Fit ICA to EEG channels only using FastICA algorithm
         logger.debug('Running ICA')
         ica = mne.preprocessing.ICA(method='fastica')
-        ica.fit(self.data)
+        try:
+            # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
+            # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA
+            # uses.
+            self.data._data = self.data._data.astype(np.float32)
+            ica.fit(self.data)
+            self.data._data = self.data._data.astype(np.float64)
+        except ValueError:
+            # In rare cases, using float32 in ICA can result in some values overflowing and becoming infinite, which
+            # will crash the ICA process. If this occurs, switch back to float64 and re-attempt ICA.
+            self.data._data = self.data._data.astype(np.float64)
+            ica.fit(self.data)
 
         # Save the ICA solution to a .fif file that can be read back in later by MNE
         logger.debug('Saving ICA solution')
@@ -1068,7 +1081,8 @@ class ScalpReader(EEG_reader):
                 return False
 
         # Create a link to the raw data file in the ephys current_processed directory
-        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
+        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))),
+                   os.path.join(location, basename))
 
         # Run bad channel detection and write bad channel information to files
         logger.debug('Marking bad channels for {}'.format(basename))
@@ -1076,10 +1090,6 @@ class ScalpReader(EEG_reader):
 
         # Re-reference EEG data to the common average of all non-bad channels
         self.data.set_eeg_reference(projection=False)
-
-        # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
-        # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA uses.
-        self.data._data = self.data._data.astype(np.float32)
 
         # Run ICA and save the ICA solution to file
         logger.debug('Running ICA on {}'.format(basename))
