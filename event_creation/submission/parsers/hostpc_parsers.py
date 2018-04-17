@@ -110,7 +110,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     # the task laptop side, and therefore their structure is independent of the task being run.
 
     def event_stim(self,event_json):
-        event_json[self._MSTIME_FIELD] *= 1000
+        event_json[self._MSTIME_FIELD] = -1
         event = self.event_default(event_json)
         event.type = 'STIM_ON'
         stim_params = event_json['msg_stub']['stim_channels']
@@ -177,7 +177,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self._stim_on = False
         self._list = -999
         self._phase = ''
-        self._serialpos = 1
+        self._serialpos = -999
         self._wordpool = np.loadtxt(files['wordpool'],dtype=str)
 
 
@@ -189,6 +189,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
     def event_stim(self,event_json):
         event = super(FRHostPCLogParser, self).event_stim(event_json)
         self.apply_word(event)
+        event.serialpos = self._serialpos
         if self._stim_on:
             event.stim_params['biomarker_value']=self._biomarker_value
         self._stim_on = True
@@ -271,7 +272,6 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             list_events= events[in_list]
             for duration in np.unique([x['stim_duration'] for x in self._stim_params.values()]):
                 stim_off_events = deepcopy(list_stim_events)
-                stim_off_events.mstime += duration
                 stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
                 stim_off_events.type='STIM_OFF'
                 list_events = np.concatenate([list_events,stim_off_events])
