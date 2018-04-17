@@ -103,7 +103,6 @@ class System3Aligner(object):
 
         return self.merged_events
 
-
     def get_coefficients_from_event_log(self, from_label, to_label, rate,exclude=(None,)):
 
         ends = []
@@ -150,22 +149,30 @@ class System3Aligner(object):
     def align(self, start_type=None):
 
         new_events = deepcopy(self.merged_events)
-        aligned_events = new_events[new_events['eegoffset']==-1]
+        unaligned_events = new_events[new_events['eegoffset'] == -1]
 
         if start_type:
-            starting_entries= np.where(aligned_events['type'] == start_type)[0]
+            starting_entries= np.where(unaligned_events['type'] == start_type)[0]
             # Don't have to align until one after the starting type (which is normally SESS_START)
             starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 1
         else:
             starts_at = 0
 
-        ens_times = self.align_source_to_dest(aligned_events[self.TASK_TIME_FIELD],
+        ens_times = self.align_source_to_dest(unaligned_events[self.TASK_TIME_FIELD],
                                               self.task_to_ens_coefs,
                                               self.task_ends, starts_at)
-
         ens_times[ens_times < 0] = -1
-        aligned_events[self.ENS_TIME_FIELD] = ens_times
-        new_events[new_events['eegoffset']==-1] = aligned_events
+        unaligned_events[self.ENS_TIME_FIELD] = ens_times
+        new_events[new_events['eegoffset'] == -1] = unaligned_events
+
+        untimed_events = new_events[new_events['mstime'] == -1]
+
+        task_times = self.align_source_to_dest(untimed_events[self.ENS_TIME_FIELD],
+                                               self.task_to_ens_coefs,
+                                               self.task_ends,backwards=True)
+
+        untimed_events[self.TASK_TIME_FIELD] = task_times
+        new_events[new_events['mstime'] == -1] = untimed_events
 
         return new_events
 
@@ -187,7 +194,7 @@ class System3Aligner(object):
             events[self.EEG_FILE_FIELD][mask] = eegfile
 
     @classmethod
-    def align_source_to_dest(cls, source, coefs, ends, align_start_index=0):
+    def align_source_to_dest(cls, source, coefs, ends, align_start_index=0,backwards=False):
 
         dest = np.full(len(source), np.nan)
         dest[source == -1] = -1
@@ -196,7 +203,11 @@ class System3Aligner(object):
 
         for (start, coef) in zip((0,)+sorted_ends, coefs):
             time_mask = (source >= start)
-            dest[time_mask] = cls.apply_coefficients(source[time_mask], coef)
+            if backwards:
+                dest[time_mask] = cls.apply_coefficients_backwards(
+                    source[time_mask], coef)
+            else:
+                dest[time_mask] = cls.apply_coefficients(source[time_mask], coef)
 
         still_nans = np.where(np.isnan(dest))[0]
         if len(still_nans) > 0:
