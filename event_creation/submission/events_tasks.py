@@ -179,6 +179,17 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
             }
+        elif sys_num==3.4:
+            return {
+                'FR': FRHostPCLogParser,
+                'catFR':catFRHostPCLogParser,
+                'PS':PSLogParser,
+                'PS_FR':PSLogParser,
+                'PS_catFR':PSLogParser,
+                'PAL':PALSys3LogParser,
+                'TICL_FR':FRHostPCLogParser,
+            }
+
         else:
             raise KeyError
 
@@ -339,9 +350,19 @@ class ReportLaunchTask(PipelineTask):
             'save_location':'/scratch/report_database/html_reports', # TODO: CHANGE/PARAMETRIZE THIS
             'report_database':'/scratch/report_database'
         }
-        response = requests.post(api_url,data=parameters)
-        if response.status_code != 200:
-            logger.error('Request failed with error code %s'%response.status_code)
+        response = None
+        error = None
+        try:
+            response = requests.post(api_url,data=parameters)
+            succeeded = response.status_code == 200
+        except requests.RequestException as error:
+            succeeded = False
+        if not succeeded:
+            if response is not None:
+                logger.error('Request failed with error code %s'%response.status_code)
+            else:
+                logger.error('Request failed with message %s'%str(error))
+
 
     def _run(self, files, db_folder):
         self.request()
