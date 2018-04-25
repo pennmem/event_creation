@@ -858,7 +858,7 @@ class ScalpReader(EEG_reader):
     """
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
-        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param raw_filename: The file path to the .raw, .mff, or .bdf file containing the EEG recording for the session.
         :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
         parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
         """
@@ -872,6 +872,60 @@ class ScalpReader(EEG_reader):
         self.basename = None
         self.highpassed = False
         self.DATA_FORMAT = self.filetype
+
+    def repair_bdf_header(self):
+        """
+        If the experimenter terminates a BioSemi recording by shutting down ActiView, rather than pressing the stop
+        button, the recording software never writes the field in the header which indicates the number of records in
+        the recording. This info is important for determining the total number of samples when reading data from the
+        file. Although we collaborated with the MNE developers to allow their raw_edf_reader to be able to read such
+        files when they do arise, we also provide functionality here for repairing these files. This involves
+        checking whether the number of records is listed as -1 in the BDF header, and calculating the true number of
+        records if it is. The number of records can be inferred by checking the total number of bytes of EEG data in the
+        file, and determining how many seconds of data per channel this gives.
+
+        :return: None
+        """
+        # Make sure we don't try to run this code on a non-BDF file
+        if self.filetype != '.bdf':
+            logger.warn('Cannot run BDF header repair on EGI files! Skipping...')
+            return
+
+        # Read header info to determine whether the number of records in the recording is missing.
+        with open(self.raw_filename, 'rb') as f:
+            # Read number of bytes in header
+            f.seek(184)
+            header_nbytes = int(f.read(8))
+            # Read number of data records in file
+            f.seek(236)
+            n_records = int(f.read(8))
+            # Read number of channels in file
+            f.seek(252)
+            nchan = int(f.read(4))
+            # Read number of samples per data record
+            f.seek(nchan * 216, 1)
+            samp_rate = int(f.read(8))
+
+        # If header is corrupted, infer the number of records in the recording and add that info to the file.
+        if n_records == -1:
+            with open(self.raw_filename, 'r+b') as f:
+                # Go to end of file and determine total number of bytes in file
+                f.seek(0, 2)
+                num_bytes = f.tell()
+                # Determine how many bytes of data the file contains, excluding the header
+                num_data_bytes = num_bytes - header_nbytes
+                # Data samples are 24-bit integers, so the total number of data samples is number of data bytes / 3
+                total_samples = num_data_bytes / 3.
+                # Determine how many time points were recorded by dividing the number of data samples by the number of channels
+                time_points = total_samples / nchan
+                # The number of records is equal to the number of time points divided by the number of time points per record
+                inferred_records = time_points / samp_rate
+                # As a safety check, make sure that the number of inferred records is a whole number.
+                if inferred_records == int(inferred_records):
+                    logger.info('Missing number of records in file header for %s! Repairing...' % self.raw_filename)
+                    # Overwrite the -1 in the header with the actual number of records in the recording.
+                    f.seek(236)
+                    f.write(str(int(inferred_records)).encode('ascii'))
 
     def get_data(self):
         """
@@ -1073,6 +1127,10 @@ class ScalpReader(EEG_reader):
         logger.info("Pre-processing EEG data into {}/{}".format(location, basename))
         self.save_loc = location
         self.basename = os.path.splitext(basename)[0]
+
+        # For BDF files, repair the header if it is corrupted due to the recording being improperly terminated
+        if self.filetype == '.bdf':
+            self.repair_bdf_header()
 
         # Load data if we have not already done so
         if self.data is None:
