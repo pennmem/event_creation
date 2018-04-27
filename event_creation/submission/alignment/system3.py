@@ -20,7 +20,7 @@ class System3Aligner(object):
     MAXIMUM_ALLOWED_RESIDUAL = 1000
     MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS = 2
 
-    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),)
+    FROM_LABELS = (('orig_timestamp', 1000,('STIM','FEATURES','BIOMARKER')),)
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -47,9 +47,9 @@ class System3Aligner(object):
         for label, rate,exclude in self.FROM_LABELS:
             try:
                 self.task_to_ens_coefs, self.task_ends = \
-                    self.get_coefficients_from_event_log(label, 'offset', rate,(exclude,))
+                    self.get_coefficients_from_event_log(label, 'offset', rate,exclude)
                 self.host_to_ens_coefs, self.host_ends = \
-                    self.get_coefficients_from_event_log('t_event', 'offset', 1,(exclude,))
+                    self.get_coefficients_from_event_log('t_event', 'offset', 1,exclude)
                 logger.debug("Found coefficient with label {}".format(label))
             except KeyError as key_error:
                 if key_error.message != label:

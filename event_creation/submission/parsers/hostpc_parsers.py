@@ -39,6 +39,8 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     ADD_STIM_EVENTS = False
 
     _MESSAGE_CLASS = 'StoreEventMessage'
+    _TYPE_FIELD = 'event_label'
+    _MSTIME_FIELD = 'orig_timestamp'
 
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='event_log', allow_unparsed_events=False, include_stim_params=False):
@@ -46,8 +48,6 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                                                   primary_log=primary_log,
                                                   allow_unparsed_events=allow_unparsed_events,
                                                   include_stim_params=include_stim_params)
-        self._TYPE_FIELD = 'event_label'
-        self._MSTIME_FIELD = 'orig_timestamp'
 
         self.files = files
         self._phase = ''
@@ -66,9 +66,12 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
             with open(self._primary_log,'r') as primary_log:
                 contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(subset=['msg_stub']).reset_index()
+                stubs =  pd.DataFrame.from_records([msg for msg in contents.msg_stub])
                 messages = pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])
-                contents = pd.concat([contents,messages],
+
+                contents = pd.concat([contents,stubs,messages],
                                      axis=1)
+                contents[self._MSTIME_FIELD].fillna(-1,inplace=True)
                 return [e.to_dict() for _, e in contents.iterrows()]
         elif isinstance(self._primary_log,list):
             all_contents = []
@@ -76,9 +79,10 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                 with open(log,'r') as primary_log:
                     contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(
                         subset=['msg_stub']).reset_index()
-                    messages = pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])
-                    contents = pd.concat([contents, messages],
-                                         axis=1)
+                messages = pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])
+                contents = pd.concat([contents, messages],
+                                     axis=1)
+                contents[self._MSTIME_FIELD].fillna(-1, inplace=True)
                 all_contents.extend([e.to_dict() for _, e in contents.iterrows()])
             return all_contents
 
@@ -343,3 +347,21 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         events[is_rec] = rec_events
         return events
 
+
+class TiclFRParser(FRHostPCLogParser):
+
+    event_biomarker = BaseHostPCLogParser.event_biomarker
+
+    def __init__(self,*args,**kwargs):
+        super(TiclFRParser, self).__init__(*args,**kwargs)
+        self._add_type_to_new_event(BIOMARKER=self.event_biomarker)
+
+        self.fix_content_offsets()
+
+    def fix_content_offsets(self):
+        for event_json in self._contents:
+            if np.isnan(event_json['offset']):
+                event_json['offset']= event_json['msg_stub']['start_offset']
+
+    def modify_biomarker(self,events):
+        return events

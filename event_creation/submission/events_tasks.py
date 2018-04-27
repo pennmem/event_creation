@@ -34,7 +34,8 @@ from .parsers.ps_log_parser import PSLogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser,MathUnityLogParser
-from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
+from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser,\
+        TiclFRParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -187,7 +188,7 @@ class EventCreationTask(PipelineTask):
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
-                'TICL_FR':FRHostPCLogParser,
+                'TICL_FR':TiclFRParser,
             }
 
         else:
@@ -273,7 +274,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0<=self.r1_sys_num<=3.3:
+                    elif 3.0<=self.r1_sys_num<=3.4:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
