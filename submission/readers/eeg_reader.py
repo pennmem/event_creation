@@ -1132,7 +1132,7 @@ class ScalpReader(EEG_reader):
         del S
 
         # Save cleaned version of data
-        self.data.save(os.path.join(self.save_loc, self.basename + '_clean_raw.fif'))
+        self.data.save(os.path.join(self.save_loc, self.basename + '_cleaned_raw.fif'))
 
     def split_data(self, location, basename):
         """
