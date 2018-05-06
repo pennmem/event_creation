@@ -1125,11 +1125,11 @@ class ScalpReader(EEG_reader):
         self.data._data = None
 
         # Clean artifacts from sources using LCF
-        cS = self.lcf(S, S, self.data.info['sfreq'], iqr_thresh=3, dilator_width=.1, transition_width=.1)
+        S = self.lcf(S, S, self.data.info['sfreq'], iqr_thresh=3, dilator_width=.1, transition_width=.1)
 
         # Reconstruct data from cleaned sources
-        self.data._data = self.reconstruct_signal(cS, self.ica)
-        del cS
+        self.data._data = self.reconstruct_signal(S, self.ica)
+        del S
 
         # Save cleaned version of data
         self.data.save(os.path.join(self.save_loc, self.basename + '_clean_raw.fif'))
