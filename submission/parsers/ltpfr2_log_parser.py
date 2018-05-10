@@ -121,9 +121,6 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
 
         for recall in ann_outputs:
             word = recall[-1]
-            # Vocalizations are skipped in the .mat files for ltpFR2
-            if word == '<>' or word == 'V' or word == '!':
-                continue
             new_event = self._empty_event
             new_event.trial = self._trial
             new_event.session = self._session
@@ -132,7 +129,11 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             new_event.msoffset = 20
             new_event.item_name = word
             new_event.item_num = int(recall[1])
-            new_event.type = 'REC_WORD'
+            # Vocalizations are skipped in the .mat files for ltpFR2
+            if word == '<>' or word == 'V' or word == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
 
             # If XLI
             if recall[1] == -1:

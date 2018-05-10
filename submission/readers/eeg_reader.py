@@ -14,6 +14,7 @@ from scipy.linalg import pinv
 import tables
 import mne
 import scipy.stats as ss
+import scipy.signal as sp_signal
 from nolds import hurst_rs
 
 try:
@@ -858,13 +859,14 @@ class ScalpReader(EEG_reader):
     """
     def __init__(self, raw_filename, unused_jacksheet=None):
         """
-        :param raw_filename: The file path to the .raw.bz2 file containing the EEG recording from the session.
+        :param raw_filename: The file path to the .raw, .mff, or .bdf file containing the EEG recording for the session.
         :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
         parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
         """
         self.raw_filename = raw_filename
         self.start_datetime = None
         self.data = None
+        self.ica = None
         self.left_eog = None
         self.right_eog = None
         self.filetype = None
@@ -872,6 +874,60 @@ class ScalpReader(EEG_reader):
         self.basename = None
         self.highpassed = False
         self.DATA_FORMAT = self.filetype
+
+    def repair_bdf_header(self):
+        """
+        If the experimenter terminates a BioSemi recording by shutting down ActiView, rather than pressing the stop
+        button, the recording software never writes the field in the header which indicates the number of records in
+        the recording. This info is important for determining the total number of samples when reading data from the
+        file. Although we collaborated with the MNE developers to allow their raw_edf_reader to be able to read such
+        files when they do arise, we also provide functionality here for repairing these files. This involves
+        checking whether the number of records is listed as -1 in the BDF header, and calculating the true number of
+        records if it is. The number of records can be inferred by checking the total number of bytes of EEG data in the
+        file, and determining how many seconds of data per channel this gives.
+
+        :return: None
+        """
+        # Make sure we don't try to run this code on a non-BDF file
+        if self.filetype != '.bdf':
+            logger.warn('Cannot run BDF header repair on EGI files! Skipping...')
+            return
+
+        # Read header info to determine whether the number of records in the recording is missing.
+        with open(self.raw_filename, 'rb') as f:
+            # Read number of bytes in header
+            f.seek(184)
+            header_nbytes = int(f.read(8))
+            # Read number of data records in file
+            f.seek(236)
+            n_records = int(f.read(8))
+            # Read number of channels in file
+            f.seek(252)
+            nchan = int(f.read(4))
+            # Read number of samples per data record
+            f.seek(nchan * 216, 1)
+            samp_rate = int(f.read(8))
+
+        # If header is corrupted, infer the number of records in the recording and add that info to the file.
+        if n_records == -1:
+            with open(self.raw_filename, 'r+b') as f:
+                # Go to end of file and determine total number of bytes in file
+                f.seek(0, 2)
+                num_bytes = f.tell()
+                # Determine how many bytes of data the file contains, excluding the header
+                num_data_bytes = num_bytes - header_nbytes
+                # Data samples are 24-bit integers, so the total number of data samples is number of data bytes / 3
+                total_samples = num_data_bytes / 3.
+                # Determine how many time points were recorded by dividing the number of data samples by the number of channels
+                time_points = total_samples / nchan
+                # The number of records is equal to the number of time points divided by the number of time points per record
+                inferred_records = time_points / samp_rate
+                # As a safety check, make sure that the number of inferred records is a whole number.
+                if inferred_records == int(inferred_records):
+                    logger.info('Missing number of records in file header for %s! Repairing...' % self.raw_filename)
+                    # Overwrite the -1 in the header with the actual number of records in the recording.
+                    f.seek(236)
+                    f.write(str(int(inferred_records)).encode('ascii'))
 
     def get_data(self):
         """
@@ -899,7 +955,9 @@ class ScalpReader(EEG_reader):
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
-                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=True)
+                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
+                                                misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status',
+                                                montage='biosemi128', preload=True)
                 self.left_eog = ['EXG3', 'EXG1']
                 self.right_eog = ['EXG4', 'EXG2']
 
@@ -1022,6 +1080,9 @@ class ScalpReader(EEG_reader):
         will have already been applied during bad channel detection, so it will not need to run again here. The ICA
         solution is saved out to a file ending with "-ica.fif" in the current_processed ephys folder.
         """
+        if self.ica is not None:
+            return
+
         # High-pass filter the data if we have not already done so. ICA will not work properly if the baseline drifts.
         if not self.highpassed:
             self.data.filter(.5, None, fir_design='firwin')
@@ -1033,11 +1094,45 @@ class ScalpReader(EEG_reader):
         # Fit ICA to EEG channels only using FastICA algorithm
         logger.debug('Running ICA')
         ica = mne.preprocessing.ICA(method='fastica')
-        ica.fit(self.data)
+        try:
+            # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
+            # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA
+            # uses.
+            self.data._data = self.data._data.astype(np.float32)
+            ica.fit(self.data)
+            self.data._data = self.data._data.astype(np.float64)
+        except ValueError:
+            # In rare cases, using float32 in ICA can result in some values overflowing and becoming infinite, which
+            # will crash the ICA process. If this occurs, switch back to float64 and re-attempt ICA.
+            self.data._data = self.data._data.astype(np.float64)
+            ica.fit(self.data)
 
         # Save the ICA solution to a .fif file that can be read back in later by MNE
         logger.debug('Saving ICA solution')
         ica.save(os.path.join(self.save_loc, self.basename + '-ica.fif'))
+        self.ica = ica
+
+    def run_lcf(self):
+        """
+        TBA
+
+        :return:
+        """
+        # Extract sources using ica solution
+        S = self.ica.get_sources(self.data)._data
+
+        # Delete the uncleaned EEG data to save memory, since we only need the sources now
+        self.data._data = None
+
+        # Clean artifacts from sources using LCF
+        S = self.lcf(S, S, self.data.info['sfreq'], iqr_thresh=3, dilator_width=.1, transition_width=.1)
+
+        # Reconstruct data from cleaned sources
+        self.data._data = self.reconstruct_signal(S, self.ica)
+        del S
+
+        # Save cleaned version of data
+        self.data.save(os.path.join(self.save_loc, self.basename + '_cleaned_raw.fif'))
 
     def split_data(self, location, basename):
         """
@@ -1061,6 +1156,10 @@ class ScalpReader(EEG_reader):
         self.save_loc = location
         self.basename = os.path.splitext(basename)[0]
 
+        # For BDF files, repair the header if it is corrupted due to the recording being improperly terminated
+        if self.filetype == '.bdf':
+            self.repair_bdf_header()
+
         # Load data if we have not already done so
         if self.data is None:
             success = self.get_data()
@@ -1068,7 +1167,8 @@ class ScalpReader(EEG_reader):
                 return False
 
         # Create a link to the raw data file in the ephys current_processed directory
-        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))), os.path.join(location, basename))
+        os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))),
+                   os.path.join(location, basename))
 
         # Run bad channel detection and write bad channel information to files
         logger.debug('Marking bad channels for {}'.format(basename))
@@ -1077,13 +1177,12 @@ class ScalpReader(EEG_reader):
         # Re-reference EEG data to the common average of all non-bad channels
         self.data.set_eeg_reference(projection=False)
 
-        # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
-        # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA uses.
-        self.data._data = self.data._data.astype(np.float32)
-
         # Run ICA and save the ICA solution to file
         logger.debug('Running ICA on {}'.format(basename))
         self.run_ica()
+
+        # Run localized component filtering to clean the data
+        self.run_lcf()
 
         self.write_sources(location, basename)
         return True
@@ -1112,6 +1211,85 @@ class ScalpReader(EEG_reader):
         if self.data is None:
             self.get_data()
         return self.data.n_times
+
+    @staticmethod
+    def lcf(S, feat, sfreq, iqr_thresh=3, dilator_width=.1, transition_width=.1):
+
+        dilator_width = int(dilator_width * sfreq)
+        transition_width = int(transition_width * sfreq)
+
+        ##########
+        #
+        # Classification
+        #
+        ##########
+
+        # Find interquartile range of each component
+        p75 = np.percentile(feat, 75, axis=1)
+        p25 = np.percentile(feat, 25, axis=1)
+        iqr = p75 - p25
+
+        # Tune artifact thresholds for each component according to the IQR and the iqr_thresh parameter
+        pos_thresh = p75 + iqr * iqr_thresh
+        neg_thresh = p25 - iqr * iqr_thresh
+
+        # Detect artifacts using the IQR threshold, then dilate the detected zones to account for the mixer transition equation
+        ctrl_signal = np.zeros(feat.shape, dtype=int)
+        dilator = np.ones(dilator_width)
+        for i in range(ctrl_signal.shape[0]):
+            ctrl_signal[i, :] = (feat[i, :] > pos_thresh[i]) | (feat[i, :] < neg_thresh[i])
+            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], dilator, 'same')
+        del p75, p25, iqr, pos_thresh, neg_thresh, dilator
+
+        # Binarize signal
+        ctrl_signal = (ctrl_signal > 0).astype(int)
+
+        ##########
+        #
+        # Mixing
+        #
+        ##########
+
+        # Allocate normalized transition window
+        trans_win = sp_signal.hann(transition_width, True)
+        trans_win /= trans_win.sum()
+
+        # Pad extremes of control signal
+        pad_width = [tuple([0, 0])] * ctrl_signal.ndim
+        pad_size = int(transition_width / 2 + 1)
+        pad_width[1] = (pad_size, pad_size)
+        ctrl_signal = np.pad(ctrl_signal, tuple(pad_width), mode='edge')
+        del pad_width
+
+        # Combine the transition window and the control signal to build a final transition-control signal, which can be applied to the components
+        for i in range(ctrl_signal.shape[0]):
+            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], trans_win, 'same')
+        del trans_win
+
+        # Remove padding from transition-control signal
+        rm_pad_slice = [slice(None)] * ctrl_signal.ndim
+        rm_pad_slice[1] = slice(pad_size, -pad_size)
+        ctrl_signal = ctrl_signal[rm_pad_slice]
+        del rm_pad_slice, pad_size
+
+        # Mix sources with control signal to get cleaned sources
+        S_clean = S * (1 - ctrl_signal)
+
+        return S_clean
+
+    @staticmethod
+    def reconstruct_signal(sources, ica):
+        # Mix sources to translate back into PCA components (PCA components x Time)
+        data = np.dot(ica.mixing_matrix_, sources)
+
+        # Mix PCA components to translate back into original EEG channels (Channels x Time)
+        data = np.dot(np.linalg.inv(ica.pca_components_), data)
+
+        # Invert transformations that MNE performs prior to PCA
+        data += ica.pca_mean_[:, None]
+        data *= ica._pre_whitener
+
+        return data
 
 
 def read_jacksheet(filename):

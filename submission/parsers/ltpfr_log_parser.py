@@ -210,9 +210,6 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         ann_outputs = self._parse_ann_file('ffr') if self._is_ffr else self._parse_ann_file(str(self._trial - 1))
         for recall in ann_outputs:
             item_name = recall[-1]
-            # Skip vocalizations during free recall
-            if item_name == '<>' or item_name == 'V' or item_name == '!':
-                continue
             new_event = self._empty_event
             new_event.trial = -999 if self._is_ffr else self._trial
             new_event.session = self._session
@@ -221,7 +218,11 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             new_event.msoffset = 20
             new_event.item_name = item_name
             new_event.item_num = int(recall[1])
-            new_event.type = 'REC_WORD'
+            # Skip vocalizations during free recall
+            if item_name == '<>' or item_name == 'V' or item_name == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
 
             # Add FFR to the type if part of the FFR recall
             if self._is_ffr:
