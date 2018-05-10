@@ -16,6 +16,7 @@ import mne
 import scipy.stats as ss
 import scipy.signal as sp_signal
 from nolds import hurst_rs
+from ptsa.data.TimeSeriesX import TimeSeriesX
 
 try:
     import pyedflib
@@ -1112,7 +1113,7 @@ class ScalpReader(EEG_reader):
         ica.save(os.path.join(self.save_loc, self.basename + '-ica.fif'))
         self.ica = ica
 
-    def run_lcf(self):
+    def run_lcf(self, save_format=None):
         """
         TBA
 
@@ -1131,8 +1132,15 @@ class ScalpReader(EEG_reader):
         self.data._data = self.reconstruct_signal(S, self.ica)
         del S
 
-        # Save cleaned version of data
-        self.data.save(os.path.join(self.save_loc, self.basename + '_cleaned_raw.fif'))
+        if save_format == '.h5':
+            # Save cleaned version of data to hdf as a TimeSeriesX object
+            clean_eegfile = os.path.join(self.save_loc, self.basename + '_clean.h5')
+            TimeSeriesX(self.data._data.astype(np.float32), dims=('channels', 'time'),
+                        coords={'channels': self.data.info['ch_names'], 'time': self.data.times,
+                                'samplerate': self.data.info['sfreq']}).to_hdf(clean_eegfile)
+        elif save_format == '.fif':
+            # Save cleaned version of data to an MNE raw.fif file
+            self.data.save(os.path.join(self.save_loc, self.basename + '_clean_raw.fif'))
 
     def split_data(self, location, basename):
         """
@@ -1182,7 +1190,7 @@ class ScalpReader(EEG_reader):
         self.run_ica()
 
         # Run localized component filtering to clean the data
-        self.run_lcf()
+        self.run_lcf(save_format='.h5')
 
         self.write_sources(location, basename)
         return True
