@@ -73,7 +73,9 @@ class MathLogParser(BaseSessionLogParser):
 
     def event_prob(self, split_line):
         event = self.event_default(split_line)
-        event.answer = int(split_line[4].replace('\'', ''))
+        answer = int(split_line[4].replace('\'', ''))
+        if np.iinfo(np.int16).min <= answer <= np.iinfo(np.int16).max:
+            event.answer = answer
         test = split_line[3].replace('=', '').replace(' ', '').strip("'").split('+')
         event.test[0] = int(test[0])
         event.test[1] = int(test[1])
