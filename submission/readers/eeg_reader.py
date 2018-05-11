@@ -1295,7 +1295,7 @@ class ScalpReader(EEG_reader):
 
         # Invert transformations that MNE performs prior to PCA
         data += ica.pca_mean_[:, None]
-        data *= ica._pre_whitener
+        data *= ica.pre_whitener_
 
         return data
 
