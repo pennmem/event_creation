@@ -384,15 +384,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,critical=('ps4' not in groups),**kwargs))
     elif protocol == 'ltp':
-        if experiment == 'ltpFR':
-            tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFRSessionLogParser)]
-        elif experiment == 'ltpFR2':
-            tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False, parser_type=LTPFR2SessionLogParser)]
-        else:
-            try:
-                tasks=[EventCreationTask(protocol,subject,montage,experiment,session,False)]
-            except KeyError:
-                raise Exception('Unknown experiment %s under protocol \'ltp'%experiment)
+        tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
     else:
         raise Exception('Unknown protocol %s' % protocol)
 
