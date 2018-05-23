@@ -1,3 +1,21 @@
+2017-12-5
+=========
+* Added some data quality checks to FR,catFR,PAL events
+  - functions defined in quality module
+  - parser registers the functions it wants to run in the class attribute _TESTS
+  - error messages added to self.pipeline.importer.warnings in EventCreationTask
+  - Importer now has warnings attribute, with corresponding changes to Importer.display() and ImporterCollection.display()
+* Parsers now crash if they are missing annotation files
+
+2017-10-30
+==========
+Added new task, math parsers for UnityEPL compatibility
+
+
+2017-10-20
+==========
+submission.convenience supports neurorad pipeline
+
 2017-08-24
 ==========
 Added Unicode support where it was missing

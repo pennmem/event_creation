@@ -14,7 +14,6 @@ try:
 except:
     logger.warn('PTSA NOT LOADED')
 
-
 class PipelineTask(object):
     """Base class for running tasks in a pipeline.
 
@@ -29,6 +28,7 @@ class PipelineTask(object):
         self.name = str(self)
         self.pipeline = None
         self.destination = None
+        self.error = None
 
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
@@ -43,11 +43,12 @@ class PipelineTask(object):
         self.destination = db_folder
         try:
             self._run(files, db_folder)
-        except Exception:
+        except Exception as e:
             if self.critical:
                 raise
             else:
                 traceback.print_exc()
+                self.error = e.message
 
     def _run(self, files, db_folder):
         raise NotImplementedError()

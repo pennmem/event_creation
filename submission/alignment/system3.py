@@ -17,10 +17,10 @@ class System3Aligner(object):
     ENS_TIME_FIELD = 'eegoffset'
     EEG_FILE_FIELD = 'eegfile'
 
-    MAXIMUM_ALLOWED_RESIDUAL = 500
+    MAXIMUM_ALLOWED_RESIDUAL = 1000
 
     FROM_LABELS = (('orig_timestamp', 1000,'STIM'),
-                   ('t_event', 1,''))
+                   ('t_event', 1,'STIM'))
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -49,7 +49,7 @@ class System3Aligner(object):
                 self.task_to_ens_coefs, self.task_ends = \
                     self.get_coefficients_from_event_log(label, 'offset', rate,(exclude,))
                 self.host_to_ens_coefs, self.host_ends = \
-                    self.get_coefficients_from_event_log('t_event', 'offset', 1)
+                    self.get_coefficients_from_event_log('t_event', 'offset', 1,(exclude,))
                 logger.debug("Found coefficient with label {}".format(label))
             except KeyError as key_error:
                 if key_error.message != label:
@@ -57,14 +57,14 @@ class System3Aligner(object):
                 logger.debug("Couldn't find coefficient with label {}".format(label))
                 continue
             except AlignmentError:
-                logger.debug("Couldn't find coefficient with label {}".format(label))
+                logger.debug("Couldn't align coefficient with label {}".format(label))
                 continue
             self.from_label = label
             self.from_multiplier = rate
             break
 
         else:
-            raise AlignmentError("Could not find sortable label in events")
+            raise AlignmentError("Could not find alignable label in events")
 
         self.eeg_info = json.load(open(files['eeg_sources']))
 
@@ -149,12 +149,13 @@ class System3Aligner(object):
 
     def align(self, start_type=None):
 
-        aligned_events = deepcopy(self.merged_events)
+        new_events = deepcopy(self.merged_events)
+        aligned_events = new_events[new_events['eegoffset']==-1]
 
         if start_type:
             starting_entries= np.where(aligned_events['type'] == start_type)[0]
             # Don't have to align until one after the starting type (which is normally SESS_START)
-            starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 0
+            starts_at = starting_entries[0] + 1 if len(starting_entries) > 0 else 1
         else:
             starts_at = 0
 
@@ -164,14 +165,11 @@ class System3Aligner(object):
 
         ens_times[ens_times < 0] = -1
         aligned_events[self.ENS_TIME_FIELD] = ens_times
+        new_events[new_events['eegoffset']==-1] = aligned_events
 
-        self.apply_eeg_file(aligned_events)
-
-        return aligned_events
+        return new_events
 
     def apply_eeg_file(self, events):
-
-
 
         eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
 
@@ -250,6 +248,9 @@ class System3Aligner(object):
             logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
                 time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
             ))
+            raise AlignmentError("Maximum residual of fit ({}) "
+                         "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
+
         return residuals
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):

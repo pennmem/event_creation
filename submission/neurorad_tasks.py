@@ -7,6 +7,7 @@ from neurorad import (vox_mother_converter, calculate_transformation, add_locati
 from .log import logger
 from .tasks import PipelineTask
 import numpy as np
+from neurorad.version import __version__ as neurorad_version
 
 class LoadVoxelCoordinatesTask(PipelineTask):
 
@@ -218,10 +219,10 @@ class CreateMontageTask(PipelineTask):
         nums_to_labels = {}
         labels_to_nums = {}
         with open(jacksheet) as jack_file:
-            for line in jack_file:
+            for line in jack_file.read().splitlines():
                 num,label = line.strip().split()
                 num=int(num)
-                label=label.upper()
+                label=label
                 nums_to_labels[num] = label
                 labels_to_nums[label] = num
         self.nums_to_labels = nums_to_labels
@@ -265,7 +266,9 @@ class CreateMontageTask(PipelineTask):
                                 'channel_1':self.labels_to_nums[contact['names'][0]],
                                 'channel_2':self.labels_to_nums[contact['names'][1]],
                                 'code':'-'.join(contact['names']),
-                                'type':leads[lead]['type']
+                                'is_stim_only':False,
+                                'type_1':leads[lead]['type'],
+                                'type_2':leads[lead]['type'],
                             }
                         else:
                             raise RuntimeError('bad name')
@@ -278,7 +281,7 @@ class CreateMontageTask(PipelineTask):
                             logger.info('%s %s not found in jacksheet' % (name.capitalize(), '-'.join(contact['names'])))
                         continue
         self.contacts_dict[self.subject] = {name:contacts}
-        self.contacts_dict['version'] = self.localization.get('version') or 1.0
+        self.contacts_dict['version'] = self.localization.get('version',neurorad_version)
         self.create_file(os.path.join(db_folder,'%s.json'%name),
                          clean_json_dumps(self.contacts_dict,indent=2,sort_keys=True),name,False)
 

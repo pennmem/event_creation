@@ -29,6 +29,8 @@ class MontageError(Exception):
 class NoEventsError(Exception):
     """Raised when no events are found."""
 
+class NoAnnotationError(Exception):
+    """ Raised when no annotation file is found"""
 
 class ProcessingError(Exception):
     """Raised when something cannot be processed."""

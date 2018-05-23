@@ -96,7 +96,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ transfer, verbal,]
+    groups: [ transfer, verbal, '!system_3_3']
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.log'
@@ -104,7 +104,7 @@ files:
 
   - name: math_log
     << : *FILE
-    groups: [ r1, transfer, verbal ]
+    groups: [ r1, transfer, verbal, '!system_3_3' ]
     origin_directory: *BEH_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -313,6 +313,7 @@ files:
 
   - name: session_log
     << : *FILE
+    required: false
     groups: [ transfer, verbal, system_3_1]
     origin_directory: *BEH_SESS_DIR
     origin_file:
@@ -326,7 +327,30 @@ files:
     origin_file: 'session.log'
     destination: logs/session.log
 
+  ### System 3.3
 
+  - name: session_log_json
+    << : *FILE
+    groups: [ transfer, verbal, system_3_3]
+    origin_directory: *BEH_SESS_DIR
+    origin_file:
+    - 'session.json'
+    destination: logs/session.json
+
+  - name: wordpool
+    << : *FILE
+    groups: [transfer, verbal,system_3_3]
+    origin_directory: *BEH_EXP_DIR
+    origin_file:
+     - short_ram_categorized_en
+     - ram_categorized_en
+     - ram_wordpool_en
+     - short_ram_wordpool_en
+     - short_ram_categorized_en.txt
+     - ram_categorized_en.txt
+     - ram_wordpool_en.txt
+     - short_ram_wordpool_en.txt
+    destination: experiment_files/wordpool.txt
 
   ### LTP (Scalp EEG)
 
@@ -395,4 +419,3 @@ files:
     origin_directory: *LTP_EXP_DIR
     origin_file: 'RAM_wordpool.txt'
     destination: experiment_files/wordpool.txt
-

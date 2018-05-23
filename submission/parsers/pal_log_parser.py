@@ -4,6 +4,8 @@ import numpy as np
 import os
 import warnings
 import re
+from ..quality import pal_tests
+
 
 class PALSessionLogParser(BaseSessionLogParser):
 
@@ -42,6 +44,9 @@ class PALSessionLogParser(BaseSessionLogParser):
     PAL2_STIM_BURST_FREQUENCY = 1
     PAL2_STIM_N_BURSTS = 1
     PAL2_STIM_PULSE_WIDTH = 300
+
+    _TESTS = [pal_tests.test_session_length,
+              pal_tests.test_words_per_list]
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(PALSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files,
@@ -643,3 +648,6 @@ class PALSessionLogParser(BaseSessionLogParser):
                     'vocalization', 'stim_type', 'intrusion', 'list', 'expecting_word')
         else:
             return tuple()
+
+
+

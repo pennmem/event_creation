@@ -10,7 +10,7 @@ from .base_log_parser import BaseSessionLogParser, UnknownExperimentError
 from .system2_log_parser import System2LogParser
 from ..viewers.recarray import strip_accents
 import codecs
-
+from ..quality import fr_tests
 class FRSessionLogParser(BaseSessionLogParser):
 
     @classmethod
@@ -38,6 +38,17 @@ class FRSessionLogParser(BaseSessionLogParser):
     FR2_STIM_BURST_FREQUENCY = 1
     FR2_STIM_N_BURSTS = 1
     FR2_STIM_PULSE_WIDTH = 300
+
+
+
+    # List of tests to run
+    _TESTS = [ fr_tests.test_serialpos_order,
+               fr_tests.test_session_length,
+               fr_tests.test_words_in_wordpool,
+               fr_tests.test_words_per_list,
+               fr_tests.test_rec_word_position,
+             ]
+
 
     def __init__(self, protocol, subject, montage, experiment, session, files,**kwargs):
         kwargs['include_stim_params'] = True
@@ -139,6 +150,7 @@ class FRSessionLogParser(BaseSessionLogParser):
                     'rectime')
         else:
             return ('list', 'serialpos', 'stim_list', 'subject', 'session', 'eegfile', 'rectime')
+
 
     def event_default(self, split_line):
         """
@@ -559,30 +571,3 @@ def free_epochs(times, duration, pre, post, start=None, end=None):
 
 
 
-
-class FRSys31SessionParser(BaseSessionLogParser):
-    def __init__(self, protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False):
-        super(FRSys31SessionParser,self).__init__(protocol, subject, montage, experiment, session, files,
-                 allow_unparsed_events=False, include_stim_params=False,primary_log='session_sql')
-
-    # def _get_raw_event_type(self, split_line):
-
-    def _read_primary_log(self):
-        # path = "sqlite://{sqlite}".format(sqlite=self._primary_log)
-        conn = sqlite3.connect(self._primary_log)
-        query = 'SELECT msg FROM logs WHERE name = "events"'
-        msgs = [json.loads(msg) for msg in pd.read_sql_query(query,
-                                                             conn).msg.values]
-        return msgs
-
-
-if __name__ == '__main__':
-    files = {
-        'session_log':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.log',
-        'wordpool': '/Users/leond/Documents/PS4_FR5/task/R1234M/RAM_wordpool.txt',
-        'session_sql':'/Users/leond/Documents/PS4_FR5/task/R1234M/session_0/session.sqlite'
-    }
-
-    frslp = FRSys31SessionParser('r1', 'R1999X', 0.0, 'FR1', 0, files)
-    events=  frslp.parse()

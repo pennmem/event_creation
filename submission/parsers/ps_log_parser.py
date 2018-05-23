@@ -407,6 +407,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
     _ID_FIELD = 'hashtag'
     _STIM_PARAMS_FIELD = 'msg_stub'
     _DELTA_CLASSIFIER_FIELD = 'stim_delta_classifier'
+    ADD_STIM_EVENTS = False
 
     _LOC_FIELDS = (
         ('loc_name','','S16'),
@@ -468,6 +469,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             BIOMARKER= self.event_biomarker,
             OPTIMIZATION = self.event_optimization,
             OPTIMIZATION_DECISION = self.event_decision,
+            PS_OPTIMIZATION_DECISION_NOT_POSSIBLE =  self.event_default,
             ENCODING = self.encoding,
             DISTRACT = self.distract,
             RETRIEVAL = self.retrieval,
@@ -487,6 +489,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         self._anode_num = -999
         self._cathode_num = -999
         self._amplitude = -999
+        self._id = -999
 
 
     def modify_with_stim_params(self,events):
@@ -544,12 +547,14 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             self._ID_FIELD:'id'
         }
         event=self.event_default(event_json)
-        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
         for k,v in biomarker_dict_to_field.items():
             event[v] = params_dict[k]
         event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
         event['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
-        event.list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
+        self._list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
+        self._id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
+        event.list_phase = self._list_phase
+        event.id = self._id
         return event.view(np.recarray)
 
 
@@ -561,16 +566,23 @@ class PS4Sys3LogParser(BaseSys3LogParser):
 
     def event_stim(self,event_json):
         if event_json['event_value']:
-            stim_params_dict = event_json[self._STIM_PARAMS_FIELD]
-            self._amplitude = stim_params_dict['amplitude']
-            self._frequency = stim_params_dict['pulse_freq'] /1000
-            stim_pair = stim_params_dict['stim_pair']
-            self._anode,self._cathode = stim_pair.split('_')
+            try:
+                stim_params_dict = event_json[self._STIM_PARAMS_FIELD]
+                self._amplitude = stim_params_dict['amplitude']
+                self._frequency = stim_params_dict['pulse_freq'] /1000
+                stim_pair = stim_params_dict['stim_pair']
+                self._anode, self._cathode = stim_pair.split('_')
+
+            except KeyError:
+                for stim_pair in stim_params_dict['stim_channels']:
+                    self._anode,self._cathode = stim_pair.split('_')
+                    self._amplitude = stim_params_dict['stim_channels'][stim_pair]['amplitude']
+                    self._frequency = stim_params_dict['stim_channels'][stim_pair]['pulse_freq'] / 1000
             self._anode_num,self._cathode_num = [self._electrode_config.contacts[c].jack_num for c in (self._anode,self._cathode)]
         event = self.event_default(event_json)
-        event.id = event_json[self._STIM_PARAMS_FIELD][self._ID_FIELD]
+        event.list_phase = self._list_phase
+        event.id = self._id
         event.type = 'STIM_ON' if event_json['event_value'] else 'STIM_OFF'
-        event.list_phase = event_json[self._STIM_PARAMS_FIELD]['buffer_name'].partition('_')[0].upper()
         return event
 
     def event_decision(self,event_json):
