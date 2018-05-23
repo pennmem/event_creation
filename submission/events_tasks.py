@@ -19,6 +19,7 @@ from .detection.artifact_detection import ArtifactDetector
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.raa_log_parser import RAASessionLogParser
+from .parsers.vffr_log_parser import VFFRSessionLogParser
 from .parsers.base_log_parser import EventComparator
 from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
@@ -187,6 +188,7 @@ class EventCreationTask(PipelineTask):
                     'ltpFR2': LTPFR2SessionLogParser,
                     'FR1': FRSessionLogParser,
                     'Remembering_Across_America': RAASessionLogParser,
+                    'VFFR': VFFRSessionParser
                   }
 
 
