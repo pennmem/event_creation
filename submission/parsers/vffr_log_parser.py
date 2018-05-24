@@ -1,7 +1,7 @@
-from .base_log_parser import BaseSessionLogParser
+from .base_log_parser import BaseUnityLTPLogParser
 import numpy as np
 
-class VFFRSessionLogParser(BaseSessionLogParser):
+class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     @classmethod
     def _vffr_fields(cls):
@@ -13,7 +13,6 @@ class VFFRSessionLogParser(BaseSessionLogParser):
             ('trial', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('item_name', '', 'S16'),
-            ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
@@ -22,80 +21,100 @@ class VFFRSessionLogParser(BaseSessionLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(VFFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
-        self._session = -999
-        self._trial = -999
-        self._serialpos = -999
+        self._trial = 0
+        self._serialpos = 0
 
         self._add_fields(*self._vffr_fields())
         self._add_type_to_new_event(
-            SESS_START=self.event_sess_start,
-            FR_PRES=self.event_fr_pres,
-            REC_START=self.event_default,
-            REST=self._event_skip,
-            REST_REWET=self.event_default,
-            SESS_END=self._event_skip,
-            SESSION_SKIPPED=self._event_skip,
-            DISTRACTOR_MATH=self.event_distractor,
-            MATH_TOTAL_SCORE=self._event_skip
+            end_message=self._event_skip,
+            final_recall_prompt=self._event_skip,
+            final_recall_start=self.event_ffr_start,  # Start of final free recall
+            final_recall_stop=self.event_ffr_stop,  # End of final free recall
+            microphone_test_begin=self._event_skip,
+            microphone_test_confirmation=self._event_skip,
+            microphone_test_end=self._event_skip,
+            microphone_test_playing=self._event_skip,
+            microphone_test_recording=self._event_skip,
+            press_any_key_prompt=self._event_skip,
+            recall_prompt=self._event_skip,
+            recall_start=self.event_rec_start,  # Start of vocalization period
+            recall_stop=self.event_rec_stop,  # End of vocalization period
+            required_break_start=self.event_break_start,  # Start of break
+            required_break_stop=self.event_break_stop,  # End of break
+            restore_original_text_color=self._event_skip,
+            stimulus=self._event_skip,
+            stimulus_cleared=self.event_word_off,  # End of word presentation
+            stimulus_display=self.event_word_on,  # Start of word presentation
+            text_color_changed=self._event_skip,
+            text_display_cleared=self._event_skip,
         )
         self._add_type_to_modify_events(
-            SESS_START=self.modify_session,
-            REC_START=self.modify_recalls
+            final_recall_start=self.modify_ffr,  # Parse FFR annotations and add recall information to events
+            recall_start=self.modify_voc  # Parse annotation for word vocalization and add a vocalization event
         )
 
-    """=====EVENT CREATION====="""
-    def event_default(self, split_line):
-        """
-        Override base class's default event to include list, serial position, and stimList
-        :param split_line:
-        :return:
-        """
-        event = BaseSessionLogParser.event_default(self, split_line)
-        event.session = self._session
-        event.trial = self._trial
-        return event
+    ###############
+    #
+    # EVENT CREATION FUNCTIONS
+    #
+    ###############
 
-    def event_sess_start(self, split_line):
-        """
-        Extracts the session number from the fourth column of SESS_START log events
-        :param split_line:
-        :return:
-        """
-        self._session = int(split_line[3]) - 1
-        return False
-
-    def event_fr_pres(self, split_line):
-        self.update_trial(split_line)
+    def event_word_on(self, evdata):
         self._serialpos += 1
-        event = self.event_default(split_line)
+        event = self.event_default(evdata)
         event.type = 'WORD'
+        event.item_name = evdata['displayed text']
         event.serialpos = self._serialpos
-        event.begin_distractor = self._distractor
-        event.begin_math_correct = self._math_correct
-        event.item_name = split_line[4]
-        event.item_num = int(split_line[5])
         return event
 
-    def event_distractor(self, split_line):
-        """
-        Collect math distractor information and create a DISTRACTOR event. NOTE: The original .mat files always have the
-        distractor event's distractor and math_correct values logged as "begin_", even if it is a final distractor event
-        """
-        self.update_trial(split_line)
-        self._distractor = int(split_line[6])
-        self._math_correct = int(split_line[7])
-        event = self.event_default(split_line)
-        event.begin_distractor = self._distractor
-        event.begin_math_correct = self._math_correct
-        event.type = 'DISTRACTOR'
+    def event_word_off(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'WORD_OFF'
+        event.item_name = evdata['word']
+        event.serialpos = self._serialpos
         return event
 
-    """=====EVENT MODIFIERS====="""
-    def modify_session(self, events):
-        """
-        Applies session number to all previous events.
-        """
-        events.session = self._session
+    def event_rec_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'REC_START'
+        event.serialpos = self._serialpos
+        return event
+
+    def event_rec_stop(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'REC_STOP'
+        event.serialpos = self._serialpos
+        return event
+
+    def event_ffr_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'FFR_START'
+        return event
+
+    def event_ffr_stop(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'FFR_STOP'
+        return event
+
+    def event_break_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'BREAK_START'
+        return event
+
+    def event_break_stop(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'BREAK_STOP'
+        return event
+
+    ###############
+    #
+    # EVENT MODIFIER FUNCTIONS
+    #
+    ###############
+    def modify_voc(self, events):
+        return events
+
+    def modify_ffr(self, events):
         return events
 
     def modify_recalls(self, events):
@@ -154,30 +173,6 @@ class VFFRSessionLogParser(BaseSessionLogParser):
             events = np.append(events, new_event).view(np.recarray)
 
         return events
-
-    def modify_final_distractor_info(self, trial, events):
-        """
-        Retroactively adds final distractor information to the word presentations from the most recent list
-        :param trial: The current list number
-        :param events: The list of all prior events
-        :return: The modified event list
-        """
-        events = events.view(np.recarray)
-        this_trial = np.logical_and(events.trial == trial, events.type == 'WORD')
-        events.final_distractor[this_trial] = self._distractor
-        events.final_math_correct[this_trial] = self._math_correct
-        self._distractor = 0
-        self._math_correct = -999
-        return events
-
-    def update_trial(self, split_line):
-        """
-        Checks whether a new word list has been reached, and resets the serial position if so
-        """
-        current_trial = int(split_line[3]) + 1
-        if self._trial != current_trial:
-            self._serialpos = 0
-            self._trial = current_trial
 
     @staticmethod
     def find_presentation(item_num, events):

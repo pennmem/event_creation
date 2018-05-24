@@ -195,7 +195,7 @@ class EventCreationTask(PipelineTask):
                     'ltpFR2': LTPFR2SessionLogParser,
                     'FR1': FRSessionLogParser,
                     'Remembering_Across_America': RAASessionLogParser,
-                    'VFFR': VFFRSessionParser
+                    'VFFR': VFFRSessionLogParser
                   }
 
     @property
