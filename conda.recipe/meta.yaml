@@ -1,0 +1,31 @@
+{% set setup_data = load_setup_py_data() %}
+{% set dependency_lst = environ.get('DEPENDENCIES').split('\n') %}
+package:
+  name: event_creation
+  version: {{ setup_data['version'] }}
+
+source:
+  path: ../
+
+build:
+  number: {{ environ.get('BUILDNUM',0) }}
+
+requirements:
+  build:
+    - python {{ python }}
+    - setuptools
+
+
+  run:
+    {% for d in dependency_lst %}
+    {{ d }}
+    {% endfor %}
+
+  test:
+    imports:
+      - event_creation
+      - event_creation.submission
+      - event_creation.neurorad
+
+
+

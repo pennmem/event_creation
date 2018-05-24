@@ -1,3 +1,36 @@
+2018-3-28
+=========
+- STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures
+- Successfully running the event creation pipeline now sends a request to the web reporting API
+- HostPCLogParser now uses the same stim_params fields as everyone else
+- neurorad_tasks.CorrectCoordinatesTask now uses `code` instead of `subject` when correcting MNI coordinates
+
+2018-3-6
+========
+- Refactored event_creation and bundled it into a conda package
+
+2018-1-15
+=========
+- Added support for PS5, FR6
+- both CatFR* and catFR* are acceptible names for catFR experiments (though not PS*_catFR*)
+- Added parsers.dtypes module; all experiments with the same name should now create events with the same fields
+
+
+Outstanding Issues
+------------------
+- mstime field in events produced by HostPCLogParser do not use a unified clock
+
+
+2018-1-16
+=========
+* Added brainshift-corrected MNI coordinates to localization
+* Fixed bug in which event pipeline would crash if electrode config file didn't have a name
+* Added call to brain visualization API at end of localization pipeline
+* Updates to PS4 experiment suite:
+    - all_events.json now created for PS4 experiments
+    - PS4_* now their own set of experiments
+    - anode_label,cathode_label,anode_num,cathode_num,amplitude fields moved from top level of PS4 events to stim_params
+
 2017-12-5
 =========
 * Added some data quality checks to FR,catFR,PAL events

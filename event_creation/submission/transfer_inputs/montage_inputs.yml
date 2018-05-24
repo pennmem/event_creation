@@ -1,0 +1,48 @@
+directories:
+  db_dir          : &DB '{db_root}/protocols/{protocol}'
+  db_loc_dir      : &DB_LOC !join [*DB, 'subjects/{subject}/localizations/{localization}/neuroradiology/current_processed']
+  rhino_doc_dir   : &RHINO_DIR '{data_root}/{code}/docs'
+  loc_db_dir      : &LOC_DB '{loc_db_root}'
+  protocol_loc_db : &LOC_PROTOCOL !join [*LOC_DB, 'protocols/{protocol}']
+  code_loc_db     : &LOC_CODE !join [*LOC_PROTOCOL, 'codes/{code}']
+
+default_file: &FILE
+  type: file
+  groups: []
+  multiple: false
+  required: true
+  checksum_contents: true
+
+files:
+
+  ## Creation
+
+  - name: localization
+    <<: *FILE
+    groups: [r1, '!json_import' ]
+    origin_directory: *DB_LOC
+    origin_file: localization.json
+    destination: localization.json
+
+  - name: jacksheet
+    <<: *FILE
+    groups: [r1, '!json_import' ]
+    origin_directory: *RHINO_DIR
+    origin_file: jacksheet.txt
+    destination: jacksheet.txt
+
+  ## Conversion
+
+  - name: contacts
+    <<: *FILE
+    groups: [ r1, json_import ]
+    origin_directory: *LOC_CODE
+    origin_file: contacts.json
+    destination: contacts.json
+
+  - name: pairs
+    <<: *FILE
+    groups: [ r1, json_import ]
+    origin_directory: *LOC_CODE
+    origin_file: pairs.json
+    destination: pairs.json
