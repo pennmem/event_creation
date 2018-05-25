@@ -634,6 +634,8 @@ class BaseUnityLTPLogParser(BaseLogParser):
         # Replace spaces in event type names with underscores
         for i, e in enumerate(events):
             events[i]['type'] = e['type'].replace(' ', '_')
+            if e['type'] == 'stimulus' and 'displayed text' not in e['data']:
+                e['type'] = 'stimulus_display'
         return events
 
     def _read_primary_log(self):

@@ -19,7 +19,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             recall_stop=self.event_rec_stop,  # End of vocalization period
             required_break_start=self.event_break_start,  # Start of break
             required_break_stop=self.event_break_stop,  # End of break
-            stimulus=self.event_word_on,  # Start of word presentation
+            stimulus_display=self.event_word_on,  # Start of word presentation
             stimulus_cleared=self.event_word_off,  # End of word presentation
         )
         self._add_type_to_modify_events(
@@ -35,10 +35,10 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_word_on(self, evdata):
         self._serialpos += 1
-        self.current_word = evdata['word']
+        self.current_word = evdata['displayed text']
         event = self.event_default(evdata)
         event.type = 'WORD'
-        event.item_name = evdata['word']
+        event.item_name = self.current_word
         event.serialpos = self._serialpos
         return event
 
