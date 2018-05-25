@@ -92,9 +92,9 @@ pal_fields = (
             ('is_stim', False, 'b1'),
 )
 
-#Math
+# Math
 
-math_fields =  (
+math_fields = (
             ('list', -999, 'int16'),
             ('test', -999, 'int16', 3),
             ('answer', -999, 'int16'),
@@ -103,6 +103,8 @@ math_fields =  (
         )
 
 # LTP
+
+ltp_fields = (('eogArtifact', -1, 'int8'),)
 
 ltpFR2_fields = (
             ('trial', -999, 'int16'),
@@ -118,7 +120,7 @@ ltpFR2_fields = (
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
             ('eogArtifact', -1, 'int8')
-        )
+)
 
 ltpFR_fields = (
         ('trial', -999, 'int16'),
@@ -150,6 +152,7 @@ ltpFR_fields = (
         ('case', '', 'S8'),
         ('rejected', False, 'b1'),
         ('rej_time', -999, 'int32'),
+        ('eogArtifact', -1, 'int8')
 )
 
 vffr_fields = (
