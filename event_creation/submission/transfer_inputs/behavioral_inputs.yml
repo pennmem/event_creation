@@ -380,7 +380,7 @@ files:
     groups: [ ltp, unity ]
     origin_directory: *LTP_SESS_DIR
     origin_file: 'session.jsonl'
-    destination: 'logs/'
+    destination: 'logs/session.jsonl'
 
   - name: session_log
     << : *FILE
@@ -394,7 +394,7 @@ files:
     groups: [ ltp, unity ]
     origin_directory: *LTP_SESS_DIR
     origin_file: 'session.jsonl'
-    destination: 'logs/'
+    destination: 'logs/session.jsonl'
 
   - name: math_log
     << : *FILE
