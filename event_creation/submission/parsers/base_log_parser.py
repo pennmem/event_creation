@@ -317,11 +317,8 @@ class BaseLogParser(object):
             this_type = self._get_raw_event_type(raw_event)
             # Check if the line is parseable
             try:
-                logger.info('Handling event type %s' % this_type)
                 handler = self._type_to_new_event[this_type]
             except KeyError:
-                logger.info('Key error encountered for event type %s' % this_type)
-                logger.info('_allow_unparsed_events is set to %s' % self._allow_unparsed_events)
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
                     continue
