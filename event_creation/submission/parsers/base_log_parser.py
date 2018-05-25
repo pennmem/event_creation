@@ -14,6 +14,7 @@ from ..viewers.recarray import pformat_rec, to_dict, from_dict
 from ..exc import NoAnnotationError
 from . import dtypes
 
+
 class BaseLogParser(object):
 
     # Maximum length of stim params
@@ -316,8 +317,11 @@ class BaseLogParser(object):
             this_type = self._get_raw_event_type(raw_event)
             # Check if the line is parseable
             try:
+                logger.debug('Handling event type %s' % this_type)
                 handler = self._type_to_new_event[this_type]
             except KeyError:
+                logger.debug('Key error encountered for event type %s' % this_type)
+                logger.debug('_allow_unparsed_events is set to %s' % self._allow_unparsed_events)
                 if self._allow_unparsed_events:
                     # Fine to skip lines if specified
                     continue
@@ -482,6 +486,7 @@ class BaseSys3LogParser(BaseLogParser):
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
+
 class BaseSys3_1LogParser(BaseSessionLogParser):
     _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
@@ -602,7 +607,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         if primary_log not in files:
             primary_log = 'session_log_txt'
 
-        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
+        BaseSessionLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
                                       primary_log=primary_log, allow_unparsed_events=True)
         self._files = files
 
@@ -897,7 +902,6 @@ class StimComparator(object):
             if this_mismatch:
                 mismatches += this_mismatch + '\n'
         return mismatches
-
 
 
 class EventCombiner(object):
