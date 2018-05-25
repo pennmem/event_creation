@@ -13,27 +13,14 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
-            end_message=self._event_skip,
-            final_recall_prompt=self._event_skip,
             final_recall_start=self.event_ffr_start,  # Start of final free recall
             final_recall_stop=self.event_ffr_stop,  # End of final free recall
-            microphone_test_begin=self._event_skip,
-            microphone_test_confirmation=self._event_skip,
-            microphone_test_end=self._event_skip,
-            microphone_test_playing=self._event_skip,
-            microphone_test_recording=self._event_skip,
-            press_any_key_prompt=self._event_skip,
-            recall_prompt=self._event_skip,
             recall_start=self.event_rec_start,  # Start of vocalization period
             recall_stop=self.event_rec_stop,  # End of vocalization period
             required_break_start=self.event_break_start,  # Start of break
             required_break_stop=self.event_break_stop,  # End of break
-            restore_original_text_color=self._event_skip,
-            stimulus=self._event_skip,
+            stimulus=self.event_word_on,  # Start of word presentation
             stimulus_cleared=self.event_word_off,  # End of word presentation
-            stimulus_display=self.event_word_on,  # Start of word presentation
-            text_color_changed=self._event_skip,
-            text_display_cleared=self._event_skip,
         )
         self._add_type_to_modify_events(
             final_recall_start=self.modify_ffr,  # Parse FFR annotations and add recall information to events
