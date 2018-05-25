@@ -95,7 +95,9 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         rec_start_time = rec_start_event.mstime
 
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
-        ann_outputs = self._parse_ann_file(str(self._serialpos - 1))
+        # The first ten items are practice items, and their .ann files are marked as 0_practice through 9_practice
+        ann_outputs = self._parse_ann_file(str(self._serialpos - 1)) if self._serialpos > 10 \
+            else self._parse_ann_file(str(self._serialpos - 1) + '_practice')
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
