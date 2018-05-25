@@ -163,9 +163,12 @@ class LTPAligner:
         for f in self.behav_files:
             if f.endswith('.up'):
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0], ndmin=1)
-        if self.behav_ms is None:
-            logger.debug('No eeg.eeglog.up file detected. Extracting up pulses from eeg.eeglog...')
-            self.behav_ms = self.extract_up_pulses(self.behav_files[0])
+            elif f.endswith('.eeglog'):
+                self.behav_ms = self.extract_up_pulses(f)
+            elif f.endswith('.jsonl'):
+                self.behav_ms = self.extract_pulses_unity(f)
+            else:
+                logger.warn('File type of sync pulse log %s not recognized! Skipping...' % f)
         logger.debug('Done.')
 
     @staticmethod
@@ -186,6 +189,21 @@ class LTPAligner:
         # Return the mstimes from all up pulses
         return up_pulses[:, 0].astype(int)
 
+    @staticmethod
+    def extract_pulses_unity(logfile):
+        """
+        Extract timing of sync pulses from a UnityEPL session log.
+
+        :param logfile: The filepath for the session log .jsonl file
+        :return: 1-D numpy array containing the mstimes for all sync pulses
+        """
+        # Read session log
+        df = pd.read_json(logfile, lines=True)
+        # Get the times when all sync pulses were sent
+        pulses = np.array(df[df.type == 'Sync pulse begin'].time)
+        # Convert pulse times to integers before returning
+        pulses = pulses.astype(int)
+        return pulses
 
 def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_ms=10):
     """
@@ -217,7 +235,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
 
     # Determine which range of samples in the ephys computer's pulse log matches the behavioral computer's sync pulse timings
     # Determine which ephys sync pulses correspond to the beginning behavioral sync pulses
-    for i in xrange(len(ephys_ms) - window):
+    for i in range(len(ephys_ms) - window):
         s_ind = match_sequence(np.diff(ephys_ms[i:i + window]), np.diff(behav_ms), thresh_ms)
         if s_ind is not None:
             start_ephys_vals = ephys_ms[i:i + window]
@@ -227,7 +245,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
         raise ValueError("Unable to find a start window.")
 
     # Determine which ephys sync pulses correspond with the ending behavioral sync pulses
-    for i in xrange(len(ephys_ms) - window):
+    for i in range(len(ephys_ms) - window):
         e_ind = match_sequence(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
         if e_ind is not None:
             e_ind = len(behav_ms) - e_ind - window
