@@ -104,7 +104,7 @@ math_fields =  (
 
 # LTP
 
-ltp_fr2_fields = (
+ltpFR2_fields = (
             ('trial', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('begin_distractor', -999, 'int16'),
@@ -117,48 +117,52 @@ ltp_fr2_fields = (
             ('intruded', 0, 'int16'),
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
+            ('eogArtifact', -1, 'int8')
+        )
+
+ltpFR_fields = (
+        ('trial', -999, 'int16'),
+        ('studytrial', -999, 'int16'),
+        ('listtype', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('distractor', -999, 'int16'),
+        ('final_distractor', -999, 'int16'),
+        ('math_correct', -999, 'int16'),
+        ('final_math_correct', -999, 'int16'),
+        ('task', -999, 'int16'),
+        ('resp', -999, 'int16'),
+        ('rt', -999, 'int16'),
+        ('recog_resp', -999, 'int16'),
+        ('recog_conf', -999, 'int16'),
+        ('recog_rt', -999, 'int32'),
+        ('item_name', '', 'S16'),
+        ('item_num', -999, 'int16'),
+        ('recalled', False, 'b1'),
+        ('intruded', 0, 'int16'),
+        ('finalrecalled', False, 'b1'),
+        ('recognized', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', -999, 'int16'),
+        ('color_r', -999, 'float16'),
+        ('color_g', -999, 'float16'),
+        ('color_b', -999, 'float16'),
+        ('font', '', 'S32'),
+        ('case', '', 'S8'),
+        ('rejected', False, 'b1'),
+        ('rej_time', -999, 'int32'),
 )
 
-ltp_fields = (
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float16'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
+vffr_fields = (
+        ('trial', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('item_name', '', 'S16'),
+        ('recalled', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', False, 'b1'),
+        ('eogArtifact', -1, 'int8')
 )
 
-ltp_fr_fields = ( ('trial', -999, 'int16'),
-            ('studytrial', -999, 'int16'),
-            ('listtype', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('distractor', -999, 'int16'),
-            ('final_distractor', -999, 'int16'),
-            ('math_correct', -999, 'int16'),
-            ('final_math_correct', -999, 'int16'),
-            ('task', -999, 'int16'),
-            ('resp', -999, 'int16'),
-            ('rt', -999, 'int16'),
-            ('recog_resp', -999, 'int16'),
-            ('recog_conf', -999, 'int16'),
-            ('recog_rt', -999, 'int32'),
-            ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intruded', 0, 'int16'),
-            ('finalrecalled', False, 'b1'),
-            ('recognized', False, 'b1'),
-            ('rectime', -999, 'int32'),
-            ('intrusion', -999, 'int16'),
-            ('color_r', -999, 'float16'),
-            ('color_g', -999, 'float16'),
-            ('color_b', -999, 'float16'),
-            ('font', '', 'S32'),
-            ('case', '', 'S8'),
-            ('rejected', False, 'b1'),
-            ('rej_time', -999, 'int32'),
-)
+
 # PS2-3
 ps_fields = (
             ('exp_version', '', 'S16'),

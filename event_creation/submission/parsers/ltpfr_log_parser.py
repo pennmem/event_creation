@@ -1,48 +1,10 @@
-from .base_log_parser import BaseSessionLogParser
 import numpy as np
 from ast import literal_eval
+from .base_log_parser import BaseSessionLogParser
+from . import dtypes
 
 
 class LTPFRSessionLogParser(BaseSessionLogParser):
-
-    @classmethod
-    def _ltpfr_fields(cls):
-        """
-        Returns the templates for all LTPFR-specific fields (those not included under _BASE_FIELDS)
-        :return:
-        """
-        return (
-            ('trial', -999, 'int16'),
-            ('studytrial', -999, 'int16'),
-            ('listtype', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('distractor', -999, 'int16'),
-            ('final_distractor', -999, 'int16'),
-            ('math_correct', -999, 'int16'),
-            ('final_math_correct', -999, 'int16'),
-            ('task', -999, 'int16'),
-            ('resp', -999, 'int16'),
-            ('rt', -999, 'int16'),
-            ('recog_resp', -999, 'int16'),
-            ('recog_conf', -999, 'int16'),
-            ('recog_rt', -999, 'int32'),
-            ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intruded', 0, 'int16'),
-            ('finalrecalled', False, 'b1'),
-            ('recognized', False, 'b1'),
-            ('rectime', -999, 'int32'),
-            ('intrusion', -999, 'int16'),
-            ('color_r', -999, 'float16'),
-            ('color_g', -999, 'float16'),
-            ('color_b', -999, 'float16'),
-            ('font', '', 'S32'),
-            ('case', '', 'S8'),
-            ('rejected', False, 'b1'),
-            ('rej_time', -999, 'int32'),
-            ('eogArtifact', -1, 'int8')
-        )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(LTPFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
@@ -68,7 +30,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._recog_conf_mstime = -999
         self._rej_mstime = -999
 
-        self._add_fields(*self._ltpfr_fields())
+        self._add_fields(*dtypes.ltpFR_fields)
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
             FR_PRES=self.event_fr_pres,
