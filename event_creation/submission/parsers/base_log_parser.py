@@ -635,7 +635,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         for i, e in enumerate(events):
             events[i]['type'] = e['type'].replace(' ', '_')
             if e['type'] == 'stimulus' and 'displayed text' in e['data']:
-                e['type'] = 'stimulus_display'
+                events[i]['type'] = 'stimulus_display'
         return events
 
     def _read_primary_log(self):
