@@ -29,7 +29,8 @@ GROUPS = {
     'catFR': ('verbal', 'stim'),
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
-    'ltpFR': ('verbal',)
+    'ltpFR': ('verbal', 'math', 'pyepl'),
+    'VFFR': ('verbal', 'unity')
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'

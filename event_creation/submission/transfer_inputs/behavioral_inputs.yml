@@ -355,36 +355,50 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     origin_directory: *LTP_SUBJ_DIR
     origin_file: wasnorm_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: wordpool
     << : *FILE
-    groups: [ltp, FR]
+    groups: [ ltp, FR ]
     origin_directory: *LTP_SUBJ_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: eeg_log
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     multiple: true
     origin_directory: *LTP_SESS_DIR
     origin_file: 'eeg.eeglog*'
     destination: 'logs/'
 
+  - name: eeg_log
+    << : *FILE
+    groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/'
+
   - name: session_log
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     origin_directory: *LTP_SESS_DIR
     origin_file: session.log
     destination: logs/session.log
 
+  - name: session_log
+    << : *FILE
+    groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/'
+
   - name: math_log
     << : *FILE
-    groups: [ ltp ,'!Remembering_Across_America']
+    groups: [ ltp , math, pyepl ]
     origin_directory: *LTP_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -392,7 +406,7 @@ files:
   - name: annotations
     << : *FILE
     multiple: true
-    groups: [ ltp ]
+    groups: [ ltp, verbal ]
     origin_directory: *LTP_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
