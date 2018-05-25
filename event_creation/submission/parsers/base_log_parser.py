@@ -607,7 +607,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         if primary_log not in files:
             primary_log = 'session_log_txt'
 
-        BaseSessionLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
+        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
                                       primary_log=primary_log, allow_unparsed_events=True)
         self._files = files
 
