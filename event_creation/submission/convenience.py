@@ -632,7 +632,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     protocol = inputs.protocol
     if protocol is None:
-        protocol = 'ltp' if subject.startswith('ltp') else \
+        protocol = 'ltp' if subject.startswith('LTP') else \
                    'r1' if subject.startswith('R') else None
     groups = (protocol,)
 
