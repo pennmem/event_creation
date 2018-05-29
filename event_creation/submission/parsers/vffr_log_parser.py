@@ -9,6 +9,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         super(VFFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
         self._trial = 0
         self._serialpos = 0
+        self.practice = True
         self.current_word = ''
 
         self._add_fields(*dtypes.vffr_fields)
@@ -34,32 +35,38 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     ###############
 
     def event_word_on(self, evdata):
+        # Reset serial position and turn off practice mode when reaching the 11th word presentation
+        if self.practice and self._serialpos == 10:
+            self._serialpos = 0
+            self.practice = False
+        # Increment serial position (indexing starts at 1)
         self._serialpos += 1
+        # Get presented word
         self.current_word = evdata['data']['displayed text']
+        # Build event
         event = self.event_default(evdata)
-        event.type = 'WORD'
+        event.type = 'PRACTICE_WORD' if self.practice else 'WORD'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
-        print(self._serialpos, self.current_word)
         return event
 
     def event_word_off(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'WORD_OFF'
+        event.type = 'PRACTICE_WORD_OFF' if self.practice else 'WORD_OFF'
         event.item_name = evdata['data']['word']
         event.serialpos = self._serialpos
         return event
 
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'REC_START'
+        event.type = 'PRACTIC_REC_START' if self.practice else 'REC_START'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
         return event
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'REC_STOP'
+        event.type = 'PRACTIC_REC_STOP' if self.practice else 'REC_STOP'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
         return event
@@ -97,8 +104,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
         # The first ten items are practice items, and their .ann files are marked as 0_practice through 9_practice
-        ann_outputs = self._parse_ann_file(str(self._serialpos - 1)) if self._serialpos > 10 \
-            else self._parse_ann_file(str(self._serialpos - 1) + '_practice')
+        ann_outputs = self._parse_ann_file(str(self._serialpos - 1) + '_practice') if self.practice \
+            else self._parse_ann_file(str(self._serialpos - 1))
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
@@ -109,6 +116,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             # Create a new event for the recall
             new_event = self._empty_event
             new_event.type = 'REC_WORD_VV' if word == '<>' or word == 'V' or word == '!' else 'REC_WORD'
+            if self.practice:
+                new_event.type = 'PRACTICE_' + new_event.type
 
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
             new_event.rectime = int(round(float(recall[0])))
