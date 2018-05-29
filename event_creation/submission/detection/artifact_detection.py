@@ -108,83 +108,88 @@ class ArtifactDetector:
         #
         ##########
 
-        logger.debug('Identifying bad epochs for %s' % self.eegfile)
+        logger.debug('Finding blinks for %s' % self.eegfile)
 
-        # Create an mne events array with one row for each event of all types that appears in ev_ids (currently just
-        # presentation events). The first column indicates the sample number of the event's onset, the second column is
-        # ignored, and the third column indicates the event type as defined by the ev_ids dictionary.
-        ev_ids = dict(
-            WORD=0
-        )
+        SETTINGS = {
+            'ltpFR': {'WORD': (0., 3.0)},
+            'ltpFR2': {'WORD': (0., 1.6)},
+            'VFFR': {'WORD': (0., 1.6), 'REC_START': (0., 2.0)}
+        }
 
-        offsets = [o for i,o in enumerate(self.events.eegoffset)
-                   if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
-        ids = [ev_ids[self.events.type[i]] for i,o in enumerate(self.events.eegoffset)
-               if self.events.type[i] in ev_ids and self.events.eegfile[i].endswith(self.eegfile)]
-        if len(ids) == 0:
-            logger.warn('Skipping artifact detection for file %s due to it having no presentation events!' % self.eegfile)
-            return
-        mne_evs = np.zeros((len(offsets), 3), dtype=int)
-        mne_evs[:, 0] = offsets
-        mne_evs[:, 2] = ids
+        ev_types = SETTINGS[self.experiment]
+        for t in ev_types:
+            # Get the eeg offsets of all events of the target type
+            offsets = [o for i, o in enumerate(self.events.eegoffset) if self.events.type[i] == t and
+                       self.events.eegfile[i].endswith(self.eegfile)]
+            # Skip to the next event type if there were no events of the target type
+            if len(offsets) == 0:
+                continue
 
-        tmin = 0.
-        tmax = 3.0 if self.experiment == 'ltpFR' else 1.6
-        # Remove any events that run beyond the bounds of the EEG file
-        truncated_events_pre = 0
-        truncated_events_post = 0
-        while mne_evs[0, 0] + self.eeg[self.eegfile].info['sfreq'] * tmin < 0:
-            mne_evs = mne_evs[1:]
-            truncated_events_pre += 1
-        while mne_evs[-1, 0] + self.eeg[self.eegfile].info['sfreq'] * tmax >= self.eeg[self.eegfile].n_times:
-            mne_evs = mne_evs[:-1]
-            truncated_events_post += 1
-        # Load data from all presentation events into an mne.Epochs object & baseline correct using each event's average voltage
-        ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, event_id=ev_ids, tmin=tmin, tmax=tmax, baseline=None, preload=True)
+            # Create MNE events using eeg offsets
+            mne_evs = np.zeros((len(offsets), 3), dtype=int)
+            mne_evs[:, 0] = offsets
 
-        ##########
-        #
-        # Individual-channel and all-channel bad epoch detection
-        #
-        ##########
+            # Determine tmin and tmax using settings dictionary
+            tmin = ev_types[t][0]
+            tmax = ev_types[t][1]
 
-        # Apply baseline correction on epoch data before analyzing individual channels across events
-        ep.apply_baseline((0, None))
+            # Remove any events that run beyond the bounds of the EEG file
+            truncated_events_pre = 0
+            truncated_events_post = 0
+            while mne_evs[0, 0] + self.eeg[self.eegfile].info['sfreq'] * tmin < 0:
+                mne_evs = mne_evs[1:]
+                truncated_events_pre += 1
+            while mne_evs[-1, 0] + self.eeg[self.eegfile].info['sfreq'] * tmax >= self.eeg[self.eegfile].n_times:
+                mne_evs = mne_evs[:-1]
+                truncated_events_post += 1
 
-        # Method 4: Large deviation of voltage from interquartile range on individual channels during event
-        # Find the interquartile range of each channel, across time and across all events
-        p75 = np.percentile(ep._data, 75, axis=[2, 0])
-        p25 = np.percentile(ep._data, 25, axis=[2, 0])
-        iqr = p75 - p25
-        # Find the max and min of each channel during each event, then determine how many IQRs outside the IQR they fall
-        amp_max_iqr = (ep._data.max(axis=2) - p75) / iqr
-        amp_max_iqr[amp_max_iqr < 0] = 0
-        amp_min_iqr = (ep._data.min(axis=2) - p25) / iqr
-        amp_min_iqr[amp_min_iqr > 0] = 0
+            # Load data from all presentation events into an mne.Epochs object & baseline correct using each event's average voltage
+            ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, tmin=tmin, tmax=tmax, baseline=None, preload=True)
 
-        # Use only method 4 to search for blinks/eye movements in each EOG channel
-        right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
-        left_eog_art = np.logical_or(amp_max_iqr[:, self.leog_ind] > 3, amp_min_iqr[:, self.leog_ind] < -3)
+            ##########
+            #
+            # Individual-channel and all-channel bad epoch detection
+            #
+            ##########
 
-        ##########
-        #
-        # Artifact Information Logging
-        #
-        ##########
+            # Apply baseline correction on epoch data before analyzing individual channels across events
+            ep.apply_baseline((0, None))
 
-        # Mark channels with artifacts during each presentation event
-        logger.debug('Marking events with artifact info...')
+            # Method 4: Large deviation of voltage from interquartile range on individual channels during event
+            # Find the interquartile range of each channel, across time and across all events
+            p75 = np.percentile(ep._data, 75, axis=[2, 0])
+            p25 = np.percentile(ep._data, 25, axis=[2, 0])
+            iqr = p75 - p25
 
-        # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
-        event_mask = np.where([ev.type in ev_ids and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
+            # Find the max and min of each channel during each event, then determine how many IQRs outside the IQR they fall
+            amp_max_iqr = (ep._data.max(axis=2) - p75) / iqr
+            amp_max_iqr[amp_max_iqr < 0] = 0
+            amp_min_iqr = (ep._data.min(axis=2) - p25) / iqr
+            amp_min_iqr[amp_min_iqr > 0] = 0
 
-        # Also skip any events that run beyond the bounds of the EEG file
-        event_mask = event_mask[truncated_events_pre:]
-        event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
+            # Search for blinks/eye movements in each EOG channel
+            right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
+            left_eog_art = np.logical_or(amp_max_iqr[:, self.leog_ind] > 3, amp_min_iqr[:, self.leog_ind] < -3)
 
-        # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
-        self.events.eogArtifact[event_mask] = 0
-        self.events.eogArtifact[event_mask[left_eog_art]] += 1
-        self.events.eogArtifact[event_mask[right_eog_art]] += 2
+            ##########
+            #
+            # Artifact Information Logging
+            #
+            ##########
 
-        logger.debug('Events marked with artifact info for %s' % self.eegfile)
+            # Mark channels with artifacts during each presentation event
+            logger.debug('Marking events with blink info...')
+
+            # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
+            event_mask = np.where([ev.type == t and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
+
+            # Also skip any events that run beyond the bounds of the EEG file
+            event_mask = event_mask[truncated_events_pre:]
+            event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
+
+            # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
+            self.events.eogArtifact[event_mask] = 0
+            self.events.eogArtifact[event_mask[left_eog_art]] += 1
+            self.events.eogArtifact[event_mask[right_eog_art]] += 2
+
+            logger.debug('Events marked with blink info for %s' % self.eegfile)
