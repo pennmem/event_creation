@@ -116,10 +116,10 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
             # Create a new event for the recall
             new_event = self._empty_event
-            new_event.type = 'REC_WORD_VV' if word == '<>' or word == 'V' or word == '!' else 'REC_WORD'
+            evtype = 'REC_WORD_VV' if word == '<>' or word == 'V' or word == '!' else 'REC_WORD'
             if self.practice:
-                new_event.type = 'PRACTICE_' + new_event.type
-
+                evtype = 'PRACTICE_' + evtype
+            new_event.type = evtype
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
