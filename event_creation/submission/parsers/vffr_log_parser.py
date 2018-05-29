@@ -40,7 +40,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.type = 'WORD'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
-        print(self.serialpos, self.current_word)
+        print(self._serialpos, self.current_word)
         return event
 
     def event_word_off(self, evdata):
