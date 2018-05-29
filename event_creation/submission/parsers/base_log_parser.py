@@ -607,6 +607,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
                                       primary_log=primary_log, allow_unparsed_events=True)
         self._files = files
+        self._trial = -999
 
     def _get_raw_event_type(self, event_json):
         return event_json['type']
@@ -646,6 +647,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         event = self._empty_event
         event.mstime = event_json['time']
         event.type = event_json['type']
+        event.trial = self._trial
         return event
 
 
