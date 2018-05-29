@@ -40,6 +40,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.type = 'WORD'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
+        print(self.serialpos, self.current_word)
         return event
 
     def event_word_off(self, evdata):
@@ -132,7 +133,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         rec_start_time = rec_start_event.mstime
 
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
-        ann_outputs = self._parse_ann_file(str(self._serialpos - 1))
+        ann_outputs = self._parse_ann_file('ffr')
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
