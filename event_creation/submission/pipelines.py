@@ -365,6 +365,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('PS4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
+        do_math = 'math' in groups
     else:
         raise Exception('Unknown protocol %s' % protocol)
 
