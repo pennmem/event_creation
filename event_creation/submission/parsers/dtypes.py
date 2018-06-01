@@ -162,6 +162,7 @@ vffr_fields = (
         ('recalled', False, 'b1'),
         ('rectime', -999, 'int32'),
         ('intrusion', False, 'b1'),
+        ('too_early', False, 'b1'),
         ('eogArtifact', -1, 'int8')
 )
 

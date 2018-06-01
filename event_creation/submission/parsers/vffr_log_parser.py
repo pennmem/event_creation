@@ -18,9 +18,11 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             final_recall_stop=self.event_ffr_stop,  # End of final free recall
             recall_start=self.event_rec_start,  # Start of vocalization period
             recall_stop=self.event_rec_stop,  # End of vocalization period
-            required_break_start=self.event_break_start,  # Start of break
-            required_break_stop=self.event_break_stop,  # End of break
-            stimulus_display=self.event_word_on,  # Start of word presentation
+            optional_break_start=self.event_break_start,  # Start of manual break
+            optional_break_stop=self.event_break_stop,  # End of manual break
+            required_break_start=self.event_break_start,  # Start of mid-session break
+            required_break_stop=self.event_break_stop,  # End of mid-session break
+            stimulus=self.event_word_on,  # Start of word presentation
             stimulus_cleared=self.event_word_off,  # End of word presentation
         )
         self._add_type_to_modify_events(
@@ -35,13 +37,9 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     ###############
 
     def event_word_on(self, evdata):
-        # Reset serial position and turn off practice mode when reaching the 11th word presentation
-        if self.practice and self._serialpos == 10:
-            self._serialpos = 0
-            self.practice = False
-        # Increment serial position (indexing starts at 1)
-        self._serialpos += 1
-        # Get presented word
+        # Get information on the word presentation and whether it is a practice item
+        self._serialpos = evdata['data']['index']
+        self.practice = evdata['data']['practice']
         self.current_word = evdata['data']['displayed text']
         # Build event
         event = self.event_default(evdata)
@@ -123,12 +121,26 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
 
-            # Get the vocalized word from the annotation; intrusions probably won't happen, but mark them if they do
+            # Mark recall as being too early if vocalization began less than 1 second after the word left the screen
+            new_event.too_early = new_event.rectime < 1000
+
+            # Get the vocalized word from the annotation and mark if it is not the most recently presented word
             new_event.item_name = word
             new_event.intrusion = word != self.current_word
 
-            # Record the serial position of the word with the 576-item list
-            new_event.serialpos = self._serialpos
+            # Determine the serial position of the spoken word within the 576 item list
+            pres_mask = (events.item_name == word) & (events.type == 'WORD')
+            # Correct recall if word was previously presented
+            if pres_mask.sum() == 1:
+                new_event.serialpos = events[pres_mask].serialpos[0]
+                events.recalled[pres_mask] = True
+            # ELI if word was never presented
+            elif pres_mask.sum() == 0:
+                new_event.intrusion = True
+            # If a word was presented multiple times, abort event creation, as this indicates an error with the session
+            else:
+                raise Exception('Word %s was presented multiple times during %s %s! Aborting event creation...' %
+                                (word, self._subject, self._session))
 
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
