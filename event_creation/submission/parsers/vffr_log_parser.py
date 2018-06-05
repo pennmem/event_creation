@@ -11,6 +11,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         self._serialpos = 0
         self.practice = True
         self.current_word = ''
+        self.current_num = -999
 
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
@@ -46,6 +47,9 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.type = 'PRACTICE_WORD' if self.practice else 'WORD'
         event.item_name = self.current_word
         event.serialpos = self._serialpos
+        if 'ltp word number' in evdata['data']:
+            self.current_num = evdata['data']['ltp word number']
+            event.item_num = self.current_num
         return event
 
     def event_word_off(self, evdata):
@@ -53,19 +57,24 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.type = 'PRACTICE_WORD_OFF' if self.practice else 'WORD_OFF'
         event.item_name = evdata['data']['word']
         event.serialpos = self._serialpos
+        if event.item_name == self.current_word:
+            event.item_num = self.current_num
         return event
 
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
         event.type = 'PRACTIC_REC_START' if self.practice else 'REC_START'
         event.item_name = self.current_word
+        event.item_num = self.current_num
         event.serialpos = self._serialpos
+
         return event
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
         event.type = 'PRACTIC_REC_STOP' if self.practice else 'REC_STOP'
         event.item_name = self.current_word
+        event.item_num = self.current_num
         event.serialpos = self._serialpos
         return event
 
@@ -133,6 +142,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             # Correct recall if word was previously presented
             if pres_mask.sum() == 1:
                 new_event.serialpos = events[pres_mask].serialpos[0]
+                new_event.item_num = events[pres_mask].item_num[0]
                 events.recalled[pres_mask] = True
             # ELI if word was never presented
             elif pres_mask.sum() == 0:
@@ -179,6 +189,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             # Correct recall if word was previously presented
             if pres_mask.sum() == 1:
                 new_event.serialpos = events[pres_mask].serialpos[0]
+                new_event.item_num = events[pres_mask].item_num[0]
                 events.recalled[pres_mask] = True
             # ELI if word was never presented
             elif pres_mask.sum() == 0:
