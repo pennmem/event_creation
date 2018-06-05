@@ -113,7 +113,7 @@ class ArtifactDetector:
         SETTINGS = {
             'ltpFR': {'WORD': (0., 3.0)},
             'ltpFR2': {'WORD': (0., 1.6)},
-            'VFFR': {'WORD': (0., 1.6), 'REC_WORD': (-1.0, -0.1)}
+            'VFFR': {'WORD': (0., 1.2), 'REC_WORD': (-1.0, -0.1)}
         }
 
         ev_types = SETTINGS[self.experiment]
