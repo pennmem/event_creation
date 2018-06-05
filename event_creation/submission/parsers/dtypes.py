@@ -159,7 +159,7 @@ vffr_fields = (
         ('trial', -999, 'int16'),
         ('serialpos', -999, 'int16'),
         ('item_name', '', 'S16'),
-        ('item_sum', -999, 'int16')
+        ('item_sum', -999, 'int16'),
         ('recalled', False, 'b1'),
         ('rectime', -999, 'int32'),
         ('intrusion', False, 'b1'),
