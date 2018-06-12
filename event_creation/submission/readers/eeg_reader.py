@@ -1242,7 +1242,7 @@ class ScalpReader(EEG_reader):
         neg_thresh = p25 - iqr * iqr_thresh
 
         # Detect artifacts using the IQR threshold, then dilate the detected zones to account for the mixer transition equation
-        ctrl_signal = np.zeros(feat.shape, dtype=int)
+        ctrl_signal = np.zeros(feat.shape, dtype=float)
         dilator = np.ones(dilator_width)
         for i in range(ctrl_signal.shape[0]):
             ctrl_signal[i, :] = (feat[i, :] > pos_thresh[i]) | (feat[i, :] < neg_thresh[i])
@@ -1250,7 +1250,7 @@ class ScalpReader(EEG_reader):
         del p75, p25, iqr, pos_thresh, neg_thresh, dilator
 
         # Binarize signal
-        ctrl_signal = (ctrl_signal > 0).astype(int)
+        ctrl_signal = (ctrl_signal > 0).astype(float)
 
         ##########
         #
