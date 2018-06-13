@@ -39,7 +39,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_word_on(self, evdata):
         # Get information on the word presentation and whether it is a practice item
-        self._serialpos = evdata['data']['index']
+        self._serialpos = evdata['data']['index'] + 1
         self.practice = evdata['data']['practice']
         self.current_word = evdata['data']['word']
         # Build event
