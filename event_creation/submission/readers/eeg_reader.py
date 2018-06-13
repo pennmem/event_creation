@@ -1187,10 +1187,10 @@ class ScalpReader(EEG_reader):
 
         # Run ICA and save the ICA solution to file
         logger.debug('Running ICA on {}'.format(basename))
-        self.run_ica()
+        #self.run_ica()
 
         # Run localized component filtering to clean the data
-        self.run_lcf(save_format='.h5')
+        #self.run_lcf(save_format='.h5')
 
         self.write_sources(location, basename)
         return True
