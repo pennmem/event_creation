@@ -153,7 +153,7 @@ class ArtifactDetector:
             ##########
 
             # Apply baseline correction on epoch data before analyzing individual channels across events
-            ep.apply_baseline((0, None))
+            ep.apply_baseline((tmin, None))
 
             # Method 4: Large deviation of voltage from interquartile range on individual channels during event
             # Find the interquartile range of each channel, across time and across all events
