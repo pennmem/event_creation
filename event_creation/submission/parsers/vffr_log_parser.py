@@ -28,7 +28,9 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         )
         self._add_type_to_modify_events(
             final_recall_start=self.modify_ffr,  # Parse FFR annotations and add recall information to events
-            recall_start=self.modify_rec  # Parse annotation for word vocalization and add a vocalization event
+            recall_start=self.modify_rec,  # Parse annotation for word vocalization and add a vocalization event
+            recall_stop=self.modify_rec_stop,  # Mark events with whether the participant vocalized too early
+            stimulus_cleared=self.modify_pres_dur  # Mark word presentation events with how long the word was onscreen
         )
 
     ###############
@@ -63,7 +65,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'PRACTIC_REC_START' if self.practice else 'REC_START'
+        event.type = 'PRACTICE_REC_START' if self.practice else 'REC_START'
         event.item_name = self.current_word
         event.item_num = self.current_num
         event.serialpos = self._serialpos
@@ -72,10 +74,12 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'PRACTIC_REC_STOP' if self.practice else 'REC_STOP'
+        event.type = 'PRACTICE_REC_STOP' if self.practice else 'REC_STOP'
         event.item_name = self.current_word
         event.item_num = self.current_num
         event.serialpos = self._serialpos
+        event.too_fast = evdata['data']['too_fast']
+
         return event
 
     def event_ffr_start(self, evdata):
@@ -103,6 +107,15 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     # EVENT MODIFIER FUNCTIONS
     #
     ###############
+    def modify_pres_dur(self, events):
+        # Determine how long the most recent word was on the screen
+        pres_dur = events[-1].mstime - events[-2].mstime
+        # Mark word off event with the presentation duration of that word
+        events[-1].pres_dur = pres_dur
+        # Mark word on event with the presentation duration of that word
+        events[-2].pres_dur = pres_dur
+        return events
+
     def modify_rec(self, events):
 
         # Access the REC_START event for this recall period to determine the timestamp when the recording began
@@ -155,6 +168,16 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
 
+        return events
+
+    @staticmethod
+    def modify_rec_stop(events):
+        # Propagate information about whether the participant vocalized too quickly to all events related to that word
+        i = -2
+        while events[i].type not in ('WORD', 'PRACTICE_WORD'):
+            events[i].too_fast = events[-1].too_fast
+            i -= 1
+        events[i].too_fast = events[-1].too_fast
         return events
 
     def modify_ffr(self, events):
