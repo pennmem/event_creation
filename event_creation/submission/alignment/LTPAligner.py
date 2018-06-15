@@ -58,7 +58,7 @@ class LTPAligner:
         self.pulses = None
         self.ephys_ms = None
         self.behav_ms = None
-        self.is_unity = eeg_log[0].endswith('.jsonl')
+        self.is_unity = self.behav_files[0].endswith('.jsonl')
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
 
