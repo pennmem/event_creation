@@ -35,6 +35,8 @@ class LTPAligner:
         events: The events structure for the experimental session.
         """
         self.behav_files = eeg_log  # Get list of the behavioral computer's sync pulse logs
+        if not hasattr(self.behav_files, '__iter__'):
+            self.behav_files = [self.behav_files]
         self.eeg_dir = eeg_dir  # Path to current_processed ephys files
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
@@ -162,8 +164,6 @@ class LTPAligner:
         sync pulses.
         """
         logger.debug('Acquiring behavioral sync pulse times...')
-        if not hasattr(self.behav_files, '__iter__'):
-            self.behav_files = [self.behav_files]
         for f in self.behav_files:
             if f.endswith('.up'):
                 self.behav_ms = np.loadtxt(f, dtype=int, usecols=[0], ndmin=1)
