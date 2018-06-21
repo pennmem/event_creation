@@ -20,7 +20,8 @@ class System3Aligner(object):
     MAXIMUM_ALLOWED_RESIDUAL = 1000
     MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS = 2
 
-    FROM_LABELS = (('orig_timestamp', 1000,('STIM','FEATURES','BIOMARKER')),)
+    FROM_LABELS = (('orig_timestamp', 1000,('STIM','FEATURES',
+                                            'BIOMARKER',)),)
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -126,7 +127,7 @@ class System3Aligner(object):
             if len(froms) <= 1:
                 continue
 
-            coefs.append(scipy.stats.linregress(froms, tos)[:2])
+            coefs.append(scipy.stats.theilslopes(x=froms, y=tos)[:2])
             ends.append(froms[-1])
 
             self.plot_fit(froms, tos, coefs[-1], '.', 'fit_{}_{}_{}'.format(from_label,to_label,i))
@@ -250,24 +251,6 @@ class System3Aligner(object):
                 "Maximum deviation from slope is .1, current slope is {}".format(coefficients[0])
             )
 
-        if max(residuals) > cls.MAXIMUM_ALLOWED_RESIDUAL:
-
-            logger.error("Maximum residual of fit ({}) "
-                         "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
-
-            max_index = np.where(residuals == max(residuals))[0][0]
-
-            logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
-                time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
-            ))
-
-            n_excess_residuals = (residuals > cls.MAXIMUM_ALLOWED_RESIDUAL).sum()
-
-            if n_excess_residuals > cls.MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS:
-
-                raise AlignmentError("Maximum residual of fit ({}) "
-                             "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
-
         return residuals
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
@@ -284,7 +267,7 @@ class System3Aligner(object):
         plt.figure(figsize=(20,10))
         plt.subplot(121)
         plt.plot(x, y, 'g.', x, fit, 'b-')
-        plt.title("EEG Samples vs Timestamps")
+        plt.title("EEG Samples vs Tim   estamps")
         plt.xlabel("Timestamp (ms)")
         plt.ylabel("EEG Samples")
         plt.xlim(min(x), max(x))
