@@ -1,3 +1,9 @@
+2018-6-26
+=========
+- Localization spreadsheet can now be successfully read and inserted
+  when any non-alphanumeric character is used as a separator in pair labels
+
+
 2018-3-28
 =========
 - STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures
