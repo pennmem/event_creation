@@ -170,14 +170,30 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         return events
 
-    @staticmethod
-    def modify_rec_stop(events):
+    def modify_rec_stop(self, events):
         # Propagate information about whether the participant vocalized too quickly to all events related to that word
+        # Meanwhile, check whether any of the vocalized words were the correct word. If so, mark the trial as correct.
+        correct_trial = 0
         i = -2
         while events[i].type not in ('WORD', 'PRACTICE_WORD'):
+            # Mark the REC_START event as correct if the correct word was spoken
+            if events[i].type == 'REC_START':
+                events[i].correct = correct_trial
+            # If one of the recalls is the correct word, mark that recall as correct
+            elif events[i].item_name == self.current_word:
+                events[i].correct = 1
+                correct_trial = 1
+            # Mark all events as too fast if the "too fast" message was displayed on that trial
             events[i].too_fast = events[-1].too_fast
             i -= 1
+
+        # Mark the word presentation event as okay/too fast and correct/incorrect
         events[i].too_fast = events[-1].too_fast
+        events[i].correct = correct_trial
+
+        # Mark the REC_STOP event as correct or incorrect
+        events[-1].correct = correct_trial
+
         return events
 
     def modify_ffr(self, events):
