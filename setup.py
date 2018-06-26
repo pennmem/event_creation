@@ -1,12 +1,12 @@
 import setuptools
-from event_creation import __version___
+from event_creation import __version__
 
 
 
 setuptools.setup(
     name='event_creation',
     author='Penn Computational Memory Lab',
-    version=__version___,
+    version=__version__,
     url='https://github.com/pennmem/event_creation',
     download_url='https://github.com/pennmem/event_creation',
     packages=  setuptools.find_packages(),
