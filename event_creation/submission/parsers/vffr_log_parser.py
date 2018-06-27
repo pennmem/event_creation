@@ -176,7 +176,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         correct_trial = 0
         any_fast = False
         i = -2
-        while events[i].type not in ('WORD', 'PRACTICE_WORD'):
+        while events[i].type not in ('WORD_OFF', 'PRACTICE_WORD_OFF'):
 
             # If any vocalizations were too early, we will mark the word presentation and recall start/stop as too fast
             if events[i].too_fast:
@@ -195,10 +195,13 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             events[i].too_fast_msg = events[-1].too_fast_msg
             i -= 1
 
-        # Mark the word presentation event as okay/too fast and correct/incorrect
+        # Mark the word presentation on/off events as okay/too fast and correct/incorrect
         events[i].too_fast_msg = events[-1].too_fast_msg
         events[i].correct = correct_trial
         events[i].too_fast = any_fast
+        events[i-1].too_fast_msg = events[-1].too_fast_msg
+        events[i-1].correct = correct_trial
+        events[i-1].too_fast = any_fast
 
         # Mark the REC_STOP event as okay/too fast and correct/incorrect
         events[-1].correct = correct_trial
