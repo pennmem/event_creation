@@ -630,3 +630,36 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         events['mstime'] =aligner.apply_coefficients_backwards(events['eegoffset'],aligner.task_to_ens_coefs[0])
         aligner.apply_eeg_file(events)
         return events
+
+
+class TiclFRStimLogParser(PS4Sys3LogParser):
+
+    _BASE_FIELDS = BaseSys3LogParser._BASE_FIELDS + (
+        ('id', 'XXX', 'S64'),
+        ('list', -999, 'int16'),
+        ('biomarker_value', -999, 'float64'),
+        ('position', 'None', 'S10'),
+        ('delta_classifier', -999, 'float64'),
+        ('list_phase', '', 'S16'),
+    )
+
+    _BIOMARKER_VALUE_FIELD = 'level'
+
+    def _read_primary_log(self):
+        super(TiclFRStimLogParser, self)._read_primary_log()
+        for ev in self._contents:
+            if 'offset' not in ev:
+                ev['offset'] = ev[self._STIM_PARAMS_FIELD]['start_offset']
+
+    def event_biomarker(self,event_json):
+        msg = event_json[self._STIM_PARAMS_FIELD]
+        event = self.event_default(event_json)
+        event['biomarker_value'] = msg[self._BIOMARKER_VALUE_FIELD]
+        event['position'] = msg['pre_or_post']
+
+        return event
+
+    def event_features(self,event_json):
+        event = super(TiclFRStimLogParser, self).event_features(event_json)
+        event['position'] = event_json[self._STIM_PARAMS_FIELD]['pre_or_post']
+        return event
