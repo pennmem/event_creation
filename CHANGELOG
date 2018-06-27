@@ -1,3 +1,9 @@
+2018-6-27
+=========
+- Added separate set of events (ticl_events)to handle stim data from TICL_FR.
+  Is this overly complicated, such that someone in the future will need to clean all this up?
+  ABSOLUTELY.
+
 2018-6-26
 =========
 - Localization spreadsheet can now be successfully read and inserted
