@@ -78,7 +78,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.item_name = self.current_word
         event.item_num = self.current_num
         event.serialpos = self._serialpos
-        event.too_fast = evdata['data']['too_fast']
+        event.too_fast_msg = evdata['data']['too_fast']
 
         return event
 
@@ -144,7 +144,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             new_event.mstime = rec_start_time + new_event.rectime
 
             # Mark recall as being too early if vocalization began less than 1 second after the word left the screen
-            new_event.too_early = new_event.rectime < 1000
+            new_event.too_fast = new_event.rectime < 1000
 
             # Get the vocalized word from the annotation and mark if it is not the most recently presented word
             new_event.item_name = word
@@ -174,25 +174,35 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # Propagate information about whether the participant vocalized too quickly to all events related to that word
         # Meanwhile, check whether any of the vocalized words were the correct word. If so, mark the trial as correct.
         correct_trial = 0
+        any_fast = False
         i = -2
         while events[i].type not in ('WORD', 'PRACTICE_WORD'):
-            # Mark the REC_START event as correct if the correct word was spoken
+
+            # If any vocalizations were too early, we will mark the word presentation and recall start/stop as too fast
+            if events[i].too_fast:
+                any_fast = True
+
+            # Mark the REC_START event with whether the correct word was spoken and whether they vocalized too early
             if events[i].type == 'REC_START':
                 events[i].correct = correct_trial
+                events[i].too_fast = any_fast
             # If one of the recalls is the correct word, mark that recall as correct
             elif events[i].item_name == self.current_word:
                 events[i].correct = 1
                 correct_trial = 1
-            # Mark all events as too fast if the "too fast" message was displayed on that trial
-            events[i].too_fast = events[-1].too_fast
+
+            # Mark all events with whether the "too fast" message was displayed on that trial
+            events[i].too_fast_msg = events[-1].too_fast_msg
             i -= 1
 
         # Mark the word presentation event as okay/too fast and correct/incorrect
-        events[i].too_fast = events[-1].too_fast
+        events[i].too_fast_msg = events[-1].too_fast_msg
         events[i].correct = correct_trial
+        events[i].too_fast = any_fast
 
-        # Mark the REC_STOP event as correct or incorrect
+        # Mark the REC_STOP event as okay/too fast and correct/incorrect
         events[-1].correct = correct_trial
+        events[-1].too_fast = any_fast
 
         return events
 
