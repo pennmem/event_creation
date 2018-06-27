@@ -15,6 +15,7 @@ from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, C
                              BrainBuilderWebhookTask)
 from .parsers.base_log_parser import get_version_num
 from .parsers.math_parser import MathLogParser
+from .parsers.ps_log_parser import TiclFRStimLogParser
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from .parsers.mat_converter import MathMatConverter
@@ -384,6 +385,11 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                        event_label='ps4', **kwargs))
         other_events += ('ps4',)
 
+    if 'TICL' in groups:
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment,
+                                       session, system, event_label='ticl',
+                                       parser_type=TiclFRStimLogParser, **kwargs
+                                       ))
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', critical=False, parser_type=MathLogParser,**kwargs))
