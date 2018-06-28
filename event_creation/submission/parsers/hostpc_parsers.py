@@ -1,12 +1,13 @@
-from .base_log_parser import BaseLogParser,BaseSys3_1LogParser,BaseSessionLogParser
-from ..readers.eeg_reader import read_jacksheet
-from .fr_sys3_log_parser import FRSys3LogParser
+from event_creation.submission.parsers.base_log_parser import (
+    BaseLogParser,BaseSys3_1LogParser,BaseSessionLogParser)
+from event_creation.submission.readers.eeg_reader import read_jacksheet
+from event_creation.submission.parsers.fr_sys3_log_parser import FRSys3LogParser
 import pandas as pd
 import json
 from functools import wraps
 from copy import deepcopy
 import numpy as np
-from ..quality import fr_tests
+from event_creation.submission.quality import fr_tests
 import os
 
 
@@ -112,6 +113,8 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
     # I'm defining and adding a couple of event_type handlers here since their format is defined on the hostPC side, rather than
     # the task laptop side, and therefore their structure is independent of the task being run.
+    # UPDATE (June 27, 2018): I was a fool to think that these formats wouldn't
+    # change
 
     def event_stim(self,event_json):
         event_json[self._MSTIME_FIELD] = -1
@@ -311,7 +314,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
 
     _TESTS = FRHostPCLogParser._TESTS + [fr_tests.test_catfr_categories]
 
-    def __init__(self,*args,**kwargs):
+    def __init__(self, *args, **kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
         self._add_fields(*self._catFR_FIELDS)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
@@ -350,11 +353,12 @@ class catFRHostPCLogParser(FRHostPCLogParser):
 
 class TiclFRParser(FRHostPCLogParser):
 
-    event_biomarker = BaseHostPCLogParser.event_biomarker
-
-    def __init__(self,*args,**kwargs):
-        super(TiclFRParser, self).__init__(*args,**kwargs)
-        self._add_type_to_new_event(BIOMARKER=self.event_biomarker)
+    def __init__(self,protocol,subject,montage,experiment,session,files):
+        super(TiclFRParser, self).__init__(protocol,subject,montage,experiment,session,files)
+        self._list_phase = ''
+        self._add_type_to_new_event(BIOMARKER=self.event_biomarker,
+                                    DISTRACT=self.event_distract,
+                                    FEATURES=self.event_features,)
 
         self.fix_content_offsets()
 
@@ -363,5 +367,48 @@ class TiclFRParser(FRHostPCLogParser):
             if np.isnan(event_json['offset']):
                 event_json['offset']= event_json['msg_stub']['start_offset']
 
-    def modify_biomarker(self,events):
+    def event_trial(self, event_json):
+        self._list_phase = 'ENCODING'
+        return super(TiclFRParser, self).event_trial(event_json)
+
+    def event_recall(self,event_json):
+        self._list_phase = 'RETRIEVAL'
+        return super(TiclFRParser, self).event_recall(event_json)
+
+    def event_distract(self,event_json):
+        self._list_phase = 'DISTRACT'
+        return self.event_default(event_json)
+
+    def event_biomarker(self, event_json):
+        event = self.event_default(event_json)
+        event['type'] = event_json[self._TYPE_FIELD]
+        msg  = event_json['msg_stub']
+        params = {k: msg.get(
+            k, event.stim_params[0][k])
+            for k in event.stim_params.dtype.names
+        }
+        params['position'] = msg.get('pre_or_post',event.stim_params[0].position)
+        params.update(self._stim_params.values()[0])
+        self.set_event_stim_params(event, self._jacksheet, 0,
+                                   **params)
+        event['phase'] = self._list_phase
+        return event
+
+    def event_features(self,event_json):
+        event = self.event_default(event_json)
+        event['type'] = event_json[self._TYPE_FIELD]
+        event['eegoffset'] = event_json['msg_stub']['start_offset']
+        return event
+
+    def modify_biomarker(self, events):
         return events
+
+
+if __name__ == "__main__":
+    files  = {'event_log': ['/Users/leond/ticl_fr_data/event_log.json'],
+              'wordpool': '/Users/leond/ticl_fr_data/wordpool.txt',
+              'electrode_config': ['/Users/leond/ticl_fr_data/config_files/R1378T_18DEC2017L0M0STIM.csv'],
+              'experiment_config': '/Users/leond/ticl_fr_data/experiment_config.json'}
+
+    parser  = TiclFRParser('r1','r1',0,'r1',0,files)
+    events = parser.parse()
