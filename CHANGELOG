@@ -1,8 +1,6 @@
 2018-6-27
 =========
-- Added separate set of events (ticl_events)to handle stim data from TICL_FR.
-  Is this overly complicated, such that someone in the future will need to clean all this up?
-  ABSOLUTELY.
+- Added biomarker values, positions, phases to TICL BIOMARKER events
 
 2018-6-26
 =========
