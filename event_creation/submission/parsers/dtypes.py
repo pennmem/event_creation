@@ -165,6 +165,8 @@ vffr_fields = (
         ('intrusion', False, 'b1'),
         ('pres_dur', -999, 'int32'),
         ('too_fast', False, 'b1'),
+        ('too_fast_msg', False, 'b1'),
+        ('correct', -1, 'int8'),
         ('eogArtifact', -1, 'int8')
 )
 
