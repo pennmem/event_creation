@@ -1,3 +1,5 @@
+import numpy as np
+
 
 def timed(timed_function):
     from functools import wraps
@@ -23,3 +25,9 @@ def get_time_field(files):
     else:
         time_field = 'mstime'
     return time_field
+
+
+def as_recarray(function):
+    def wrapped(events,files):
+        return function(np.rec.array(events),files)
+    return wrapped
