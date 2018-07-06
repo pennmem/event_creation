@@ -379,19 +379,32 @@ class TiclFRParser(FRHostPCLogParser):
         self._list_phase = 'DISTRACT'
         return self.event_default(event_json)
 
+    def event_stim(self,event_json):
+        event = super(TiclFRParser, self).event_stim(event_json)
+        event['phase'] = self._list_phase
+        return event
+
     def event_biomarker(self, event_json):
+        field_names = {'position':'pre_or_post',
+             'biomarker_value': 'level',
+             'id': 'hashtag',}
         event = self.event_default(event_json)
         event['type'] = event_json[self._TYPE_FIELD]
         msg  = event_json['msg_stub']
         params = {k: msg.get(
-            k, event.stim_params[0][k])
-            for k in event.stim_params.dtype.names
+            field_names.get(k, k), event.stim_params[0][k])
+                  for k in event.stim_params.dtype.names
+                  if not k.startswith('_')
         }
-        params['position'] = msg.get('pre_or_post',event.stim_params[0].position)
         params.update(self._stim_params.values()[0])
         self.set_event_stim_params(event, self._jacksheet, 0,
                                    **params)
-        event['phase'] = self._list_phase
+        if params['position'] != 'post':
+            event['phase'] = self._list_phase
+            # post-stim biomarker events are assigned the phase of the
+            # matching pre-stim biomarker event
+
+        self._biomarker_value = params['biomarker_value']
         return event
 
     def event_features(self,event_json):
@@ -401,7 +414,17 @@ class TiclFRParser(FRHostPCLogParser):
         return event
 
     def modify_biomarker(self, events):
+        biomarker_event = events[-1]
+        if biomarker_event['stim_params'][0]['position'] == 'post':
+            other_events = events[:-1]
+            matching_event = other_events[(other_events['type'] == 'BIOMARKER')
+            & (other_events['stim_params'][:, 0]['id'] == biomarker_event['stim_params'][0]['id'])
+            & (other_events['stim_params'][:, 0]['position'] == 'pre')][0]
+            # There should be exactly one of these
+            biomarker_event['phase'] = matching_event['phase']
+            events[-1] = biomarker_event
         return events
+
 
 
 if __name__ == "__main__":
