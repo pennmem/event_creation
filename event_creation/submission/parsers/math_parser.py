@@ -1,6 +1,7 @@
 from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
 from .system2_log_parser import System2LogParser
 import pandas as pd
+import numpy as np
 from ..exc import UnknownExperimentError
 
 
