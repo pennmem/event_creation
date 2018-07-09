@@ -48,7 +48,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_countdown(self, evdata):
         # Countdown indicates the start of a new block
-        if evdata['data']['displayed text' == '10']:
+        if str(evdata['data']['displayed text']) == '10':
             self._trial += 1
         event = self.event_default(evdata)
         event.type = 'COUNTDOWN'
