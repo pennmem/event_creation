@@ -18,7 +18,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         df = pd.read_json(self._primary_log, lines=True)
         df = df[df.type == 'stimulus cleared']['data']
         self.wordpool = set([row['word'].strip() for row in df])
-        print self.wordpool
 
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
@@ -238,12 +237,13 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # Access the REC_START event for this recall period to determine the timestamp when the recording began
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-
+        print 'Parsing recalls'
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
         ann_outputs = self._parse_ann_file('ffr')
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
+            print recall
 
             # Create a new event for the recall
             new_event = self._empty_event
