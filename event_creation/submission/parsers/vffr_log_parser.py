@@ -183,7 +183,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             if pres_mask.sum() == 1:
                 new_event.serialpos = events[pres_mask].serialpos[0]
                 new_event.item_num = events[pres_mask].item_num[0]
-                events.recalled[pres_mask] = True
             # ELI if word was never presented
             elif pres_mask.sum() == 0:
                 new_event.intrusion = True
