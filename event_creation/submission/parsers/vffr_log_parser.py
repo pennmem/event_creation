@@ -154,7 +154,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         for recall in ann_outputs:
 
             # Get the vocalized word from the annotation
-            word = recall[-1]
+            word = recall[2]
 
             # Create a new event for the recall
             new_event = self._empty_event
@@ -163,7 +163,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
                 evtype = 'PRACTICE_' + evtype
             new_event.type = evtype
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
-            new_event.rectime = int(round(float(recall[0])))
+            new_event.rectime = int(round(recall[0]))
             new_event.mstime = rec_start_time + new_event.rectime
 
             # Mark recall as being too early if vocalization began less than 1 second after the word left the screen
@@ -243,20 +243,17 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
-            print recall
 
             # Create a new event for the recall
             new_event = self._empty_event
 
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
-            new_event.rectime = int(round(float(recall[0])))
+            new_event.rectime = int(round(recall[0]))
             new_event.mstime = rec_start_time + new_event.rectime
-            print new_event.rectime
             new_event.item_num = int(recall[1])
-            print new_event.item_num
-            new_event.item_name = recall[2].strip()
+            new_event.item_name = recall[2]
             print new_event.item_name
-            if new_event.item_name not in self.wordpool:
+            if recall[2] not in self.wordpool:
                 new_event.intrusion = True
             print new_event.intrusion
 
