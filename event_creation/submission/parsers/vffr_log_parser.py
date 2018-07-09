@@ -51,6 +51,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event = self.event_default(evdata)
         event.type = 'COUNTDOWN'
         event.item_name = evdata['data']['displayed text']
+        
+        return event
 
     def event_word_on(self, evdata):
         # Get information on the word presentation and whether it is a practice item
