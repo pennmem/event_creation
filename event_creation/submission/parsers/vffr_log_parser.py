@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from . import dtypes
 from .base_log_parser import BaseUnityLTPLogParser
 
@@ -13,14 +14,18 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         self.current_word = ''
         self.current_num = -999
 
+        # Infer wordpool for "first free recall" by finding all words presented in this session
+        df = pd.read_json(self._primary_log, lines=True)
+        df = df[df.type == 'stimulus cleared']['data']
+        self.wordpool = set([row['word'].strip() for row in df])
+
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
+            countdown=self.event_countdown,
             final_recall_start=self.event_ffr_start,  # Start of final free recall
             final_recall_stop=self.event_ffr_stop,  # End of final free recall
             recall_start=self.event_rec_start,  # Start of vocalization period
             recall_stop=self.event_rec_stop,  # End of vocalization period
-            optional_break_start=self.event_break_start,  # Start of manual break
-            optional_break_stop=self.event_break_stop,  # End of manual break
             required_break_start=self.event_break_start,  # Start of mid-session break
             required_break_stop=self.event_break_stop,  # End of mid-session break
             stimulus=self.event_word_on,  # Start of word presentation
@@ -39,11 +44,18 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     #
     ###############
 
+    def event_countdown(self, evdata):
+        self._trial += 1
+        event = self.event_default(evdata)
+        event.type = 'COUNTDOWN'
+        event.item_name = evdata['data']['displayed text']
+
     def event_word_on(self, evdata):
         # Get information on the word presentation and whether it is a practice item
         self._serialpos = evdata['data']['index'] + 1
         self.practice = evdata['data']['practice']
         self.current_word = evdata['data']['word'].strip()
+
         # Build event
         event = self.event_default(evdata)
         event.type = 'PRACTICE_WORD' if self.practice else 'WORD'
@@ -52,6 +64,11 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         if 'ltp word number' in evdata['data']:
             self.current_num = evdata['data']['ltp word number']
             event.item_num = self.current_num
+
+        # Determine whether word was recalled during first free recall
+        if np.any(self.events[self.events.type == 'FFR_REC_WORD'].item_name == event.item_name):
+            event.recalled = True
+
         return event
 
     def event_word_off(self, evdata):
@@ -61,6 +78,11 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.serialpos = self._serialpos
         if event.item_name == self.current_word:
             event.item_num = self.current_num
+
+        # Determine whether word was recalled during first free recall
+        if np.any(self.events[self.events.type == 'FFR_REC_WORD'].item_name == event.item_name):
+            event.recalled = True
+            
         return event
 
     def event_rec_start(self, evdata):
@@ -107,6 +129,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     # EVENT MODIFIER FUNCTIONS
     #
     ###############
+
     def modify_pres_dur(self, events):
         # Determine how long the most recent word was on the screen
         pres_dur = events[-1].mstime - events[-2].mstime
@@ -221,35 +244,19 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
 
-            # Get the recalled word from the annotation
-            word = recall[-1]
-
             # Create a new event for the recall
             new_event = self._empty_event
-            new_event.type = 'FFR_REC_WORD_VV' if word == '<>' or word == 'V' or word == '!' else 'FFR_REC_WORD'
 
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
-
-            # Get the recalled word
-            new_event.item_name = word
-
-            # Determine where the item was presented
-            pres_mask = (events.item_name == word) & (events.type == 'WORD')
-
-            # Correct recall if word was previously presented
-            if pres_mask.sum() == 1:
-                new_event.serialpos = events[pres_mask].serialpos[0]
-                new_event.item_num = events[pres_mask].item_num[0]
-                events.recalled[pres_mask] = True
-            # ELI if word was never presented
-            elif pres_mask.sum() == 0:
+            new_event.item_num = int(recall[1])
+            new_event.item_name = recall[2].strip()
+            if new_event.item_name not in self.wordpool:
                 new_event.intrusion = True
-            # If a word was presented multiple times, abort event creation, as this indicates an error with the session
-            else:
-                raise Exception('Word %s was presented multiple times during %s %s! Aborting event creation...' %
-                                (word, self._subject, self._session))
+
+            # If the word was a vocalization, mark it as such
+            new_event.type = 'FFR_REC_WORD_VV' if new_event.item_num in ('<>', 'V', '!') else 'FFR_REC_WORD'
 
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
