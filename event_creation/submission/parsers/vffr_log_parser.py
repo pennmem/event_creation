@@ -18,6 +18,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         df = pd.read_json(self._primary_log, lines=True)
         df = df[df.type == 'stimulus cleared']['data']
         self.wordpool = set([row['word'].strip() for row in df])
+        print self.wordpool
 
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
@@ -82,7 +83,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # Determine whether word was recalled during first free recall
         if np.any(self.events[self.events.type == 'FFR_REC_WORD'].item_name == event.item_name):
             event.recalled = True
-            
+
         return event
 
     def event_rec_start(self, evdata):
