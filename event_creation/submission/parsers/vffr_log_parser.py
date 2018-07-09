@@ -32,10 +32,12 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             stimulus_cleared=self.event_word_off,  # End of word presentation
         )
         self._add_type_to_modify_events(
-            final_recall_start=self.modify_ffr,  # Parse FFR annotations and add recall information to events
+            final_recall_start=self.modify_ffr,  # Parse FFR annotations and create recall events
             recall_start=self.modify_rec,  # Parse annotation for word vocalization and add a vocalization event
             recall_stop=self.modify_rec_stop,  # Mark events with whether the participant vocalized too early
-            stimulus_cleared=self.modify_pres_dur  # Mark word presentation events with how long the word was onscreen
+            # Mark word presentation events with how long the word was onscreen, as well as whether they were recalled
+            # during first free recall
+            stimulus_cleared=self.modify_pres
         )
 
     ###############
@@ -65,10 +67,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             self.current_num = evdata['data']['ltp word number']
             event.item_num = self.current_num
 
-        # Determine whether word was recalled during first free recall
-        if np.any(self.events[self.events.type == 'FFR_REC_WORD'].item_name == event.item_name):
-            event.recalled = True
-
         return event
 
     def event_word_off(self, evdata):
@@ -78,10 +76,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.serialpos = self._serialpos
         if event.item_name == self.current_word:
             event.item_num = self.current_num
-
-        # Determine whether word was recalled during first free recall
-        if np.any(self.events[self.events.type == 'FFR_REC_WORD'].item_name == event.item_name):
-            event.recalled = True
 
         return event
 
@@ -130,13 +124,19 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     #
     ###############
 
-    def modify_pres_dur(self, events):
+    def modify_pres(self, events):
         # Determine how long the most recent word was on the screen
         pres_dur = events[-1].mstime - events[-2].mstime
         # Mark word off event with the presentation duration of that word
         events[-1].pres_dur = pres_dur
         # Mark word on event with the presentation duration of that word
         events[-2].pres_dur = pres_dur
+
+        # Determine whether word was recalled during first free recall
+        if np.any(events[events.type == 'FFR_REC_WORD'].item_name == events[-1].item_name):
+            events[-1].recalled = True
+            events[-2].recalled = True
+
         return events
 
     def modify_rec(self, events):
@@ -237,7 +237,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # Access the REC_START event for this recall period to determine the timestamp when the recording began
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-        print 'Parsing recalls'
+
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
         ann_outputs = self._parse_ann_file('ffr')
 
@@ -252,10 +252,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.item_num = int(recall[1])
             new_event.item_name = recall[2]
-            print new_event.item_name
             if recall[2] not in self.wordpool:
                 new_event.intrusion = True
-            print new_event.intrusion
 
             # If the word was a vocalization, mark it as such
             new_event.type = 'FFR_REC_WORD_VV' if new_event.item_num in ('<>', 'V', '!') else 'FFR_REC_WORD'
