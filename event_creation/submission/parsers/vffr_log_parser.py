@@ -252,7 +252,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
             new_event.item_num = int(recall[1])
-            new_event.item_name = recall[2].strip()
+            new_event.item_name = str(recall[2]).strip()
             if new_event.item_name not in self.wordpool:
                 new_event.intrusion = True
 
