@@ -251,10 +251,14 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
+            print new_event.rectime
             new_event.item_num = int(recall[1])
-            new_event.item_name = str(recall[2]).strip()
+            print new_event.item_num
+            new_event.item_name = recall[2].strip()
+            print new_event.item_name
             if new_event.item_name not in self.wordpool:
                 new_event.intrusion = True
+            print new_event.intrusion
 
             # If the word was a vocalization, mark it as such
             new_event.type = 'FFR_REC_WORD_VV' if new_event.item_num in ('<>', 'V', '!') else 'FFR_REC_WORD'
