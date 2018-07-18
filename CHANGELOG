@@ -1,3 +1,9 @@
+2018-7-18
+=========
+- show_imported_experiments no longer treats experiment names with underscores
+  differently
+
+
 2018-6-27
 =========
 - Added biomarker values, positions, phases to TICL BIOMARKER events
