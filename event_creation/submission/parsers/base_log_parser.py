@@ -482,11 +482,11 @@ class BaseSys3LogParser(BaseLogParser):
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
+
 class BaseSys3_1LogParser(BaseSessionLogParser):
     _MSTIME_FIELD = 'timestamp'
     _TYPE_FIELD = 'event'
     _PHASE_TYPE_FIELD = 'phase_type'
-
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log',
                  allow_unparsed_events=False, include_stim_params=False):

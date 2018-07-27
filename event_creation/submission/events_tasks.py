@@ -189,6 +189,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
                 'TICL_FR':TiclFRParser,
+                'location_search': PSLogParser,
             }
 
         else:
@@ -265,7 +266,7 @@ class EventCreationTask(PipelineTask):
                 events = artifact_detector.run()
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
-            if self.event_label == 'ps4':
+            if self.event_label == 'ps4' or not parser.DO_ALIGNMENT:
                 events = unaligned_events
             else:
                 if self.r1_sys_num == 1.0:

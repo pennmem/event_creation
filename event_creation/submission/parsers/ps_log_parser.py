@@ -7,6 +7,7 @@ import json
 from .electrode_config_parser import ElectrodeConfig
 from ..alignment.system3 import System3Aligner
 import codecs
+from hostpc_parsers import BaseHostPCLogParser
 
 def PSLogParser(protocol, subject, montage, experiment, session, files):
     """
@@ -25,6 +26,9 @@ def PSLogParser(protocol, subject, montage, experiment, session, files):
             return (catFRHostPCLogParser if 'cat' in experiment else FRHostPCLogParser)(
                 protocol,subject,montage,experiment,session,files
             )
+        elif 'location' in experiment:
+            return LocationSearchLogParser(protocol, subject, montage,
+                                           experiment, session, files)
         else:
             return PSSys3LogParser(protocol, subject, montage, experiment, session, files)
     elif 'session_log' in files:
@@ -409,6 +413,37 @@ class PSSys3LogParser(BaseSys3LogParser):
         return event
 
 
+class LocationSearchLogParser(BaseSys3LogParser, BaseHostPCLogParser):
+
+    DO_ALIGNMENT = False
+
+    def __init__(self, protocol,subject, montage, experiment, session, files,
+                 primary_log='event_log', allow_unparsed_events=True,
+                 include_stim_params=True):
+        super(LocationSearchLogParser, self).__init__(
+            protocol, subject, montage, experiment, session, files,
+            primary_log, allow_unparsed_events,
+            include_stim_params
+        )
+
+        self._add_type_to_new_event(
+            STIM=self.event_stim,
+            SHAM=self.event_default,
+        )
+
+    def clean_events(self, events):
+        events = super(LocationSearchLogParser, self).clean_events(events)
+        with open(self.files['eeg_sources']) as sf:
+            sources = json.load(sf)
+        key = lambda x: x['start_time_ms']
+        for info in sorted(sources.values(), key=key):
+            after_start = events['mstime'] > key(info)
+            events_after_start = events[after_start]
+            events_after_start['eegfile']= info['name']
+            events[after_start] = events_after_start
+        return np.rec.array(events)
+
+
 class PS4Sys3LogParser(BaseSys3LogParser):
 
     _frequency = 200
@@ -457,7 +492,6 @@ class PS4Sys3LogParser(BaseSys3LogParser):
 
     )
 
-
     def __init__(self,protocol,subject,montage,experiment,session,files,
                  primary_log = 'event_log',allow_unparsed_events=True,include_stim_params=True):
         super(PS4Sys3LogParser,self).__init__(
@@ -477,7 +511,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             DISTRACT = self.distract,
             RETRIEVAL = self.retrieval,
             STIM=self.event_stim,
-            TRIAL  = self.event_trial,
+            TRIAL=self.event_trial,
         )
         self._add_type_to_modify_events(
             STIM = self.modify_with_stim_params,
