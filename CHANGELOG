@@ -1,3 +1,7 @@
+2018-7-27
+=========
+- Added support for location_search
+
 2018-7-18
 =========
 - show_imported_experiments no longer treats experiment names with underscores
