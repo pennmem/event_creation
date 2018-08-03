@@ -198,7 +198,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self.apply_word(event)
         event.serialpos = self._serialpos
         if self._stim_on:
-            event.stim_params['biomarker_value']=self._biomarker_value
+            event.stim_params['biomarker_value'] = self._biomarker_value
         self._stim_on = True
         return event
 
@@ -229,7 +229,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
         if event_json[self._VALUE_FIELD]:
             self._stim_on = False
-            event.type='WORD'
+            event.type = 'WORD'
         else:
             event.type='WORD_OFF'
             self._serialpos += 1
@@ -263,17 +263,16 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             event.type='REC_END'
         return event
 
-
     def modify_recalls(self, events):
-        if events[-1].type=='REC_START':
-            events= FRSys3LogParser.modify_recalls(self,events)
-            if self._phase == 'STIM':
-                events = self.modify_stim(events)
+        if events[-1].type == 'REC_START':
+            events = FRSys3LogParser.modify_recalls(self, events)
         return events
 
-
-    def modify_stim(self,events):
-        if events[-1].type=='ENCODING_END':
+    def modify_stim(self, events):
+        """
+        WARNING: Do not call this function more than once per list
+        """
+        if events[-1].type.endswith('END'):
             in_list = events.list==self._list
             list_stim_events = events[(events.type=='STIM_ON') & in_list]
             list_events= events[in_list]
@@ -286,7 +285,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             events = np.rec.array(np.concatenate([events[~in_list],list_events]))
         return events
 
-    def modify_biomarker(self,events):
+    def modify_biomarker(self, events):
         """
         Adds biomarker value to stim events
 
@@ -358,8 +357,13 @@ class TiclFRParser(FRHostPCLogParser):
         self._list_phase = ''
         self._add_type_to_new_event(BIOMARKER=self.event_biomarker,
                                     DISTRACT=self.event_distract,
-                                    FEATURES=self.event_features,)
+                                    FEATURES=self.event_features,
+                                    SHAM=self.event_sham,)
 
+        del self._type_to_modify_events['ENCODING']
+        self._add_type_to_modify_events(
+            RETRIEVAL=self.modify_stim
+        )
         self.fix_content_offsets()
 
     def fix_content_offsets(self):
@@ -367,25 +371,30 @@ class TiclFRParser(FRHostPCLogParser):
             if np.isnan(event_json['offset']):
                 event_json['offset']= event_json['msg_stub']['start_offset']
 
+    def event_sham(self,event_json):
+        event = self.event_default(event_json)
+        event.type = 'SHAM'
+        return event
+
     def event_trial(self, event_json):
         self._list_phase = 'ENCODING'
         return super(TiclFRParser, self).event_trial(event_json)
 
-    def event_recall(self,event_json):
+    def event_recall(self, event_json):
         self._list_phase = 'RETRIEVAL'
         return super(TiclFRParser, self).event_recall(event_json)
 
-    def event_distract(self,event_json):
+    def event_distract(self, event_json):
         self._list_phase = 'DISTRACT'
         return self.event_default(event_json)
 
-    def event_stim(self,event_json):
+    def event_stim(self, event_json):
         event = super(TiclFRParser, self).event_stim(event_json)
         event['phase'] = self._list_phase
         return event
 
     def event_biomarker(self, event_json):
-        field_names = {'position':'pre_or_post',
+        field_names = {'position' : 'pre_or_post',
              'biomarker_value': 'level',
              'id': 'hashtag',}
         event = self.event_default(event_json)
