@@ -361,9 +361,6 @@ class TiclFRParser(FRHostPCLogParser):
                                     SHAM=self.event_sham,)
 
         del self._type_to_modify_events['ENCODING']
-        self._add_type_to_modify_events(
-            RETRIEVAL=self.modify_stim
-        )
         self.fix_content_offsets()
 
     def fix_content_offsets(self):
@@ -421,6 +418,12 @@ class TiclFRParser(FRHostPCLogParser):
         event['type'] = event_json[self._TYPE_FIELD]
         event['eegoffset'] = event_json['msg_stub']['start_offset']
         return event
+
+    def modify_recalls(self, events):
+        events = super(TiclFRParser, self).modify_recalls(events)
+        events = self.modify_stim(events)
+        return events
+
 
     def modify_biomarker(self, events):
         biomarker_event = events[-1]
