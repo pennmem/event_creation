@@ -1,5 +1,7 @@
-2018-7-27
-=========
+2018-8-3
+========
+- Fixed bug in which only encoding stim events recieved a matching STIM_OFF
+  event
 - Added support for location_search
 
 2018-7-18
