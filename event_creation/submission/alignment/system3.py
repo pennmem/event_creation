@@ -286,6 +286,19 @@ class System3Aligner(object):
         plt.show()
         plt.close()
 
+
+class System3FourAligner(System3Aligner):
+    """
+    Aligner class for System 3.4+
+    Behaves just like System3Aligner, except that the task times and the
+    host times are identical.
+    """
+
+    def __init__(self, events, files, plot_save_dir=None):
+        super(System3FourAligner, self).__init__(events,files, plot_save_dir)
+        self.task_to_ens_coefs = self.host_to_ens_coefs
+        self.task_ends = self.host_ends
+
 if __name__ == '__main__':
     files = {
         'electrode_config' : '/Volumes/PATRIOT/R1999X/behavioral/FR1/host_pc/session_0/20170210_105441/config_files/R1170J_ALLCHANNELSSTIM.csv',

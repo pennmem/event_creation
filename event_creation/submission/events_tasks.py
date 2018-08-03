@@ -14,7 +14,7 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
-from .alignment.system3 import System3Aligner
+from .alignment.system3 import System3Aligner, System3FourAligner
 from .configuration import paths
 from .detection.artifact_detection import ArtifactDetector
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
@@ -33,8 +33,8 @@ from .parsers.pal_sys3_log_parser import PALSys3LogParser
 from .parsers.ps_log_parser import PSLogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from .parsers.math_parser import MathSessionLogParser,MathUnityLogParser
-from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser,\
+from .parsers.math_parser import MathSessionLogParser
+from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
@@ -275,8 +275,10 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0<=self.r1_sys_num<=3.4:
+                    elif 3.0 <= self.r1_sys_num < 3.4:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
+                    elif 3.4 <= self.r1_sys_num < 4.0:
+                        aligner = System3FourAligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
                             "r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(
@@ -296,7 +298,7 @@ class EventCreationTask(PipelineTask):
                         events = aligner.align(start_type)
                     else:
                         events = unaligned_events
-                    if type(aligner)==System3Aligner:
+                    if issubclass(type(aligner), System3Aligner):
                         aligner.apply_eeg_file(events)
 
         events = parser.clean_events(events) if events.shape != () else events
