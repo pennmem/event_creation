@@ -8,8 +8,9 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(VFFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
-        self._trial = 0
-        self._serialpos = 0
+        self._trial = -999
+        self._serialpos = -999
+        self.block = -999
         self.practice = True
         self.current_word = ''
         self.current_num = -999
@@ -47,9 +48,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     ###############
 
     def event_countdown(self, evdata):
-        # Countdown indicates the start of a new block
-        if str(evdata['data']['displayed text']) == '10':
-            self._trial += 1
+
         event = self.event_default(evdata)
         event.type = 'COUNTDOWN'
         event.item_name = evdata['data']['displayed text']
@@ -57,10 +56,14 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         return event
 
     def event_word_on(self, evdata):
-        # Get information on the word presentation and whether it is a practice item
-        self._serialpos = evdata['data']['index'] + 1
+
+        # Determine whether the presented word is a practice item
         self.practice = evdata['data']['practice']
+        # Read the word that was presented
         self.current_word = evdata['data']['word'].strip()
+        # Set trial number and serial position (Note: trial number starts at 0; serial position starts at 1)
+        self._trial = evdata['data']['index'] if not self.practice else -999
+        self._serialpos = self._trial + 1 if not self.practice else -999
 
         # Build event
         event = self.event_default(evdata)
@@ -151,8 +154,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         # Get list of recalls from the .ann file for the current word, formatted as (rectime, item_num, item_name)
         # The first ten items are practice items, and their .ann files are marked as 0_practice through 9_practice
-        ann_outputs = self._parse_ann_file(str(self._serialpos - 1) + '_practice') if self.practice \
-            else self._parse_ann_file(str(self._serialpos - 1))
+        ann_outputs = self._parse_ann_file(str(self._trial) + '_practice') if self.practice \
+            else self._parse_ann_file(str(self._trial))
 
         # For each word in the annotation file (note: there should typically only be one word per .ann in VFFR)
         for recall in ann_outputs:
