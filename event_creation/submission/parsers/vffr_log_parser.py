@@ -169,6 +169,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
             if self.practice:
                 evtype = 'PRACTICE_' + evtype
             new_event.type = evtype
+            new_event.trial = self._trial
             # Get onset time of vocalized word, both relative to the start of the recording, as well as in Unix time
             new_event.rectime = int(round(recall[0]))
             new_event.mstime = rec_start_time + new_event.rectime
@@ -262,7 +263,7 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
                 new_event.intrusion = True
 
             # If the word was a vocalization, mark it as such
-            new_event.type = 'FFR_REC_WORD_VV' if new_event.item_num in ('<>', 'V', '!') else 'FFR_REC_WORD'
+            new_event.type = 'FFR_REC_WORD_VV' if new_event.item_name in ('<>', 'V', '!') else 'FFR_REC_WORD'
 
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
