@@ -62,8 +62,8 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         # Read the word that was presented
         self.current_word = evdata['data']['word'].strip()
         # Set trial number and serial position (Note: trial number starts at 0; serial position starts at 1)
-        self._trial = evdata['data']['index'] if not self.practice else -999
-        self._serialpos = self._trial + 1 if not self.practice else -999
+        self._trial = evdata['data']['index']
+        self._serialpos = self._trial + 1
 
         # Build event
         event = self.event_default(evdata)
