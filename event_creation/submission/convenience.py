@@ -722,7 +722,7 @@ def prompt_for_session_inputs(inputs, **opts):
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
 
-    if any(experiment.startswith(exp) for exp in ['PS', 'TH', 'location']):
+    if any(experiment.startswith(exp) for exp in ['PS', 'TH', 'Location']):
         inputs['do_math'] = False
 
     if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):

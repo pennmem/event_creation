@@ -116,7 +116,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     # UPDATE (June 27, 2018): I was a fool to think that these formats wouldn't
     # change
 
-    def event_stim(self,event_json):
+    def event_stim(self, event_json):
         event_json[self._MSTIME_FIELD] = -1
         event = self.event_default(event_json)
         event.type = 'STIM_ON'

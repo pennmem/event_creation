@@ -26,7 +26,7 @@ def PSLogParser(protocol, subject, montage, experiment, session, files):
             return (catFRHostPCLogParser if 'cat' in experiment else FRHostPCLogParser)(
                 protocol,subject,montage,experiment,session,files
             )
-        elif 'location' in experiment:
+        elif 'Location' in experiment:
             return LocationSearchLogParser(protocol, subject, montage,
                                            experiment, session, files)
         else:
