@@ -9,6 +9,7 @@ import scipy.stats
 from ..log import logger
 from ..parsers.system3_log_parser import System3LogParser
 from ..exc import AlignmentError
+import itertools
 
 
 class System3Aligner(object):
@@ -21,7 +22,9 @@ class System3Aligner(object):
     MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS = 2
 
     FROM_LABELS = (('orig_timestamp', 1000,('STIM','FEATURES',
-                                            'BIOMARKER',)),)
+                                            'BIOMARKER',)),
+                   )
+    TO_LABELS = ('t_event', 't0')
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -43,27 +46,24 @@ class System3Aligner(object):
         #     self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
         # else:
         self.merged_events = self.events
-
-
-        for label, rate,exclude in self.FROM_LABELS:
+        for ((from_label, from_rate, exclude), to_label) in itertools.product(self.FROM_LABELS, self.TO_LABELS):
             try:
                 self.task_to_ens_coefs, self.task_ends = \
-                    self.get_coefficients_from_event_log(label, 'offset', rate,exclude)
+                    self.get_coefficients_from_event_log(from_label, 'offset', from_rate,exclude)
                 self.host_to_ens_coefs, self.host_ends = \
-                    self.get_coefficients_from_event_log('t_event', 'offset', 1,exclude)
-                logger.debug("Found coefficient with label {}".format(label))
+                    self.get_coefficients_from_event_log(to_label, 'offset', 1,exclude)
+                logger.debug("Found coefficient with label {}".format(from_label))
             except KeyError as key_error:
-                if key_error.message != label:
+                if key_error.message != from_label:
                     raise
-                logger.debug("Couldn't find coefficient with label {}".format(label))
+                logger.debug("Couldn't find coefficient with label {}".format(from_label))
                 continue
-            except AlignmentError:
-                logger.debug("Couldn't align coefficient with label {}".format(label))
+            except AlignmentError as ae:
+                logger.debug("Couldn't align coefficient with label {}".format(from_label))
                 continue
-            self.from_label = label
-            self.from_multiplier = rate
+            self.label = from_label
+            self.from_multiplier = from_rate
             break
-
         else:
             raise AlignmentError("Could not find alignable label in events")
 
