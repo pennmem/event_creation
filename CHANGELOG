@@ -1,3 +1,8 @@
+2018-8-21
+=========
+- Simplified eegfile determination for system 3.4 in the case that there's only 1 file
+- Corrected name of LocationSearch experiment
+
 2018-8-3
 ========
 - Fixed bug in which only encoding stim events recieved a matching STIM_OFF
