@@ -1,8 +1,8 @@
 import numpy as np
+from functools import wraps
 
 
 def timed(timed_function):
-    from functools import wraps
 
     @wraps(timed_function)
     def wrapped(events,files):
@@ -28,6 +28,8 @@ def get_time_field(files):
 
 
 def as_recarray(function):
+
+    @wraps(function)
     def wrapped(events,files):
         return function(np.rec.array(events),files)
     return wrapped

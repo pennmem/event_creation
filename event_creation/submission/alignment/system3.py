@@ -181,6 +181,7 @@ class System3Aligner(object):
 
         eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
 
+        
         for eegfile, info in eeg_info:
             start_time_host = info['start_time_ms']
             inds = np.where(self.host_ends > start_time_host)[0]
@@ -298,6 +299,16 @@ class System3FourAligner(System3Aligner):
         super(System3FourAligner, self).__init__(events,files, plot_save_dir)
         self.task_to_ens_coefs = self.host_to_ens_coefs
         self.task_ends = self.host_ends
+        
+    def apply_eeg_file(self, events):
+        eeg_info = self.eeg_info.items()
+        if len(eeg_info) == 1:
+            mask = events['eegoffset'] >= 0
+            events[self.EEG_FILE_FIELD][mask] = eeg_info[0][0]
+            return events
+        else:
+            return super(System3FourAligner, self).apply_eeg_file(events)
+
 
 if __name__ == '__main__':
     files = {

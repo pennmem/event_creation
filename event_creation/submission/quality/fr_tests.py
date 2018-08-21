@@ -8,8 +8,11 @@ from ..log import logger
 
 
 def with_time_field(function):
-    def wrapped(events,files):
-        time_field='eegoffset' if 'FR6' in events[0]['experiment'] else 'mstime'
+    import functools
+
+    @functools.wraps(function)
+    def wrapped(events, files):
+        time_field = 'eegoffset' if 'FR6' in events[0]['experiment'] else 'mstime'
         return function(events,files,time_field)
     return wrapped
 
