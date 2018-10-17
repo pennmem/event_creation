@@ -97,7 +97,8 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                 continue
         else:
             raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
-                                + "System is most likely %s"%min(*misses,key=lambda x:len(x[1])))
+                                "Missing files: \n {}".format(misses))
+
         groups += (sys,)
 
     return groups
