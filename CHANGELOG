@@ -1,3 +1,9 @@
+2018-10-25
+==========
+- Added parser for TICL_catFR
+- Fixed bug in which TICL experiments could not be processed if artifact detection was not run
+
+
 2018-8-21
 =========
 - Simplified eegfile determination for system 3.4 in the case that there's only 1 file
