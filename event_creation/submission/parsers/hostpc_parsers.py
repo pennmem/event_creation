@@ -9,7 +9,8 @@ from copy import deepcopy
 import numpy as np
 from event_creation.submission.quality import fr_tests
 import os
-
+import dtypes
+from collections import OrderedDict
 
 def with_offset(event_handler):
     """
@@ -54,7 +55,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         self._phase = ''
 
         self._biomarker_value = -1.0
-        self._stim_params = {}
+        self._stim_params = OrderedDict()
         self._set_experiment_config()
         self._jacksheet = read_jacksheet(files['electrode_config'][0])
 
@@ -120,24 +121,30 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         event_json[self._MSTIME_FIELD] = -1
         event = self.event_default(event_json)
         event.type = 'STIM_ON'
+        self._stim_params = self.stim_params_from_record(event_json)
+        for i, pair in enumerate(self._stim_params):
+            pair_params = self._stim_params[pair]
+            self.set_event_stim_params(event, self._jacksheet, index=i, **pair_params)
+        return event
+
+    def stim_params_from_record(self, event_json):
         stim_params = event_json['msg_stub']['stim_channels']
         new_params = {}
-        for i,stim_pair in enumerate(stim_params):
+        for stim_pair in stim_params:
             new_pair_params = {}
             new_pair_params['anode_label'] = stim_pair.split('_')[0]
             new_pair_params['cathode_label'] = stim_pair.split('_')[1]
             new_pair_params['stim_duration'] = int(stim_params[stim_pair]['duration'])
             new_pair_params['amplitude'] = int(stim_params[stim_pair]['amplitude'])
             new_pair_params['pulse_freq'] = int(stim_params[stim_pair]['pulse_freq'])
-            self.set_event_stim_params(event,self._jacksheet,index=i,**new_pair_params)
             new_params[stim_pair] = new_pair_params
-        self._stim_params = new_params
-        return event
+        return new_params
 
     @with_offset
     def event_biomarker(self,event_json):
         event=self.event_default(event_json)
-        self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
+        if self._phase == "STIM":
+            self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
         return event
 
     def clean_events(self, events):
@@ -281,7 +288,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
                 stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
                 stim_off_events.type='STIM_OFF'
                 list_events = np.concatenate([list_events,stim_off_events])
-                list_events.sort(order='eegoffset')
+                list_events.sort(order='eegoffset', kind='mergesort')
             events = np.rec.array(np.concatenate([events[~in_list],list_events]))
         return events
 
@@ -303,11 +310,6 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
 class catFRHostPCLogParser(FRHostPCLogParser):
 
-    _catFR_FIELDS = (
-        ('category','X','S64'),
-        ('category_num',-999,'int16')
-    )
-
     _CATEGORY = 'category'
     _CATEGORY_NUM = 'category_num'
 
@@ -315,7 +317,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
 
     def __init__(self, *args, **kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
-        self._add_fields(*self._catFR_FIELDS)
+        self._add_fields(dtypes.category_fields)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
         if os.path.splitext(self.files['wordpool'])[1]:
             self._wordpool = np.loadtxt(self.files['wordpool'],dtype=str)
@@ -363,6 +365,9 @@ class TiclFRParser(FRHostPCLogParser):
         del self._type_to_modify_events['ENCODING']
         self.fix_content_offsets()
 
+        stim_event = next(iter(c for c in self._contents if self._get_raw_event_type(c) == "STIM"))
+        self._stim_params = self.stim_params_from_record(stim_event)
+
     def fix_content_offsets(self):
         for event_json in self._contents:
             if np.isnan(event_json['offset']):
@@ -397,20 +402,21 @@ class TiclFRParser(FRHostPCLogParser):
         event = self.event_default(event_json)
         event['type'] = event_json[self._TYPE_FIELD]
         msg  = event_json['msg_stub']
-        params = {k: msg.get(
-            field_names.get(k, k), event.stim_params[0][k])
-                  for k in event.stim_params.dtype.names
-                  if not k.startswith('_')
-        }
-        params.update(self._stim_params.values()[0])
-        self.set_event_stim_params(event, self._jacksheet, 0,
-                                   **params)
-        if params['position'] != 'post':
-            event['phase'] = self._list_phase
+        if self._phase == "STIM":
+            params = {k: msg.get(
+                field_names.get(k, k), event.stim_params[0][k])
+                      for k in event.stim_params.dtype.names
+                      if not k.startswith('_')
+            }
+            params.update(self._stim_params.values()[0])
+            self.set_event_stim_params(event, self._jacksheet, 0,
+                                       **params)
+            if params['position'] != 'post':
+                event['phase'] = self._list_phase
             # post-stim biomarker events are assigned the phase of the
             # matching pre-stim biomarker event
 
-        self._biomarker_value = params['biomarker_value']
+            self._biomarker_value = params['biomarker_value']
         return event
 
     def event_features(self,event_json):
@@ -426,6 +432,8 @@ class TiclFRParser(FRHostPCLogParser):
 
 
     def modify_biomarker(self, events):
+        if self._phase != "STIM":
+            return events
         biomarker_event = events[-1]
         if biomarker_event['stim_params'][0]['position'] == 'post':
             other_events = events[:-1]
@@ -437,6 +445,11 @@ class TiclFRParser(FRHostPCLogParser):
             events[-1] = biomarker_event
         return events
 
+
+class TiclCatFRParser(TiclFRParser,catFRHostPCLogParser):
+
+    def event_word(self, event_json):
+        return catFRHostPCLogParser.event_word(self, event_json)
 
 
 if __name__ == "__main__":
