@@ -188,7 +188,8 @@ class EventCreationTask(PipelineTask):
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
-                'TICL_FR':TiclFRParser,
+                'TICL_FR': TiclFRParser,
+                'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
             }
 
