@@ -317,7 +317,7 @@ class catFRHostPCLogParser(FRHostPCLogParser):
 
     def __init__(self, *args, **kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
-        self._add_fields(dtypes.category_fields)
+        self._add_fields(*dtypes.category_fields)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
         if os.path.splitext(self.files['wordpool'])[1]:
             self._wordpool = np.loadtxt(self.files['wordpool'],dtype=str)
