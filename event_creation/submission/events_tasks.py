@@ -276,10 +276,8 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0 <= self.r1_sys_num < 3.4:
+                    elif 3.0 <= self.r1_sys_num <= 3.4:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
-                    elif 3.4 <= self.r1_sys_num < 4.0:
-                        aligner = System3FourAligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
                             "r1_sys_num must be in (1, 3.3) for protocol==r1. Current value: {}".format(
