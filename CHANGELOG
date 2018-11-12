@@ -1,11 +1,16 @@
-2018-10-25
-==========
+2018-11-12 (v1.2.4)
+===================
+- Removed System3FourAligner from production
+
+2018-10-25 (v1.2.3)
+===================
 - Added parser for TICL_catFR
 - Fixed bug in which TICL experiments could not be processed if artifact detection was not run
 
 
-2018-8-21
-=========
+2018-8-21 (v1.2.2)
+==================
+
 - Simplified eegfile determination for system 3.4 in the case that there's only 1 file
 - Corrected name of LocationSearch experiment
 
