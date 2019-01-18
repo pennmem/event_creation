@@ -5,8 +5,7 @@ import traceback
 import requests
 
 import numpy as np
-from ptsa.data.readers import BaseEventReader,JsonIndexReader
-
+from ptsa.data.readers import BaseEventReader
 
 from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
@@ -16,7 +15,8 @@ from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
 from .alignment.system3 import System3Aligner
 from .configuration import paths
-from .detection.artifact_detection import ArtifactDetector
+from .cleaning.artifact_detection import ArtifactDetector
+from .cleaning.lcf import run_lcf
 from .parsers.ltpfr_log_parser import LTPFRSessionLogParser
 from .parsers.ltpfr2_log_parser import LTPFR2SessionLogParser
 from .parsers.raa_log_parser import RAASessionLogParser
@@ -34,7 +34,7 @@ from .parsers.pal_sys3_log_parser import PALSys3LogParser
 from .parsers.ps_log_parser import PSLogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
-from .parsers.math_parser import MathSessionLogParser,MathUnityLogParser
+from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
@@ -42,8 +42,9 @@ from .quality.util import get_time_field
 
 from .viewers.recarray import to_json, from_json
 from .log import logger
-from .exc import NoEventsError, ProcessingError,WebAPIError
+from .exc import NoEventsError, ProcessingError
 import json
+
 
 class SplitEEGTask(PipelineTask):
 
@@ -228,7 +229,6 @@ class EventCreationTask(PipelineTask):
                 self._parser_type = self.LTP_PARSERS[self.experiment]
         return self._parser_type
 
-
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
@@ -259,16 +259,21 @@ class EventCreationTask(PipelineTask):
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         logger.debug('Using %s'%str(self.parser_type))
         unaligned_events = parser.parse()
+        # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
         if self.protocol == 'ltp':
-            # Scalp Lab alignment and artifact detection
             sync_log = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
+            # Align scalp EEG data with events
             aligner = LTPAligner(unaligned_events, sync_log, ephys_dir)
             events = aligner.align()
+            # Detect trials contaminated by blinks and other artifacts
             artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir, self.experiment)
             del aligner
             events = artifact_detector.run()
+            # Create a cleaned version of the data using localized component filtering
+            run_lcf(events, artifact_detector.eeg, ephys_dir)
             del artifact_detector
+        # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol=='r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
@@ -370,7 +375,6 @@ class ReportLaunchTask(PipelineTask):
             else:
                 logger.error('Request failed with message %s'%str(error))
 
-
     def _run(self, files, db_folder):
         self.request()
 
@@ -398,6 +402,7 @@ class EventCombinationTask(PipelineTask):
 
         self.create_file('{}_events.json'.format(self.COMBINED_LABEL),
                          to_json(combined_events), '{}_events'.format(self.COMBINED_LABEL))
+
 
 class MontageLinkerTask(PipelineTask):
     """

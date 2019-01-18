@@ -6,7 +6,8 @@ from ..log import logger
 class ArtifactDetector:
     """
     Runs scripts for Scalp Lab blink and artifact detection. Parameters differ depending on whether the session was
-    conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact data.
+    conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact
+    data.
     """
 
     def __init__(self, events, eeg, ephys_dir, experiment):

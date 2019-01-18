@@ -9,14 +9,11 @@ import re
 import numpy as np
 import json
 from shutil import copy
-from scipy.linalg import pinv
 
 import tables
 import mne
 import scipy.stats as ss
-import scipy.signal as sp_signal
 from nolds import hurst_rs
-from ptsa.data.TimeSeriesX import TimeSeriesX
 
 try:
     import pyedflib
@@ -28,6 +25,7 @@ from ..log import logger
 from .nsx_utility.brpylib import NsxFile
 from ..exc import EEGError
 from ..parsers.electrode_config_parser import ElectrodeConfig
+
 
 class EEG_reader(object):
 
@@ -821,7 +819,6 @@ class EDF_reader(EEG_reader):
     def channel_data(self, channel):
         return self.reader.readSignal(channel)
 
-
     def _split_data(self, location, basename):
         sys.stdout.flush()
         used_jacksheet_labels = []
@@ -1074,74 +1071,6 @@ class ScalpReader(EEG_reader):
             for i, ch in enumerate(self.data.ch_names):
                 f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
 
-    def run_ica(self):
-        """
-        Run ICA on entire session using MNE's ICA class. EOG channels are not included in the ICA calculation. Note that
-        it is important to high-pass filter the data before running ICA. In the standard workflow, high-pass filtering
-        will have already been applied during bad channel detection, so it will not need to run again here. The ICA
-        solution is saved out to a file ending with "-ica.fif" in the current_processed ephys folder.
-        """
-        if self.ica is not None:
-            return
-
-        # High-pass filter the data if we have not already done so. ICA will not work properly if the baseline drifts.
-        if not self.highpassed:
-            self.data.filter(.5, None, fir_design='firwin')
-            self.highpassed = True
-
-        # Clear the list of bad channels, as MNE will otherwise automatically exclude bad channels from the ICA solution
-        self.data.info['bads'] = []
-
-        # Fit ICA to EEG channels only using FastICA algorithm
-        logger.debug('Running ICA')
-        ica = mne.preprocessing.ICA(method='fastica')
-        try:
-            # MNE defaults to float64, but this can cause ICA to use 80-90 GB of RAM. As our original data was int16 or
-            # int24, the added precision of float64 should not be meaningful and we can halve the amount of memory ICA
-            # uses.
-            self.data._data = self.data._data.astype(np.float32)
-            ica.fit(self.data)
-            self.data._data = self.data._data.astype(np.float64)
-        except ValueError:
-            # In rare cases, using float32 in ICA can result in some values overflowing and becoming infinite, which
-            # will crash the ICA process. If this occurs, switch back to float64 and re-attempt ICA.
-            self.data._data = self.data._data.astype(np.float64)
-            ica.fit(self.data)
-
-        # Save the ICA solution to a .fif file that can be read back in later by MNE
-        logger.debug('Saving ICA solution')
-        ica.save(os.path.join(self.save_loc, self.basename + '-ica.fif'))
-        self.ica = ica
-
-    def run_lcf(self, save_format=None):
-        """
-        TBA
-
-        :return:
-        """
-        # Extract sources using ica solution
-        S = self.ica.get_sources(self.data)._data
-
-        # Delete the uncleaned EEG data to save memory, since we only need the sources now
-        self.data._data = None
-
-        # Clean artifacts from sources using LCF
-        S = self.lcf(S, S, self.data.info['sfreq'], iqr_thresh=3, dilator_width=.1, transition_width=.1)
-
-        # Reconstruct data from cleaned sources
-        self.data._data = self.reconstruct_signal(S, self.ica)
-        del S
-
-        if save_format == '.h5':
-            # Save cleaned version of data to hdf as a TimeSeriesX object
-            clean_eegfile = os.path.join(self.save_loc, self.basename + '_clean.h5')
-            TimeSeriesX(self.data._data.astype(np.float32), dims=('channels', 'time'),
-                        coords={'channels': self.data.info['ch_names'], 'time': self.data.times,
-                                'samplerate': self.data.info['sfreq']}).to_hdf(clean_eegfile)
-        elif save_format == '.fif':
-            # Save cleaned version of data to an MNE raw.fif file
-            self.data.save(os.path.join(self.save_loc, self.basename + '_clean_raw.fif'))
-
     def split_data(self, location, basename):
         """
         This function runs the full EEG pre-processing regimen on the recording. Note that "split data" is a misnomer
@@ -1219,85 +1148,6 @@ class ScalpReader(EEG_reader):
         if self.data is None:
             self.get_data()
         return self.data.n_times
-
-    @staticmethod
-    def lcf(S, feat, sfreq, iqr_thresh=3, dilator_width=.1, transition_width=.1):
-
-        dilator_width = int(dilator_width * sfreq)
-        transition_width = int(transition_width * sfreq)
-
-        ##########
-        #
-        # Classification
-        #
-        ##########
-
-        # Find interquartile range of each component
-        p75 = np.percentile(feat, 75, axis=1)
-        p25 = np.percentile(feat, 25, axis=1)
-        iqr = p75 - p25
-
-        # Tune artifact thresholds for each component according to the IQR and the iqr_thresh parameter
-        pos_thresh = p75 + iqr * iqr_thresh
-        neg_thresh = p25 - iqr * iqr_thresh
-
-        # Detect artifacts using the IQR threshold, then dilate the detected zones to account for the mixer transition equation
-        ctrl_signal = np.zeros(feat.shape, dtype=float)
-        dilator = np.ones(dilator_width)
-        for i in range(ctrl_signal.shape[0]):
-            ctrl_signal[i, :] = (feat[i, :] > pos_thresh[i]) | (feat[i, :] < neg_thresh[i])
-            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], dilator, 'same')
-        del p75, p25, iqr, pos_thresh, neg_thresh, dilator
-
-        # Binarize signal
-        ctrl_signal = (ctrl_signal > 0).astype(float)
-
-        ##########
-        #
-        # Mixing
-        #
-        ##########
-
-        # Allocate normalized transition window
-        trans_win = sp_signal.hann(transition_width, True)
-        trans_win /= trans_win.sum()
-
-        # Pad extremes of control signal
-        pad_width = [tuple([0, 0])] * ctrl_signal.ndim
-        pad_size = int(transition_width / 2 + 1)
-        pad_width[1] = (pad_size, pad_size)
-        ctrl_signal = np.pad(ctrl_signal, tuple(pad_width), mode='edge')
-        del pad_width
-
-        # Combine the transition window and the control signal to build a final transition-control signal, which can be applied to the components
-        for i in range(ctrl_signal.shape[0]):
-            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], trans_win, 'same')
-        del trans_win
-
-        # Remove padding from transition-control signal
-        rm_pad_slice = [slice(None)] * ctrl_signal.ndim
-        rm_pad_slice[1] = slice(pad_size, -pad_size)
-        ctrl_signal = ctrl_signal[rm_pad_slice]
-        del rm_pad_slice, pad_size
-
-        # Mix sources with control signal to get cleaned sources
-        S_clean = S * (1 - ctrl_signal)
-
-        return S_clean
-
-    @staticmethod
-    def reconstruct_signal(sources, ica):
-        # Mix sources to translate back into PCA components (PCA components x Time)
-        data = np.dot(ica.mixing_matrix_, sources)
-
-        # Mix PCA components to translate back into original EEG channels (Channels x Time)
-        data = np.dot(np.linalg.inv(ica.pca_components_), data)
-
-        # Invert transformations that MNE performs prior to PCA
-        data += ica.pca_mean_[:, None]
-        data *= ica.pre_whitener_
-
-        return data
 
 
 def read_jacksheet(filename):
