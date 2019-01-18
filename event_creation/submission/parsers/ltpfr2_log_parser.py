@@ -23,7 +23,7 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             REC_START=self.event_default,
             REST=self._event_skip,
             REST_REWET=self.event_default,
-            SESS_END=self._event_skip,
+            SESS_END=self.event_default,
             SESSION_SKIPPED=self._event_skip,
             DISTRACTOR_MATH=self.event_distractor,
             MATH_TOTAL_SCORE=self._event_skip
@@ -47,12 +47,13 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         """
-        Extracts the session number from the fourth column of SESS_START log events
+        Extracts the session number from the fourth column of SESS_START log events, as well as creating an event
         :param split_line:
         :return:
         """
         self._session = int(split_line[3]) - 1
-        return False
+        event = self.event_default(split_line)
+        return event
 
     def event_fr_pres(self, split_line):
         self.update_trial(split_line)

@@ -22,9 +22,11 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
 
         self._add_fields(*dtypes.vffr_fields)
         self._add_type_to_new_event(
-            countdown=self.event_countdown,
+            countdown=self.event_countdown,  # Pre-trial countdowns
+            end_message=self.event_sess_end,  # End of session
             final_recall_start=self.event_ffr_start,  # Start of final free recall
             final_recall_stop=self.event_ffr_stop,  # End of final free recall
+            microphone_test_start=self.event_sess_start,  # Start of session (microphone test)
             recall_start=self.event_rec_start,  # Start of vocalization period
             recall_stop=self.event_rec_stop,  # End of vocalization period
             required_break_start=self.event_break_start,  # Start of mid-session break
@@ -52,7 +54,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event = self.event_default(evdata)
         event.type = 'COUNTDOWN'
         event.item_name = evdata['data']['displayed text']
-
         return event
 
     def event_word_on(self, evdata):
@@ -73,7 +74,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         if 'ltp word number' in evdata['data']:
             self.current_num = evdata['data']['ltp word number']
             event.item_num = self.current_num
-
         return event
 
     def event_word_off(self, evdata):
@@ -83,7 +83,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.serialpos = self._serialpos
         if event.item_name == self.current_word:
             event.item_num = self.current_num
-
         return event
 
     def event_rec_start(self, evdata):
@@ -92,7 +91,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.item_name = self.current_word
         event.item_num = self.current_num
         event.serialpos = self._serialpos
-
         return event
 
     def event_rec_stop(self, evdata):
@@ -102,7 +100,6 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
         event.item_num = self.current_num
         event.serialpos = self._serialpos
         event.too_fast_msg = evdata['data']['too_fast']
-
         return event
 
     def event_ffr_start(self, evdata):
@@ -123,6 +120,16 @@ class VFFRSessionLogParser(BaseUnityLTPLogParser):
     def event_break_stop(self, evdata):
         event = self.event_default(evdata)
         event.type = 'BREAK_STOP'
+        return event
+
+    def event_sess_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_START'
+        return event
+
+    def event_sess_end(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_END'
         return event
 
     ###############

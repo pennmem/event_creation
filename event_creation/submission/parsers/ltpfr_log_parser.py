@@ -40,7 +40,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             REST=self._event_skip,
             REST_REWET=self.event_default,
             REJECT=self.get_rej_mstime,
-            SESS_END=self._event_skip,
+            SESS_END=self.event_default,
             SESSION_SKIPPED=self._event_skip,
             RECOG_START=self._event_skip,
             RECOG_END=self._event_skip,
@@ -80,7 +80,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         :return:
         """
         self._session = int(split_line[3]) - 1
-        return False
+        event = self.event_default(split_line)
+        return event
 
     def event_recstart(self, split_line):
         self._mstime_recstart = int(split_line[0])
