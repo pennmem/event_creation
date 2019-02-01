@@ -167,10 +167,16 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 # Copy the session data, then crop it down to one part of the session
                 eeg_list.append(eeg.copy())
                 eeg_list[-1].crop(eeg.times[start], eeg.times[stop])
-                # Run ICA on the current part of the session
-                logger.debug('Running ICA (part %i) on %s' % (i, basename))
-                ica_list.append(mne.preprocessing.ICA(method=method))
-                ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
+                # Run (or load) ICA for the current part of the session
+                ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, len(ica_list)))
+                if os.path.exists(ica_path):
+                    logger.debug('Loading ICA (part %i) for %s' % (len(ica_list), basename))
+                    ica_list.append(mne.preprocessing.read_ica(ica_path))
+                else:
+                    logger.debug('Running ICA (part %i) on %s' % (len(ica_list), basename))
+                    ica_list.append(mne.preprocessing.ICA(method=method))
+                    ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
+                    ica_list[-1].save(ica_path)
 
                 ######
                 # LCF
@@ -203,9 +209,15 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             ######
             # ICA
             ######
-            logger.debug('Running ICA on %s' % basename)
-            ica = mne.preprocessing.ICA(method=method)
-            ica.fit(eeg)
+            ica_path = os.path.join(ephys_dir, '%s-ica.fif' % basename)
+            if os.path.exists(ica_path):
+                logger.debug('Loading ICA for %s' % basename)
+                ica = mne.preprocessing.read_ica(ica_path)
+            else:
+                logger.debug('Running ICA for %s' % basename)
+                ica = mne.preprocessing.ICA(method=method)
+                ica.fit(eeg)
+                ica.save(ica_path)
 
             ######
             # LCF
