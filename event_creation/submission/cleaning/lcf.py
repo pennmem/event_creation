@@ -1,4 +1,3 @@
-from __future__ import print_function
 import os
 import mne
 import numpy as np
@@ -140,8 +139,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                     onsets.append(evs[idx].eegoffset)
                     offsets.append(evs[break_stop_idx[i]].eegoffset)
 
-            print('ONSETS:', onsets)
-            print('OFFSETS:', offsets)
             # Annotate the EEG object with the timings of excluded periods (pre-session, post-session, & breaks)
             onsets = np.sort(onsets)
             offsets = np.sort(offsets)
@@ -171,7 +168,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 ica_list.append(mne.preprocessing.ICA(method=method))
                 ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
                 # Set start point of next ICA to immediately follow the end of the break
-                start = eeg.times[stop + 1]
+                start = stop + 1
 
         ##########
         #
