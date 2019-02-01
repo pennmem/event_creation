@@ -3,6 +3,7 @@ import mne
 import numpy as np
 import scipy.signal as sp_signal
 from ptsa.data.TimeSeriesX import TimeSeriesX
+from ..log import logger
 
 
 def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, skip_breaks=True,
@@ -44,6 +45,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
     # Loop over all of the session's EEG recordings
     for basename in eeg_dict:
+        logger.debug('Cleaning data from {}'.format(basename))
 
         # Select EEG data and events from current recording
         eeg = eeg_dict[basename]
@@ -159,6 +161,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 eeg_list.append(eeg.copy())
                 eeg_list[-1].crop(eeg.times[start], eeg.times[stop])
                 # Run ICA on the current part of the session
+                logger.debug('Running ICA (part %i) on %s' % (i, basename))
                 ica_list.append(mne.preprocessing.ICA(method=method))
                 ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
                 # Set start point of next ICA to immediately follow the end of the break
@@ -171,6 +174,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         ##########
 
         else:
+            logger.debug('Running ICA on {}'.format(basename))
             ica = mne.preprocessing.ICA(method=method)
             ica.fit(eeg)
             eeg_list = [eeg]
@@ -183,6 +187,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         ##########
 
         for i, ica in enumerate(ica_list):
+            logger.debug('Running LCF (part %i) on %s' % (i, basename))
             # Convert data to sources
             S = ica.get_sources(eeg_list[i])._data
             # Clean artifacts from sources using LCF
@@ -191,7 +196,9 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             eeg_list[i]._data = reconstruct_signal(cS, ica_list[i])
 
         # Concatenate the cleaned pieces of the recording back together
+        logger.debug('Constructing cleaned data file for {}'.format(basename))
         clean = mne.concatenate_raws(eeg_list)
+        logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
         #
