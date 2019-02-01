@@ -16,13 +16,18 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
     1) Drop EOG channels and (optionally) bad channels from the data.
     2) High-pass filter the data.
     3) Common average re-reference the data.
-    4) Run ICA on the data. This can be done in one of two ways:
-        A) Run a single ICA for the entire session, with no time points excluded from the fitting process.
-        B) Fit a new ICA after each session break, while excluding the time points before the session, after the
-        session, and during breaks. The final saved file will still contain all data points, but the actual ICA
-        solutions will not be influenced by breaks.
+    4) Run ICA on the data. A new ICA is fit after each session break, while excluding the time points before the
+        session, after the session, and during breaks. The final saved file will still contain all data points, but the
+        actual ICA solutions will not be influenced by breaks.
     5) Remove artifacts using LCF, paired with the ICA solutions calculated in #4.
     6) Save a cleaned version of the EEG data to a .fif file.
+
+    To illustrate how this function divides up a session, a session with 2 breaks would have 3 parts:
+    1) Start of recording -> End of break 1
+    2) End of break 1 -> End of break 2
+    3) End of break 2 -> End of recording
+
+    Note that his function uses ipython-cluster-helper to clean all partitions of the session in parallel.
 
     :param events: Events structure for the session.
     :param eeg_dict: Dictionary mapping the basename of each EEG recording for the session to an MNE raw object
@@ -40,6 +45,13 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
     # Loop over all of the session's EEG recordings
     for eegfile in eeg_dict:
+
+        ##########
+        #
+        # Initialization
+        #
+        ##########
+
         basename = os.path.splitext(eegfile)[0]
         logger.debug('Cleaning data from {}'.format(basename))
 
@@ -78,9 +90,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
         ##########
         #
-        # ICA
+        # Identification of session breaks
         #
         ##########
+
         onsets = []
         offsets = []
         sess_start_in_recording = False
@@ -141,13 +154,14 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         annotations = mne.Annotations(eeg.times[onsets], durations, descriptions)
         eeg.set_annotations(annotations)
 
-        # Fit a new ICA after each break. For example, a session with 2 breaks would have 3 parts:
-        # start of recording -> end of break 1
-        # after end of break 1 -> end of break 2
-        # after end of break 2 -> end of recording
-
-        # Skip over the offset corresponding to the session start, since we only want to split ICA after breaks
+        # Skip over the offset for the session start when splitting, as we only want to split after breaks
         offsets = offsets[1:] if sess_start_in_recording else offsets
+
+        ##########
+        #
+        # ICA + LCF
+        #
+        ##########
 
         # Create inputs for running LCF in parallel with ipython-cluster-helper
         inputs = []
@@ -173,24 +187,35 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         # Concatenate the cleaned pieces of the recording back together
         logger.debug('Constructing cleaned data file for {}'.format(basename))
         clean = mne.concatenate_raws(eeg_list)
-        del eeg_list
         logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
         #
-        # Save data & Clean up variables
+        # Data saving
         #
         ##########
+
         # Save cleaned version of data to hdf as a TimeSeriesX object
         clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
         TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
                     coords={'channels': clean.info['ch_names'], 'time': clean.times,
                             'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
 
-        del clean
+        del eeg_list, clean
 
 
 def run_split_lcf(inputs):
+    """
+    Runs ICA followed by LCF on one partition of the session. Note that this function has been designed to work as a
+    parallel job managed via ipython-cluster-helper. As such, all necessary imports and function declarations have to be
+    made within this function, leading to the odd code structure here. This is also why inputs must be passed as a
+    dictionary.
+
+    :param inputs: A dictionary specifying the "index" of the partition (for coordination with other parallel jobs), the
+        "basename" of the EEG recording, the "ephys_dir" path to the current_processed folder, the "method" of ICA to
+        use, the "iqr_thresh" IQR threshold to use for LCF, and the "lcf_winsize" to be used for LCF.
+    :return: An MNE raw object containing the cleaned version of the data.
+    """
     import os
     import mne
     from ..log import logger
