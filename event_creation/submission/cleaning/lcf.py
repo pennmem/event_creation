@@ -150,7 +150,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             durations = offset_times - onset_times
             descriptions = ['bad_break' for _ in onsets]
             annotations = mne.Annotations(eeg.times[onsets], durations, descriptions)
-            eeg.annotations = annotations
+            eeg.set_annotations(annotations)
 
             # Fit a new ICA after each break. For example, a session with 2 breaks would have 3 parts:
             # start of recording -> end of break 1
