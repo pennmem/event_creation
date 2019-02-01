@@ -312,3 +312,5 @@ def run_split_lcf(inputs):
     cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize)
     # Reconstruct data from cleaned sources
     eeg._data = reconstruct_signal(cS, ica)
+
+    return eeg
