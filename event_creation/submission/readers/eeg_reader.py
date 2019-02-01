@@ -1111,16 +1111,6 @@ class ScalpReader(EEG_reader):
         logger.debug('Marking bad channels for {}'.format(basename))
         self.mark_bad_channels()
 
-        # Re-reference EEG data to the common average of all non-bad channels
-        self.data.set_eeg_reference(projection=False)
-
-        # Run ICA and save the ICA solution to file
-        logger.debug('Running ICA on {}'.format(basename))
-        #self.run_ica()
-
-        # Run localized component filtering to clean the data
-        #self.run_lcf(save_format='.h5')
-
         self.write_sources(location, basename)
         return True
 
