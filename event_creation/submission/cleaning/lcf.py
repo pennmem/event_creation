@@ -7,7 +7,7 @@ from ..log import logger
 
 
 def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, skip_breaks=True,
-            exclude_bad_channels=False, iqr_thresh=3, lcf_winsize=.1, save_format='.h5'):
+            exclude_bad_channels=False, iqr_thresh=3, lcf_winsize=.1):
     """
     Runs localized component filtering (DelPozo-Banos & Weidemann, 2017) to clean artifacts from EEG data. Cleaned data
     is written to a new file in the ephys directory for the session. The pipeline is as follows, repeated for each
@@ -38,14 +38,16 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
     :param iqr_thresh: The number of interquartile ranges above the 75th percentile or below the 25th percentile that a
         sample must be for LCF to mark it as artifactual.
     :param lcf_winsize: The width (in seconds) of the LCF dilator and transition windows.
-    :param save_format: The file format to which the cleaned data will be saved. '.h5' uses PTSA to save a TimeSeries to
-        an HDF5 file. '.fif' uses MNE to save a Raw object to a .fif file.
     :return: None
     """
 
     # Loop over all of the session's EEG recordings
     for basename in eeg_dict:
         logger.debug('Cleaning data from {}'.format(basename))
+
+        # Make sure LCF hasn't already been run for this file (prevents re-running LCF during math event creation)
+        if os.path.exists(os.path.join(ephys_dir, '%s_clean.h5' % basename)):
+            continue
 
         # Select EEG data and events from current recording
         eeg = eeg_dict[basename]
@@ -206,14 +208,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         #
         ##########
         # Save cleaned version of data to hdf as a TimeSeriesX object
-        if save_format == '.h5':
-            clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
-            TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
-                        coords={'channels': clean.info['ch_names'], 'time': clean.data.times,
-                                'samplerate': clean.data.info['sfreq']}).to_hdf(clean_eegfile)
-        # Save cleaned version of data to an MNE raw.fif file
-        elif save_format == '.fif':
-            clean.save(os.path.join(ephys_dir, '%s_clean_raw.fif' % basename))
+        clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
+        TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
+                    coords={'channels': clean.info['ch_names'], 'time': clean.data.times,
+                            'samplerate': clean.data.info['sfreq']}).to_hdf(clean_eegfile)
 
         del clean, eeg_list, ica_list, S, cS
 
