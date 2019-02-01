@@ -167,7 +167,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             start = stop + 1
 
         # Run ICA and then LCF on each part of the sesion in parallel
-        with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=4) as view:
+        with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
             eeg_list = view.map(run_split_lcf, inputs)
 
         # Concatenate the cleaned pieces of the recording back together
