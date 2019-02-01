@@ -6,8 +6,8 @@ from cluster_helper.cluster import cluster_view
 from ..log import logger
 
 
-def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, skip_breaks=True,
-            exclude_bad_channels=False, iqr_thresh=3, lcf_winsize=.1):
+def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, exclude_bad_channels=False,
+            iqr_thresh=3, lcf_winsize=.1):
     """
     Runs localized component filtering (DelPozo-Banos & Weidemann, 2017) to clean artifacts from EEG data. Cleaned data
     is written to a new file in the ephys directory for the session. The pipeline is as follows, repeated for each
@@ -31,9 +31,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
     :param method: String defining which ICA algorithm to use (fastica, infomax, extended-infomax, picard).
     :param highpass_freq: The frequency in Hz at which to high-pass filter the data prior to ICA (recommended >= .5)
     :param reref: If True, common average references the data prior to ICA. If False, no re-referencing is performed.
-    :param skip_breaks: If True, excludes EEG samples from ICA calculation during breaks as well as before or after the
-        end of the session. Furthermore, separate ICA solutions will be calculated for each "phase" of the session (new
-        ICA starts after each break). If False, one ICA solution will be calculated for the entire session.
     :param exclude_bad_channels: If True, excludes bad channels during ICA and leaves them out of the cleaned data.
     :param iqr_thresh: The number of interquartile ranges above the 75th percentile or below the 25th percentile that a
         sample must be for LCF to mark it as artifactual.
@@ -70,9 +67,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         # Load bad channel info
         badchan_file = os.path.join(ephys_dir, '%s_bad_chan.txt' % basename)
         eeg.load_bad_channels(badchan_file)
-
-        # Convert EEG data from float64 to float32 to save memory, since the original recording was only int16 or int24
-        # eeg._data = eeg._data.astype(np.float32)
 
         # Rereference data using the common average reference
         if reref:
@@ -160,8 +154,16 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         start = 0
         for i, stop in enumerate(offsets):
             d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
-                     lcf_winsize=lcf_winsize, onset=start, offset=stop, eeg=eeg)
+                     lcf_winsize=lcf_winsize)
             inputs.append(d)
+
+            # Copy the session data, then crop it down to one part of the session. Save it temporarily for parallel jobs
+            split_eeg = eeg.copy()
+            split_eeg.crop(split_eeg.times[start], split_eeg.times[stop])
+            split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, i))
+            split_eeg.save(split_eeg_path)
+
+            # Set the next part of the EEG recording to begin one sample after the current one
             start = stop + 1
 
         # Run ICA and then LCF on each part of the sesion in parallel
@@ -281,16 +283,15 @@ def run_split_lcf(inputs):
     method = inputs['method']
     iqr_thresh = inputs['iqr_thresh']
     lcf_winsize = inputs['lcf_winsize']
-    onset = inputs['onset']
-    offset = inputs['offset']
-    raw = inputs['eeg']
+
+    # Load temporary split EEG file and delete it
+    split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, index))
+    eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
+    os.remove(split_eeg_path)
 
     ######
     # ICA
     ######
-    # Copy the session data, then crop it down to one part of the session
-    eeg = raw.copy()
-    eeg.crop(eeg.times[onset], eeg.times[offset])
     # Run (or load) ICA for the current part of the session
     ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, index))
     if os.path.exists(ica_path):
