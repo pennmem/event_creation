@@ -116,7 +116,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                     if len(evs) == idx + 1:
                         o = eeg.n_times - 1
                     else:
-                        o = evs[idx + 1].eegoffset - 5 * samp_rate
+                        o = int(evs[idx + 1].eegoffset - 5 * samp_rate)
                     # Make sure that offsets cannot occur before onsets (happens if a break lasts less than 5 seconds)
                     if o < onsets[i]:
                         o = onsets[i] + 1
