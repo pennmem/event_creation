@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 USR=`logname`
 
-if [[ $USER != "RAM_maint" ]]; then
+if [[ $USER != "RAM_maint" ]] && [[ $USER != "maint" ]]; then
     while true; do
-        echo "This script is meant to be run from RAM_maint not $USR"
+        echo "This script is meant to be run from maint or RAM_maint, not $USR"
         read -p "Are you sure you want to continue? " yn
         case $yn in 
             [Nn]* ) exit;;
