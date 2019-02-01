@@ -5,7 +5,7 @@ import scipy.signal as sp_signal
 from ptsa.data.TimeSeriesX import TimeSeriesX
 
 
-def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=1, reref=True, skip_breaks=True,
+def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, skip_breaks=True,
             exclude_bad_channels=False, iqr_thresh=3, lcf_winsize=.1, save_format='.h5'):
     """
     Runs localized component filtering (DelPozo-Banos & Weidemann, 2017) to clean artifacts from EEG data. Cleaned data
@@ -186,7 +186,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=1, rere
             # Convert data to sources
             S = ica.get_sources(eeg_list[i])._data
             # Clean artifacts from sources using LCF
-            cS = lcf(S, S, samp_rate, iqr_thresh=iqr_thresh, dilator_width=lcf_winsize, transition_width=lcf_winsize)
+            cS = lcf(S, S, samp_rate, iqr_thresh, lcf_winsize, lcf_winsize)
             # Reconstruct data from cleaned sources
             eeg_list[i]._data = reconstruct_signal(cS, ica_list[i])
 
@@ -198,20 +198,20 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=1, rere
         # Save data & Clean up variables
         #
         ##########
+        # Save cleaned version of data to hdf as a TimeSeriesX object
         if save_format == '.h5':
-            # Save cleaned version of data to hdf as a TimeSeriesX object
             clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
             TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
                         coords={'channels': clean.info['ch_names'], 'time': clean.data.times,
                                 'samplerate': clean.data.info['sfreq']}).to_hdf(clean_eegfile)
+        # Save cleaned version of data to an MNE raw.fif file
         elif save_format == '.fif':
-            # Save cleaned version of data to an MNE raw.fif file
             clean.save(os.path.join(ephys_dir, '%s_clean_raw.fif' % basename))
 
         del clean, eeg_list, ica_list, S, cS
 
 
-def lcf(S, feat, sfreq, iqr_thresh=3, dilator_width=.1, transition_width=.1):
+def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
 
     dilator_width = int(dilator_width * sfreq)
     transition_width = int(transition_width * sfreq)
