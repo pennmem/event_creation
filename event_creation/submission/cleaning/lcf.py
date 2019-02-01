@@ -1,10 +1,10 @@
+from __future__ import print_function
 import os
 import mne
 import numpy as np
 import scipy.signal as sp_signal
 from ptsa.data.TimeSeriesX import TimeSeriesX
 from ..log import logger
-from __future__ import print_function
 
 
 def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, reref=True, skip_breaks=True,
