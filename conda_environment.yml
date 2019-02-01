@@ -37,4 +37,5 @@ dependencies:
 - mne
 - scikit-image
 - requests
+- ipython-cluster-helper
 

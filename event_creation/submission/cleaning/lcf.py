@@ -1,7 +1,6 @@
 import os
 import mne
 import numpy as np
-import scipy.signal as sp_signal
 from ptsa.data.TimeSeriesX import TimeSeriesX
 from cluster_helper.cluster import cluster_view
 from ..log import logger
@@ -85,170 +84,95 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
         ##########
         #
-        # ICA + LCF (Skip breaks)
+        # ICA
         #
         ##########
+        onsets = []
+        offsets = []
+        sess_start_in_recording = False
+        # Mark all time points before and after the session for exclusion
+        if evs[0].type == 'SESS_START':
+            sess_start_in_recording = True
+            onsets.append(0)
+            offsets.append(evs[0].eegoffset)
+        if evs[-1].type == 'SESS_END':
+            onsets.append(evs[-1].eegoffset)
+            offsets.append(eeg.n_times - 1)
 
-        if skip_breaks:
-            onsets = []
-            offsets = []
-            sess_start_in_recording = False
-            # Mark all time points before and after the session for exclusion
-            if evs[0].type == 'SESS_START':
-                sess_start_in_recording = True
+        # Mark breaks for exclusion
+        # Identify break start/stop times. PyEPL used REST_REWET events; UnityEPL uses BREAK_START/STOP.
+        rest_rewet_idx = np.where(evs.type == 'REST_REWET')[0]
+        break_start_idx = np.where(evs[:-1].type == 'BREAK_START')[0]
+        break_stop_idx = np.where(evs[1:].type == 'BREAK_STOP')[0]
+
+        # Handling for PyEPL studies (only break starts are logged)
+        if len(rest_rewet_idx > 0):
+            onsets = np.concatenate((evs[rest_rewet_idx].eegoffset, onsets))
+            for i, idx in enumerate(rest_rewet_idx):
+                # If break is the final event in the current recording, set the offset as the final sample
+                # Otherwise, set the offset as 5 seconds before the first event following the break
+                if len(evs) == idx + 1:
+                    o = eeg.n_times - 1
+                else:
+                    o = int(evs[idx + 1].eegoffset - 5 * samp_rate)
+                # Make sure that offsets cannot occur before onsets (happens if a break lasts less than 5 seconds)
+                if o <= onsets[i]:
+                    o = onsets[i] + 1
+                offsets.append(o)
+
+        # Handling for UnityEPL studies (break starts and stops are both logged)
+        elif len(break_start_idx) > 0:
+            # If the recordings starts in the middle of a break, the first event will be a break stop.
+            # In this case, the break onset is set as the start of the recording.
+            if evs[0].type == 'BREAK_STOP':
                 onsets.append(0)
                 offsets.append(evs[0].eegoffset)
-            if evs[-1].type == 'SESS_END':
+            # If the recording ends in the middle of a break, the last event will be a break start.
+            # In this case, set the break offset as the last time point in the recording.
+            if evs[-1].type == 'BREAK_START':
                 onsets.append(evs[-1].eegoffset)
-                offsets.append(eeg.n_times - 1)
+                offsets.append(eeg.n_times-1)
+            # All other break starts and stops are contained fully within the recording
+            for i, idx in enumerate(break_start_idx):
+                onsets.append(evs[idx].eegoffset)
+                offsets.append(evs[break_stop_idx[i]].eegoffset)
 
-            # Mark breaks for exclusion
-            # Identify break start/stop times. PyEPL used REST_REWET events; UnityEPL uses BREAK_START/STOP.
-            rest_rewet_idx = np.where(evs.type == 'REST_REWET')[0]
-            break_start_idx = np.where(evs[:-1].type == 'BREAK_START')[0]
-            break_stop_idx = np.where(evs[1:].type == 'BREAK_STOP')[0]
+        # Annotate the EEG object with the timings of excluded periods (pre-session, post-session, & breaks)
+        onsets = np.sort(onsets)
+        offsets = np.sort(offsets)
+        onset_times = eeg.times[onsets]
+        offset_times = eeg.times[offsets]
+        durations = offset_times - onset_times
+        descriptions = ['bad_break' for _ in onsets]
+        annotations = mne.Annotations(eeg.times[onsets], durations, descriptions)
+        eeg.set_annotations(annotations)
 
-            # Handling for PyEPL studies (only break starts are logged)
-            if len(rest_rewet_idx > 0):
-                onsets = np.concatenate((evs[rest_rewet_idx].eegoffset, onsets))
-                for i, idx in enumerate(rest_rewet_idx):
-                    # If break is the final event in the current recording, set the offset as the final sample
-                    # Otherwise, set the offset as 5 seconds before the first event following the break
-                    if len(evs) == idx + 1:
-                        o = eeg.n_times - 1
-                    else:
-                        o = int(evs[idx + 1].eegoffset - 5 * samp_rate)
-                    # Make sure that offsets cannot occur before onsets (happens if a break lasts less than 5 seconds)
-                    if o <= onsets[i]:
-                        o = onsets[i] + 1
-                    offsets.append(o)
+        # Fit a new ICA after each break. For example, a session with 2 breaks would have 3 parts:
+        # start of recording -> end of break 1
+        # after end of break 1 -> end of break 2
+        # after end of break 2 -> end of recording
 
-            # Handling for UnityEPL studies (break starts and stops are both logged)
-            elif len(break_start_idx) > 0:
-                # If the recordings starts in the middle of a break, the first event will be a break stop.
-                # In this case, the break onset is set as the start of the recording.
-                if evs[0].type == 'BREAK_STOP':
-                    onsets.append(0)
-                    offsets.append(evs[0].eegoffset)
-                # If the recording ends in the middle of a break, the last event will be a break start.
-                # In this case, set the break offset as the last time point in the recording.
-                if evs[-1].type == 'BREAK_START':
-                    onsets.append(evs[-1].eegoffset)
-                    offsets.append(eeg.n_times-1)
-                # All other break starts and stops are contained fully within the recording
-                for i, idx in enumerate(break_start_idx):
-                    onsets.append(evs[idx].eegoffset)
-                    offsets.append(evs[break_stop_idx[i]].eegoffset)
+        # Skip over the offset corresponding to the session start, since we only want to split ICA after breaks
+        offsets = offsets[1:] if sess_start_in_recording else offsets
 
-            # Annotate the EEG object with the timings of excluded periods (pre-session, post-session, & breaks)
-            onsets = np.sort(onsets)
-            offsets = np.sort(offsets)
-            onset_times = eeg.times[onsets]
-            offset_times = eeg.times[offsets]
-            durations = offset_times - onset_times
-            descriptions = ['bad_break' for _ in onsets]
-            annotations = mne.Annotations(eeg.times[onsets], durations, descriptions)
-            eeg.set_annotations(annotations)
+        # Create inputs for running LCF in parallel with ipython-cluster-helper
+        inputs = []
+        start = 0
+        for i, stop in enumerate(offsets):
+            d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
+                     lcf_winsize=lcf_winsize, onset=start, offset=stop, eeg=eeg)
+            inputs.append(d)
+            start = stop + 1
 
-            # Fit a new ICA after each break. For example, a session with 2 breaks would have 3 parts:
-            # start of recording -> end of break 1
-            # after end of break 1 -> end of break 2
-            # after end of break 2 -> end of recording
-            """
-            eeg_list = []
-            ica_list = []
-            start = 0
-            for i, stop in enumerate(offsets):
-                # We only want to split the ICA after breaks, so skip over the offset corresponding to the session start
-                if i == 0 and sess_start_in_recording:
-                    continue
+        # Run ICA and then LCF on each part of the sesion in parallel
+        with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=4) as view:
+            eeg_list = view.map(run_split_lcf, inputs)
 
-                ######
-                # ICA
-                ######
-                # Copy the session data, then crop it down to one part of the session
-                eeg_list.append(eeg.copy())
-                eeg_list[-1].crop(eeg.times[start], eeg.times[stop])
-                # Run (or load) ICA for the current part of the session
-                ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, len(ica_list)))
-                if os.path.exists(ica_path):
-                    logger.debug('Loading ICA (part %i) for %s' % (len(ica_list), basename))
-                    ica_list.append(mne.preprocessing.read_ica(ica_path))
-                else:
-                    logger.debug('Running ICA (part %i) on %s' % (len(ica_list), basename))
-                    ica_list.append(mne.preprocessing.ICA(method=method))
-                    ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
-                    ica_list[-1].save(ica_path)
-
-                ######
-                # LCF
-                ######
-                logger.debug('Running LCF (part %i) on %s' % (i, basename))
-                # Convert data to sources
-                S = ica_list[-1].get_sources(eeg_list[-1])._data
-                # Clean artifacts from sources using LCF
-                cS = lcf(S, S, samp_rate, iqr_thresh, lcf_winsize, lcf_winsize)
-                # Reconstruct data from cleaned sources
-                eeg_list[-1]._data = reconstruct_signal(cS, ica_list[-1])
-
-                # Set start point of next ICA to immediately follow the end of the break
-                start = stop + 1
-                del S, cS
-            """
-            # Skip over the offset corresponding to the session start, since we only want to split ICA after breaks
-            offsets = offsets[1:] if sess_start_in_recording else offsets
-
-            # Create inputs for running LCF in parallel with ipython-cluster-helper
-            inputs = []
-            start = 0
-            for i, stop in enumerate(offsets):
-                d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
-                         lcf_winsize=lcf_winsize, onset=start, offset=stop, eeg=eeg)
-                inputs.append(d)
-                start = stop + 1
-
-            # Run ICA and then LCF on each part of the sesion in parallel
-            with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=4) as view:
-                eeg_list = view.map(run_split_lcf, inputs)
-
-            # Concatenate the cleaned pieces of the recording back together
-            logger.debug('Constructing cleaned data file for {}'.format(basename))
-            clean = mne.concatenate_raws(eeg_list)
-            del eeg_list
-            logger.debug('Saving cleaned data for {}'.format(basename))
-
-        ##########
-        #
-        # ICA + LCF (Include breaks)
-        #
-        ##########
-
-        else:
-            ######
-            # ICA
-            ######
-            ica_path = os.path.join(ephys_dir, '%s-ica.fif' % basename)
-            if os.path.exists(ica_path):
-                logger.debug('Loading ICA for %s' % basename)
-                ica = mne.preprocessing.read_ica(ica_path)
-            else:
-                logger.debug('Running ICA for %s' % basename)
-                ica = mne.preprocessing.ICA(method=method)
-                ica.fit(eeg)
-                ica.save(ica_path)
-
-            ######
-            # LCF
-            ######
-            logger.debug('Running LCF on %s' % basename)
-            # Convert data to sources
-            S = ica.get_sources(eeg)._data
-            # Clean artifacts from sources using LCF
-            cS = lcf(S, S, samp_rate, iqr_thresh, lcf_winsize, lcf_winsize)
-            # Reconstruct data from cleaned sources
-            clean = eeg.copy()
-            clean._data = reconstruct_signal(cS, ica)
-            del S, cS
+        # Concatenate the cleaned pieces of the recording back together
+        logger.debug('Constructing cleaned data file for {}'.format(basename))
+        clean = mne.concatenate_raws(eeg_list)
+        del eeg_list
+        logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
         #
@@ -265,6 +189,90 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
 
 def run_split_lcf(inputs):
+    import os
+    import mne
+    from ..log import logger
+
+    def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
+        import numpy as np
+        import scipy.signal as sp_signal
+
+        dilator_width = int(dilator_width * sfreq)
+        transition_width = int(transition_width * sfreq)
+
+        ##########
+        #
+        # Classification
+        #
+        ##########
+
+        # Find interquartile range of each component
+        p75 = np.percentile(feat, 75, axis=1)
+        p25 = np.percentile(feat, 25, axis=1)
+        iqr = p75 - p25
+
+        # Tune artifact thresholds for each component according to the IQR and the iqr_thresh parameter
+        pos_thresh = p75 + iqr * iqr_thresh
+        neg_thresh = p25 - iqr * iqr_thresh
+
+        # Detect artifacts using the IQR threshold. Dilate the detected zones to account for the mixer transition equation
+        ctrl_signal = np.zeros(feat.shape, dtype=float)
+        dilator = np.ones(dilator_width)
+        for i in range(ctrl_signal.shape[0]):
+            ctrl_signal[i, :] = (feat[i, :] > pos_thresh[i]) | (feat[i, :] < neg_thresh[i])
+            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], dilator, 'same')
+        del p75, p25, iqr, pos_thresh, neg_thresh, dilator
+
+        # Binarize signal
+        ctrl_signal = (ctrl_signal > 0).astype(float)
+
+        ##########
+        #
+        # Mixing
+        #
+        ##########
+
+        # Allocate normalized transition window
+        trans_win = sp_signal.hann(transition_width, True)
+        trans_win /= trans_win.sum()
+
+        # Pad extremes of control signal
+        pad_width = [tuple([0, 0])] * ctrl_signal.ndim
+        pad_size = int(transition_width / 2 + 1)
+        pad_width[1] = (pad_size, pad_size)
+        ctrl_signal = np.pad(ctrl_signal, tuple(pad_width), mode='edge')
+        del pad_width
+
+        # Combine the transition window and the control signal to build a final transition-control signal, which can be applied to the components
+        for i in range(ctrl_signal.shape[0]):
+            ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], trans_win, 'same')
+        del trans_win
+
+        # Remove padding from transition-control signal
+        rm_pad_slice = [slice(None)] * ctrl_signal.ndim
+        rm_pad_slice[1] = slice(pad_size, -pad_size)
+        ctrl_signal = ctrl_signal[rm_pad_slice]
+        del rm_pad_slice, pad_size
+
+        # Mix sources with control signal to get cleaned sources
+        S_clean = S * (1 - ctrl_signal)
+
+        return S_clean
+
+    def reconstruct_signal(sources, ica):
+        import numpy as np
+
+        # Mix sources to translate back into PCA components (PCA components x Time)
+        data = np.dot(ica.mixing_matrix_, sources)
+
+        # Mix PCA components to translate back into original EEG channels (Channels x Time)
+        data = np.dot(np.linalg.inv(ica.pca_components_), data)
+
+        # Invert transformations that MNE performs prior to PCA
+        data += ica.pca_mean_[:, None]
+        data *= ica.pre_whitener_
+
+        return data
 
     # Pull parameters out of input dictionary
     index = inputs['index']
@@ -304,82 +312,3 @@ def run_split_lcf(inputs):
     cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize)
     # Reconstruct data from cleaned sources
     eeg._data = reconstruct_signal(cS, ica)
-
-
-def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
-
-    dilator_width = int(dilator_width * sfreq)
-    transition_width = int(transition_width * sfreq)
-
-    ##########
-    #
-    # Classification
-    #
-    ##########
-
-    # Find interquartile range of each component
-    p75 = np.percentile(feat, 75, axis=1)
-    p25 = np.percentile(feat, 25, axis=1)
-    iqr = p75 - p25
-
-    # Tune artifact thresholds for each component according to the IQR and the iqr_thresh parameter
-    pos_thresh = p75 + iqr * iqr_thresh
-    neg_thresh = p25 - iqr * iqr_thresh
-
-    # Detect artifacts using the IQR threshold. Dilate the detected zones to account for the mixer transition equation
-    ctrl_signal = np.zeros(feat.shape, dtype=float)
-    dilator = np.ones(dilator_width)
-    for i in range(ctrl_signal.shape[0]):
-        ctrl_signal[i, :] = (feat[i, :] > pos_thresh[i]) | (feat[i, :] < neg_thresh[i])
-        ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], dilator, 'same')
-    del p75, p25, iqr, pos_thresh, neg_thresh, dilator
-
-    # Binarize signal
-    ctrl_signal = (ctrl_signal > 0).astype(float)
-
-    ##########
-    #
-    # Mixing
-    #
-    ##########
-
-    # Allocate normalized transition window
-    trans_win = sp_signal.hann(transition_width, True)
-    trans_win /= trans_win.sum()
-
-    # Pad extremes of control signal
-    pad_width = [tuple([0, 0])] * ctrl_signal.ndim
-    pad_size = int(transition_width / 2 + 1)
-    pad_width[1] = (pad_size, pad_size)
-    ctrl_signal = np.pad(ctrl_signal, tuple(pad_width), mode='edge')
-    del pad_width
-
-    # Combine the transition window and the control signal to build a final transition-control signal, which can be applied to the components
-    for i in range(ctrl_signal.shape[0]):
-        ctrl_signal[i, :] = np.convolve(ctrl_signal[i, :], trans_win, 'same')
-    del trans_win
-
-    # Remove padding from transition-control signal
-    rm_pad_slice = [slice(None)] * ctrl_signal.ndim
-    rm_pad_slice[1] = slice(pad_size, -pad_size)
-    ctrl_signal = ctrl_signal[rm_pad_slice]
-    del rm_pad_slice, pad_size
-
-    # Mix sources with control signal to get cleaned sources
-    S_clean = S * (1 - ctrl_signal)
-
-    return S_clean
-
-
-def reconstruct_signal(sources, ica):
-    # Mix sources to translate back into PCA components (PCA components x Time)
-    data = np.dot(ica.mixing_matrix_, sources)
-
-    # Mix PCA components to translate back into original EEG channels (Channels x Time)
-    data = np.dot(np.linalg.inv(ica.pca_components_), data)
-
-    # Invert transformations that MNE performs prior to PCA
-    data += ica.pca_mean_[:, None]
-    data *= ica.pre_whitener_
-
-    return data
