@@ -84,7 +84,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
 
         ##########
         #
-        # ICA (Skip breaks)
+        # ICA + LCF (Skip breaks)
         #
         ##########
 
@@ -160,6 +160,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 # We only want to split the ICA after breaks, so skip over the offset corresponding to the session start
                 if i == 0 and sess_start_in_recording:
                     continue
+
+                ######
+                # ICA
+                ######
                 # Copy the session data, then crop it down to one part of the session
                 eeg_list.append(eeg.copy())
                 eeg_list[-1].crop(eeg.times[start], eeg.times[stop])
@@ -167,41 +171,54 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 logger.debug('Running ICA (part %i) on %s' % (i, basename))
                 ica_list.append(mne.preprocessing.ICA(method=method))
                 ica_list[-1].fit(eeg_list[-1], reject_by_annotation=True)
+
+                ######
+                # LCF
+                ######
+                logger.debug('Running LCF (part %i) on %s' % (i, basename))
+                # Convert data to sources
+                S = ica_list[-1].get_sources(eeg_list[-1])._data
+                # Clean artifacts from sources using LCF
+                cS = lcf(S, S, samp_rate, iqr_thresh, lcf_winsize, lcf_winsize)
+                # Reconstruct data from cleaned sources
+                eeg_list[-1]._data = reconstruct_signal(cS, ica_list[-1])
+
                 # Set start point of next ICA to immediately follow the end of the break
                 start = stop + 1
+                del S, cS
+
+            # Concatenate the cleaned pieces of the recording back together
+            logger.debug('Constructing cleaned data file for {}'.format(basename))
+            clean = mne.concatenate_raws(eeg_list)
+            del eeg_list, ica_list
+            logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
         #
-        # ICA (Include breaks)
+        # ICA + LCF (Include breaks)
         #
         ##########
 
         else:
-            logger.debug('Running ICA on {}'.format(basename))
+            ######
+            # ICA
+            ######
+            logger.debug('Running ICA on %s' % basename)
             ica = mne.preprocessing.ICA(method=method)
             ica.fit(eeg)
-            eeg_list = [eeg]
-            ica_list = [ica]
 
-        ##########
-        #
-        # LCF
-        #
-        ##########
-
-        for i, ica in enumerate(ica_list):
-            logger.debug('Running LCF (part %i) on %s' % (i, basename))
+            ######
+            # LCF
+            ######
+            logger.debug('Running LCF on %s' % basename)
             # Convert data to sources
-            S = ica.get_sources(eeg_list[i])._data
+            S = ica.get_sources(eeg)._data
             # Clean artifacts from sources using LCF
             cS = lcf(S, S, samp_rate, iqr_thresh, lcf_winsize, lcf_winsize)
             # Reconstruct data from cleaned sources
-            eeg_list[i]._data = reconstruct_signal(cS, ica_list[i])
-
-        # Concatenate the cleaned pieces of the recording back together
-        logger.debug('Constructing cleaned data file for {}'.format(basename))
-        clean = mne.concatenate_raws(eeg_list)
-        logger.debug('Saving cleaned data for {}'.format(basename))
+            clean = eeg.copy()
+            clean._data = reconstruct_signal(cS, ica)
+            del S, cS
 
         ##########
         #
@@ -211,10 +228,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         # Save cleaned version of data to hdf as a TimeSeriesX object
         clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
         TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
-                    coords={'channels': clean.info['ch_names'], 'time': clean.data.times,
-                            'samplerate': clean.data.info['sfreq']}).to_hdf(clean_eegfile)
+                    coords={'channels': clean.info['ch_names'], 'time': clean.times,
+                            'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
 
-        del clean, eeg_list, ica_list, S, cS
+        del clean
 
 
 def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
