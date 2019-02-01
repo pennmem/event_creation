@@ -3,6 +3,7 @@ import mne
 import numpy as np
 import scipy.signal as sp_signal
 from ptsa.data.TimeSeriesX import TimeSeriesX
+from cluster_helper.cluster import cluster_view
 from ..log import logger
 
 
@@ -153,6 +154,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             # start of recording -> end of break 1
             # after end of break 1 -> end of break 2
             # after end of break 2 -> end of recording
+            """
             eeg_list = []
             ica_list = []
             start = 0
@@ -192,11 +194,27 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                 # Set start point of next ICA to immediately follow the end of the break
                 start = stop + 1
                 del S, cS
+            """
+            # Skip over the offset corresponding to the session start, since we only want to split ICA after breaks
+            offsets = offsets[1:] if sess_start_in_recording else offsets
+
+            # Create inputs for running LCF in parallel with ipython-cluster-helper
+            inputs = []
+            start = 0
+            for i, stop in enumerate(offsets):
+                d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
+                         lcf_winsize=lcf_winsize, onset=start, offset=stop, eeg=eeg)
+                inputs.append(d)
+                start = stop + 1
+
+            # Run ICA and then LCF on each part of the sesion in parallel
+            with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=4) as view:
+                eeg_list = view.map(run_split_lcf, inputs)
 
             # Concatenate the cleaned pieces of the recording back together
             logger.debug('Constructing cleaned data file for {}'.format(basename))
             clean = mne.concatenate_raws(eeg_list)
-            del eeg_list, ica_list
+            del eeg_list
             logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
@@ -244,6 +262,48 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                             'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
 
         del clean
+
+
+def run_split_lcf(inputs):
+
+    # Pull parameters out of input dictionary
+    index = inputs['index']
+    basename = inputs['basename']
+    ephys_dir = inputs['ephys_dir']
+    method = inputs['method']
+    iqr_thresh = inputs['iqr_thresh']
+    lcf_winsize = inputs['lcf_winsize']
+    onset = inputs['onset']
+    offset = inputs['offset']
+    raw = inputs['eeg']
+
+    ######
+    # ICA
+    ######
+    # Copy the session data, then crop it down to one part of the session
+    eeg = raw.copy()
+    eeg.crop(eeg.times[onset], eeg.times[offset])
+    # Run (or load) ICA for the current part of the session
+    ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, index))
+    if os.path.exists(ica_path):
+        logger.debug('Loading ICA (part %i) for %s' % (index, basename))
+        ica = mne.preprocessing.read_ica(ica_path)
+    else:
+        logger.debug('Running ICA (part %i) on %s' % (index, basename))
+        ica = mne.preprocessing.ICA(method=method)
+        ica.fit(eeg, reject_by_annotation=True)
+        ica.save(ica_path)
+
+    ######
+    # LCF
+    ######
+    logger.debug('Running LCF (part %i) on %s' % (index, basename))
+    # Convert data to sources
+    S = ica.get_sources(eeg)._data
+    # Clean artifacts from sources using LCF
+    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize)
+    # Reconstruct data from cleaned sources
+    eeg._data = reconstruct_signal(cS, ica)
 
 
 def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
