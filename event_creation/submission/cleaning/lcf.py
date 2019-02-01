@@ -42,7 +42,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
     """
 
     # Loop over all of the session's EEG recordings
-    for basename in eeg_dict:
+    for eegfile in eeg_dict:
+        basename = os.path.splitext(eegfile)[0]
         logger.debug('Cleaning data from {}'.format(basename))
 
         # Make sure LCF hasn't already been run for this file (prevents re-running LCF during math event creation)
@@ -50,9 +51,9 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             continue
 
         # Select EEG data and events from current recording
-        eeg = eeg_dict[basename]
+        eeg = eeg_dict[eegfile]
         samp_rate = eeg.info['sfreq']
-        evs = events[events.eegfile == os.path.join(ephys_dir, '%s.bdf' % basename)]
+        evs = events[events.eegfile == os.path.join(ephys_dir, eegfile)]
 
         ##########
         #
