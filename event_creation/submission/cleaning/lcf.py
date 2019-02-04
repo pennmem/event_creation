@@ -1,3 +1,4 @@
+#from __future__ import print_function
 import os
 import mne
 import numpy as np
@@ -74,15 +75,15 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         eeg.pick_types(eeg=True, eog=False)
 
         # High-pass filter the data, since LCF will not work properly if the baseline voltage shifts
-        eeg.filter(highpass_freq, None, fir_design='firwin')
+        #eeg.filter(highpass_freq, None, fir_design='firwin')
 
         # Load bad channel info
         badchan_file = os.path.join(ephys_dir, '%s_bad_chan.txt' % basename)
         eeg.load_bad_channels(badchan_file)
 
         # Rereference data using the common average reference
-        if reref:
-            eeg.set_eeg_reference(projection=False)
+        #if reref:
+        #    eeg.set_eeg_reference(projection=False)
 
         # By default, mne excludes bad channels during ICA. If not intending to exclude bad chans, clear bad chan list.
         if not exclude_bad_channels:
@@ -155,7 +156,35 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         eeg.set_annotations(annotations)
 
         # Skip over the offset for the session start when splitting, as we only want to split after breaks
-        offsets = offsets[1:] if sess_start_in_recording else offsets
+        split_samples = offsets[1:] if sess_start_in_recording else offsets
+
+        # Create file with information on partitions and when breaks occur
+        partition_info = [['index', 'start_sample', 'end_sample']]
+        start = 0
+        for i, stop in enumerate(split_samples):
+            partition_info.append([str(i), str(start), str(stop)])  # Add partition number and start and end samples
+            for j, onset in enumerate(onsets):  # List session break periods that occur in that partition
+                if start <= onset < stop:
+                    partition_info[-1].append(str(onsets[j]))
+                    partition_info[-1].append(str(offsets[j]))
+            start = stop + 1
+        # Add extra columns based on the maximum number of break periods that occurs in any one partition
+        ncol = max([len(row) for row in partition_info[1:]])
+        for i, row in enumerate(partition_info):
+            if i == 0:  # Header row
+                j = 0
+                while len(partition_info[0]) < ncol:
+                    partition_info[0] += ['skip_start%i' % j, 'skip_end%i' % j]
+                    j += 1
+            else:  # Data rows
+                partition_info[i] += ['' for _ in range(ncol - len(partition_info[i]))]
+            partition_info[i] = '\t'.join(partition_info[i])
+
+        # Write break/partition info to a tsv file
+        breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
+        with open(breakfile_path, 'w') as f:
+            f.writelines(partition_info)
+        os.chmod(breakfile_path, 644)
 
         ##########
         #
@@ -166,7 +195,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         # Create inputs for running LCF in parallel with ipython-cluster-helper
         inputs = []
         start = 0
-        for i, stop in enumerate(offsets):
+        for i, stop in enumerate(split_samples):
+
             d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
                      lcf_winsize=lcf_winsize)
             inputs.append(d)
@@ -233,9 +263,10 @@ def run_split_lcf(inputs):
     """
     import os
     import mne
+    import pandas as pd
     from ..log import logger
 
-    def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width):
+    def lcf(S, feat, sfreq, iqr_thresh, dilator_width, transition_width, ignore=None):
         import numpy as np
         import scipy.signal as sp_signal
 
@@ -247,10 +278,13 @@ def run_split_lcf(inputs):
         # Classification
         #
         ##########
-
         # Find interquartile range of each component
-        p75 = np.percentile(feat, 75, axis=1)
-        p25 = np.percentile(feat, 25, axis=1)
+        if ignore is None:
+            p75 = np.percentile(feat, 75, axis=1)
+            p25 = np.percentile(feat, 25, axis=1)
+        else:
+            p75 = np.percentile(feat[:, ~ignore], 75, axis=1)
+            p25 = np.percentile(feat[:, ~ignore], 25, axis=1)
         iqr = p75 - p25
 
         # Tune artifact thresholds for each component according to the IQR and the iqr_thresh parameter
@@ -329,6 +363,19 @@ def run_split_lcf(inputs):
     eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
     os.remove(split_eeg_path)
 
+    # Read locations of breaks and create a mask for use in leaving breaks out of IQR calculation
+    ignore = np.zeros(eeg._data.shape[1], dtype=bool)
+    breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
+    breaks = pd.read_csv(breakfile_path, delimiter='\t')
+    breaks = breaks.loc[index]
+    start = int(breaks['start'])
+    i = 0
+    while 'skip_start%i' % i in breaks and not np.isnan(breaks['skip_start%i' % i]):
+        skip_start = breaks['skip_start%i' % i] - start
+        skip_end = breaks['skip_end%i'] - start
+        ignore[skip_start:skip_end+1] = True
+        i += 1
+
     ######
     # ICA
     ######
@@ -350,7 +397,7 @@ def run_split_lcf(inputs):
     # Convert data to sources
     S = ica.get_sources(eeg)._data
     # Clean artifacts from sources using LCF
-    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize)
+    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
     # Reconstruct data from cleaned sources
     eeg._data = reconstruct_signal(cS, ica)
 
