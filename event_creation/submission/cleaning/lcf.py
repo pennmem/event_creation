@@ -369,7 +369,7 @@ def run_split_lcf(inputs):
     breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
     breaks = pd.read_csv(breakfile_path, delimiter='\t')
     breaks = breaks.loc[index]
-    start = int(breaks['start'])
+    start = int(breaks['start_sample'])
     i = 0
     while 'skip_start%i' % i in breaks and not np.isnan(breaks['skip_start%i' % i]):
         skip_start = breaks['skip_start%i' % i] - start
@@ -403,4 +403,4 @@ def run_split_lcf(inputs):
     eeg._data = reconstruct_signal(cS, ica)
 
     clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
-    eeg.save(clean_eegfile)
+    eeg.save(clean_eegfile, overwrite=True)
