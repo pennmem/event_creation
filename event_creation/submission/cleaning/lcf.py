@@ -214,6 +214,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
                     coords={'channels': clean.info['ch_names'], 'time': clean.times,
                             'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
+        os.chmod(clean_eegfile, 644)
 
         del clean
 
