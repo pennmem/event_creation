@@ -1063,7 +1063,7 @@ class ScalpReader(EEG_reader):
         # Save list of bad channels to a text file
         badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan.txt')
         np.savetxt(badchan_file, badch, fmt='%s')
-        os.chmod(badchan_file, 644)
+        os.chmod(badchan_file, 0644)
 
         # Save a TSV file with extended info about each channel's scores
         badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan_info.tsv')
@@ -1071,7 +1071,7 @@ class ScalpReader(EEG_reader):
             f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
             for i, ch in enumerate(self.data.ch_names):
                 f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
-        os.chmod(badchan_file, 644)
+        os.chmod(badchan_file, 0644)
 
     def split_data(self, location, basename):
         """

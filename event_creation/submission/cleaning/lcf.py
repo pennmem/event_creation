@@ -184,7 +184,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
         with open(breakfile_path, 'w') as f:
             f.writelines(partition_info)
-        os.chmod(breakfile_path, 644)
+        os.chmod(breakfile_path, 0644)
 
         ##########
         #
@@ -244,7 +244,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
                     coords={'channels': clean.info['ch_names'], 'time': clean.times,
                             'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
-        os.chmod(clean_eegfile, 644)
+        os.chmod(clean_eegfile, 0644)
 
         del clean
 
