@@ -372,8 +372,8 @@ def run_split_lcf(inputs):
     start = int(breaks['start_sample'])
     i = 0
     while 'skip_start%i' % i in breaks and not np.isnan(breaks['skip_start%i' % i]):
-        skip_start = breaks['skip_start%i' % i] - start
-        skip_end = breaks['skip_end%i' % i] - start
+        skip_start = int(breaks['skip_start%i' % i]) - start
+        skip_end = int(breaks['skip_end%i' % i]) - start
         ignore[skip_start:skip_end+1] = True
         i += 1
 
