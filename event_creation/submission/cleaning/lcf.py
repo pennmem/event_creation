@@ -206,7 +206,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             split_eeg = eeg.copy()
             split_eeg.crop(split_eeg.times[start], split_eeg.times[stop])
             split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, i))
-            split_eeg.save(split_eeg_path)
+            split_eeg.save(split_eeg_path, overwrite=True)
 
             # Set the next part of the EEG recording to begin one sample after the current one
             start = stop + 1
