@@ -1,4 +1,3 @@
-#from __future__ import print_function
 import os
 import mne
 import numpy as np
@@ -75,15 +74,15 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         eeg.pick_types(eeg=True, eog=False)
 
         # High-pass filter the data, since LCF will not work properly if the baseline voltage shifts
-        #eeg.filter(highpass_freq, None, fir_design='firwin')
+        eeg.filter(highpass_freq, None, fir_design='firwin')
 
         # Load bad channel info
         badchan_file = os.path.join(ephys_dir, '%s_bad_chan.txt' % basename)
         eeg.load_bad_channels(badchan_file)
 
         # Rereference data using the common average reference
-        #if reref:
-        #    eeg.set_eeg_reference(projection=False)
+        if reref:
+            eeg.set_eeg_reference(projection=False)
 
         # By default, mne excludes bad channels during ICA. If not intending to exclude bad chans, clear bad chan list.
         if not exclude_bad_channels:
