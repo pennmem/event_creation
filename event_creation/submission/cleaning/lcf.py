@@ -185,8 +185,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         try:
             with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
                 eeg_list = view.map(run_split_lcf, inputs)
-        except Exception as e:
-            logger.warn(e)
+        except Exception:
+            pass
 
         # Concatenate the cleaned pieces of the recording back together
         logger.debug('Constructing cleaned data file for {}'.format(basename))
