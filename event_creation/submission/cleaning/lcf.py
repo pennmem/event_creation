@@ -184,13 +184,23 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
         # when successful, so avoid crashing event creation if an error comes up here.
         try:
             with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
-                eeg_list = view.map(run_split_lcf, inputs)
+                view.map(run_split_lcf, inputs)
         except Exception:
+            logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
+                        ' continue anyway...')
             pass
 
-        # Concatenate the cleaned pieces of the recording back together
+        # Load cleaned EEG data partitions
+        clean = []
+        for d in inputs:
+            index = d['index']
+            clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
+            clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
+            os.remove(clean_eegfile)
+
+        # Concatenate the cleaned partitions of the recording back together
         logger.debug('Constructing cleaned data file for {}'.format(basename))
-        clean = mne.concatenate_raws(eeg_list)
+        clean = mne.concatenate_raws(clean)
         logger.debug('Saving cleaned data for {}'.format(basename))
 
         ##########
@@ -205,7 +215,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
                     coords={'channels': clean.info['ch_names'], 'time': clean.times,
                             'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
 
-        del eeg_list, clean
+        del clean
 
 
 def run_split_lcf(inputs):
@@ -343,4 +353,5 @@ def run_split_lcf(inputs):
     # Reconstruct data from cleaned sources
     eeg._data = reconstruct_signal(cS, ica)
 
-    return eeg
+    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
+    eeg.save(clean_eegfile)
