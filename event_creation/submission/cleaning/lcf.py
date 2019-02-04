@@ -179,11 +179,12 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, rer
             else:  # Data rows
                 partition_info[i] += ['' for _ in range(ncol - len(partition_info[i]))]
             partition_info[i] = '\t'.join(partition_info[i])
+        partition_info = '\n'.join(partition_info)
 
         # Write break/partition info to a tsv file
         breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
         with open(breakfile_path, 'w') as f:
-            f.writelines(partition_info)
+            f.write(partition_info)
         os.chmod(breakfile_path, 0644)
 
         ##########
