@@ -975,7 +975,7 @@ class ScalpReader(EEG_reader):
 
         :param location: A string denoting the directory in which the channel files are to be written
         """
-        logger.info("Pre-processing EEG data into {}/{}".format(location, self.basename))
+        logger.info("Pre-processing EEG data into {}/{}".format(location, self.basename + self.filetype))
         self.save_loc = location
 
         # For BDF files, repair the header if it is corrupted due to the recording being improperly terminated
@@ -990,9 +990,9 @@ class ScalpReader(EEG_reader):
 
         # Create a link to the raw data file in the ephys current_processed directory
         os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))),
-                   os.path.join(location, self.basename))
+                   os.path.join(location, self.basename + self.filetype))
 
-        self.write_sources(location, self.basename)
+        self.write_sources(location, self.basename + self.filetype)
         return True
 
     def get_start_time(self):
