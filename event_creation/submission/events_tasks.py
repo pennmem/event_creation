@@ -3,7 +3,7 @@ import os
 import re
 import traceback
 import requests
-
+import json
 import numpy as np
 from ptsa.data.readers import BaseEventReader
 
@@ -43,7 +43,6 @@ from .quality.util import get_time_field
 from .viewers.recarray import to_json, from_json
 from .log import logger
 from .exc import NoEventsError, ProcessingError
-import json
 
 
 class SplitEEGTask(PipelineTask):
@@ -72,7 +71,6 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = [group[0] if len(group) == 1 else group for group in raw_eeg_groups]
         return raw_eeg_groups
 
-
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         raw_eegs = files['raw_eeg']
@@ -97,8 +95,8 @@ class SplitEEGTask(PipelineTask):
                         continue
                 # Create EEG reader
                 reader = get_eeg_reader(raw_eeg, None)
-                # Post-process EEG file (note: does not actually "split" the data for scalp EEG sessions)
-                success[i] = reader.split_data(os.path.join(self.pipeline.destination), os.path.basename(raw_eeg))
+                # Set up ephys directory (note: does not actually "split" the data for scalp EEG sessions)
+                success[i] = reader.process_eeg(os.path.join(self.pipeline.destination))
 
         # RAM post-processing
         else:
@@ -153,51 +151,48 @@ class MatlabEEGConversionTask(PipelineTask):
 class EventCreationTask(PipelineTask):
 
     @classmethod
-    def R1_PARSERS(cls,sys_num):
-        if sys_num<=3.0:
+    def R1_PARSERS(cls, sys_num):
+        if sys_num <= 3.0:
             return {
-            'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
-            'catFR': CatFRSessionLogParser,
-            'PS': PSLogParser,  # which has its own dispatching system ...
-            'TH': THSessionLogParser,
-            'THR': THRSessionLogParser,
-        }
-        elif sys_num<3.3:
+                'FR': FRSessionLogParser,
+                'PAL': PALSessionLogParser,
+                'catFR': CatFRSessionLogParser,
+                'PS': PSLogParser,  # which has its own dispatching system ...
+                'TH': THSessionLogParser,
+                'THR': THRSessionLogParser,
+            }
+        elif sys_num < 3.3:
             return {
                 'FR': FRSys3LogParser,
                 'catFR': catFRSys3LogParser,
                 'PS': PSLogParser,
-                'PS_FR':PSLogParser,
-                'PS_catFR':PSLogParser,
+                'PS_FR': PSLogParser,
+                'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
             }
-        elif sys_num==3.3:
+        elif sys_num == 3.3:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR':catFRHostPCLogParser,
-                'PS':PSLogParser,
-                'PS_FR':PSLogParser,
-                'PS_catFR':PSLogParser,
-                'PAL':PALSys3LogParser,
+                'catFR': catFRHostPCLogParser,
+                'PS': PSLogParser,
+                'PS_FR': PSLogParser,
+                'PS_catFR': PSLogParser,
+                'PAL': PALSys3LogParser,
             }
-        elif sys_num==3.4:
+        elif sys_num == 3.4:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR':catFRHostPCLogParser,
-                'PS':PSLogParser,
-                'PS_FR':PSLogParser,
-                'PS_catFR':PSLogParser,
-                'PAL':PALSys3LogParser,
-                'TICL_FR':FRHostPCLogParser,
+                'catFR': catFRHostPCLogParser,
+                'PS': PSLogParser,
+                'PS_FR': PSLogParser,
+                'PS_catFR': PSLogParser,
+                'PAL': PALSys3LogParser,
+                'TICL_FR': FRHostPCLogParser,
             }
 
         else:
             raise KeyError
-
-
-
 
     LTP_PARSERS = {
                     'ltpFR': LTPFRSessionLogParser,
@@ -224,7 +219,7 @@ class EventCreationTask(PipelineTask):
                 try:
                     self._parser_type = self.R1_PARSERS(self.r1_sys_num)[re.sub(r'[\d.]', '', new_experiment)]
                 except KeyError:
-                    raise  KeyError('Experiment %s not supported for system %s'%(new_experiment,self.r1_sys_num))
+                    raise KeyError('Experiment %s not supported for system %s' % (new_experiment, self.r1_sys_num))
             elif self.protocol == 'ltp':
                 self._parser_type = self.LTP_PARSERS[self.experiment]
         return self._parser_type
@@ -233,7 +228,7 @@ class EventCreationTask(PipelineTask):
                  parser_type=None, critical=True, **kwargs):
         super(EventCreationTask, self).__init__(critical)
         experiment = kwargs.get('new_experiment') or experiment
-        self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp= experiment, sess=session)
+        self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.protocol = protocol
         self.subject = subject
         self.montage = montage
@@ -244,20 +239,20 @@ class EventCreationTask(PipelineTask):
         self.event_label = event_label
         self.filename = '{label}_events.json'.format(label=event_label)
         self.pipeline = None
-        self._parser_type=parser_type
+        self._parser_type = parser_type
 
     def set_pipeline(self, pipeline):
         self.pipeline = pipeline
 
     def _run(self, files, db_folder):
         logger.set_label(self.name)
-        logger.debug('self._parser_type is %s'%(None if not self._parser_type else str(self._parser_type)))
-        if self.r1_sys_num>=3:
+        logger.debug('self._parser_type is %s' % (None if not self._parser_type else str(self._parser_type)))
+        if self.r1_sys_num >= 3:
             with open(files['event_log'][0]) as event_log:
-                self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.','_')
+                self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.', '_')
 
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
-        logger.debug('Using %s'%str(self.parser_type))
+        logger.debug('Using %s' % str(self.parser_type))
         unaligned_events = parser.parse()
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
         if self.protocol == 'ltp':
@@ -271,11 +266,11 @@ class EventCreationTask(PipelineTask):
             del aligner
             events = artifact_detector.run()
             # Create a cleaned version of the EEG data using localized component filtering
-            run_lcf(events, artifact_detector.eeg, ephys_dir, method='fastica', highpass_freq=.5, reref=True,
-                    exclude_bad_channels=False, iqr_thresh=3, lcf_winsize=.1)
+            run_lcf(events, artifact_detector.eeg, ephys_dir, method='fastica', highpass_freq=.5,
+                    badchan_method='interpolate', iqr_thresh=3, lcf_winsize=.1)
             del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
-        elif self.protocol=='r1':
+        elif self.protocol == 'r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
             if self.event_label == 'ps4':
                 events = unaligned_events
@@ -286,7 +281,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0<=self.r1_sys_num<=3.3:
+                    elif 3.0 <= self.r1_sys_num <= 3.3:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
@@ -307,11 +302,11 @@ class EventCreationTask(PipelineTask):
                         events = aligner.align(start_type)
                     else:
                         events = unaligned_events
-                    if type(aligner)==System3Aligner:
+                    if type(aligner) == System3Aligner:
                         aligner.apply_eeg_file(events)
 
         events = parser.clean_events(events) if events.shape != () else events
-        self.pipeline.importer.tests.extend(parser.check_event_quality(events,files))
+        self.pipeline.importer.tests.extend(parser.check_event_quality(events, files))
         self.create_file(self.filename, to_json(events),
                          '{}_events'.format(self.event_label))
 
@@ -321,8 +316,8 @@ class PruneEventsTask(PipelineTask):
         super(PruneEventsTask, self).__init__()
         self.filter = cond
 
-    def _run(self,files,db_folder):
-        event_files = glob.glob(os.path.join(db_folder,'*_events.json'))
+    def _run(self, files, db_folder):
+        event_files = glob.glob(os.path.join(db_folder, '*_events.json'))
         for fid in event_files:
             events = from_json(fid)
             filtered_events = events[self.filter(events)]
@@ -342,39 +337,39 @@ class RecognitionFlagTask(PipelineTask):
 
 class ReportLaunchTask(PipelineTask):
 
-    def __init__(self,subject,experiment,session):
+    def __init__(self, subject, experiment, session):
         super(ReportLaunchTask, self).__init__(critical=False)
         self.subject = subject
         self.experiment = experiment
-        self.session=session
+        self.session = session
 
     def request(self):
         from configuration import paths
         api_url = paths.report_url
         parameters = {
-            'username':'cmlbrainbuilder',
-            'password':'BoBtheBuilder',
+            'username': 'cmlbrainbuilder',
+            'password': 'BoBtheBuilder',
             'subject': self.subject,
-            'experiment':self.experiment,
-            'sessions':self.session,
-            'joint_report':False,
+            'experiment': self.experiment,
+            'sessions': self.session,
+            'joint_report': False,
             'rerun': True,
             'use_classifier_excluded_leads': False,
-            'save_location':'/scratch/report_database/html_reports', # TODO: CHANGE/PARAMETRIZE THIS
-            'report_database':'/scratch/report_database'
+            'save_location': '/scratch/report_database/html_reports',  # TODO: CHANGE/PARAMETRIZE THIS
+            'report_database': '/scratch/report_database'
         }
         response = None
         error = None
         try:
-            response = requests.post(api_url,data=parameters)
+            response = requests.post(api_url, data=parameters)
             succeeded = response.status_code == 200
         except requests.RequestException as error:
             succeeded = False
         if not succeeded:
             if response is not None:
-                logger.error('Request failed with error code %s'%response.status_code)
+                logger.error('Request failed with error code %s' % response.status_code)
             else:
-                logger.error('Request failed with message %s'%str(error))
+                logger.error('Request failed with message %s' % str(error))
 
     def _run(self, files, db_folder):
         self.request()
@@ -382,7 +377,7 @@ class ReportLaunchTask(PipelineTask):
 
 class EventCombinationTask(PipelineTask):
 
-    COMBINED_LABEL='all'
+    COMBINED_LABEL = 'all'
 
     def __init__(self, event_labels, sort_field=None, critical=True):
         super(EventCombinationTask, self).__init__(critical)
@@ -398,7 +393,7 @@ class EventCombinationTask(PipelineTask):
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
         event_files = [f for f in event_files if os.path.isfile(f)]
         events = [from_json(event_file) for event_file in event_files]
-        combiner = EventCombiner(events,sort_field=sort_field)
+        combiner = EventCombiner(events, sort_field=sort_field)
         combined_events = combiner.combine()
 
         self.create_file('{}_events.json'.format(self.COMBINED_LABEL),
@@ -464,7 +459,7 @@ class MatlabEventConversionTask(PipelineTask):
         self.montage = montage
         self.experiment = experiment
         self.session = session
-        self.original_session = original_session if not original_session is None else session
+        self.original_session = original_session if original_session is not None else session
         self.kwargs = kwargs
         self.event_label = event_label
         self.filename = '{label}_events.json'.format(label=event_label)
@@ -476,8 +471,7 @@ class MatlabEventConversionTask(PipelineTask):
                                         self.original_session, files)
         events = converter.convert()
 
-        self.create_file( self.filename, to_json(events),
-                         '{}_events'.format(self.event_label))
+        self.create_file(self.filename, to_json(events), '{}_events'.format(self.event_label))
 
 
 class ImportEventsTask(PipelineTask):
@@ -542,7 +536,8 @@ class CompareEventsTask(PipelineTask):
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
             event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
         elif self.protocol == 'ltp':
-            event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code, 'session_{}'.format(self.original_session), 'events.mat')
+            event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code,
+                                           'session_{}'.format(self.original_session), 'events.mat')
         else:
             raise NotImplementedError('Only R1 and LTP event comparison implemented')
 
@@ -593,7 +588,6 @@ class CompareEventsTask(PipelineTask):
             assert False, 'Event comparison failed!'
         else:
             logger.debug('Comparison Success!')
-
 
         if self.protocol == 'r1':
             logger.debug('Comparing stim events...')

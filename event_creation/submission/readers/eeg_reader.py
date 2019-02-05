@@ -3,17 +3,13 @@ import warnings
 import struct
 import datetime
 import sys
-
 import os
 import re
-import numpy as np
-import json
-from shutil import copy
-
-import tables
 import mne
-import scipy.stats as ss
-from nolds import hurst_rs
+import json
+import tables
+import numpy as np
+from shutil import copy
 
 try:
     import pyedflib
@@ -85,7 +81,6 @@ class EEG_reader(object):
 
     def _split_data(self, location, basename):
         return NotImplementedError
-
 
     def get_matching_jacksheet_dict_label(self, label, jacksheet_dict, channel_map):
         if label in channel_map:
@@ -640,7 +635,6 @@ class Multi_NSx_reader(EEG_reader):
             reader._split_data(location, basename)
 
 
-
 class NSx_reader(EEG_reader):
     TIC_RATE = 30000
 
@@ -650,7 +644,6 @@ class NSx_reader(EEG_reader):
         '.ns2': 1000,
         '.ns5': 30000,
     }
-
 
     def __init__(self, nsx_filename, jacksheet_filename=None,  file_number = 0, channel_map_filename=None):
         self.raw_filename = nsx_filename
@@ -852,13 +845,13 @@ class EDF_reader(EEG_reader):
 
 class ScalpReader(EEG_reader):
     """
-    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .mff
+    A universal reader for all scalp lab recordings. This reader has support for reading from EGI's .mff and .raw
     formats, as well as BioSemi's .bdf format.
     """
-    def __init__(self, raw_filename, unused_jacksheet=None):
+    def __init__(self, raw_filename, jacksheet=None):
         """
         :param raw_filename: The file path to the .raw, .mff, or .bdf file containing the EEG recording for the session.
-        :param unused_jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
+        :param jacksheet: Exists only because the function get_eeg_reader() automatically passes a jacksheet
         parameter to any reader it creates, even though scalp EEG studies do not use jacksheets.
         """
         self.raw_filename = raw_filename
@@ -867,10 +860,9 @@ class ScalpReader(EEG_reader):
         self.ica = None
         self.left_eog = None
         self.right_eog = None
-        self.filetype = None
+        self.filetype = os.path.splitext(raw_filename)[1]
         self.save_loc = None
-        self.basename = None
-        self.highpassed = False
+        self.basename = os.path.splitext(os.path.basename(raw_filename))[0]
         self.DATA_FORMAT = self.filetype
 
     def repair_bdf_header(self):
@@ -929,35 +921,26 @@ class ScalpReader(EEG_reader):
 
     def get_data(self):
         """
-        Unpacks the binary in the raw data file to get the voltage data from all channels. In the process, it must
-        unzip the data file before use. After reading the data, it removes the unzipped file, leaving only the
-        zipped version (or zips the unzipped file if no zipped version exists).
+        Uses MNE to load the data from a .mff, .raw, or .bdf file. This process is mainly used for confirming that the
+        data from a session is readable and not corrupted.
 
-        Note that when MNE reads in a raw data file, it automatically converts the signal to volts.
+        return: True if the file was successfully read. False if an exception was encountered.
         """
-        ext = os.path.splitext(self.raw_filename)[1].lower()
-        self.filetype = self.DATA_FORMAT = ext
         try:
             logger.debug('Parsing EEG data file ' + self.raw_filename)
 
             # Read an EGI recording
             if self.filetype in ('.mff', '.raw'):
-                # self.data = mne.io.read_raw_egi(unzip_path, eog=['E8', 'E25', 'E126', 'E127'], preload=True)
                 self.data = mne.io.read_raw_egi(self.raw_filename, preload=True)
                 # Correct the name of channel 129 to Cz, or else the montage will fail to load
                 self.data.rename_channels({'E129': 'Cz'})
                 self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
-                self.data.set_channel_types({'E8': 'eog', 'E25': 'eog', 'E126': 'eog', 'E127': 'eog', 'Cz': 'misc'})
-                self.left_eog = ['E25', 'E127']
-                self.right_eog = ['E8', 'E126']
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
                 self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
                                                 misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status',
                                                 montage='biosemi128', preload=True)
-                self.left_eog = ['EXG3', 'EXG1']
-                self.right_eog = ['EXG4', 'EXG2']
 
             # Return error if unsupported filetype, though this should never happen
             else:
@@ -969,137 +952,37 @@ class ScalpReader(EEG_reader):
             else:
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])
 
-            # Drop EOG, sync pulse, and any unused miscellaneous channels
-            self.data.pick_types(eeg=True, eog=False)
-
             logger.debug('Finished parsing EEG data.')
             return True
-        except:
+
+        except Exception:
             logger.warn('Unable to parse EEG data file!')
             return False
 
-    def mark_bad_channels(self):
+    def process_eeg(self, location):
         """
-        Runs several bad channel detection tests, records the test scores in a TSV file, and saves the list of bad
-        channels to a text file. The detection methods are as follows:
+        This function sets up the ephys directory for a scalp EEG session. Unlike RAM studies ScalpReader does not
+        actually split the EEG recording into separate channel files for scalp studies. Rather, Scalp Lab data is left
+        as raw .mff/.raw/.bdf data files, and this function creates a symlink in the ephys folder to the raw data file.
 
-        1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
-        ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
-        during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
-        15% of the total duration of the recording above this offset threshold is marked as bad.
+        As part of this process, the function loads the data file with MNE to make sure that the EEG recording is
+        readable and not corrupted. For BioSemi recordings, it also repairs corrupted file headers if needed (see
+        docstring for the repair_bdf_header() function for more details).
 
-        2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
-        extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
-        variance allows for more reliable detection of outliers.
-
-        3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
-        As physiological signals consistently have a Hurst exponent of around .7, channels with extreme deviations from
-        this value are unlikely to be measuring physiological activity.
-
-        Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
-        as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
-
-        Through parameter optimization, it was found that channels should be marked as bad if they have a z-scored Hurst
-        exponent greater than 3.1 or z-scored log variance less than -1.9 or greater than 1.7. This combination of
-        thresholds, alongside the voltage offset test, successfully identified ~80.5% of bad channels with a false
-        positive rate of ~2.9% when tested on a set of 20 manually-annotated sessions. It was additionally found that
-        marking bad channels based on a low Hurst exponent failed to identify any channels that had not already marked
-        by the log-transformed variance test. Similarly, marking channels that were poorly correlated with other
-        channels as bad (see the "FASTER" method by Nolan, Whelan, and Reilly (2010)) was an accurate metric, but did
-        not improve the hit rate beyond what the log-transformed variance and Hurst exponent could achieve on their own.
-
-        Optimization was performed using a simple grid search of z-score threshold combinations for the different bad
-        channel detection methods, with the goal of optimizing the trade-off between hit rate and false positive rate
-        (hit_rate - false_positive_rate). The false positive rate was weighted at either 5 or 10 times the hit rate, to
-        strongly penalize the system for throwing out good channels (both weightings produced similar optimal
-        thresholds).
-
-        Following bad channel detection, two bad channel files are created. The first is a file named
-        <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
-        as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
-        contains the actual detection scores for each EEG channel.
-
-        :return: None
-        """
-        logger.debug('Identifying bad channels for %s' % self.basename)
-
-        # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
-        offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
-        offset_rate_th = .15  # If >15% of the recording has poor scalp contact, mark as bad (BioSemi only)
-        low_var_th = -1.9  # If z-scored log variance < 1.9, channel is most likely flat
-        high_var_th = 1.7  # If z-scored log variance > 1.7, channel is likely too noisy to analyze
-        hurst_th = 3.1  # If z-scored Hurst exponent > 3.1, channel is unlikely to be physiological
-
-        n_chans = self.data._data.shape[0]
-        # Method 1: Percent of samples with a high voltage offset (>30 mV) from the reference channel
-        if self.filetype == '.bdf':
-            ref_offset = np.mean(np.abs(self.data._data) > offset_th, axis=1)
-        else:
-            ref_offset = np.zeros(n_chans)
-
-        # Apply .5 Hz high pass filter to prevent baseline drift from affecting the variance and Hurst exponent
-        # This high-pass filter is also needed later for ICA
-        if not self.highpassed:
-            self.data.filter(.5, None, fir_design='firwin')
-            self.highpassed = True
-
-        # Method 2: High or low log-transformed variance
-        var = np.log(np.var(self.data._data, axis=1))
-        zvar = ss.zscore(var)
-
-        # Method 3: High Hurst exponent
-        hurst = np.zeros(n_chans)
-        for i in range(n_chans):
-            hurst[i] = hurst_rs(self.data._data[i, :])
-        zhurst = ss.zscore(hurst)
-
-        # Identify bad channels using optimized thresholds
-        bad = (ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th)
-        badch = np.array(self.data.ch_names)[bad]
-
-        # Mark MNE data with bad channel info
-        self.data.info['bads'] = badch.tolist()
-
-        # Save list of bad channels to a text file
-        badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan.txt')
-        np.savetxt(badchan_file, badch, fmt='%s')
-        os.chmod(badchan_file, 0644)
-
-        # Save a TSV file with extended info about each channel's scores
-        badchan_file = os.path.join(self.save_loc, self.basename + '_bad_chan_info.tsv')
-        with open(badchan_file, 'w') as f:
-            f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
-            for i, ch in enumerate(self.data.ch_names):
-                f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
-        os.chmod(badchan_file, 0644)
-
-    def split_data(self, location, basename):
-        """
-        This function runs the full EEG pre-processing regimen on the recording. Note that "split data" is a misnomer
-        for the ScalpReader, as EEG data is no longer split into separate channel files. Rather, Scalp Lab data is left
-        as raw .mff/.raw/.bdf data files and ICA post-processing results are saved to a .fif file using MNE.
-
-        As part of this process, data is loaded using MNE. All EOG, sync pulse, and other miscellaneous channels are
-        dropped, leaving only the actual EEG channels. Bad channel detection is then performed using several criteria
-        that were optimized on a set of human-annotated sessions (see the docstring for mark_bad_channels). The data
-        is high-pass filtered during bad channel detection to eliminate baseline drift, which could invalidate the
-        bad channel criteria and ICA calculation. The data is then re-referenced to the common average of all non-bad
-        electrodes. Finally, ICA is run on the session, and the resulting solution (i.e. the mixing/unmixing matrix) is
-        saved out to a file in the ephys directory.
+        Note that our EEG post-processing methods for scalp data requires that the behavioral events have already been
+        processed and aligned, so scalp post-processing takes places as part of the EventCreationTask instead of the
+        SplitEEGTask.
 
         :param location: A string denoting the directory in which the channel files are to be written
-        :param basename: The string used to name the processed EEG file. To conform with MNE standards, "-raw.fif" will
-        be appended to the path for the EEG save file and "-ica.fif" will be appended to the path for the ICA save file.
         """
-        logger.info("Pre-processing EEG data into {}/{}".format(location, basename))
+        logger.info("Pre-processing EEG data into {}/{}".format(location, self.basename))
         self.save_loc = location
-        self.basename = os.path.splitext(basename)[0]
 
         # For BDF files, repair the header if it is corrupted due to the recording being improperly terminated
         if self.filetype == '.bdf':
             self.repair_bdf_header()
 
-        # Load data if we have not already done so
+        # Make sure data can be loaded
         if self.data is None:
             success = self.get_data()
             if not success:
@@ -1107,13 +990,9 @@ class ScalpReader(EEG_reader):
 
         # Create a link to the raw data file in the ephys current_processed directory
         os.symlink(os.path.abspath(os.path.join(os.path.dirname(self.raw_filename), os.readlink(self.raw_filename))),
-                   os.path.join(location, basename))
+                   os.path.join(location, self.basename))
 
-        # Run bad channel detection and write bad channel information to files
-        logger.debug('Marking bad channels for {}'.format(basename))
-        self.mark_bad_channels()
-
-        self.write_sources(location, basename)
+        self.write_sources(location, self.basename)
         return True
 
     def get_start_time(self):
@@ -1167,6 +1046,7 @@ def read_json_jacksheet(filename):
         raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
     jacksheet = {int(v['channel']): k for k, v in contacts.items()}
     return jacksheet
+
 
 def read_electrode_config_jacksheet(filename):
     ec = ElectrodeConfig(filename)
