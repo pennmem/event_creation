@@ -107,11 +107,11 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
             onsets = np.concatenate((evs[rest_rewet_idx].eegoffset, onsets))
             for i, idx in enumerate(rest_rewet_idx):
                 # If break is the final event in the current recording, set the offset as the final sample
-                # Otherwise, set the offset as 5 seconds before the first event following the break
+                # Otherwise, set the offset as 8 seconds before the first event following the break
                 if len(evs) == idx + 1:
                     o = eeg.n_times - 1
                 else:
-                    o = int(evs[idx + 1].eegoffset - 5 * samp_rate)
+                    o = int(evs[idx + 1].eegoffset - 8 * samp_rate)
                 # Make sure that offsets cannot occur before onsets (happens if a break lasts less than 5 seconds)
                 if o <= onsets[i]:
                     o = onsets[i] + 1
