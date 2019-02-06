@@ -65,6 +65,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         eeg = eeg_dict[eegfile]
         samp_rate = eeg.info['sfreq']
         evs = events[events.eegfile == os.path.join(ephys_dir, eegfile)]
+        if len(evs) == 0:
+            continue
 
         ##########
         #
