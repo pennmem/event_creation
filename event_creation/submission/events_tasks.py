@@ -5,7 +5,7 @@ import traceback
 import requests
 import json
 import numpy as np
-from ptsa.data.readers import BaseEventReader
+from ptsa.data.readers import BaseEventReader, JsonIndexReader
 
 from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
@@ -13,7 +13,7 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
-from .alignment.system3 import System3Aligner
+from .alignment.system3 import System3Aligner, System3FourAligner
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -35,7 +35,8 @@ from .parsers.ps_log_parser import PSLogParser
 from .parsers.th_log_parser import THSessionLogParser
 from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
-from .parsers.hostpc_parsers import  FRHostPCLogParser,catFRHostPCLogParser
+from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
+        TiclFRParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -189,6 +190,8 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
                 'TICL_FR': FRHostPCLogParser,
+                'TICL_catFR': TiclFRParser,
+                'LocationSearch': PSLogParser,
             }
 
         else:
@@ -272,7 +275,7 @@ class EventCreationTask(PipelineTask):
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
-            if self.event_label == 'ps4':
+            if self.event_label == 'ps4' or not parser.DO_ALIGNMENT:
                 events = unaligned_events
             else:
                 if self.r1_sys_num == 1.0:
@@ -281,7 +284,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0 <= self.r1_sys_num <= 3.3:
+                    elif 3.0 <= self.r1_sys_num <= 3.4:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
@@ -302,7 +305,7 @@ class EventCreationTask(PipelineTask):
                         events = aligner.align(start_type)
                     else:
                         events = unaligned_events
-                    if type(aligner) == System3Aligner:
+                    if issubclass(type(aligner), System3Aligner):
                         aligner.apply_eeg_file(events)
 
         events = parser.clean_events(events) if events.shape != () else events

@@ -9,6 +9,7 @@ import scipy.stats
 from ..log import logger
 from ..parsers.system3_log_parser import System3LogParser
 from ..exc import AlignmentError
+import itertools
 
 
 class System3Aligner(object):
@@ -20,7 +21,10 @@ class System3Aligner(object):
     MAXIMUM_ALLOWED_RESIDUAL = 1000
     MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS = 2
 
-    FROM_LABELS = (('orig_timestamp', 1000,'STIM'),)
+    FROM_LABELS = (('orig_timestamp', 1000,('STIM','FEATURES',
+                                            'BIOMARKER',)),
+                   )
+    TO_LABELS = ('t_event', 't0')
 
     def __init__(self, events, files, plot_save_dir=None):
 
@@ -42,27 +46,24 @@ class System3Aligner(object):
         #     self.merged_events = np.concatenate([self.events,vocalization_events]).view(np.recarray).sort('mstime')
         # else:
         self.merged_events = self.events
-
-
-        for label, rate,exclude in self.FROM_LABELS:
+        for ((from_label, from_rate, exclude), to_label) in itertools.product(self.FROM_LABELS, self.TO_LABELS):
             try:
                 self.task_to_ens_coefs, self.task_ends = \
-                    self.get_coefficients_from_event_log(label, 'offset', rate,(exclude,))
+                    self.get_coefficients_from_event_log(from_label, 'offset', from_rate,exclude)
                 self.host_to_ens_coefs, self.host_ends = \
-                    self.get_coefficients_from_event_log('t_event', 'offset', 1,(exclude,))
-                logger.debug("Found coefficient with label {}".format(label))
+                    self.get_coefficients_from_event_log(to_label, 'offset', 1,exclude)
+                logger.debug("Found coefficient with label {}".format(from_label))
             except KeyError as key_error:
-                if key_error.message != label:
+                if key_error.message != from_label:
                     raise
-                logger.debug("Couldn't find coefficient with label {}".format(label))
+                logger.debug("Couldn't find coefficient with label {}".format(from_label))
                 continue
-            except AlignmentError:
-                logger.debug("Couldn't align coefficient with label {}".format(label))
+            except AlignmentError as ae:
+                logger.debug("Couldn't align coefficient with label {}".format(from_label))
                 continue
-            self.from_label = label
-            self.from_multiplier = rate
+            self.label = from_label
+            self.from_multiplier = from_rate
             break
-
         else:
             raise AlignmentError("Could not find alignable label in events")
 
@@ -126,7 +127,7 @@ class System3Aligner(object):
             if len(froms) <= 1:
                 continue
 
-            coefs.append(scipy.stats.linregress(froms, tos)[:2])
+            coefs.append(scipy.stats.theilslopes(x=froms, y=tos)[:2])
             ends.append(froms[-1])
 
             self.plot_fit(froms, tos, coefs[-1], '.', 'fit_{}_{}_{}'.format(from_label,to_label,i))
@@ -180,6 +181,7 @@ class System3Aligner(object):
 
         eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
 
+        
         for eegfile, info in eeg_info:
             start_time_host = info['start_time_ms']
             inds = np.where(self.host_ends > start_time_host)[0]
@@ -250,24 +252,6 @@ class System3Aligner(object):
                 "Maximum deviation from slope is .1, current slope is {}".format(coefficients[0])
             )
 
-        if max(residuals) > cls.MAXIMUM_ALLOWED_RESIDUAL:
-
-            logger.error("Maximum residual of fit ({}) "
-                         "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
-
-            max_index = np.where(residuals == max(residuals))[0][0]
-
-            logger.info("Maximum residual occurs at time={time}, sample={sample}, index={index}/{len}".format(
-                time=int(x[max_index]), sample=y[max_index], index=max_index, len=len(x)
-            ))
-
-            n_excess_residuals = (residuals > cls.MAXIMUM_ALLOWED_RESIDUAL).sum()
-
-            if n_excess_residuals > cls.MAXIMUM_NUMBER_EXCESSIVE_RESIDUALS:
-
-                raise AlignmentError("Maximum residual of fit ({}) "
-                             "is higher than allowed maximum ({})".format(max(residuals), cls.MAXIMUM_ALLOWED_RESIDUAL))
-
         return residuals
     @classmethod
     def plot_fit(cls, x, y, coefficients, plot_save_dir, plot_save_label):
@@ -284,7 +268,7 @@ class System3Aligner(object):
         plt.figure(figsize=(20,10))
         plt.subplot(121)
         plt.plot(x, y, 'g.', x, fit, 'b-')
-        plt.title("EEG Samples vs Timestamps")
+        plt.title("EEG Samples vs Tim   estamps")
         plt.xlabel("Timestamp (ms)")
         plt.ylabel("EEG Samples")
         plt.xlim(min(x), max(x))
@@ -302,6 +286,29 @@ class System3Aligner(object):
             logger.debug("Could not save plot %s"%plot_save_label)
         plt.show()
         plt.close()
+
+
+class System3FourAligner(System3Aligner):
+    """
+    Aligner class for System 3.4+
+    Behaves just like System3Aligner, except that the task times and the
+    host times are identical.
+    """
+
+    def __init__(self, events, files, plot_save_dir=None):
+        super(System3FourAligner, self).__init__(events,files, plot_save_dir)
+        self.task_to_ens_coefs = self.host_to_ens_coefs
+        self.task_ends = self.host_ends
+        
+    def apply_eeg_file(self, events):
+        eeg_info = self.eeg_info.items()
+        if len(eeg_info) == 1:
+            mask = events['eegoffset'] >= 0
+            events[self.EEG_FILE_FIELD][mask] = eeg_info[0][0]
+            return events
+        else:
+            return super(System3FourAligner, self).apply_eeg_file(events)
+
 
 if __name__ == '__main__':
     files = {

@@ -36,7 +36,8 @@ class System3LogParser(object):
         'catFR': 'item_name',
         'PS_PAL': 'study_1',
         'PAL': 'study_1',
-        'TH': 'item_name'
+        'TH': 'item_name',
+        'PS': 'item_name',
     }
     _EXPERIMENT_ITEM_OFF_TYPE={
         'PS_FR': 'WORD_OFF',

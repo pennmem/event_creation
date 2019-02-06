@@ -166,7 +166,7 @@ In the most basic use case, creation of events can be executed with just
     or if creating a database for export
     
     
-## Description of code
+## For Developers
 
 The execution of submission can be broken up into two parts 
 (***transferring*** and ***processing***), which in combination make up the process of 
@@ -176,7 +176,26 @@ Submission consists of the creation of a `TransferPipeline`
 (`submission.pipelines.TransferPipeline`), which consists of a single `Transferer`, 
 and any number of `PipelineTask`s (which perform the processing). Pipeline tasks can 
 be marked as non-critical, in which case a failure is allowed. By default, however,
-failure of an individual task rolls back the entire transfer process.
+failure of an individual task rolls back the entire transfer process. 
+
+
+### Adding New Experiments
+
+To add a new experiment, the following steps need to be taken:
+
+1. Define any new files that need to be transferred in `transfer_inputs/behavioral_inputs.yml`, 
+   and make sure that the "groups" field for those includes the new experiment
+2. Write a new parser for the experiment that inherits from `parsers.base_log_parser.BaseLogParser`
+   * Note that there are a number of existing, more specialized base classes for specific record formats. 
+     If your task uses existing log formats, consider subclassing `BaseSessionLogParser` (pyEPL- like logs)
+     or `BaseHostPCLogParser` (system 3-like logs) rather than `BaseLogParser`
+3. Register the new parser with `events_tasks.EventCreationTask`, 
+   either by adding it to the appropriate case in `EventCreationTask.R1_PARSERS()`
+   or by adding it to `EventCreationTask.LTP_PARSERS`.
+   * You may have to play around with `EventCreationTask.run()` to make sure that the correct 
+   set of operations (alignment, adding stim events ) are or are not applied to your task as 
+   is appropriate.
+
 
 ### Transferring
 

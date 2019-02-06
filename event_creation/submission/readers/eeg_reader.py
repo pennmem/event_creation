@@ -818,8 +818,8 @@ class EDF_reader(EEG_reader):
         for channel, header in self.headers.items():
             if self.jacksheet:
                 label = self.get_matching_jacksheet_dict_label(header['label'], self.jacksheet, self.channel_map)
-                if not label:
-                    logger.debug("skipping channel {}".format(header['label']))
+                if not label or label in used_jacksheet_labels:
+                    logger.info("skipping channel {}".format(header['label']))
                     continue
                 if label.upper() in self.jacksheet:
                     out_channel = self.jacksheet[label.upper()]
@@ -828,7 +828,7 @@ class EDF_reader(EEG_reader):
                     out_channel = self.jacksheet[label]
                     used_jacksheet_labels.append(label)
                 else:
-                    logger.debug("skipping channel {}".format(label))
+                    logger.info("skipping channel {}".format(label))
             else:
                 out_channel = channel
             filename = os.path.join(location, basename + '.%03d' % (out_channel))

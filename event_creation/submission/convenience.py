@@ -559,7 +559,6 @@ def show_imported_experiments(subject, protocol='r1'):
 
 def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
     r1 = load_index(protocol)
-    experiment = experiment.split('_')[-1]
     sessions = r1.sessions(subject=subject, experiment=experiment)
     print('| Existing {} sessions for {}'.format(experiment, subject))
     if not sessions:
@@ -723,7 +722,7 @@ def prompt_for_session_inputs(inputs, **opts):
     elif opts.get('sys1', False):
         inputs['groups'] += ('system_1',)
 
-    if experiment.startswith('PS') or experiment.startswith('TH'):
+    if any(experiment.startswith(exp) for exp in ['PS', 'TH', 'Location']):
         inputs['do_math'] = False
 
     if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):

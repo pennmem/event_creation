@@ -1,14 +1,16 @@
-from .base_log_parser import BaseLogParser,BaseSys3_1LogParser,BaseSessionLogParser
-from ..readers.eeg_reader import read_jacksheet
-from .fr_sys3_log_parser import FRSys3LogParser
+from event_creation.submission.parsers.base_log_parser import (
+    BaseLogParser,BaseSys3_1LogParser,BaseSessionLogParser)
+from event_creation.submission.readers.eeg_reader import read_jacksheet
+from event_creation.submission.parsers.fr_sys3_log_parser import FRSys3LogParser
 import pandas as pd
 import json
 from functools import wraps
 from copy import deepcopy
 import numpy as np
-from ..quality import fr_tests
+from event_creation.submission.quality import fr_tests
 import os
-
+import dtypes
+from collections import OrderedDict
 
 def with_offset(event_handler):
     """
@@ -39,6 +41,8 @@ class BaseHostPCLogParser(BaseSessionLogParser):
     ADD_STIM_EVENTS = False
 
     _MESSAGE_CLASS = 'StoreEventMessage'
+    _TYPE_FIELD = 'event_label'
+    _MSTIME_FIELD = 'orig_timestamp'
 
     def __init__(self, protocol, subject, montage, experiment, session, files,
                  primary_log='event_log', allow_unparsed_events=False, include_stim_params=False):
@@ -46,14 +50,12 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                                                   primary_log=primary_log,
                                                   allow_unparsed_events=allow_unparsed_events,
                                                   include_stim_params=include_stim_params)
-        self._TYPE_FIELD = 'event_label'
-        self._MSTIME_FIELD = 'orig_timestamp'
 
         self.files = files
         self._phase = ''
 
         self._biomarker_value = -1.0
-        self._stim_params = {}
+        self._stim_params = OrderedDict()
         self._set_experiment_config()
         self._jacksheet = read_jacksheet(files['electrode_config'][0])
 
@@ -66,9 +68,12 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
             with open(self._primary_log,'r') as primary_log:
                 contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(subset=['msg_stub']).reset_index()
+                stubs =  pd.DataFrame.from_records([msg for msg in contents.msg_stub])
                 messages = pd.DataFrame.from_records([msg.get('data',{}) for msg in contents.msg_stub])
-                contents = pd.concat([contents,messages],
+
+                contents = pd.concat([contents,stubs,messages],
                                      axis=1)
+                contents[self._MSTIME_FIELD].fillna(-1,inplace=True)
                 return [e.to_dict() for _, e in contents.iterrows()]
         elif isinstance(self._primary_log,list):
             all_contents = []
@@ -76,9 +81,10 @@ class BaseHostPCLogParser(BaseSessionLogParser):
                 with open(log,'r') as primary_log:
                     contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(
                         subset=['msg_stub']).reset_index()
-                    messages = pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])
-                    contents = pd.concat([contents, messages],
-                                         axis=1)
+                messages = pd.DataFrame.from_records([msg.get('data', {}) for msg in contents.msg_stub])
+                contents = pd.concat([contents, messages],
+                                     axis=1)
+                contents[self._MSTIME_FIELD].fillna(-1, inplace=True)
                 all_contents.extend([e.to_dict() for _, e in contents.iterrows()])
             return all_contents
 
@@ -108,29 +114,37 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
     # I'm defining and adding a couple of event_type handlers here since their format is defined on the hostPC side, rather than
     # the task laptop side, and therefore their structure is independent of the task being run.
+    # UPDATE (June 27, 2018): I was a fool to think that these formats wouldn't
+    # change
 
-    def event_stim(self,event_json):
+    def event_stim(self, event_json):
         event_json[self._MSTIME_FIELD] = -1
         event = self.event_default(event_json)
         event.type = 'STIM_ON'
+        self._stim_params = self.stim_params_from_record(event_json)
+        for i, pair in enumerate(self._stim_params):
+            pair_params = self._stim_params[pair]
+            self.set_event_stim_params(event, self._jacksheet, index=i, **pair_params)
+        return event
+
+    def stim_params_from_record(self, event_json):
         stim_params = event_json['msg_stub']['stim_channels']
         new_params = {}
-        for i,stim_pair in enumerate(stim_params):
+        for stim_pair in stim_params:
             new_pair_params = {}
             new_pair_params['anode_label'] = stim_pair.split('_')[0]
             new_pair_params['cathode_label'] = stim_pair.split('_')[1]
             new_pair_params['stim_duration'] = int(stim_params[stim_pair]['duration'])
             new_pair_params['amplitude'] = int(stim_params[stim_pair]['amplitude'])
             new_pair_params['pulse_freq'] = int(stim_params[stim_pair]['pulse_freq'])
-            self.set_event_stim_params(event,self._jacksheet,index=i,**new_pair_params)
             new_params[stim_pair] = new_pair_params
-        self._stim_params = new_params
-        return event
+        return new_params
 
     @with_offset
     def event_biomarker(self,event_json):
         event=self.event_default(event_json)
-        self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
+        if self._phase == "STIM":
+            self.set_event_stim_params(event,self._jacksheet,0,**event_json['msg_stub'])
         return event
 
     def clean_events(self, events):
@@ -191,7 +205,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         self.apply_word(event)
         event.serialpos = self._serialpos
         if self._stim_on:
-            event.stim_params['biomarker_value']=self._biomarker_value
+            event.stim_params['biomarker_value'] = self._biomarker_value
         self._stim_on = True
         return event
 
@@ -222,7 +236,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
         if event_json[self._VALUE_FIELD]:
             self._stim_on = False
-            event.type='WORD'
+            event.type = 'WORD'
         else:
             event.type='WORD_OFF'
             self._serialpos += 1
@@ -256,17 +270,16 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             event.type='REC_END'
         return event
 
-
     def modify_recalls(self, events):
-        if events[-1].type=='REC_START':
-            events= FRSys3LogParser.modify_recalls(self,events)
-            if self._phase == 'STIM':
-                events = self.modify_stim(events)
+        if events[-1].type == 'REC_START':
+            events = FRSys3LogParser.modify_recalls(self, events)
         return events
 
-
-    def modify_stim(self,events):
-        if events[-1].type=='ENCODING_END':
+    def modify_stim(self, events):
+        """
+        WARNING: Do not call this function more than once per list
+        """
+        if events[-1].type.endswith('END'):
             in_list = events.list==self._list
             list_stim_events = events[(events.type=='STIM_ON') & in_list]
             list_events= events[in_list]
@@ -275,11 +288,11 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
                 stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
                 stim_off_events.type='STIM_OFF'
                 list_events = np.concatenate([list_events,stim_off_events])
-                list_events.sort(order='eegoffset')
+                list_events.sort(order='eegoffset', kind='mergesort')
             events = np.rec.array(np.concatenate([events[~in_list],list_events]))
         return events
 
-    def modify_biomarker(self,events):
+    def modify_biomarker(self, events):
         """
         Adds biomarker value to stim events
 
@@ -297,19 +310,14 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
 class catFRHostPCLogParser(FRHostPCLogParser):
 
-    _catFR_FIELDS = (
-        ('category','X','S64'),
-        ('category_num',-999,'int16')
-    )
-
     _CATEGORY = 'category'
     _CATEGORY_NUM = 'category_num'
 
     _TESTS = FRHostPCLogParser._TESTS + [fr_tests.test_catfr_categories]
 
-    def __init__(self,*args,**kwargs):
+    def __init__(self, *args, **kwargs):
         super(catFRHostPCLogParser, self).__init__(*args,**kwargs)
-        self._add_fields(*self._catFR_FIELDS)
+        self._add_fields(*dtypes.category_fields)
         self._categories = np.unique([e[self._CATEGORY] for e in self._contents if self._CATEGORY in e])
         if os.path.splitext(self.files['wordpool'])[1]:
             self._wordpool = np.loadtxt(self.files['wordpool'],dtype=str)
@@ -343,3 +351,112 @@ class catFRHostPCLogParser(FRHostPCLogParser):
         events[is_rec] = rec_events
         return events
 
+
+class TiclFRParser(FRHostPCLogParser):
+
+    def __init__(self,protocol,subject,montage,experiment,session,files):
+        super(TiclFRParser, self).__init__(protocol,subject,montage,experiment,session,files)
+        self._list_phase = ''
+        self._add_type_to_new_event(BIOMARKER=self.event_biomarker,
+                                    DISTRACT=self.event_distract,
+                                    FEATURES=self.event_features,
+                                    SHAM=self.event_sham,)
+
+        del self._type_to_modify_events['ENCODING']
+        self.fix_content_offsets()
+
+        stim_event = next(iter(c for c in self._contents if self._get_raw_event_type(c) == "STIM"))
+        self._stim_params = self.stim_params_from_record(stim_event)
+
+    def fix_content_offsets(self):
+        for event_json in self._contents:
+            if np.isnan(event_json['offset']):
+                event_json['offset']= event_json['msg_stub']['start_offset']
+
+    def event_sham(self,event_json):
+        event = self.event_default(event_json)
+        event.type = 'SHAM'
+        return event
+
+    def event_trial(self, event_json):
+        self._list_phase = 'ENCODING'
+        return super(TiclFRParser, self).event_trial(event_json)
+
+    def event_recall(self, event_json):
+        self._list_phase = 'RETRIEVAL'
+        return super(TiclFRParser, self).event_recall(event_json)
+
+    def event_distract(self, event_json):
+        self._list_phase = 'DISTRACT'
+        return self.event_default(event_json)
+
+    def event_stim(self, event_json):
+        event = super(TiclFRParser, self).event_stim(event_json)
+        event['phase'] = self._list_phase
+        return event
+
+    def event_biomarker(self, event_json):
+        field_names = {'position' : 'pre_or_post',
+             'biomarker_value': 'level',
+             'id': 'hashtag',}
+        event = self.event_default(event_json)
+        event['type'] = event_json[self._TYPE_FIELD]
+        msg  = event_json['msg_stub']
+        if self._phase == "STIM":
+            params = {k: msg.get(
+                field_names.get(k, k), event.stim_params[0][k])
+                      for k in event.stim_params.dtype.names
+                      if not k.startswith('_')
+            }
+            params.update(self._stim_params.values()[0])
+            self.set_event_stim_params(event, self._jacksheet, 0,
+                                       **params)
+            if params['position'] != 'post':
+                event['phase'] = self._list_phase
+            # post-stim biomarker events are assigned the phase of the
+            # matching pre-stim biomarker event
+
+            self._biomarker_value = params['biomarker_value']
+        return event
+
+    def event_features(self,event_json):
+        event = self.event_default(event_json)
+        event['type'] = event_json[self._TYPE_FIELD]
+        event['eegoffset'] = event_json['msg_stub']['start_offset']
+        return event
+
+    def modify_recalls(self, events):
+        events = super(TiclFRParser, self).modify_recalls(events)
+        events = self.modify_stim(events)
+        return events
+
+
+    def modify_biomarker(self, events):
+        if self._phase != "STIM":
+            return events
+        biomarker_event = events[-1]
+        if biomarker_event['stim_params'][0]['position'] == 'post':
+            other_events = events[:-1]
+            matching_event = other_events[(other_events['type'] == 'BIOMARKER')
+            & (other_events['stim_params'][:, 0]['id'] == biomarker_event['stim_params'][0]['id'])
+            & (other_events['stim_params'][:, 0]['position'] == 'pre')][0]
+            # There should be exactly one of these
+            biomarker_event['phase'] = matching_event['phase']
+            events[-1] = biomarker_event
+        return events
+
+
+class TiclCatFRParser(TiclFRParser,catFRHostPCLogParser):
+
+    def event_word(self, event_json):
+        return catFRHostPCLogParser.event_word(self, event_json)
+
+
+if __name__ == "__main__":
+    files  = {'event_log': ['/Users/leond/ticl_fr_data/event_log.json'],
+              'wordpool': '/Users/leond/ticl_fr_data/wordpool.txt',
+              'electrode_config': ['/Users/leond/ticl_fr_data/config_files/R1378T_18DEC2017L0M0STIM.csv'],
+              'experiment_config': '/Users/leond/ticl_fr_data/experiment_config.json'}
+
+    parser  = TiclFRParser('r1','r1',0,'r1',0,files)
+    events = parser.parse()

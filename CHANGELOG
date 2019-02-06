@@ -1,3 +1,41 @@
+2018-11-12 (v1.2.4)
+===================
+- Removed System3FourAligner from production
+
+2018-10-25 (v1.2.3)
+===================
+- Added parser for TICL_catFR
+- Fixed bug in which TICL experiments could not be processed if artifact detection was not run
+
+
+2018-8-21 (v1.2.2)
+==================
+
+- Simplified eegfile determination for system 3.4 in the case that there's only 1 file
+- Corrected name of LocationSearch experiment
+
+2018-8-3
+========
+- Fixed bug in which only encoding stim events recieved a matching STIM_OFF
+  event
+- Added support for location_search
+
+2018-7-18
+=========
+- show_imported_experiments no longer treats experiment names with underscores
+  differently
+
+
+2018-6-27
+=========
+- Added biomarker values, positions, phases to TICL BIOMARKER events
+
+2018-6-26
+=========
+- Localization spreadsheet can now be successfully read and inserted
+  when any non-alphanumeric character is used as a separator in pair labels
+
+
 2018-3-28
 =========
 - STIM_ON and STIM_OFF events now appear in the correct places in (cat)FR6 event structures

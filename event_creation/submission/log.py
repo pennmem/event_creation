@@ -91,4 +91,7 @@ class Logger(object):
     def critical(self, msg):
         self._logger.critical(self._format_msg(" ********************* " + msg, subject=self.subject, label=self.label))
 
-logger = Logger()
+try:
+    logger = Logger()
+except Exception:
+    logger = None
