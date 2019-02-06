@@ -10,16 +10,16 @@ from .events_tasks import SplitEEGTask, MatlabEEGConversionTask, MatlabEventConv
                   EventCreationTask, CompareEventsTask, EventCombinationTask, \
                   MontageLinkerTask, RecognitionFlagTask
 from .neurorad_tasks import (LoadVoxelCoordinatesTask, CorrectCoordinatesTask, CalculateTransformsTask,
-                           AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask,
-                             AddManualLocalizationsTask,CreateMontageTask,CreateDuralSurfaceTask,GetFsAverageCoordsTask,
-                             BrainBuilderWebhookTask)
+                             AddContactLabelsTask, AddMNICoordinatesTask, WriteFinalLocalizationTask,
+                             AddManualLocalizationsTask,CreateMontageTask, CreateDuralSurfaceTask,
+                             GetFsAverageCoordsTask, BrainBuilderWebhookTask)
 from .parsers.base_log_parser import get_version_num
 from .parsers.math_parser import MathLogParser
 from .parsers.mat_converter import MathMatConverter
 from .transfer_config import TransferConfig
 from .tasks import ImportJsonMontageTask, CleanLeafTask
-from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer,\
-                       generate_import_montage_transferer, generate_create_montage_transferer, TRANSFER_INPUTS, find_sync_file
+from .transferer import generate_ephys_transferer, generate_session_transferer, generate_localization_transferer, \
+    generate_import_montage_transferer, generate_create_montage_transferer, TRANSFER_INPUTS, find_sync_file
 from .exc import TransferError
 from .log import logger
 
@@ -37,6 +37,7 @@ MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
 
 N_PS4_SESSIONS = 10
+
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
@@ -101,6 +102,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         groups += (sys,)
 
     return groups
+
 
 def r1_system_match(experiment, transfer_cfg, sys):
     """
@@ -203,7 +205,7 @@ class TransferPipeline(object):
         if len(self.output_files) > 0:
             index['files'] = {}
             for name, path in self.output_files.items():
-                index['files'][name] = os.path.relpath( path, self.current_dir)
+                index['files'][name] = os.path.relpath(path, self.current_dir)
         if len(self.output_info) > 0:
             index['info'] = self.output_info
         if len(index) > 0:
@@ -219,11 +221,10 @@ class TransferPipeline(object):
         missing_files = self.transferer.missing_files()
         if missing_files:
             logger.warn("Missing files {}. "
-                         "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
+                        "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
-            raise TransferError('Missing file {}: '
-                                           'expected in {}'.format(missing_files[0].name,
-                                                                   missing_files[0].formatted_origin_dir))
+            raise TransferError('Missing file {}: expected in {}'.format(missing_files[0].name,
+                                                                         missing_files[0].formatted_origin_dir))
 
         should_transfer = not self.transferer.matches_existing_checksum()
         if should_transfer != True:
@@ -255,7 +256,7 @@ class TransferPipeline(object):
                 pipeline_task.run(transferred_files, self.destination)
                 if pipeline_task.error:
                     logger.info('Task {} failed with message {}. Continuing'.format(
-                        pipeline_task.name,pipeline_task.error))
+                        pipeline_task.name, pipeline_task.error))
                 else:
                     logger.info('Task {} finished successfully'.format(pipeline_task.name))
 
@@ -264,8 +265,8 @@ class TransferPipeline(object):
             os.symlink(self.processed_label, self.current_dir)
 
         except Exception as e:
-            logger.error('Task {} failed with message {}, Rolling back transfer'.format(pipeline_task.name if pipeline_task else
-                                                                   'initialization', e))
+            logger.error('Task {} failed with message {}, Rolling back transfer'.format(
+                pipeline_task.name if pipeline_task else 'initialization', e))
             traceback.print_exc()
 
             self.transferer.remove_transferred_files()
@@ -309,7 +310,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
 def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
                                original_session=None, new_experiment=None, **kwargs):
     logger.set_label("Building EEG Converter")
-    new_experiment = new_experiment if not new_experiment is None else experiment
+    new_experiment = new_experiment if new_experiment is not None else experiment
     if experiment[:-1] == 'catFR':
         experiment = 'CatFR'+experiment[-1]
 
@@ -363,7 +364,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                 task_kwargs = kwargs
         else:
             task_kwargs = kwargs
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system, critical=('PS4' not in groups), **task_kwargs))
+        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
+                                       critical=('PS4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
         do_math = 'math' in groups
@@ -379,7 +381,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       'math', critical=False, parser_type=MathLogParser,**kwargs))
+                                       'math', critical=False, parser_type=MathLogParser, **kwargs))
         other_events += ('math',)
 
     if other_events:
@@ -427,15 +429,15 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         new_experiment = 'catFR' + experiment[-1]
 
     if 'groups' in kwargs:
-        no_group_kwargs = {k:v for k,v in kwargs.items() if k not in ('groups', )}
+        no_group_kwargs = {k: v for k, v in kwargs.items() if k not in ('groups', )}
     else:
         no_group_kwargs = kwargs
 
-    new_groups = determine_groups(protocol, code, experiment, original_session,
-                                         TRANSFER_INPUTS['behavioral'], 'conversion', **no_group_kwargs)
+    new_groups = determine_groups(protocol, code, experiment, original_session, TRANSFER_INPUTS['behavioral'],
+                                  'conversion', **no_group_kwargs)
     kwargs['groups'] = kwargs['groups'] + new_groups if 'groups' in kwargs else new_groups
 
-    new_experiment = new_experiment if not new_experiment is None else experiment
+    new_experiment = new_experiment if new_experiment is not None else experiment
     transferer = generate_session_transferer(subject, experiment, session, protocol,
                                              code=code, original_session=original_session,
                                              new_experiment=new_experiment, **kwargs)
@@ -447,18 +449,18 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         tasks = []
 
     tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
-                                       original_session=original_session, **kwargs))
+                                           original_session=original_session, **kwargs))
 
     if do_math:
         tasks.append(MatlabEventConversionTask(protocol, subject, montage, new_experiment, session,
                                                event_label='math', converter_type=MathMatConverter,
-                                               original_session=original_session, critical=False, **kwargs ))
+                                               original_session=original_session, critical=False, **kwargs))
         tasks.append(EventCombinationTask(('task', 'math'), critical=False))
 
     localization = montage.split('.')[0]
     montage_num = montage.split('.')[1]
     # Have to wait to aggregate index until after submission
-    #tasks.append(IndexAggregatorTask())
+    # tasks.append(IndexAggregatorTask())
     if protocol == 'ltp':
         info = dict(
             subject_alias=code,
@@ -479,7 +481,8 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
     return TransferPipeline(transferer, *tasks, **info)
 
-def build_import_localization_pipeline(subject, protocol, localization, code, is_new,force_dykstra=False):
+
+def build_import_localization_pipeline(subject, protocol, localization, code, is_new, force_dykstra=False):
 
     logger.set_label("Building Localization Creator")
 
@@ -487,22 +490,22 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
     tasks = [
         LoadVoxelCoordinatesTask(subject, localization, is_new),
-        CreateDuralSurfaceTask(subject,localization,True),
-        CalculateTransformsTask(subject, localization,critical=True),
-        CorrectCoordinatesTask(subject, localization,code=code,overwrite=force_dykstra,critical=True),
-        GetFsAverageCoordsTask(subject,localization,critical=False),
+        CreateDuralSurfaceTask(subject, localization, True),
+        CalculateTransformsTask(subject, localization, critical=True),
+        CorrectCoordinatesTask(subject, localization, code=code, overwrite=force_dykstra, critical=True),
+        GetFsAverageCoordsTask(subject, localization, critical=False),
         AddContactLabelsTask(subject, localization),
-        AddMNICoordinatesTask(subject, localization,critical=False),
-        AddManualLocalizationsTask(subject,localization,critical=False),
+        AddMNICoordinatesTask(subject, localization, critical=False),
+        AddManualLocalizationsTask(subject, localization, critical=False),
         WriteFinalLocalizationTask(),
-        BrainBuilderWebhookTask(subject,critical=False)
+        BrainBuilderWebhookTask(subject, critical=False)
 
     ]
 
     return TransferPipeline(transferer, *tasks)
 
 
-def build_import_montage_pipeline(subject, montage, protocol, code,**kwargs):
+def build_import_montage_pipeline(subject, montage, protocol, code, **kwargs):
     transferer = generate_import_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
@@ -511,14 +514,16 @@ def build_import_montage_pipeline(subject, montage, protocol, code,**kwargs):
 
 def build_create_montage_pipeline(subject, montage, protocol, code, reference_scheme='monopolar'):
 
-    localization  = int(montage.split('.')[0])
+    localization = int(montage.split('.')[0])
     transferer = generate_create_montage_transferer(subject, montage, protocol, code)
-    task = CreateMontageTask(subject,localization,montage,reference_scheme=reference_scheme)
-    return TransferPipeline(transferer,task)
+    task = CreateMontageTask(subject, localization, montage, reference_scheme=reference_scheme)
+    return TransferPipeline(transferer, task)
+
 
 if __name__ == '__main__':
     def test_split_sys3():
-        pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0, montage_num=0)
+        pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0,
+                                        montage_num=0)
         pipeline.run()
 
     def test_create_sys3_events():

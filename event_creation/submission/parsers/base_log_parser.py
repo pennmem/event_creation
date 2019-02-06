@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..log import logger
-from ..exc import LogParseError, UnknownExperimentError, EventFieldError
+from ..exc import LogParseError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.recarray import pformat_rec, to_dict, from_dict
 from ..exc import NoAnnotationError
@@ -122,7 +122,7 @@ class BaseLogParser(object):
         events.montage = self._montage
         return events
 
-    def check_event_quality(self,events,files):
+    def check_event_quality(self, events, files):
         """
         Called at the end of event creation to make sure that the events look like we expect them to.
         :param events: A complete events structure
@@ -132,11 +132,10 @@ class BaseLogParser(object):
         msgs = []
         for test in self._TESTS:
             try:
-                test(events,files)
+                test(events, files)
             except Exception as e:
-                msgs.append('{}.{}: {}'.format(type(self).__name__,test.__name__,e.message))
+                msgs.append('{}.{}: {}'.format(type(self).__name__, test.__name__, e.message))
         return msgs
-
 
     @staticmethod
     def persist_fields_during_stim(event):
@@ -214,8 +213,8 @@ class BaseLogParser(object):
         for param, value in params.items():
             if param == 'amplitude' and value < 5:
                 value *= 1000  # Put in uA. Ugly fix...
-            if param == 'pulse_freq' and value>np.iinfo(event.stim_params[index][param].dtype).max:
-                value /=1000 # same fix, but for Hz
+            if param == 'pulse_freq' and value > np.iinfo(event.stim_params[index][param].dtype).max:
+                value /= 1000  # same fix, but for Hz
             if param in event.stim_params.dtype.names:
                 event.stim_params[index][param] = value
 
@@ -227,9 +226,8 @@ class BaseLogParser(object):
 
         if 'cathode_label' in params and 'cathode_number' not in params:
             reverse_jacksheet = {v: k for k, v in jacksheet.items()}
-            event.stim_params[index]['cathode_number'] = reverse_jacksheet.get(params['cathode_label'].upper(),
-                                                                               reverse_jacksheet[params['cathode_label']])
-
+            event.stim_params[index]['cathode_number'] = reverse_jacksheet.get(
+                params['cathode_label'].upper(), reverse_jacksheet[params['cathode_label']])
 
         if 'anode_number' in params and 'anode_label' not in params:
             event.stim_params[index]['anode_label'] = jacksheet[params['anode_number']].upper()
@@ -257,7 +255,7 @@ class BaseLogParser(object):
 
         # Read the annotation file, getting everything that matches the regular expression
         ann_file = self._ann_files[ann_id]
-        lines = codecs.open(ann_file,encoding='latin1').readlines()
+        lines = codecs.open(ann_file, encoding='latin1').readlines()
         matching_lines = [line for line in lines if line[0] != '#' and re.match(self.MATCHING_ANN_REGEX, line.strip())]
 
         # Remove events with rectimes greater than 10 minutes, because they're probably a mistake
@@ -508,7 +506,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         self._files = files
         self._phase = ''
 
-
     def _get_raw_event_type(self, event_json):
         return event_json[self._TYPE_FIELD]
 
@@ -556,12 +553,12 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
     def _read_session_log(self, log):
         def load_json(s, *args, **kwargs):
             try:
-                return json.loads(s,*args,**kwargs)
+                return json.loads(s, *args, **kwargs)
             except ValueError:
                 return {}
         with open(log) as logfile:
-            lines = [x.strip().split('\t') for x in logfile.readlines() if len(x.split('\t'))>1]
-        event_jsons= [load_json(x[-1].partition(' ')[-1]) for x  in lines]
+            lines = [x.strip().split('\t') for x in logfile.readlines() if len(x.split('\t')) > 1]
+        event_jsons = [load_json(x[-1].partition(' ')[-1]) for x in lines]
         mstimes = [int(x[0]) for x in lines]
         types = [x[-1].partition(' ')[0] for x in lines]
         for i in range(len(event_jsons)):
@@ -571,7 +568,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _read_primary_log(self):
         msgs = []
-        if isinstance(self._primary_log,basestring):
+        if isinstance(self._primary_log, basestring):
             logs = [self._primary_log]
         else:
             logs = self._primary_log
@@ -590,8 +587,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def clean_events(self, events):
         # Add in experiment version
-        events = super(BaseSys3_1LogParser,self).clean_events(events)
-        with open(self._files['event_log'][0],'r') as event_log:
+        events = super(BaseSys3_1LogParser, self).clean_events(events)
+        with open(self._files['event_log'][0], 'r') as event_log:
             version_info = json.load(event_log)['versions']
         events.exp_version = version_info['task']['version']
         return events
@@ -603,8 +600,8 @@ class BaseUnityLTPLogParser(BaseLogParser):
         if primary_log not in files:
             primary_log = 'session_log_txt'
 
-        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
-                                      primary_log=primary_log, allow_unparsed_events=True)
+        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
+                               allow_unparsed_events=True)
         self._files = files
         self._trial = -999
 
@@ -615,7 +612,8 @@ class BaseUnityLTPLogParser(BaseLogParser):
         try:
             return super(BaseUnityLTPLogParser, self).parse()
         except Exception as exc:
-            logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session, str(type(exc)), exc.message))
+            logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
+                                                                                   str(type(exc)), exc.message))
             raise exc
 
     def _read_unityepl_log(self, filename):
@@ -651,19 +649,20 @@ class BaseUnityLTPLogParser(BaseLogParser):
 
 
 class RecogParser(BaseSessionLogParser):
-    def __init__(self,protocol, subject, montage, experiment, session, files):
-        super(RecogParser,self).__init__(protocol,subject,montage,experiment,session,files,allow_unparsed_events=True)
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(RecogParser, self).__init__(protocol, subject, montage, experiment, session, files,
+                                          allow_unparsed_events=True)
         self._add_type_to_new_event(
-            RECOG_WORD = self.event_recog
-            #other event types?
+            RECOG_WORD=self.event_recog
+            # other event types?
         )
         self._add_fields(
-            ('item_name','','S12'),
-            ('recognized',-1,'int'),
-            ('rejected', -1,'int')
+            ('item_name', '', 'S12'),
+            ('recognized', -1, 'int'),
+            ('rejected', -1, 'int')
         )
 
-    def event_recog(self,split_line):
+    def event_recog(self, split_line):
         raise NotImplementedError
 
 
@@ -697,8 +696,7 @@ class EventComparator(object):
         self.type_ignore = type_ignore if type_ignore else []
         self.exceptions = exceptions if exceptions else lambda *_: False
         self.match_field = match_field
-        self.verbose=verbose
-
+        self.verbose = verbose
 
         if not same_fields:
             names = [n for n in ev1_names if n in ev2_names]
@@ -734,7 +732,7 @@ class EventComparator(object):
         :return:
         """
         mismatch = []
-        event1,event2 = (ev if not ev.shape else ev[0] for ev in (event1,event2))
+        event1, event2 = (ev if not ev.shape else ev[0] for ev in (event1, event2))
         if subfield:
             ev1 = event1[subfield]
             ev2 = event2[subfield]
@@ -746,7 +744,7 @@ class EventComparator(object):
         for field in names:
             if isinstance(ev1[field], np.void) and ev2[field].dtype.names:  # Why is this typing as void?
                 mismatch.extend(self._get_field_mismatch(event1, event2, field))
-            elif ev2[field]!= ev1[field] and not self.exceptions(event1, event2, field, subfield):
+            elif ev2[field] != ev1[field] and not self.exceptions(event1, event2, field, subfield):
                 mismatch.append('%s: %s v. %s' % (field, ev1[field], ev2[field]))
         return mismatch
 
@@ -778,7 +776,8 @@ class EventComparator(object):
             if event1['type'] in self.type_switch:
                 for type in self.type_switch[event1['type']]:
                     this_mask2 = np.logical_or(this_mask2, np.logical_and(
-                        np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4, type == self.events2['type']
+                        np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4,
+                        type == self.events2['type']
                     ))
 
             # If we couldn't find a match, record this event
@@ -873,7 +872,7 @@ class StimComparator(object):
             field2 = self.get_subfield(event2, field_name2)
             try:
                 field2_is_nan = np.isnan(field2)
-            except:
+            except Exception:
                 field2_is_nan = False
             if not (field1 is None and field2_is_nan) and field1 != field2:
                 if not self.exceptions(event1, event2, field_name1, field_name2):
@@ -895,7 +894,8 @@ class StimComparator(object):
 
         for i, event1 in enumerate(self.events1):
             this_mask2 = np.logical_and(
-                    np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4, event1['type'] == self.events2['type'])
+                    np.abs(event1[self.match_field] - self.events2[self.match_field]) <= 4,
+                    event1['type'] == self.events2['type'])
             if not this_mask2.any():
                 continue
             this_mismatch = self._get_field_mismatch(event1, self.events2[this_mask2])
@@ -934,13 +934,11 @@ class EventCombiner(object):
         elif isinstance(instance, dict):
             return {}
 
-
     def combine(self):
         """
         Combines the events that were passed into the constructor
         :return: combined events, sorted by the specified sort_field
         """
-
         # Convert the events to a dictionary
         all_dict_events = []
         for events in self.events:
@@ -964,33 +962,33 @@ class EventCombiner(object):
         # Sort them, and return them
         all_dict_events = sorted(all_dict_events, key=lambda d:d[self.sort_field])
         dtypes = self.combine_dtypes([e.dtype for e in self.events])
-        return from_dict(all_dict_events,dtypes=dtypes)
+        return from_dict(all_dict_events, dtypes=dtypes)
 
-    def combine_dtypes(self,dtypes):
-        assert len(dtypes)>1
+    def combine_dtypes(self, dtypes):
+        assert len(dtypes) > 1
         dtype_0 = dtypes[0]
 
         for dtype in dtypes[1:]:
-            if ((dtype.names is None) ^ (dtype_0.names is None)):
+            if (dtype.names is None) ^ (dtype_0.names is None):
                 # pick the named one
                 dtype_0 = dtype_0 if dtype_0.names else dtype
                 continue
             if dtype.names is None:
-                dtype_0 = max(dtype_0,dtype)
+                dtype_0 = max(dtype_0, dtype)
                 continue
             else:
 
                 type_dict = {}
-                nested_type_names = set(n for dt in [dtype_0,dtype] for n in dt.names if dt.fields[n] is not None)
+                nested_type_names = set(n for dt in [dtype_0, dtype] for n in dt.names if dt.fields[n] is not None)
                 for name in nested_type_names:
                     if name in dtype_0.names and name in dtype.names:
-                        type_dict[name] = self.combine_dtypes([dtype_0[name],dtype[name]])
+                        type_dict[name] = self.combine_dtypes([dtype_0[name], dtype[name]])
                     else:
                         type_dict[name] = dtype[name] if name in dtype.names else dtype_0[name]
                 flat_names = set(n for dt in [dtype_0,dtype] for n in dt.names if n not in nested_type_names)
                 for name in flat_names:
                     if name in dtype_0.names and name in dtype.names:
-                        type_dict[name] = max(dtype_0[name],dtype[name])
+                        type_dict[name] = max(dtype_0[name], dtype[name])
                     else:
                         type_dict[name] = dtype_0[name] if name in dtype_0.names else dtype[name]
                 dtype_0 = np.dtype([x for x in type_dict.iteritems()])

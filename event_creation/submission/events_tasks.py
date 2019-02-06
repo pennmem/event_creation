@@ -13,7 +13,7 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
-from .alignment.system3 import System3Aligner, System3FourAligner
+from .alignment.system3 import System3Aligner
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -25,7 +25,7 @@ from .parsers.base_log_parser import EventComparator
 from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
-from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from .parsers.fr_sys3_log_parser import FRSys3LogParser, catFRSys3LogParser
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
@@ -126,7 +126,7 @@ class SplitEEGTask(PipelineTask):
                                                                 time=reader.get_start_time_string())
                 reader.split_data(db_folder, split_eeg_filename)
             num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
-                                + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
+                               + len(glob.glob(os.path.join(db_folder, 'noreref', '*.h5'))))
 
             if num_split_files == 0:
                 raise ProcessingError(
@@ -209,7 +209,7 @@ class EventCreationTask(PipelineTask):
     def r1_sys_num(self):
         if not self._r1_sys_num:
             return 0.0
-        return float(self._r1_sys_num.replace('_','.'))
+        return float(self._r1_sys_num.replace('_', '.'))
 
     @property
     def parser_type(self):
@@ -527,7 +527,7 @@ class CompareEventsTask(PipelineTask):
         self.name = 'Comparator {}_{}'.format(experiment, session)
         self.subject = subject
         self.code = code if code else subject
-        self.original_session = int(original_session if not original_session is None else session)
+        self.original_session = int(original_session if original_session is not None else session)
         self.montage = montage
         self.experiment = experiment
         self.session = session
@@ -537,7 +537,8 @@ class CompareEventsTask(PipelineTask):
     def get_matlab_event_file(self):
         if self.protocol == 'r1':
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
-            event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp, '{}_events.mat'.format(self.code))
+            event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp,
+                                           '{}_events.mat'.format(self.code))
         elif self.protocol == 'ltp':
             event_directory = os.path.join(paths.rhino_root, 'data', 'eeg', 'scalp', 'ltp', self.experiment, self.code,
                                            'session_{}'.format(self.original_session), 'events.mat')
