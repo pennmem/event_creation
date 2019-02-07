@@ -210,7 +210,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         except Exception:
             logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
                         ' continue anyway...')
-            pass
 
         # Load cleaned EEG data partitions
         clean = []
@@ -457,7 +456,7 @@ def run_split_lcf(inputs):
     # Load temporary split EEG file and delete it
     split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, index))
     eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
-    os.remove(split_eeg_path)
+    # os.remove(split_eeg_path)
 
     # Read locations of breaks and create a mask for use in leaving breaks out of IQR calculation
     ignore = np.zeros(eeg._data.shape[1], dtype=bool)
