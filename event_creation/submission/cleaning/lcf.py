@@ -212,32 +212,34 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
                         ' continue anyway...')
 
         # Load cleaned EEG data partitions
-        clean = []
-        for d in inputs:
-            index = d['index']
-            clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
-            clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
-            os.remove(clean_eegfile)
+        for iqr_thresh in ((2, 2.5, 3, 4)):
+            for lcf_winsize in ((.1, .25)):
+                clean = []
+                for d in inputs:
+                    index = d['index']
+                    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%s_%s_raw.fif' % (basename, index, int(iqr_thresh*10), int(lcf_winsize*1000)))
+                    clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
+                    os.remove(clean_eegfile)
 
-        # Concatenate the cleaned partitions of the recording back together
-        logger.debug('Constructing cleaned data file for {}'.format(basename))
-        clean = mne.concatenate_raws(clean)
-        logger.debug('Saving cleaned data for {}'.format(basename))
+                # Concatenate the cleaned partitions of the recording back together
+                logger.debug('Constructing cleaned data file for {}'.format(basename))
+                clean = mne.concatenate_raws(clean)
+                logger.debug('Saving cleaned data for {}'.format(basename))
 
-        ##########
-        #
-        # Data saving
-        #
-        ##########
+                ##########
+                #
+                # Data saving
+                #
+                ##########
 
-        # Save cleaned version of data to hdf as a TimeSeriesX object
-        clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
-        TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
-                    coords={'channels': clean.info['ch_names'], 'time': clean.times,
-                            'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
-        os.chmod(clean_eegfile, 0644)
+                # Save cleaned version of data to hdf as a TimeSeriesX object
+                clean_eegfile = os.path.join(ephys_dir, '%s_clean_%s_%s.h5' % (basename, int(iqr_thresh*10), int(lcf_winsize*1000)))
+                TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
+                            coords={'channels': clean.info['ch_names'], 'time': clean.times,
+                                    'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
+                os.chmod(clean_eegfile, 0644)
 
-        del clean
+                del clean
 
 
 def run_split_lcf(inputs):
@@ -514,10 +516,14 @@ def run_split_lcf(inputs):
     logger.debug('Running LCF (part %i) on %s' % (index, basename))
     # Convert data to sources
     S = ica.get_sources(eeg)._data
-    # Clean artifacts from sources using LCF
-    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
-    # Reconstruct data from cleaned sources
-    eeg._data = reconstruct_signal(cS, ica)
+    for iqr_thresh in ((2, 2.5, 3, 4)):
+        for lcf_winsize in ((.1, .25)):
 
-    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
-    eeg.save(clean_eegfile, overwrite=True)
+            # Clean artifacts from sources using LCF
+            cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
+
+            # Reconstruct data from cleaned sources
+            eeg._data = reconstruct_signal(cS, ica)
+
+            clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%s_%s_raw.fif' % (basename, index, int(iqr_thresh*10), int(lcf_winsize*1000)))
+            eeg.save(clean_eegfile, overwrite=True)
