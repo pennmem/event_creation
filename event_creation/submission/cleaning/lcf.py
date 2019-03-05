@@ -59,7 +59,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
 
         # Make sure LCF hasn't already been run for this file (prevents re-running LCF during math event creation)
         # TODO: Revert to search for _clean.h5
-        if os.path.exists(os.path.join(ephys_dir, '%s_clean_5.h5' % basename )):
+        if os.path.exists(os.path.join(ephys_dir, '%s_clean_3v2.h5' % basename )):
             continue
 
         # Select EEG data and events from current recording
@@ -217,7 +217,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
             clean = []
             for d in inputs:
                 index = d['index']
-                clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%s_raw.fif' % (basename, index, iqr_thresh))
+                clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
                 clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
                 os.remove(clean_eegfile)
 
@@ -233,7 +233,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
             ##########
 
             # Save cleaned version of data to hdf as a TimeSeriesX object
-            clean_eegfile = os.path.join(ephys_dir, '%s_clean_%s.h5' % (basename, iqr_thresh))
+            clean_eegfile = os.path.join(ephys_dir, '%s_clean_%sv2.h5' % (basename, iqr_thresh))
             TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
                         coords={'channels': clean.info['ch_names'], 'time': clean.times,
                                 'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
@@ -498,16 +498,13 @@ def run_split_lcf(inputs):
     # ICA
     ######
 
-    # Run (or load) ICA for the current part of the session
+    # Run (or load) ICA for the current part of the session; use one fewer component than channels because of rank
+    # reduction caused by re-referencing to common average
+    logger.debug('Running ICA (part %i) on %s' % (index, basename))
     ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, index))
-    if os.path.exists(ica_path):
-        logger.debug('Loading ICA (part %i) for %s' % (index, basename))
-        ica = mne.preprocessing.read_ica(ica_path)
-    else:
-        logger.debug('Running ICA (part %i) on %s' % (index, basename))
-        ica = mne.preprocessing.ICA(method=method)
-        ica.fit(eeg, reject_by_annotation=True)
-        ica.save(ica_path)
+    ica = mne.preprocessing.ICA(method=method, max_pca_components=len(eeg.ch_names)-1)
+    ica.fit(eeg, reject_by_annotation=True)
+    ica.save(ica_path)
 
     ######
     # LCF
@@ -516,14 +513,12 @@ def run_split_lcf(inputs):
     logger.debug('Running LCF (part %i) on %s' % (index, basename))
     # Convert data to sources
     S = ica.get_sources(eeg)._data
-    lcf_winsize = .2
-    for iqr_thresh in range(1, 6):
 
-        # Clean artifacts from sources using LCF
-        cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
+    # Clean artifacts from sources using LCF
+    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
 
-        # Reconstruct data from cleaned sources
-        eeg._data = reconstruct_signal(cS, ica)
+    # Reconstruct data from cleaned sources
+    eeg._data = reconstruct_signal(cS, ica)
 
-        clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%s_raw.fif' % (basename, index, iqr_thresh))
-        eeg.save(clean_eegfile, overwrite=True)
+    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
+    eeg.save(clean_eegfile, overwrite=True)
