@@ -214,7 +214,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
                         ' continue anyway...')
 
         # Load cleaned EEG data partitions
-        for iqr_thresh in (range(1, 6)):
+        # TODO: Set IQR thresh to a fixed value
+        for iqr_thresh in range(3, 4):
             clean = []
             for d in inputs:
                 index = d['index']
@@ -285,21 +286,6 @@ def run_split_lcf(inputs):
         Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
         as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
 
-        Through parameter optimization, it was found that channels should be marked as bad if they have a z-scored Hurst
-        exponent greater than 3.1 or z-scored log variance less than -1.9 or greater than 1.7. This combination of
-        thresholds, alongside the voltage offset test, successfully identified ~80.5% of bad channels with a false
-        positive rate of ~2.9% when tested on a set of 20 manually-annotated sessions. It was additionally found that
-        marking bad channels based on a low Hurst exponent failed to identify any channels that had not already marked
-        by the log-transformed variance test. Similarly, marking channels that were poorly correlated with other
-        channels as bad (see the "FASTER" method by Nolan, Whelan, and Reilly (2010)) was an accurate metric, but did
-        not improve the hit rate beyond what the log-transformed variance and Hurst exponent could achieve on their own.
-
-        Optimization was performed using a simple grid search of z-score threshold combinations for the different bad
-        channel detection methods, with the goal of optimizing the trade-off between hit rate and false positive rate
-        (hit_rate - false_positive_rate). The false positive rate was weighted at either 5 or 10 times the hit rate, to
-        strongly penalize the system for throwing out good channels (both weightings produced similar optimal
-        thresholds).
-
         Following bad channel detection, two bad channel files are created. The first is a file named
         <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
         as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
@@ -311,9 +297,9 @@ def run_split_lcf(inputs):
 
         # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
         offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
-        offset_rate_th = .15  # If >15% of the recording has poor scalp contact, mark as bad (BioSemi only)
-        low_var_th = -2  # If z-scored log variance < -2, channel is most likely flat
-        high_var_th = 2  # If z-scored log variance > 2, channel is likely too noisy to analyze
+        offset_rate_th = .25  # If >25% of the recording partition has poor scalp contact, mark as bad (BioSemi only)
+        low_var_th = -3  # If z-scored log variance < -3, channel is most likely flat
+        high_var_th = 3  # If z-scored log variance > 3, channel is likely too noisy
         hurst_th = 3  # If z-scored Hurst exponent > 3, channel is unlikely to be physiological
 
         n_chans = eeg._data.shape[0]
@@ -454,11 +440,11 @@ def run_split_lcf(inputs):
     method = inputs['method']
     iqr_thresh = inputs['iqr_thresh']
     lcf_winsize = inputs['lcf_winsize']
-    badchan_method = inputs['badchan_method']
 
     # Load temporary split EEG file and delete it
     split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, index))
     eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
+    # TODO: Reactivate removal of EEG partition files
     # os.remove(split_eeg_path)
 
     # Read locations of breaks and create a mask for use in leaving breaks out of IQR calculation
@@ -482,34 +468,15 @@ def run_split_lcf(inputs):
     # channel. Reduce the number of PCA/ICA components accordingly, or else you may get components that are identical
     # with opposite polarities. See url for details: https://sccn.ucsd.edu/wiki/Chapter_09:_Decomposing_Data_Using_ICA
     n_components = len(eeg.ch_names)
-    if badchan_method == 'interpolate':  # Repair bad channels using spherical spline interpolation
-        eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
-        n_components -= len(eeg.info['bads'])
-        eeg.interpolate_bads(reset_bads=True, mode='accurate')
-        eeg.set_eeg_reference(projection=False)
-        n_components -= 1
-    elif badchan_method == 'exclude':  # Drop bad channels from entire process; they will not be present in cleaned data
-        eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
-        n_components -= len(eeg.info['bads'])
-        eeg.set_eeg_reference(projection=False)
-        n_components -= 1
-    elif badchan_method == 'reref':  # Leave bad channels out of the common average, but don't exclude from ICA/LCF
-        eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
-        eeg.set_eeg_reference(projection=False)
-        eeg.info['bads'] = []
-        n_components -= 1
-    elif badchan_method == 'None' or badchan_method is None:  # Skip bad channel detection and just re-reference data
-        eeg.set_eeg_reference(projection=False)
-        n_components -= 1
-    else:
-        raise ValueError('%s is an invalid setting for badchan_method. Must be "interpolate", "exclude", "reref", or '
-                         'None.' % badchan_method)
+    eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
+    eeg.set_eeg_reference(projection=False)
+    n_components -= 1 + len(eeg.info['bads'])
 
     ######
     # ICA
     ######
 
-    # Run ICA for the current partition of the session
+    # Run ICA for the current partition of the session. Note that ICA automatically excludes bad channels.
     logger.debug('Running ICA (part %i) on %s' % (index, basename))
     ica = mne.preprocessing.ICA(method=method, max_pca_components=n_components)
     ica.fit(eeg, reject_by_annotation=True)
@@ -523,10 +490,15 @@ def run_split_lcf(inputs):
     S = ica.get_sources(eeg)._data
 
     # Clean artifacts from sources using LCF
-    cS = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
+    S = lcf(S, S, eeg.info['sfreq'], iqr_thresh, lcf_winsize, lcf_winsize, ignore=ignore)
 
     # Reconstruct data from cleaned sources
-    eeg._data = reconstruct_signal(cS, ica)
+    eeg._data.fill(0)
+    good_idx = mne.pick_channels(eeg.ch_names, [], exclude=eeg.info['bads'])
+    eeg._data[good_idx, :] = reconstruct_signal(S, ica)
+
+    # Interpolate bad channels
+    eeg.interpolate_bads(mode='accurate')
 
     # Save clean data from current partition of session
     clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
