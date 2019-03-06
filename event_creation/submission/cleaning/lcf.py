@@ -1,6 +1,7 @@
 import os
 import mne
 import numpy as np
+from scipy import linalg
 from ptsa.data.TimeSeriesX import TimeSeriesX
 from cluster_helper.cluster import cluster_view
 from ..log import logger
@@ -433,7 +434,7 @@ def run_split_lcf(inputs):
         data = np.dot(ica.mixing_matrix_, sources)
 
         # Mix PCA components to translate back into original EEG channels (Channels x Time)
-        data = np.dot(np.linalg.inv(ica.pca_components_), data)
+        data = np.dot(linalg.pinv(ica.pca_components_), data)
 
         # Invert transformations that MNE performs prior to PCA
         data += ica.pca_mean_[:, None]
@@ -477,19 +478,29 @@ def run_split_lcf(inputs):
     # Pre-processing
     ######
 
+    # Rank of the data decreases by 1 after common average reference, and an additional 1 for each excluded/interpolated
+    # channel. Reduce the number of PCA/ICA components accordingly, or else you may get components that are identical
+    # with opposite polarities. See url for details: https://sccn.ucsd.edu/wiki/Chapter_09:_Decomposing_Data_Using_ICA
+    n_components = len(eeg.ch_names)
     if badchan_method == 'interpolate':  # Repair bad channels using spherical spline interpolation
         eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
+        n_components -= len(eeg.info['bads'])
         eeg.interpolate_bads(reset_bads=True, mode='accurate')
         eeg.set_eeg_reference(projection=False)
+        n_components -= 1
     elif badchan_method == 'exclude':  # Drop bad channels from entire process; they will not be present in cleaned data
         eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
+        n_components -= len(eeg.info['bads'])
         eeg.set_eeg_reference(projection=False)
+        n_components -= 1
     elif badchan_method == 'reref':  # Leave bad channels out of the common average, but don't exclude from ICA/LCF
         eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
         eeg.set_eeg_reference(projection=False)
         eeg.info['bads'] = []
+        n_components -= 1
     elif badchan_method == 'None' or badchan_method is None:  # Skip bad channel detection and just re-reference data
         eeg.set_eeg_reference(projection=False)
+        n_components -= 1
     else:
         raise ValueError('%s is an invalid setting for badchan_method. Must be "interpolate", "exclude", "reref", or '
                          'None.' % badchan_method)
@@ -502,7 +513,7 @@ def run_split_lcf(inputs):
     # reduction caused by re-referencing to common average
     logger.debug('Running ICA (part %i) on %s' % (index, basename))
     ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, index))
-    ica = mne.preprocessing.ICA(method=method, max_pca_components=len(eeg.ch_names)-1)
+    ica = mne.preprocessing.ICA(method=method, max_pca_components=n_components)
     ica.fit(eeg, reject_by_annotation=True)
     ica.save(ica_path)
 
