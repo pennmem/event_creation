@@ -498,7 +498,7 @@ def run_split_lcf(inputs):
     eeg._data[good_idx, :] = reconstruct_signal(S, ica)
 
     # Interpolate bad channels
-    eeg.interpolate_bads(mode='accurate')
+    eeg.interpolate_bads(reset_bads=True, mode='accurate')
 
     # Save clean data from current partition of session
     clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
