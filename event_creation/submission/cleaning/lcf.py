@@ -509,13 +509,10 @@ def run_split_lcf(inputs):
     # ICA
     ######
 
-    # Run (or load) ICA for the current part of the session; use one fewer component than channels because of rank
-    # reduction caused by re-referencing to common average
+    # Run ICA for the current partition of the session
     logger.debug('Running ICA (part %i) on %s' % (index, basename))
-    ica_path = os.path.join(ephys_dir, '%s_%i-ica.fif' % (basename, index))
     ica = mne.preprocessing.ICA(method=method, max_pca_components=n_components)
     ica.fit(eeg, reject_by_annotation=True)
-    ica.save(ica_path)
 
     ######
     # LCF
@@ -531,5 +528,6 @@ def run_split_lcf(inputs):
     # Reconstruct data from cleaned sources
     eeg._data = reconstruct_signal(cS, ica)
 
+    # Save clean data from current partition of session
     clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
     eeg.save(clean_eegfile, overwrite=True)
