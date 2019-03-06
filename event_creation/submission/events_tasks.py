@@ -269,8 +269,8 @@ class EventCreationTask(PipelineTask):
             del aligner
             events = artifact_detector.run()
             # Create a cleaned version of the EEG data using localized component filtering
-            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5,
-                    badchan_method='None', iqr_thresh=3, lcf_winsize=.2)
+            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3,
+                    lcf_winsize=.2)
             del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
