@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..log import logger
-from ..exc import LogParseError, EventFieldError
+from ..exc import LogParseError, UnknownExperimentError, EventFieldError
 from ..readers.eeg_reader import read_jacksheet
 from ..viewers.recarray import pformat_rec, to_dict, from_dict
 from ..exc import NoAnnotationError
@@ -965,9 +965,11 @@ class EventCombiner(object):
         return from_dict(all_dict_events, dtypes=dtypes)
 
     def combine_dtypes(self, dtypes):
-        assert len(dtypes) > 1
-        dtype_0 = dtypes[0]
+        assert len(dtypes) > 0
 
+        dtype_0 = dtypes[0]
+        if len(dtypes) == 1:
+            return dtype_0
         for dtype in dtypes[1:]:
             if (dtype.names is None) ^ (dtype_0.names is None):
                 # pick the named one

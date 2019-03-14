@@ -5,7 +5,7 @@ import traceback
 import requests
 import json
 import numpy as np
-from ptsa.data.readers import BaseEventReader, JsonIndexReader
+from ptsa.data.readers import BaseEventReader
 
 from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_INPUTS, \
     SYS1_STIM_COMPARISON_INPUTS, SYS2_STIM_COMPARISON_INPUTS, LTP_COMPARATOR_INPUTS
@@ -271,8 +271,8 @@ class EventCreationTask(PipelineTask):
             del aligner
             events = artifact_detector.run()
             # Create a cleaned version of the EEG data using localized component filtering
-            run_lcf(events, artifact_detector.eeg, ephys_dir, method='fastica', highpass_freq=.5,
-                    badchan_method='interpolate', iqr_thresh=3, lcf_winsize=.1)
+            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3,
+                    lcf_winsize=.2)
             del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
