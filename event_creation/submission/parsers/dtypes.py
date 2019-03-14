@@ -170,6 +170,19 @@ vffr_fields = (
         ('eogArtifact', -1, 'int8')
 )
 
+prelim_fields = (
+        ('trial', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('item_name', '', 'S16'),
+        ('item_num', -999, 'int16'),
+        ('recalled', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', False, 'b1'),
+        ('intruded', False, 'b1'),
+        ('pres_dur', -999, 'int32'),
+        ('eogArtifact', -1, 'int8')
+)
+
 
 # PS2-3
 ps_fields = (
