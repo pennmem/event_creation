@@ -42,7 +42,7 @@ class PrelimSessionLogParser(BaseUnityLTPLogParser):
         :param evdata: A dictionary containing the data from an event.
         :return: None (does not create an event)
         """
-        self._trial = int(evdata['data']['displayed_text'][5:]) - 1
+        self._trial = int(evdata['data']['displayed text'][5:]) - 1
         self._serialpos = 0
         return None
 
