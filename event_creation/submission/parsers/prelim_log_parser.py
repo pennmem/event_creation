@@ -12,7 +12,7 @@ class PrelimSessionLogParser(BaseUnityLTPLogParser):
         self.current_word = ''
         self.current_num = -999
 
-        self._add_fields(*dtypes.vffr_fields)
+        self._add_fields(*dtypes.prelim_fields)
         self._add_type_to_new_event(
             countdown=self.event_countdown,  # Pre-trial countdowns
             end_message=self.event_sess_end,  # End of session
