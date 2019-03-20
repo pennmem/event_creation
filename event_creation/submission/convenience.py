@@ -457,7 +457,7 @@ def session_inputs_from_json(filename):
             for session in sessions:
                 info = sessions[session]
                 if 'protocol' not in info:
-                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    info['protocol'] = 'ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else 'r1' if subject.startswith('R') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
@@ -633,7 +633,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     protocol = inputs.protocol
     if protocol is None:
-        protocol = 'ltp' if subject.startswith('LTP') else \
+        protocol = 'ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else \
                    'r1' if subject.startswith('R') else None
     groups = (protocol,)
 
