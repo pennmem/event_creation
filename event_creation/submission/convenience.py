@@ -441,7 +441,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    protocol='ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else 'r1' if subject.startswith('R') else None
                 )
                 completed_codes.add(code)
                 yield inputs
