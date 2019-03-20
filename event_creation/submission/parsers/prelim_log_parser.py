@@ -186,7 +186,7 @@ class PrelimSessionLogParser(BaseUnityLTPLogParser):
         rec_start_time = rec_start_event.mstime
 
         # Get list of recalls from the .ann file for the current list; each recall is (rectime, item_num, item_name)
-        ann_outputs = self._parse_ann_file(str(self._trial - 1))
+        ann_outputs = self._parse_ann_file(str(self._trial))
 
         for recall in ann_outputs:
             word = recall[-1]
