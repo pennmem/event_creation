@@ -17,7 +17,7 @@ class PrelimSessionLogParser(BaseUnityLTPLogParser):
             countdown=self.event_countdown,  # Pre-trial countdowns
             end_message=self.event_sess_end,  # End of session
             list_count=self.update_trial,  # List number screen
-            microphone_test_start=self.event_sess_start,  # Start of session (microphone test)
+            microphone_test_begin=self.event_sess_start,  # Start of session (microphone test)
             recall_start=self.event_rec_start,  # Start of vocalization period
             recall_stop=self.event_rec_stop,  # End of vocalization period
             required_break_start=self.event_break_start,  # Start of mid-session break
