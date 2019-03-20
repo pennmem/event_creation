@@ -59,8 +59,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         logger.debug('Cleaning data from {}'.format(basename))
 
         # Make sure LCF hasn't already been run for this file (prevents re-running LCF during math event creation)
-        # TODO: Revert to search for _clean.h5
-        if os.path.exists(os.path.join(ephys_dir, '%s_clean_3v2.h5' % basename )):
+        if os.path.exists(os.path.join(ephys_dir, '%s_clean.h5' % basename)):
             continue
 
         # Select EEG data and events from current recording
@@ -214,34 +213,32 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
                         ' continue anyway...')
 
         # Load cleaned EEG data partitions
-        # TODO: Set IQR thresh to a fixed value
-        for iqr_thresh in range(3, 4):
-            clean = []
-            for d in inputs:
-                index = d['index']
-                clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
-                clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
-                os.remove(clean_eegfile)
+        clean = []
+        for d in inputs:
+            index = d['index']
+            clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
+            clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
+            os.remove(clean_eegfile)
 
-            # Concatenate the cleaned partitions of the recording back together
-            logger.debug('Constructing cleaned data file for {}'.format(basename))
-            clean = mne.concatenate_raws(clean)
-            logger.debug('Saving cleaned data for {}'.format(basename))
+        # Concatenate the cleaned partitions of the recording back together
+        logger.debug('Constructing cleaned data file for {}'.format(basename))
+        clean = mne.concatenate_raws(clean)
+        logger.debug('Saving cleaned data for {}'.format(basename))
 
-            ##########
-            #
-            # Data saving
-            #
-            ##########
+        ##########
+        #
+        # Data saving
+        #
+        ##########
 
-            # Save cleaned version of data to hdf as a TimeSeriesX object
-            clean_eegfile = os.path.join(ephys_dir, '%s_clean_%sv2.h5' % (basename, iqr_thresh))
-            TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
-                        coords={'channels': clean.info['ch_names'], 'time': clean.times,
-                                'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
-            os.chmod(clean_eegfile, 0644)
+        # Save cleaned version of data to hdf as a TimeSeriesX object
+        clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
+        TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
+                    coords={'channels': clean.info['ch_names'], 'time': clean.times,
+                            'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
+        os.chmod(clean_eegfile, 0644)
 
-            del clean
+        del clean
 
 
 def run_split_lcf(inputs):
@@ -444,8 +441,7 @@ def run_split_lcf(inputs):
     # Load temporary split EEG file and delete it
     split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, index))
     eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
-    # TODO: Reactivate removal of EEG partition files
-    # os.remove(split_eeg_path)
+    os.remove(split_eeg_path)
 
     # Read locations of breaks and create a mask for use in leaving breaks out of IQR calculation
     ignore = np.zeros(eeg._data.shape[1], dtype=bool)
