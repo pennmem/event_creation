@@ -40,11 +40,11 @@ class PrelimSessionLogParser(BaseUnityLTPLogParser):
         """
         At the start of each trial, update the trial number and reset the serial position.
         :param evdata: A dictionary containing the data from an event.
-        :return: None (does not create an event)
+        :return: False (does not create an event)
         """
         self._trial = int(evdata['data']['displayed text'][5:]) - 1
         self._serialpos = 0
-        return None
+        return False
 
     def event_countdown(self, evdata):
         """
