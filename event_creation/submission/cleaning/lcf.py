@@ -497,5 +497,5 @@ def run_split_lcf(inputs):
     eeg.interpolate_bads(reset_bads=True, mode='accurate')
 
     # Save clean data from current partition of session
-    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_%sv2_raw.fif' % (basename, index, iqr_thresh))
+    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
     eeg.save(clean_eegfile, overwrite=True)
