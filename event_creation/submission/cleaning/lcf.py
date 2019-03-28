@@ -2,32 +2,36 @@ import os
 import mne
 import numpy as np
 from scipy import linalg
-from ptsa.data.TimeSeriesX import TimeSeriesX
 from cluster_helper.cluster import cluster_view
 from ..log import logger
 
 
-def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, badchan_method=None, iqr_thresh=3, lcf_winsize=.2):
+def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.2):
     """
     Runs localized component filtering (DelPozo-Banos & Weidemann, 2017) to clean artifacts from EEG data. Cleaned data
     is written to a new file in the ephys directory for the session. The pipeline is as follows, repeated for each
     EEG recording the session had:
 
-    1) Drop EOG channels and (optionally) bad channels from the data.
-    2) High-pass filter the data.
-    3) Common average re-reference the data.
-    4) Run ICA on the data. A new ICA is fit after each session break, while excluding the time points before the
-        session, after the session, and during breaks. The final saved file will still contain all data points, but the
-        actual ICA solutions will not be influenced by breaks.
-    5) Remove artifacts using LCF, paired with the ICA solutions calculated in #4.
-    6) Save a cleaned version of the EEG data to a .fif file.
+    1) Drop EOG and trigger channels from the data.
+    2) High-pass filter the data to eliminate baseline drift.
+    3) Split the recording into partitions, separated by mid-session breaks. A new partition begins immediately after
+        each mid-session break. Also mark break periods for subsequent exclusion while fitting ICA.
+    4) Detect and drop bad channels separately for each partition.
+    5) Apply a common average reference to the data.
+    6) Run ICA on the data, with break periods and pre- and post-session EEG data excluded from this fitting process.
+    7) Use ICA solution to decompose data into its sources.
+    8) Remove artifacts from each source using localized component filtering.
+    9) Reconstruct the original channels from the cleaned sources.
+    10) Use the cleaned data to interpolate the bad channels that were dropped prior to ICA.
+    11) Concatenate the partitions of data back into a single, continuous time series.
+    12) Save the cleaned session data to an .h5 file.
 
     To illustrate how this function divides up a session, a session with 2 breaks would have 3 parts:
     1) Start of recording -> End of break 1
     2) End of break 1 -> End of break 2
     3) End of break 2 -> End of recording
 
-    Note that his function uses ipython-cluster-helper to clean all partitions of the session in parallel.
+    Note that this function uses ipython-cluster-helper to clean all partitions of the session in parallel.
 
     :param events: Events structure for the session.
     :param eeg_dict: Dictionary mapping the basename of each EEG recording for the session to an MNE raw object
@@ -35,18 +39,12 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
     :param ephys_dir: File path of the current_processed EEG directory for the session.
     :param method: String defining which ICA algorithm to use (fastica, infomax, extended-infomax, picard).
     :param highpass_freq: The frequency in Hz at which to high-pass filter the data prior to ICA (recommended >= .5)
-    :param badchan_method: If 'interpolate', uses the spherical spline interpolation method in MNE to repair bad
-    channels before re-referencing and running LCF. If 'exclude', drops bad channels from the data prior to
-    re-referencing and LCF, meaning that bad channels will be missing entirely from the cleaned data. If 'reref',
-    excludes bad channels from the calculation of the common average reference, but leaves them in during LCF. If None
-    or 'none', do not attempt to automatically determine bad channels, and just leave all channels in.
     :param iqr_thresh: The number of interquartile ranges above the 75th percentile or below the 25th percentile that a
         sample must be for LCF to mark it as artifactual.
     :param lcf_winsize: The width (in seconds) of the LCF dilator and transition windows.
     :return: None
     """
-
-    # Loop over all of the session's EEG recordings
+    # Loop over each of the session's EEG recordings
     for eegfile in eeg_dict:
 
         ##########
@@ -57,9 +55,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
 
         basename, filetype = os.path.splitext(eegfile)
         logger.debug('Cleaning data from {}'.format(basename))
+        clean_eegfile = os.path.join(ephys_dir, '%s_clean_raw.fif' % basename)
 
         # Make sure LCF hasn't already been run for this file (prevents re-running LCF during math event creation)
-        if os.path.exists(os.path.join(ephys_dir, '%s_clean.h5' % basename)):
+        if os.path.exists(clean_eegfile):
             continue
 
         # Select EEG data and events from current recording
@@ -87,10 +86,10 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         #
         ##########
 
+        # Mark all time points before and after the session for exclusion
         onsets = []
         offsets = []
         sess_start_in_recording = False
-        # Mark all time points before and after the session for exclusion
         if evs[0].type == 'SESS_START':
             sess_start_in_recording = True
             onsets.append(0)
@@ -191,7 +190,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         for i, stop in enumerate(split_samples):
 
             d = dict(index=i, basename=basename, ephys_dir=ephys_dir, filetype=filetype, method=method,
-                     iqr_thresh=iqr_thresh, lcf_winsize=lcf_winsize, badchan_method=badchan_method)
+                     iqr_thresh=iqr_thresh, lcf_winsize=lcf_winsize)
             inputs.append(d)
 
             # Copy the session data, then crop it down to one part of the session. Save it temporarily for parallel jobs
@@ -212,13 +211,13 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
             logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
                         ' continue anyway...')
 
-        # Load cleaned EEG data partitions
+        # Load cleaned EEG data partitions and remove the temporary partition files
         clean = []
         for d in inputs:
             index = d['index']
-            clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
-            clean.append(mne.io.read_raw_fif(clean_eegfile, preload=True))
-            os.remove(clean_eegfile)
+            clean_partfile = os.path.join(ephys_dir, '%s_clean%i_raw.fif' % (basename, index))
+            clean.append(mne.io.read_raw_fif(clean_partfile, preload=True))
+            os.remove(clean_partfile)
 
         # Concatenate the cleaned partitions of the recording back together
         logger.debug('Constructing cleaned data file for {}'.format(basename))
@@ -231,11 +230,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, bad
         #
         ##########
 
-        # Save cleaned version of data to hdf as a TimeSeriesX object
-        clean_eegfile = os.path.join(ephys_dir, '%s_clean.h5' % basename)
-        TimeSeriesX(clean._data.astype(np.float32), dims=('channels', 'time'),
-                    coords={'channels': clean.info['ch_names'], 'time': clean.times,
-                            'samplerate': clean.info['sfreq']}).to_hdf(clean_eegfile)
+        # Save data to a .fif file and set permissions to read only
+        clean.save(clean_eegfile, fmt='single')
         os.chmod(clean_eegfile, 0644)
 
         del clean
@@ -270,25 +266,34 @@ def run_split_lcf(inputs):
         1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
         ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
         during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
-        15% of the total duration of the recording above this offset threshold is marked as bad.
+        25% of the total duration of the recording above this offset threshold is marked as bad.
 
         2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
         extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
         variance allows for more reliable detection of outliers.
 
         3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
-        As physiological signals consistently have a Hurst exponent of around .7, channels with extreme deviations from
-        this value are unlikely to be measuring physiological activity.
+        As physiological signals consistently have similar Hurst exponents, channels with extreme deviations from this
+        value are unlikely to be measuring physiological activity.
 
         Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
         as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
 
         Following bad channel detection, two bad channel files are created. The first is a file named
-        <eegfile_basename>_bad_chan.txt, and is a text file containing the names of all channels that were identifed
-        as bad. The second is a tab-separated values (.tsv) file called <eegfile_basename>_bad_chan_info.tsv, which
-        contains the actual detection scores for each EEG channel.
+        <eegfile_basename>_bad_chan<index>.txt (where index is the partition number for that part of the session), and
+        is a text file containing the names of all channels that were identifed as bad. The second is a tab-separated
+        values (.tsv) file called <eegfile_basename>_bad_chan_info<index>.tsv, which contains the actual detection
+        scores for each EEG channel.
 
-        :return: None
+        :param eeg: An mne Raw object containing the EEG data to run bad channel detection on.
+        :param index: The partition number of this part of the session. Used so that each parallel job writes a
+            different bad channel file.
+        :param basename: The basename of the EEG recording. Used for naming bad channel files in a consistent manner.
+        :param ephys_dir: The path to the ephys directory for the session.
+        :param filetype: A string indicating the file extension of the EEG recording ('.bdf', '.mff', or '.raw').
+        :param ignore: A boolean array indicating whether each time point in the EEG signal should be excluded/ignored
+            during bad channel detection.
+        :return: A list containing the string names of each bad channel.
         """
         logger.debug('Identifying bad channels for part %i of %s' % (index, basename))
 
@@ -497,5 +502,5 @@ def run_split_lcf(inputs):
     eeg.interpolate_bads(reset_bads=True, mode='accurate')
 
     # Save clean data from current partition of session
-    clean_eegfile = os.path.join(ephys_dir, '%s_%i_clean_raw.fif' % (basename, index))
+    clean_eegfile = os.path.join(ephys_dir, '%s_clean%i_raw.fif' % (basename, index))
     eeg.save(clean_eegfile, overwrite=True)
