@@ -25,7 +25,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
     9) Reconstruct the original channels from the cleaned sources.
     10) Use the cleaned data to interpolate the bad channels that were dropped prior to ICA.
     11) Concatenate the partitions of data back into a single, continuous time series.
-    12) Save the cleaned session data to an .h5 file.
+    12) Save the cleaned session data to a .fif file.
 
     To illustrate how this function divides up a session, a session with 2 breaks would have 3 parts:
     1) Start of recording -> End of break 1
