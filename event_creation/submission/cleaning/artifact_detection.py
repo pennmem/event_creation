@@ -5,9 +5,7 @@ from ..log import logger
 
 class ArtifactDetector:
     """
-    Runs scripts for Scalp Lab blink and artifact detection. Parameters differ depending on whether the session was
-    conducted using EGI or Biosemi. After detection processes are run, the events structure is filled with artifact
-    data.
+    Runs scripts for Scalp Lab blink and artifact detection.
     """
 
     def __init__(self, events, eeg, ephys_dir, experiment):
@@ -20,22 +18,17 @@ class ArtifactDetector:
         experiments.
         """
         self.events = events
-        self.eegfile = None  # Used for tracking the path to the recording which is currently being processed
         self.eeg = eeg
         self.ephys_dir = ephys_dir
         self.experiment = experiment
-
-        self.system = None
-        self.chans = None
-        self.n_chans = None
-        self.eog_chans = None
-        self.bad_chans = None
-        self.blink_thresh = None
+        self.eegfile = None  # Tracks the path to the recording which is currently being processed
+        self.system = None  # Will automatically be set to 'bio' for BioSemi sessions and 'egi' for EGI sessions
 
     def run(self):
         """
-        Adds artifact testing information to the events structure and records bad channels and bad-channel testing
-        scores in a TSV file for each EEG recording in the session.
+        Preprocesses EOG channels by applying a bipolar reference for each eye, then bandpass filtering the data to
+        reduce irrelevant noise. Following this preprocessing, EOG artifact detection is performed by the
+        mark_bad_epochs() method and artifact information is added to the events.
 
         :return: The events structure updated with artifact and blink information.
         """
@@ -43,8 +36,6 @@ class ArtifactDetector:
             logger.warn('Skipping artifact detection due to there being no word presentation events or no EEG data!')
         else:
             for self.eegfile in self.eeg:
-                # Drop miscellaneous/sync pulse channel(s)
-                self.eeg[self.eegfile].pick_types(eeg=True, eog=True)
 
                 # Prepare settings depending on the EEG system that was used
                 if self.eegfile.endswith('.bdf'):
@@ -59,48 +50,46 @@ class ArtifactDetector:
                     logger.warn('Unidentifiable EEG system detected in file %s' % self.eegfile)
                     continue
 
-                # Set bipolar reference for EOG channels. Note that the resulting channels will be anode - cathode
-                self.eeg[self.eegfile] = mne.set_bipolar_reference(self.eeg[self.eegfile], anode=[self.left_eog[0],
-                                                    self.right_eog[0]], cathode=[self.left_eog[1], self.right_eog[1]])
+                # Pick only the EOG channels
+                eog = self.eeg[self.eegfile].copy()
+                eog.pick_channels(self.left_eog + self.right_eog)
 
-                # Get a list of the channels names, and make sure we have the proper number of channels
-                self.chans = np.array(self.eeg[self.eegfile].ch_names)
-                self.n_chans = len(self.chans)
-                if (self.eegfile.endswith('.mff') or self.eegfile.endswith('.raw')) and self.n_chans != 126:
-                    logger.warn('Artifact detection expected 124 EEG + 2 bipolar EOG channels for EGI but got %i for '
-                                'file %s! Skipping...' % (self.n_chans, self.eegfile))
-                    continue
-                elif self.eegfile.endswith('.bdf') and self.n_chans != 130:
-                    logger.warn(
-                        'Artifact detection expected 128 EEG + 2 bipolar EOG channels for BioSemi but got %i for '
-                        'file %s! Skipping...' % (self.n_chans, self.eegfile))
-                    continue
+                # Set bipolar reference for EOG channels. Note that the resulting channels will be anode - cathode
+                eog = mne.set_bipolar_reference(eog, anode=[self.left_eog[0], self.right_eog[0]],
+                                                cathode=[self.left_eog[1], self.right_eog[1]])
+
+                # Apply a 1-10 Hz bandpass filter on the EOG data to reduce irrelevant noise
+                eog.filter(1, 10, picks=mne.pick_types(eog.info, eog=True), filter_length='10s', phase='zero-double',
+                           fir_window='hann', fir_design='firwin2')
 
                 # Record the indices of the bipolar EOG channels, as positioned in the mne object
-                self.leog_ind = self.eeg[self.eegfile].ch_names.index(self.left_eog[0] + '-' + self.left_eog[1])
-                self.reog_ind = self.eeg[self.eegfile].ch_names.index(self.right_eog[0] + '-' + self.right_eog[1])
-
-                # Create mask to select only EEG channels (not EOG)
-                self.eeg_mask = np.ones(self.n_chans, dtype=bool)
-                self.eeg_mask[self.reog_ind] = False
-                self.eeg_mask[self.leog_ind] = False
+                self.leog_ind = eog.ch_names.index(self.left_eog[0] + '-' + self.left_eog[1])
+                self.reog_ind = eog.ch_names.index(self.right_eog[0] + '-' + self.right_eog[1])
 
                 # Run artifact detection
-                self.mark_bad_epochs()
+                self.detect_eog_artifacts(eog)
 
         return self.events
 
-    def mark_bad_epochs(self):
+    def detect_eog_artifacts(self, eog):
         """
-        Blink/eye movement detection is performed by applying the following method to each EOG channel. The
-        interquartile range of voltages on a given channel is calculated across all time points during all presentation
-        events. Positive and negative voltage thresholds are then set at 3 interquartile ranges above the 75th
-        percentile and 3 interquartile ranges below the 25th percentile. An event is marked as having a blink if the
-        voltage on any EOG channel exceeds either threshold.
+        Detects eye movement artifacts on the EOG channels and logs this information in the events. Events with
+        artifacts detected on both eyes will be marked with a 3. Events with artifacts detected only on the left eye
+        will be marked with a 1. Events with artifacts detected only on the right eye will be marked with a 2. Events
+        with no EOG artifacts will be marked with a 0. Untested events will have a value of -1.
 
-        Blink detection does not currently support event types other than word presentations, but could potentially
-        be modified to do so.
+        Note that which event types blink detection is performed on -- as well as the onset/offset times for those
+        events -- must be set individually for each experiment in SETTINGS.
 
+        Blink/eye movement detection is performed for each event type by applying the following method to each EOG
+        channel:
+        1) Calculate the interquartile range of voltages on that channel across all time points during all events of
+            that type.
+        2) Set positive and negative voltage thresholds at 3 interquartile ranges above the 75th percentile and 3
+            interquartile ranges below the 25th percentile.
+        3) Mark every event where the voltage on that channel exceeds either threshold as having an EOG artifcat.
+
+        :param eog: An MNE Raw object containing the EOG channel data to be searched for artifacts.
         :return: None
         """
         ##########
@@ -138,40 +127,35 @@ class ArtifactDetector:
             # Remove any events that run beyond the bounds of the EEG file
             truncated_events_pre = 0
             truncated_events_post = 0
-            while mne_evs[0, 0] + self.eeg[self.eegfile].info['sfreq'] * tmin < 0:
+            while mne_evs[0, 0] + eog.info['sfreq'] * tmin < 0:
                 mne_evs = mne_evs[1:]
                 truncated_events_pre += 1
-            while mne_evs[-1, 0] + self.eeg[self.eegfile].info['sfreq'] * tmax >= self.eeg[self.eegfile].n_times:
+            while mne_evs[-1, 0] + eog.info['sfreq'] * tmax >= eog.n_times:
                 mne_evs = mne_evs[:-1]
                 truncated_events_post += 1
 
             # Load data from all presentation events into an mne.Epochs object & baseline correct using each event's average voltage
-            ep = mne.Epochs(self.eeg[self.eegfile], mne_evs, tmin=tmin, tmax=tmax, baseline=None, preload=True)
+            ep = mne.Epochs(eog, mne_evs, tmin=tmin, tmax=tmax, baseline=(None, None), preload=True)
 
             ##########
             #
-            # Individual-channel and all-channel bad epoch detection
+            # EOG Artifact Detection
             #
             ##########
 
-            # Apply baseline correction on epoch data before analyzing individual channels across events
-            ep.apply_baseline((tmin, None))
-
-            # Method 4: Large deviation of voltage from interquartile range on individual channels during event
+            # Look for large deviations of voltage from interquartile range on individual channels during event
             # Find the interquartile range of each channel, across time and across all events
             p75 = np.percentile(ep._data, 75, axis=[2, 0])
             p25 = np.percentile(ep._data, 25, axis=[2, 0])
             iqr = p75 - p25
 
-            # Find the max and min of each channel during each event, then determine how many IQRs outside the IQR they fall
+            # Find the max and min of each channel in each event, then determine how many IQRs outside the IQR they fall
             amp_max_iqr = (ep._data.max(axis=2) - p75) / iqr
-            amp_max_iqr[amp_max_iqr < 0] = 0
             amp_min_iqr = (ep._data.min(axis=2) - p25) / iqr
-            amp_min_iqr[amp_min_iqr > 0] = 0
 
             # Search for blinks/eye movements in each EOG channel
-            right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
             left_eog_art = np.logical_or(amp_max_iqr[:, self.leog_ind] > 3, amp_min_iqr[:, self.leog_ind] < -3)
+            right_eog_art = np.logical_or(amp_max_iqr[:, self.reog_ind] > 3, amp_min_iqr[:, self.reog_ind] < -3)
 
             ##########
             #
@@ -179,13 +163,12 @@ class ArtifactDetector:
             #
             ##########
 
-            # Mark channels with artifacts during each presentation event
             logger.debug('Marking events with blink info...')
 
             # Skip event types which have not been tested with artifact detection, and those aligned to other recordings
             event_mask = np.where([ev.type == t and ev.eegfile.endswith(self.eegfile) for ev in self.events])[0]
 
-            # Also skip any events that run beyond the bounds of the EEG file
+            # Also skip any events that run beyond the bounds of the EEG file (as determined previously)
             event_mask = event_mask[truncated_events_pre:]
             event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
 
