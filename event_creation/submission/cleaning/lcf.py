@@ -1,6 +1,7 @@
 import os
 import mne
 import numpy as np
+from glob import glob
 from scipy import linalg
 from cluster_helper.cluster import cluster_view
 from ..log import logger
@@ -215,13 +216,15 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
             logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
                         ' continue anyway...')
 
-        # Load cleaned EEG data partitions and remove the temporary partition files
+        # Load cleaned EEG data partitions and remove the temporary partition files and their subfiles (.fif files are
+        # broken into multiple 2 GB subfiles)
         clean = []
         for d in inputs:
             index = d['index']
             clean_partfile = os.path.join(ephys_dir, '%s_clean%i_raw.fif' % (basename, index))
             clean.append(mne.io.read_raw_fif(clean_partfile, preload=True))
-            os.remove(clean_partfile)
+            for subfile in glob(os.path.join(ephys_dir, '%s_clean%i_raw*.fif' % (basename, index))):
+                os.remove(subfile)
 
         # Concatenate the cleaned partitions of the recording back together
         logger.debug('Constructing cleaned data file for {}'.format(basename))
@@ -447,10 +450,11 @@ def run_split_lcf(inputs):
     iqr_thresh = inputs['iqr_thresh']
     lcf_winsize = inputs['lcf_winsize']
 
-    # Load temporary split EEG file and delete it
+    # Load temporary split EEG file and delete it and its subfiles (.fif files are broken into 2 GB subfiles)
     split_eeg_path = os.path.join(ephys_dir, '%s_%i_raw.fif' % (basename, index))
     eeg = mne.io.read_raw_fif(split_eeg_path, preload=True)
-    os.remove(split_eeg_path)
+    for subfile in glob(os.path.join(ephys_dir, '%s_%i_raw*.fif' % (basename, index))):
+        os.remove(subfile)
 
     # Read locations of breaks and create a mask for use in leaving breaks out of IQR calculation
     ignore = np.zeros(eeg._data.shape[1], dtype=bool)
