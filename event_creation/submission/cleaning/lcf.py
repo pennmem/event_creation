@@ -55,7 +55,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         #
         ##########
 
-        basename, filetype = os.path.splitext(eegfile)
+        basename = os.path.splitext(eegfile)[0]
         logger.debug('Cleaning data from {}'.format(basename))
         clean_eegfile = os.path.join(ephys_dir, '%s_clean_raw.fif' % basename)
 
@@ -194,8 +194,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         start = 0
         for i, stop in enumerate(split_samples):
 
-            d = dict(index=i, basename=basename, ephys_dir=ephys_dir, filetype=filetype, method=method,
-                     iqr_thresh=iqr_thresh, lcf_winsize=lcf_winsize)
+            d = dict(index=i, basename=basename, ephys_dir=ephys_dir, method=method, iqr_thresh=iqr_thresh,
+                     lcf_winsize=lcf_winsize)
             inputs.append(d)
 
             # Copy the session data, then crop it down to one part of the session. Save it temporarily for parallel jobs
@@ -265,23 +265,26 @@ def run_split_lcf(inputs):
     from nolds import hurst_rs
     from ..log import logger
 
-    def detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=None):
+    def detect_bad_channels(eeg, index, basename, ephys_dir, ignore=None):
         """
         Runs several bad channel detection tests, records the test scores in a TSV file, and saves the list of bad
         channels to a text file. The detection methods are as follows:
 
-        1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
-        ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
-        during which the voltage offset exceeds 40 mV is calculated for each channel. Any channel that spends more than
-        25% of the total duration of the recording above this offset threshold is marked as bad.
-
-        2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
+        1) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
         extremely noisy channels. Because variance has a log-normal distribution across channels, log-transforming the
         variance allows for more reliable detection of outliers.
 
-        3) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
+        2) Hurst exponent of the channel. The Hurst exponent is a measure of the long-range dependency of a time series.
         As physiological signals consistently have similar Hurst exponents, channels with extreme deviations from this
         value are unlikely to be measuring physiological activity.
+
+        A third method used to look for high voltage offset from the reference channel. This corresponds to the
+        electrode offset screen in BioSemi's ActiView, and can be used to identify channels with poor connection to the
+        scalp. The percent of the recording during which the voltage offset exceeds 40 mV would be calculated for each
+        channel. Any channel that spent more than 25% of the total duration of the partition above this offset
+        threshold would be marked as bad. Unfortunately, this method does not work after high-pass filtering, due to the
+        centering of each channel around 0. Because sessions are now partitioned for bad channel detection, high pass
+        filtering must be done prior to all bad channel detection, resulting in this method no longer working.
 
         Note that high-pass filtering is required prior to calculating the variance and Hurst exponent of each channel,
         as baseline drift will artificially increase the variance and invalidate the Hurst exponent.
@@ -297,7 +300,6 @@ def run_split_lcf(inputs):
             different bad channel file.
         :param basename: The basename of the EEG recording. Used for naming bad channel files in a consistent manner.
         :param ephys_dir: The path to the ephys directory for the session.
-        :param filetype: A string indicating the file extension of the EEG recording ('.bdf', '.mff', or '.raw').
         :param ignore: A boolean array indicating whether each time point in the EEG signal should be excluded/ignored
             during bad channel detection.
         :return: A list containing the string names of each bad channel.
@@ -305,14 +307,16 @@ def run_split_lcf(inputs):
         logger.debug('Identifying bad channels for part %i of %s' % (index, basename))
 
         # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
-        offset_th = .04  # Samples over ~40 mV (.04 V) indicate poor contact with the scalp (BioSemi only)
-        offset_rate_th = .25  # If >25% of the recording partition has poor scalp contact, mark as bad (BioSemi only)
         low_var_th = -3  # If z-scored log variance < -3, channel is most likely flat
         high_var_th = 3  # If z-scored log variance > 3, channel is likely too noisy
         hurst_th = 3  # If z-scored Hurst exponent > 3, channel is unlikely to be physiological
-
         n_chans = eeg._data.shape[0]
-        # Method 1: Percent of samples with a high voltage offset (>30 mV) from the reference channel
+
+        """
+        # Deprecated Method 1: Percent of samples with a high voltage offset (>40 mV) from the reference channel
+        # Does not work after high-pass filtering
+        offset_th = .04  # Samples over ~40 mV (.04 V) indicate poor contact with the scalp (BioSemi only)
+        offset_rate_th = .25  # If >25% of the recording partition has poor scalp contact, mark as bad (BioSemi only)
         if filetype == '.bdf':
             if ignore is None:
                 ref_offset = np.mean(np.abs(eeg._data) > offset_th, axis=1)
@@ -320,15 +324,16 @@ def run_split_lcf(inputs):
                 ref_offset = np.mean(np.abs(eeg._data[:, ~ignore]) > offset_th, axis=1)
         else:
             ref_offset = np.zeros(n_chans)
+        """
 
-        # Method 2: High or low log-transformed variance
+        # Method 1: High or low log-transformed variance
         if ignore is None:
             var = np.log(np.var(eeg._data, axis=1))
         else:
             var = np.log(np.var(eeg._data[:, ~ignore], axis=1))
         zvar = ss.zscore(var)
 
-        # Method 3: High Hurst exponent
+        # Method 2: High Hurst exponent
         hurst = np.zeros(n_chans)
         for i in range(n_chans):
             if ignore is None:
@@ -338,7 +343,7 @@ def run_split_lcf(inputs):
         zhurst = ss.zscore(hurst)
 
         # Identify bad channels using optimized thresholds
-        bad = (ref_offset > offset_rate_th) | (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th)
+        bad = (zvar < low_var_th) | (zvar > high_var_th) | (zhurst > hurst_th)
         badch = np.array(eeg.ch_names)[bad]
 
         # Save list of bad channels to a text file
@@ -349,9 +354,9 @@ def run_split_lcf(inputs):
         # Save a TSV file with extended info about each channel's scores
         badchan_file = os.path.join(ephys_dir, basename + '_bad_chan_info%i.tsv' % index)
         with open(badchan_file, 'w') as f:
-            f.write('name\thigh_offset_rate\tlog_var\thurst\tbad\n')
+            f.write('name\tlog_var\thurst\tbad\n')
             for i, ch in enumerate(eeg.ch_names):
-                f.write('%s\t%f\t%f\t%f\t%i\n' % (ch, ref_offset[i], var[i], hurst[i], bad[i]))
+                f.write('%s\t%f\t%f\t%i\n' % (ch, var[i], hurst[i], bad[i]))
         os.chmod(badchan_file, 0644)
 
         return badch.tolist()
@@ -445,7 +450,6 @@ def run_split_lcf(inputs):
     index = inputs['index']
     basename = inputs['basename']
     ephys_dir = inputs['ephys_dir']
-    filetype = inputs['filetype']
     method = inputs['method']
     iqr_thresh = inputs['iqr_thresh']
     lcf_winsize = inputs['lcf_winsize']
@@ -477,7 +481,7 @@ def run_split_lcf(inputs):
     # channel. Reduce the number of PCA/ICA components accordingly, or else you may get components that are identical
     # with opposite polarities. See url for details: https://sccn.ucsd.edu/wiki/Chapter_09:_Decomposing_Data_Using_ICA
     n_components = len(eeg.ch_names)
-    eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, filetype, ignore=ignore)
+    eeg.info['bads'] = detect_bad_channels(eeg, index, basename, ephys_dir, ignore=ignore)
     eeg.set_eeg_reference(projection=False)
     n_components -= 1 + len(eeg.info['bads'])
 
