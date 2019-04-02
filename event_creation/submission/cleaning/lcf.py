@@ -256,6 +256,8 @@ def run_split_lcf(inputs):
         use, the "iqr_thresh" IQR threshold to use for LCF, and the "lcf_winsize" to be used for LCF.
     :return: An MNE raw object containing the cleaned version of the data.
     """
+    import mkl
+    mkl.set_num_threads(1)
     import os
     import mne
     import numpy as np
