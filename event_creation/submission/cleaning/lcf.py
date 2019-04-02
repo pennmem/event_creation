@@ -272,7 +272,7 @@ def run_split_lcf(inputs):
 
         1) High voltage offset from the reference channel. This corresponds to the electrode offset screen in BioSemi's
         ActiView, and can be used to identify channels with poor connection to the scalp. The percent of the recording
-        during which the voltage offset exceeds 30 mV is calculated for each channel. Any channel that spends more than
+        during which the voltage offset exceeds 40 mV is calculated for each channel. Any channel that spends more than
         25% of the total duration of the recording above this offset threshold is marked as bad.
 
         2) Log-transformed variance of the channel. The variance is useful for identifying both flat channels and
@@ -305,7 +305,7 @@ def run_split_lcf(inputs):
         logger.debug('Identifying bad channels for part %i of %s' % (index, basename))
 
         # Set thresholds for bad channel criteria (see docstring for details on how these were optimized)
-        offset_th = .03  # Samples over ~30 mV (.03 V) indicate poor contact with the scalp (BioSemi only)
+        offset_th = .04  # Samples over ~40 mV (.04 V) indicate poor contact with the scalp (BioSemi only)
         offset_rate_th = .25  # If >25% of the recording partition has poor scalp contact, mark as bad (BioSemi only)
         low_var_th = -3  # If z-scored log variance < -3, channel is most likely flat
         high_var_th = 3  # If z-scored log variance > 3, channel is likely too noisy
