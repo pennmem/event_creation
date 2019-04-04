@@ -222,8 +222,17 @@ class IndexAggregatorTask(PipelineTask):
                 raise Exception('Could not locate {} in {}'.format(paths.db_root, index_path))
         return path_list[::-1]
 
-    def run(self, *_):
-        for protocol in self.PROTOCOLS:
+    def run(self, protocols=None, *_):
+
+        # Protocols can be input as a string for a single protocol, or an iterable of protocols. Otherwise, use the
+        # default protocols defined in self.PROTOCOLS.
+        if isinstance(protocols, str):
+            protocols = [protocols]
+        elif not hasattr(protocols, '__iter__'):
+            protocols = self.PROTOCOLS
+
+        protocols = self.PROTOCOLS if protocols is None else protocols
+        for protocol in protocols:
             index = self.build_index(protocol)
             try:
                 with fileutil.open_with_perms(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'w') as f:
