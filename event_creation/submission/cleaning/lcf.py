@@ -106,8 +106,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # Mark breaks for exclusion
         # Identify break start/stop times. PyEPL used REST_REWET events; UnityEPL uses BREAK_START/STOP.
         rest_rewet_idx = np.where(evs.type == 'REST_REWET')[0]
-        break_start_idx = np.where(evs[:-1].type == 'BREAK_START')[0]
-        break_stop_idx = np.where(evs[1:].type == 'BREAK_STOP')[0]
+        break_start_idx = np.where(evs.type == 'BREAK_START')[0]
+        break_stop_idx = np.where(evs.type == 'BREAK_STOP')[0]
 
         # Handling for PyEPL studies (only break starts are logged)
         if len(rest_rewet_idx) > 0:
@@ -131,11 +131,13 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
             if evs[0].type == 'BREAK_STOP':
                 onsets.append(0)
                 offsets.append(evs[0].eegoffset)
+                break_stop_idx = break_stop_idx[1:]
             # If the recording ends in the middle of a break, the last event will be a break start.
             # In this case, set the last time point in the recording as the offset.
             if evs[-1].type == 'BREAK_START':
                 onsets.append(evs[-1].eegoffset)
                 offsets.append(eeg.n_times-1)
+                break_start_idx = break_start_idx[:-1]
             # All other break starts and stops are contained fully within the recording
             for i, idx in enumerate(break_start_idx):
                 onsets.append(evs[idx].eegoffset)
