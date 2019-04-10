@@ -110,7 +110,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         break_stop_idx = np.where(evs[1:].type == 'BREAK_STOP')[0]
 
         # Handling for PyEPL studies (only break starts are logged)
-        if len(rest_rewet_idx > 0):
+        if len(rest_rewet_idx) > 0:
             onsets = np.concatenate((evs[rest_rewet_idx].eegoffset, onsets))
             for i, idx in enumerate(rest_rewet_idx):
                 # If break is the final event in the current recording, set the offset as the final sample
@@ -127,12 +127,12 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # Handling for UnityEPL studies (break starts and stops are both logged)
         elif len(break_start_idx) > 0:
             # If the recordings starts in the middle of a break, the first event will be a break stop.
-            # In this case, the break onset is set as the start of the recording.
+            # In this case, the start of the recording is set as the onset.
             if evs[0].type == 'BREAK_STOP':
                 onsets.append(0)
                 offsets.append(evs[0].eegoffset)
             # If the recording ends in the middle of a break, the last event will be a break start.
-            # In this case, set the break offset as the last time point in the recording.
+            # In this case, set the last time point in the recording as the offset.
             if evs[-1].type == 'BREAK_START':
                 onsets.append(evs[-1].eegoffset)
                 offsets.append(eeg.n_times-1)
@@ -152,7 +152,17 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         eeg.set_annotations(annotations)
 
         # Skip over the offset for the session start when splitting, as we only want to split after breaks
-        split_samples = offsets[1:] if sess_start_in_recording else offsets
+        if sess_start_in_recording:
+            if len(offsets) > 1:
+                split_samples = offsets[1:]
+            else:
+                split_samples = []
+        else:
+            split_samples = offsets
+
+        # If session has no breaks, just treat the entire recording as one partition
+        if len(split_samples) == 0:
+            split_samples.append(eeg.n_times - 1)
 
         # Create file with information on partitions and when breaks occur
         partition_info = [['index', 'start_sample', 'end_sample']]
