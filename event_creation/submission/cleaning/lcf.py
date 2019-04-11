@@ -76,6 +76,11 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         #
         ##########
 
+        # The recording for LTP346-12 was left on for several hours after the experiment ended. Truncate the recording
+        # to avoid memory errors.
+        if basename.endswith('LTP346_session_12'):
+            eeg.crop(0, 5050)
+
         # Drop all channels except EEG data channels. Manually specify channels for BioSemi in case E, F, G, and H
         # electrodes were accidentally included in the recording.
         if filetype == '.bdf':
