@@ -109,16 +109,16 @@ class LTPAligner:
             # the first sample of eah sync pulse, as the times in the log correspond to the start of the pulses.
             time_type = 'offset' if self.is_unity else 'onset'
             if self.filetypes[basename] == 'biosemi':
-                self.pulses = mne.find_events(self.eeg[basename], output=time_type, initial_event=True)[:, 0]
+                self.pulses = mne.find_events(self.eeg[basename], output=time_type, initial_event=True, shortest_event=1)[:, 0]
             else:  # For EGI, prefer D255 > DI15 > DIN1 > STI 014
                 if 'D255' in self.eeg[basename].ch_names:
-                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='D255', output=time_type)[:, 0]
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='D255', output=time_type, shortest_event=1)[:, 0]
                 if len(self.pulses) == 0 and 'DI15' in self.eeg[basename].ch_names:
-                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DI15', output=time_type)[:, 0]
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DI15', output=time_type, shortest_event=1)[:, 0]
                 if len(self.pulses) == 0 and 'DIN1' in self.eeg[basename].ch_names:
-                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DIN1', output=time_type)[:, 0]
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='DIN1', output=time_type, shortest_event=1)[:, 0]
                 if len(self.pulses) == 0 and 'STI 014' in self.eeg[basename].ch_names:
-                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='STI 014', output=time_type)[:, 0]
+                    self.pulses = mne.find_events(self.eeg[basename], stim_channel='STI 014', output=time_type, shortest_event=1)[:, 0]
 
             # Skip alignment for any EEG files with no sync pulses
             logger.debug('%d sync pulses were detected.' % len(self.pulses))
