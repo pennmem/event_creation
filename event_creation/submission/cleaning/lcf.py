@@ -55,7 +55,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         #
         ##########
 
-        basename = os.path.splitext(eegfile)[0]
+        basename, filetype = os.path.splitext(eegfile)
         logger.debug('Cleaning data from {}'.format(basename))
         clean_eegfile = os.path.join(ephys_dir, '%s_clean_raw.fif' % basename)
 
@@ -76,8 +76,14 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         #
         ##########
 
-        # Drop EOG channels
-        eeg.pick_types(eeg=True, eog=False)
+        # Drop all channels except EEG data channels. Manually specify channels for BioSemi in case E, F, G, and H
+        # electrodes were accidentally included in the recording.
+        if filetype == '.bdf':
+            eeg_chans = ['A%i' % i for i in range(1, 33)] + ['B%i' % i for i in range(1, 33)] +\
+                        ['C%i' % i for i in range(1, 33)] + ['D%i' % i for i in range(1, 33)]
+            eeg.pick_channels(eeg_chans)
+        else:
+            eeg.pick_types(eeg=True, eog=False, misc=False, stim=False)
 
         # High-pass filter the data, since LCF will not work properly if the baseline voltage shifts
         eeg.filter(highpass_freq, None, fir_design='firwin')
