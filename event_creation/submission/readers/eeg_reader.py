@@ -188,7 +188,7 @@ class NK_reader(EEG_reader):
     def __init__(self, nk_filename, jacksheet_filename=None, channel_map_filename=None):
         self.raw_filename = nk_filename
         if jacksheet_filename:
-            self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
 
@@ -212,7 +212,7 @@ class NK_reader(EEG_reader):
         return self.sample_rate
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
 
     def get_start_time(self):
         with open(self.raw_filename, 'rb') as f:
