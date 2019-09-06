@@ -15,7 +15,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
 
     1) Drop EOG and trigger channels from the data.
     2) High-pass filter the data to eliminate baseline drift.
-    3) Notch filter the data at 60 Hz and its harmonics to eliminate line noise.
     3) Split the recording into partitions, separated by mid-session breaks. A new partition begins immediately after
         each mid-session break. Also mark break periods for subsequent exclusion while fitting ICA.
     4) Detect and drop bad channels separately for each partition.
@@ -92,9 +91,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
 
         # High-pass filter the data, since LCF will not work properly if the baseline voltage shifts
         eeg.filter(highpass_freq, None, fir_design='firwin')
-
-        # Notch filter the data at 60 Hz and its harmonics in order to remove line noise
-        eeg.notch_filter(np.arange(60, 241, 60), filter_length='auto', phase='zero')
 
         ##########
         #
@@ -233,7 +229,9 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # Run ICA and then LCF on each part of the sesion in parallel. Sometimes cluster helper returns errors even
         # when successful, so avoid crashing event creation if an error comes up here.
         try:
-            with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
+            # with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
+            with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=1,  cores_per_job=len(inputs), \
+                    extra_params={"resources": {"h_vmem=12G", "pename=python-round-robin"}}) as view:
                 view.map(run_split_lcf, inputs)
         except Exception:
             logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
