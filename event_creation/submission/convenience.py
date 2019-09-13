@@ -241,7 +241,7 @@ RAM_EXPERIMENTS = ('FR1', 'FR2', 'FR3',
                    'PAL1', 'PAL2', 'PAL3',
                    'catFR1', 'catFR2', 'catFR3',
                    'TH1', 'TH3',
-                   'PS')
+                   'PS', 'repFR')
 
 
 def build_ram_import_database():

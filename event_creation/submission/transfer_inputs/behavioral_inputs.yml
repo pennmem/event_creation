@@ -432,3 +432,24 @@ files:
     origin_directory: *LTP_EXP_DIR
     origin_file: 'RAM_wordpool.txt'
     destination: experiment_files/wordpool.txt
+
+## repFR
+ - name: wordpool
+   << : *FILE
+   groups: [FR, repFR]
+   origin_directory: *LTP_SESS_DIR
+   origin_file: ltpFR3_wordpool_filtered.txt
+   destination: experiment_files/wordpool.txt
+
+ - name: session_words
+   << : *FILE
+   groups: [FR, repFR]
+   origin_directory: *LTP_SESS_DIR
+   origin_file: session_words.json
+   destination: experiment_files/session_words.json
+
+ - name: session_log
+   groups: [FR, repFR]
+   origin_directory: *LTP_SESS_DIR
+   origin_file: session.json
+   destination: experiment_files/session.json

@@ -31,7 +31,8 @@ GROUPS = {
     'PS': ('stim',),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
-    'prelim': ('verbal', 'unity')
+    'prelim': ('verbal', 'unity'),
+    'repFR': ('verbal', 'FR')
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
