@@ -3,7 +3,7 @@ import pandas as pd
 from . import dtypes
 from .base_log_parser import BaseUnityLTPLogParser
 
-class RepFRLogParser(BaseUnityLTPLogParser):
+class RepFRSessionLogParser(BaseUnityLTPLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(RepFRLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
         self._session = -999

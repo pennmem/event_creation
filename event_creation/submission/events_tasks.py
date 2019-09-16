@@ -26,7 +26,7 @@ from .parsers.base_log_parser import EventComparator
 from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
-from .parsers.repfr_log_parser import repFRSessionLogParser
+from .parsers.repfr_log_parser import RepFRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser, catFRSys3LogParser
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
@@ -206,7 +206,7 @@ class EventCreationTask(PipelineTask):
                     'Remembering_Across_America': RAASessionLogParser,
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
-                    'repFR': repFRSessionLogParser
+                    'repFR': RepFRSessionLogParser
                   }
 
     @property

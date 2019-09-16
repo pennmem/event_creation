@@ -28,6 +28,6 @@ fi
 #USER_HOME=`eval echo ~$USR`
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
 #xauth add $XAUTH_LINE
-source ~/.bashrc
-source activate event_creation
+#source ~/.bashrc
+conda activate event_creation
 python -m event_creation.submission.convenience "$@"
