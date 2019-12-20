@@ -182,6 +182,11 @@ class PALSessionLogParser(BaseSessionLogParser):
             self._pal2_stim_params['amplitude'] *= 1000
         return False
 
+    def event_countdown_start(self, split_line):
+        event = self.event_default(self, split_line)
+        event.type = "COUNTDOWN START"
+        return event
+
     def event_instruct_video(self, split_line):
         event = self.event_default(split_line)
         event.type = 'INSTRUCT_VIDEO_' + split_line[3]
