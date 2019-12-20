@@ -41,7 +41,23 @@ stim_fields = (
         ('position', '', 'S64'),
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
                                  # to JSON
-    )
+)
+
+repFR_fields = (
+    ('repeats', -999, 'int16'),
+    ('is_repeat', False, 'b1'),
+    ('trial', -999, 'int16'),
+    ('serialpos', -999, 'int16'),
+    ('distractor', -999, 'int16', 3),
+    ('distractor_answer', -999, 'int16'),
+    ('answer_correct', False, 'b1'),
+    ('item_name', '', 'U64'),
+    ('item_num', -999, 'int16'),
+    ('recalled', False, 'b1'),
+    ('intruded', 0, 'int16'),
+    ('rectime', -999, 'int32'),
+    ('intrusion', -999, 'int16'),
+)
 
 # FR
 
@@ -52,7 +68,7 @@ fr_fields = (
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intrusion', -999, 'int16'),
-            ('exp_version', '', 'S64'),
+            ('exp_version', '', 'U64'),
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
             ('rectime',-999,'int16'),
