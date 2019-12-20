@@ -347,45 +347,61 @@ files:
     origin_file:
      - short_ram_categorized_en.txt
      - ram_categorized_en.txt
+     - ram_categorized_sp.txt
      - ram_wordpool_en.txt
+     - ram_wordpool_sp.txt
      - short_ram_wordpool_en.txt
+     - ltpFR3_wordpool_filtered.txt
     destination: experiment_files/wordpool.txt
 
-  ### LTP
+  ### LTP (Scalp EEG)
 
   - name: wordpool
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     origin_directory: *LTP_SUBJ_DIR
     origin_file: wasnorm_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: wordpool
     << : *FILE
-    groups: [ltp, FR]
+    groups: [ ltp, FR ]
     origin_directory: *LTP_SUBJ_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: eeg_log
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     multiple: true
     origin_directory: *LTP_SESS_DIR
     origin_file: 'eeg.eeglog*'
     destination: 'logs/'
 
+  - name: eeg_log
+    << : *FILE
+    groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/session.jsonl'
 
   - name: session_log
     << : *FILE
-    groups: [ ltp ]
+    groups: [ ltp, pyepl ]
     origin_directory: *LTP_SESS_DIR
     origin_file: session.log
     destination: logs/session.log
 
+  - name: session_log
+    << : *FILE
+    groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/session.jsonl'
+
   - name: math_log
     << : *FILE
-    groups: [ ltp ,'!Remembering_Across_America']
+    groups: [ ltp , math, pyepl ]
     origin_directory: *LTP_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -393,24 +409,10 @@ files:
   - name: annotations
     << : *FILE
     multiple: true
-    groups: [ ltp ]
+    groups: [ ltp, verbal ]
     origin_directory: *LTP_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
-
-  - name: config
-    << : *FILE
-    groups: [ ltp ,'!Remembering_Across_America']
-    origin_directory: *LTP_SUBJ_DIR
-    origin_file: config.py
-    destination: experiment_files/config.py
-
-  - name: sconfig
-    << : *FILE
-    groups: [ ltp ,'!Remembering_Across_America']
-    origin_directory: *LTP_SUBJ_DIR
-    origin_file: sconfig.py
-    destination: experiment_files/sconfig.py
 
 ## RAA
   - name: eeg_log
@@ -433,3 +435,25 @@ files:
     origin_directory: *LTP_EXP_DIR
     origin_file: 'RAM_wordpool.txt'
     destination: experiment_files/wordpool.txt
+
+## repFR
+  - name: wordpool
+    << : *FILE
+    groups: [repFR]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: ltpFR3_wordpool_filtered.txt
+    destination: experiment_files/wordpool.txt
+
+  - name: session_words
+    << : *FILE
+    groups: [repFR]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: session_words.json
+    destination: experiment_files/session_words.json
+
+  - name: session_log
+    << : *FILE
+    groups: [repFR]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: session.json
+    destination: experiment_files/session.json
