@@ -277,7 +277,7 @@ files:
     groups: [ r1, transfer, '!system_1','!system_2']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
-    origin_file: '201*'
+    origin_file: '20*'
     destination: 'host_pc/'
     files:
       - name: event_log
