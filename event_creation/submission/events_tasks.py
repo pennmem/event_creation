@@ -25,6 +25,7 @@ from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from .parsers.repfr_log_parser import repFRSessionLogParser
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
@@ -160,6 +161,7 @@ class EventCreationTask(PipelineTask):
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
+            'RepFR': repFRSessionLogParser, 
         }
         elif sys_num<3.3:
             return {
@@ -170,6 +172,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR':PSLogParser,
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
+                'RepFR': repFRSessionLogParser, 
             }
         elif sys_num==3.3:
             return {
@@ -179,6 +182,7 @@ class EventCreationTask(PipelineTask):
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
+                'RepFR': repFRSessionLogParser, 
             }
         elif sys_num==3.4:
             return {
@@ -191,6 +195,7 @@ class EventCreationTask(PipelineTask):
                 'TICL_FR': TiclFRParser,
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
+                'RepFR': repFRSessionLogParser, 
             }
 
         else:

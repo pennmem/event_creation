@@ -3,6 +3,9 @@ import pandas as pd
 from . import dtypes
 from .base_log_parser import BaseUnityLTPLogParser
 
+
+#TODO: update default to use list rather than trial
+
 class repFRSessionLogParser(BaseUnityLTPLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(repFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
@@ -13,18 +16,11 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         self.current_num = -999
 
 
-        #TODO: error out if not existent
         if("wordpool" in files.keys()):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip().encode('utf-8') for line in f]
         else:
             raise Exception("wordpool not found in transferred files")
-
-
-        print(self.wordpool)
-        print(type(self.wordpool[0])) 
-        print(self.wordpool.index('CRICKET'))
-        print(self.wordpool.index(u'CRICKET'))
 
 
         self._add_fields(*dtypes.repFR_fields)
@@ -43,7 +39,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         
         self._add_type_to_modify_events(
             display_recall_text=self.modify_recalls,
-            session_start=self.modify_session
+            session_start=self.modify_session,
         )
 
     ###############
@@ -55,6 +51,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
     def event_sess_start(self, evdata):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
+        event["list"] = self._trial
         return event
 
     def event_countdown(self, evdata):
@@ -74,6 +71,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         event.item_name = evdata['data']['displayed text'].strip()
 
         event.serialpos = self._serialpos
+        event["list"] = self._trial
 
         event.item_num = self.wordpool.index(event.item_name) + 1
 
@@ -83,6 +81,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         event = self.event_default(evdata)
         event.type = "WORD_OFF"
         event.serialpos = self._serialpos
+        event["list"] = self._trial
 
         # increment serial position after word is processed 
         # to order words correctly
@@ -93,11 +92,13 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_START"
+        event["list"] = self._trial
         return event
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
-        event.type = "REC_STOP"
+        event.type = "REC_END"
+        event["list"] = self._trial
 
         # increment list index at end of each list
         self._trial += 1
@@ -106,6 +107,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_disctract_start(self, evdata):
         event = self.event_default(evdata)
+        event["list"] = self._trial
 
         # process numbers out of problem
         distractor = evdata['data']['displayed text']
@@ -116,6 +118,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_distract_stop(self, evdata):
         event = self.event_default(evdata)
+        event["list"] = self._trial
         distractor = evdata['data']['problem']
         nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
         event.distractor = nums
@@ -151,7 +154,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
             # Get the vocalized word from the annotation
             word = recall[-1]
             new_event = self._empty_event
-            new_event.trial = self._trial
+            new_event["list"] = self._trial
             new_event.session = self._session
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
@@ -169,7 +172,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
             else:  # Correct recall or PLI or XLI from later list
                 # Determines which list the recalled word was from (gives [] if from a future list)
                 pres_mask = (events.item_num == new_event.item_num) & (events.type == 'WORD')
-                pres_trial = np.unique(events.trial[pres_mask])
+                pres_trial = np.unique(events["list"][pres_mask])
 
                 # Correct recall or PLI
                 if len(pres_trial) == 1:
@@ -196,7 +199,8 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         return events
 
     def modify_repeats(self, events):
-        repeat_mask = [True if ev.item_num in events.item_num[:i] else False for i, ev in enumerate(events)]
+        # FIXME: this could be a lot more readable
+        repeat_mask = [True if ev.item_num in events[:i][events[:i]["type"] =="WORD"].item_num else False for i, ev in enumerate(events)]
         events.is_repeat[repeat_mask] = True
 
         for w in np.unique(events[events["type"] == "WORD"]["item_name"]):

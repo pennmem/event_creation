@@ -107,6 +107,7 @@ files:
   - name: math_log
     << : *FILE
     groups: [ r1, transfer, verbal, '!system_3_3' ]
+    required: false
     origin_directory: *BEH_SESS_DIR
     origin_file: math.log
     destination: logs/math.log
@@ -277,7 +278,7 @@ files:
     groups: [ r1, transfer, '!system_1','!system_2']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
-    origin_file: '201*'
+    origin_file: '20*'
     destination: 'host_pc/'
     files:
       - name: event_log
@@ -437,23 +438,39 @@ files:
     destination: experiment_files/wordpool.txt
 
 ## repFR
+  - name: eeg_log 
+    << : *FILE
+    groups: [RepFR]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: 'eeg.eeglog.up'
+    destination: 'logs/eeg.eeglog.up'
+
   - name: wordpool
     << : *FILE
-    groups: [repFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
-    origin_file: ltpFR3_wordpool_filtered.txt
+    origin_file: RAM_wordpool_en.txt
     destination: experiment_files/wordpool.txt
 
   - name: session_words
     << : *FILE
-    groups: [repFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session_words.json
     destination: experiment_files/session_words.json
 
   - name: session_log
     << : *FILE
-    groups: [repFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
-    origin_file: session.json
+    origin_file: session.jsonl
     destination: experiment_files/session.json
+
+  - name: annotations
+    << : *FILE
+    multiple: true
+    required: false
+    groups: [RepFR]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '*.ann'
+    destination: 'annotations/'

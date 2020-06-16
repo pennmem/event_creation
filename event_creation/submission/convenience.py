@@ -75,7 +75,6 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
         return '%1.1f' % (new_montage_num)
 
-
 def get_ltp_subject_sessions_by_experiment(experiment):
     events_dir = os.path.join(paths.data_root, 'scalp', 'ltp', experiment, 'behavioral', 'events')
     events_files = sorted(glob.glob(os.path.join(events_dir, 'events_all_LTP*.mat')),
@@ -587,6 +586,7 @@ def load_index(protocol):
     if protocol not in LOADED_INDEXES:
         index_file = os.path.join(paths.db_root, 'protocols', '{}.json'.format(protocol))
         if not os.path.exists(index_file):
+            print(index_file)
             with open(index_file, 'w') as f:
                 json.dump({}, f)
         LOADED_INDEXES[protocol] = JsonIndexReader(index_file)

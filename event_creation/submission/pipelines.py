@@ -31,7 +31,8 @@ GROUPS = {
     'catFR': ('verbal', 'stim'),
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
-    'ltpFR': ('verbal',)
+    'ltpFR': ('verbal',),
+    'RepFR': ('verbal', )
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
@@ -72,6 +73,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         for sys in systems:
             try:
                 logger.info("Checking if this system is {}".format(sys))
+                
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
 
@@ -112,6 +114,7 @@ def r1_system_match(experiment, transfer_cfg, sys):
     :param sys:
     :return:
     """
+
     session_log = transfer_cfg.get_file('session_log')
     eeg_log = transfer_cfg.get_file('eeg_log')
     if experiment.startswith('TH'):
@@ -139,7 +142,9 @@ def r1_system_match(experiment, transfer_cfg, sys):
                     return sys == 'system_2'
             except Exception as e:
                 logger.debug("Error trying to get version number: {}".format(e))
-                return sys == 'system_3_1'
+                #return sys == 'system_3_1'
+                logger.debug("Defaulting to previous system")
+                return True
 
     return True
 

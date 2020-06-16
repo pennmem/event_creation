@@ -46,7 +46,7 @@ stim_fields = (
 repFR_fields = (
     ('repeats', -999, 'int16'),
     ('is_repeat', False, 'b1'),
-    ('trial', -999, 'int16'),
+    ('list', -999, 'int16'),
     ('serialpos', -999, 'int16'),
     ('distractor', -999, 'int16', 3),
     ('distractor_answer', -999, 'int16'),
