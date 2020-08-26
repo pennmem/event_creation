@@ -25,11 +25,11 @@ dependencies:
   - sympy
   - scikit-image
   - requests
+  - ptsa
   - pip:
     - bz2file
     - mne
     - nibabel
-    - ptsa
     - pyedflib
     - tables
 
