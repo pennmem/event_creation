@@ -1,24 +1,39 @@
 #!/usr/bin/env bash
 USR=`logname`
 
-case $USER in
-    "RAM_maint") INDEX="/protocols/r1.json";;
-    "maint") INDEX="/protocols/ltp.json";;
-    * ) echo "This script is meant to be run from maint or RAM_maint not $USR";
-        exit;;
-esac
+BACKUP=true;
+CHECK_USER=true;
 
-REPO="$HOME/index_file_tracker/"
-echo "$REPO"
-TIME=$(date "+%Y.%m.%d at %H.%M.%S")
-cp "$INDEX" "$REPO"
+for arg in "$@"; do
+  case "$arg" in
+    "--no-backup")  BACKUP=false;;
+    "--ignore-user") CHECK_USER=false;;
+    *) ;;
+  esac
+done
 
-cd "$REPO"
-# we don't have git >1.8, so change directories
-# git -C "$REPO" add .
-git add .
-git commit -m "Checkpoint for modifications made $TIME"
-cd -
+if $CHECK_USER; then
+    case $USER in
+        "RAM_maint") INDEX="/protocols/r1.json";;
+        "maint") INDEX="/protocols/ltp.json";;
+        * ) echo "This script is meant to be run from maint or RAM_maint not $USR";
+            exit;;
+    esac
+fi
+
+if $BACKUP; then
+    REPO="$HOME/index_file_tracker/"
+    echo "$REPO"
+    TIME=$(date "+%Y.%m.%d at %H.%M.%S")
+    cp "$INDEX" "$REPO"
+
+    cd "$REPO"
+    # we don't have git >1.8, so change directories
+    # git -C "$REPO" add .
+    git add .
+    git commit -m "Checkpoint for modifications made $TIME"
+    cd -
+fi
 
 
 if [[ ${HOSTNAME:0:4} != "node" ]]; then
