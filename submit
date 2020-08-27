@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 USR=`logname`
 
 BACKUP=true;
@@ -7,7 +8,9 @@ CHECK_USER=true;
 for arg in "$@"; do
   case "$arg" in
     "--no-backup")  BACKUP=false;;
-    "--ignore-user") CHECK_USER=false;;
+    "--ignore-user") CHECK_USER=false;
+                     BACKUP=false;;
+    "--help") echo "usage: submit {--ignore-user --no-backup}";;
     *) ;;
   esac
 done
