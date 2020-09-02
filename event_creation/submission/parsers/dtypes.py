@@ -43,6 +43,25 @@ stim_fields = (
                                  # to JSON
 )
 
+courier_fields = (
+    ('trial', -999, 'int16'), 
+    ('serialPos', -999, 'int16'), 
+    ('item', '', 'S64'), 
+    ('store', '', 'S64'), 
+    ('storeX', -999, 'float32'), 
+    ('storeZ', -999, 'float32'), 
+    ('presX', -999, 'float32'), 
+    ('presZ', -999, 'float32'), 
+    ('itemno', -999, 'int16'), 
+    ('recalled', -999, 'int16'), 
+    ('intruded', -999, 'int16'), 
+    ('finalrecalled', -999, 'int16'), 
+    ('rectime', -999, 'float32'), 
+    ('intrusion', -999, 'int16'), 
+    ('correctPointingDirection', -999, 'float32'), 
+    ('submittedPointingDirection', -999, 'float32')
+)
+
 repFR_fields = (
     ('repeats', -999, 'int16'),
     ('is_repeat', False, 'b1'),

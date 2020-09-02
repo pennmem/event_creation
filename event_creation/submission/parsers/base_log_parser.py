@@ -251,9 +251,6 @@ class BaseLogParser(object):
         :return: (float, int, str) corresponding to (time, word number, word)
         """
         # Worry if we can't find the annotation file
-        print("base log parser")
-        print(self._ann_files)
-
         if ann_id not in self._ann_files:
             raise NoAnnotationError("Missing %s.ann"%ann_id)
 
@@ -312,7 +309,6 @@ class BaseLogParser(object):
         Makes all events for the primary log file
         :return: all events
         """
-        print("^^^^^ Entering Parse ^^^^^^");
         # Start with a single empty event
         events = self._empty_event
         # Loop over the contents of the log file
@@ -600,7 +596,6 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         events.exp_version = version_info['task']['version']
         return events
 
-
 class BaseUnityLTPLogParser(BaseLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log'):
@@ -655,6 +650,8 @@ class BaseUnityLTPLogParser(BaseLogParser):
         event.trial = self._trial
         return event
 
+class BaseUnityLogParser(BaseUnityLTPLogParser):
+    pass
 
 class RecogParser(BaseSessionLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
