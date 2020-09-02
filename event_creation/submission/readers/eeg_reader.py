@@ -30,7 +30,7 @@ class EEG_reader(object):
     DATA_FORMAT = 'int16'
 
     STRFTIME = '%d%b%y_%H%M'
-    MAX_CHANNELS = 256
+    MAX_CHANNELS = 512
 
     EPOCH = datetime.datetime.utcfromtimestamp(0)
 
@@ -764,6 +764,7 @@ class EDF_reader(EEG_reader):
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
             raise
+
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
         if channel_map_filename:
@@ -845,6 +846,7 @@ class EDF_reader(EEG_reader):
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
+
         if self.jacksheet:
             for label in self.jacksheet:
                 if label not in used_jacksheet_labels:
