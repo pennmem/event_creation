@@ -26,9 +26,10 @@ dependencies:
   - scikit-image
   - requests
   - ptsa
+  - pathlib
   - pip:
     - bz2file
-    - mne
+    - mne=0.17
     - nibabel
     - pyedflib
     - tables
