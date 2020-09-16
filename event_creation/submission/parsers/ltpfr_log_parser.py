@@ -1,55 +1,10 @@
-from .base_log_parser import BaseSessionLogParser
 import numpy as np
 from ast import literal_eval
+from .base_log_parser import BaseSessionLogParser
+from . import dtypes
 
 
 class LTPFRSessionLogParser(BaseSessionLogParser):
-
-    @classmethod
-    def _ltpfr_fields(cls):
-        """
-        Returns the templates for all LTPFR-specific fields (those not included under _BASE_FIELDS)
-        :return:
-        """
-        return (
-            ('trial', -999, 'int16'),
-            ('studytrial', -999, 'int16'),
-            ('listtype', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('distractor', -999, 'int16'),
-            ('final_distractor', -999, 'int16'),
-            ('math_correct', -999, 'int16'),
-            ('final_math_correct', -999, 'int16'),
-            ('task', -999, 'int16'),
-            ('resp', -999, 'int16'),
-            ('rt', -999, 'int16'),
-            ('recog_resp', -999, 'int16'),
-            ('recog_conf', -999, 'int16'),
-            ('recog_rt', -999, 'int32'),
-            ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intruded', 0, 'int16'),
-            ('finalrecalled', False, 'b1'),
-            ('recognized', False, 'b1'),
-            ('rectime', -999, 'int32'),
-            ('intrusion', -999, 'int16'),
-            ('color_r', -999, 'float16'),
-            ('color_g', -999, 'float16'),
-            ('color_b', -999, 'float16'),
-            ('font', '', 'S32'),
-            ('case', '', 'S8'),
-            ('rejected', False, 'b1'),
-            ('rej_time', -999, 'int32'),
-
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float16'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
-        )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(LTPFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
@@ -75,7 +30,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         self._recog_conf_mstime = -999
         self._rej_mstime = -999
 
-        self._add_fields(*self._ltpfr_fields())
+        self._add_fields(*dtypes.ltpFR_fields)
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
             FR_PRES=self.event_fr_pres,
@@ -85,7 +40,7 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             REST=self._event_skip,
             REST_REWET=self.event_default,
             REJECT=self.get_rej_mstime,
-            SESS_END=self._event_skip,
+            SESS_END=self.event_default,
             SESSION_SKIPPED=self._event_skip,
             RECOG_START=self._event_skip,
             RECOG_END=self._event_skip,
@@ -125,7 +80,8 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         :return:
         """
         self._session = int(split_line[3]) - 1
-        return False
+        event = self.event_default(split_line)
+        return event
 
     def event_recstart(self, split_line):
         self._mstime_recstart = int(split_line[0])
@@ -217,9 +173,6 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
         ann_outputs = self._parse_ann_file('ffr') if self._is_ffr else self._parse_ann_file(str(self._trial - 1))
         for recall in ann_outputs:
             item_name = recall[-1]
-            # Skip vocalizations during free recall
-            if item_name == '<>' or item_name == 'V' or item_name == '!':
-                continue
             new_event = self._empty_event
             new_event.trial = -999 if self._is_ffr else self._trial
             new_event.session = self._session
@@ -228,7 +181,11 @@ class LTPFRSessionLogParser(BaseSessionLogParser):
             new_event.msoffset = 20
             new_event.item_name = item_name
             new_event.item_num = int(recall[1])
-            new_event.type = 'REC_WORD'
+            # Skip vocalizations during free recall
+            if item_name == '<>' or item_name == 'V' or item_name == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
 
             # Add FFR to the type if part of the FFR recall
             if self._is_ffr:

@@ -109,7 +109,7 @@ def get_element_dtype(element):
     elif isinstance(element, int):
         return 'int64'
     elif isinstance(element, (str, unicode)):
-        return 'S64'
+        return 'S256'
     elif isinstance(element, bool):
         return 'b'
     elif isinstance(element, float):

@@ -9,6 +9,7 @@ from .base_log_parser import BaseUnityLTPLogParser
 class repFRSessionLogParser(BaseUnityLTPLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(repFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
+
         self._session = -999
         self._trial = 0
         self._serialpos = -999
@@ -19,6 +20,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         if("wordpool" in files.keys()):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip().encode('utf-8') for line in f]
+
         else:
             raise Exception("wordpool not found in transferred files")
 
@@ -39,6 +41,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         
         self._add_type_to_modify_events(
             display_recall_text=self.modify_recalls,
+
             session_start=self.modify_session,
         )
 
@@ -52,6 +55,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
         event["list"] = self._trial
+
         return event
 
     def event_countdown(self, evdata):
@@ -64,6 +68,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         return event
 
     def event_word_on(self, evdata):
+
         # Build event
         event = self.event_default(evdata)
         event.type = "WORD"
@@ -83,6 +88,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         event.serialpos = self._serialpos
         event["list"] = self._trial
 
+
         # increment serial position after word is processed 
         # to order words correctly
         self._serialpos += 1
@@ -93,12 +99,14 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
         event = self.event_default(evdata)
         event.type = "REC_START"
         event["list"] = self._trial
+
         return event
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_END"
         event["list"] = self._trial
+
 
         # increment list index at end of each list
         self._trial += 1
@@ -154,6 +162,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
             # Get the vocalized word from the annotation
             word = recall[-1]
             new_event = self._empty_event
+
             new_event["list"] = self._trial
             new_event.session = self._session
             new_event.rectime = int(round(float(recall[0])))
@@ -174,9 +183,11 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
                 pres_mask = (events.item_num == new_event.item_num) & (events.type == 'WORD')
                 pres_trial = np.unique(events["list"][pres_mask])
 
+
                 # Correct recall or PLI
                 if len(pres_trial) == 1:
                     # Determines how many lists back the recalled word was presented
+
                     num_lists_back = self._trial - pres_trial[0]
                     # Retrieve the recalled word's serial position in its list, as well as the distractor(s) used
                     # Correct recall if word is from the most recent list
@@ -189,12 +200,14 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
                     else:
                         new_event.intrusion = 1
                         events.intruded[pres_mask] = num_lists_back
+
                 else:  # XLI from later list
                     new_event.intrusion = -1
 
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
             events = self.modify_repeats(events)
+
 
         return events
 
@@ -205,6 +218,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
 
         for w in np.unique(events[events["type"] == "WORD"]["item_name"]):
             events.repeats[((events["type"] == "WORD") | (events["type"] == "REC_WORD")) & (events["item_name"] == w)] = len(events[(events["item_name"] == w) & (events["type"] == "WORD")])
+
 
         return events
 

@@ -1,12 +1,14 @@
 
 paths : &PATHS
-
   rhino_root     : &RHINO '/'
-  data_root      : !join [*RHINO,'data', 'eeg']
-  loc_db_root    : !join [*RHINO, 'data', 'loc']
-
+  data_root      : !join [*RHINO,'data','eeg']
+  loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
   db_root        : *RHINO
-  events_root    : !join [*RHINO, 'repFR/events']
+  events_root    : !join [*RHINO, 'data/events']
+  freesurfer_bin : !join [*RHINO, 'usr/global/freesurfer/bin']
+  api_url_base   : &API_BASE 'http://rhino2.psych.upenn.edu:8080/api/v1/'
+  brainviz_url   : !join [*API_BASE, 'brain/build/',]
+  report_url     : !join [*API_BASE, 'reports/build/']
 
 inputs: &INPUTS
   protocol :
