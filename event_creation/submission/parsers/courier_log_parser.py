@@ -18,6 +18,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
         self.presX = -999
         self.presZ = -999
 
+        self.STORES = ['gym', 'pet store', 'barber shop', 'florist', 'craft shop', 'jewelry store', 'grocery store', 'music store', 'cafe', 'pharmacy', 'clothing store', 'pizzeria', 'dentist', 'toy store', 'hardware store', 'bakery', 'bike shop']
+
 
         if("wordpool" in files.keys()):
             with open(files["wordpool"]) as f:
@@ -27,15 +29,14 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         self._add_fields(*dtypes.courier_fields)
 
-        # TODO
 
         self._add_type_to_new_event(
          versions=self.add_experiment_version,
          familiarization_store_displayed=self.add_familiarization_store_displayed,
-         proceed_to_next_day=self.add_proceed_to_next_day,
+         proceed_to_next_day_prompt=self.add_proceed_to_next_day,
          store_mappings=self.add_store_mappings,
          pointing_begins=self.add_pointing_begins,
-         player_transform=self.add_player_transform,
+         Player_transform=self.add_player_transform,
          pointing_finished=self.add_pointing_finished,
          object_presentation_begins=self.add_object_presentation_begins,
          cued_recall_recording_start=self.add_cued_recall_recording_start,
@@ -55,8 +56,6 @@ class CourierSessionLogParser(BaseUnityLogParser):
            object_recall_recording_start=self.modify_rec_start,
         )
 
-    # TODO add itemnos, add coordinates, add serial positions
-
     def parse(self):
         events = super(CourierSessionLogParser, self).parse()
         
@@ -68,26 +67,22 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def event_default(self, evdata):
         event = super(CourierSessionLogParser, self).event_default(evdata)
-        event.serialpos = self._serialpos
         event.trial = self._trial
         event.session = self._session
-        event.presX = self.presX
-        event.presZ = self.presZ
-        event.storeX = self.storeX
-        event.storeZ = self.storeZ
 
         return event
 
 
     def _new_rec_event(self, recall, evdata):
-        word = recall[-1]
+        word = recall[-1].strip().rstrip(".1") # some annotations have a .1 at the end?
         new_event = self._empty_event
         new_event.trial = self._trial
         new_event.session = self._session
-        new_event.rectime = int(round(float(recall[0])))
+        # new_event.rectime = int(round(float(recall[0])))
+        new_event.rectime = int(float(recall[0])) # old code did not round
         new_event.mstime = evdata.mstime + new_event.rectime
         new_event.msoffset = 20
-        new_event.item = word
+        new_event["item"] = word.upper()
         new_event.itemno = int(recall[1])
 
         return new_event
@@ -95,26 +90,29 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def _identify_intrusion(self, events, new_event):
         words = events[events['type'] == 'WORD']
-        word_event = words[(words['item'] == new_event.item)]
+        word_event = words[(words['item'] == new_event["item"])]
 
-        if len(word_event):
+        if len(word_event) > 1:
             raise Exception("Repeat items not supported or expected. Please check your data.")
-        elif word_event["trial"] == self._trial:
-            new_event.intrusion = 0
-            new_event.serialpos = words[words['item'] == new_event.item]['serialPos'][0]
-            new_event.store  = words[words['item'] == new_event.item]['store'][0]
-            new_event.storeX = words[words['item'] == new_event.item]['storeX'][0]
-            new_event.storeZ = words[words['item'] == new_event.item]['storeZ'][0]
 
-        elif word_event["trial"]>0: # PLI
-            new_event.intrusion = self._trial - word_event["trial"][0]
-            new_event.serialpos = words[words['item'] == new_event.item]['serialPos'][0]
-            new_event.store  = words[words['item'] == new_event.item]['store'][0]
-            new_event.storeX = words[words['item'] == new_event.item]['storeX'][0]
-            new_event.storeZ = words[words['item'] == new_event.item]['storeZ'][0]
-
-        else: #ELI
+        elif len(word_event) == 0: #ELI
             new_event.intrusion  = -1
+
+        elif word_event["trial"][0] == self._trial:
+            new_event.intrusion = 0
+            new_event.serialPos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
+            new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
+            new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
+
+        elif word_event["trial"][0] >= 0: # PLI
+            new_event.intrusion = self._trial - word_event["trial"][0]
+            new_event.serialPos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
+            new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
+            new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
+        else:
+            raise Exception("Processing error, word event was not presented during experimental trial")
 
         return new_event
 
@@ -148,11 +146,13 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_object_presentation_begins(self, evdata):
         event = self.event_default(evdata)
         event.type = "WORD"
-        event.serialpos = evdata['data']["serial position"]
-        self._serialpos += 1
+        event.serialPos = evdata['data']["serial position"]
+        self._serialpos = event.serialPos
 
         event.store = '_'.join(evdata['data']['store name'].split(' '))
         event.intruded = 0
+        event.recalled = 0
+        event.finalrecalled = 0
 
         event.storeX = evdata['data']['store position'][0]
         self.storeX = event.storeX
@@ -160,25 +160,41 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.storeZ = evdata['data']['store position'][2]
         self.storeZ = event.storeZ
 
+        event.presX = self.presX
+        event.presZ = self.presZ
+
+        event["item"] = evdata['data']['item name'].upper().rstrip('.1')
+
         return event
 
     def add_pointing_begins(self, evdata):
         event = self.event_default(evdata)
         event.type = "pointing begins"
+
+        event.storeX = self.storeX
+        event.storeZ = self.storeZ
+        event.presX = self.presX
+        event.presZ = self.presZ
+
         return event
 
     def add_pointing_finished(self, evdata):
         event = self.event_default(evdata)
         event.type = "pointing finished"
-        event.correct_direction = evdata['data']['correct direction (degrees)']
-        event.pointed_direction = evdata['data']['pointed direction (degrees)']
+        event.correctPointingDirection = evdata['data']['correct direction (degrees)']
+        event.submittedPointingDirection = evdata['data']['pointed direction (degrees)']
+
+        event.storeX = self.storeX
+        event.storeZ = self.storeZ
+        event.presX = self.presX
+        event.presZ = self.presZ
+
         return event
 
     def add_store_mappings(self, evdata):
         event = self.event_default(evdata)
         event.type = "store mappings"
-        # TODO
-        # event.mappings = {"from {k}".format(k=k): {"to store": evdata['data'][k], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
+        event.mappings = {"from {k}".format(k=k): {"to store": evdata['data'][k], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
 
         return event 
 
@@ -190,10 +206,17 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def add_cued_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
+
         event.storeX = evdata['data']['store position'][0]
         event.storeZ = evdata['data']['store position'][2]
+        self.storeX = event.storeX
+        self.storeZ = event.storeZ
+
+        event.presX = self.presX
+        event.presZ = self.presZ
+
         event.type = 'CUED_REC_CUE'
-        event.item = evdata['data']['item'].lower().rstrip('.1')
+        event["item"] = evdata['data']['item'].lower().rstrip('.1')
         event.store = '_'.join(evdata['data']['store'].split(' '))
         return event 
 
@@ -210,6 +233,10 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_object_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_START"
+
+        event.presX = self.presX
+        event.presZ = self.presZ
+
         return event
 
     def add_final_object_recall_recording_stop(self, evdata):
@@ -249,11 +276,17 @@ class CourierSessionLogParser(BaseUnityLogParser):
             new_event = self._new_rec_event(recall, rec_start_event)
 
             # Create a new event for the recall
-            evtype = 'REC_WORD_VV' if new_event.item == '<>' else 'REC_WORD'
+            evtype = 'REC_WORD_VV' if "<>" in new_event["item"] else 'REC_WORD'
             new_event.type = evtype
             new_event = self._identify_intrusion(events, new_event)
 
+            if new_event.intrusion > 0:
+                events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+            elif new_event.intrusion == 0:
+                events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+
             events = np.append(events, new_event).view(np.recarray) 
+
         return events
 
     def modify_cued_rec(self, events):
@@ -271,8 +304,21 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)
+            # new_event = self._identify_intrusion(events, new_event)
+
+            evtype = 'CUED_REC_WORD_VV' if "<>" in new_event["item"] else 'CUED_REC_WORD'
+            new_event.type = evtype
+
+            # TODO: this matches previous events, but without this CUED_REC events lack any annotation
+            # if new_event.intrusion > 0:
+            #     events[(events["type"] == 'WORD') & (events["item"] == new_event["item"])].intruded = 1
+            # elif new_event.intrusion == 0:
+            #     events[(events["type"] == 'WORD') & (events["item"] == new_event["item"])].recalled = 1
+
+            new_event["intrusion"] = -999
 
             events = np.append(events, new_event).view(np.recarray) 
+
         return events
 
     def modify_store_recall(self, events):
@@ -282,8 +328,15 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)
+            new_event = self._identify_intrusion(events, new_event)
+
+            evtype = 'SR_REC_WORD_VV' if "<>" in new_event["item"] else 'SR_REC_WORD'
+            new_event.type = evtype
+            new_event.trial = -999 # to match old events
+            new_event.intrusion = 0 if new_event["item"] in ["_".join(s.upper().split()) for s in self.STORES] else -1
 
             events = np.append(events, new_event).view(np.recarray) 
+
         return events
 
     def modify_free_recall(self, events):
@@ -297,13 +350,16 @@ class CourierSessionLogParser(BaseUnityLogParser):
             new_event = self._new_rec_event(recall, rec_start_event)
 
             # Create a new event for the recall
-            evtype = 'FFR_REC_WORD_VV' if new_event.item == '<>' else 'FFR_REC_WORD'
+            evtype = 'FFR_REC_WORD_VV' if "<>" in new_event["item"] else 'FFR_REC_WORD'
             new_event.type = evtype
+            new_event.trial = -999 # to match old events
             new_event = self._identify_intrusion(events, new_event)
-            
-            if new_event.intrusion > 0:
-                events[(events["type"] == 'WORD') & (events["item"] == new_event.item)] = 1
 
+            if new_event.intrusion >= 0:
+                new_event.intrusion = 0
+                events.finalrecalled[(events["type"] == "WORD") & (events["item"] == new_event.item)] = 1
+            
             events = np.append(events, new_event).view(np.recarray) 
+
         return events
 

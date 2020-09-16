@@ -46,20 +46,20 @@ stim_fields = (
 courier_fields = (
     ('trial', -999, 'int16'), 
     ('serialPos', -999, 'int16'), 
-    ('item', '', 'S64'), 
-    ('store', '', 'S64'), 
-    ('storeX', -999, 'float32'), 
-    ('storeZ', -999, 'float32'), 
-    ('presX', -999, 'float32'), 
-    ('presZ', -999, 'float32'), 
+    ('item', '-999', 'S64'), 
+    ('store', '-999', 'S64'), 
+    ('storeX', -999, 'float16'), 
+    ('storeZ', -999, 'float16'), 
+    ('presX', -999, 'float16'), 
+    ('presZ', -999, 'float16'), 
     ('itemno', -999, 'int16'), 
     ('recalled', -999, 'int16'), 
     ('intruded', -999, 'int16'), 
     ('finalrecalled', -999, 'int16'), 
     ('rectime', -999, 'float32'), 
     ('intrusion', -999, 'int16'), 
-    ('correctPointingDirection', -999, 'float32'), 
-    ('submittedPointingDirection', -999, 'float32')
+    ('correctPointingDirection', -999, 'float16'), 
+    ('submittedPointingDirection', -999, 'float16')
 )
 
 repFR_fields = (

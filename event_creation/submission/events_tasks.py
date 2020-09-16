@@ -14,6 +14,7 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
+from .alignment.FreiburgAligner import FreiburgAligner 
 from .alignment.system3 import System3Aligner, System3FourAligner
 from .configuration import paths
 from .detection.artifact_detection import ArtifactDetector
@@ -26,6 +27,7 @@ from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 from .parsers.repfr_log_parser import repFRSessionLogParser
+from .parsers.courier_log_parser import CourierSessionLogParser
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
@@ -81,6 +83,10 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
+        # sorry about this... FIXME
+        if self.experiment == 'DBOY1':
+            return
+
         if self.protocol == 'ltp':
             for i in range(len(raw_eeg_groups)):
                 raw_eeg = raw_eeg_groups[i]
@@ -100,7 +106,7 @@ class SplitEEGTask(PipelineTask):
             num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
             # Detect Biosemi channel files
             num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
-        else:
+        elif self.protocol == 'r1':
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
@@ -125,8 +131,13 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(db_folder, split_eeg_filename)
-            num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
-                                + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
+
+        else:
+            logger.warn('Splitting not implemented for protocol {}'.format(self.protocol))
+                
+
+        num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
+                        + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
 
         if num_split_files == 0:
             raise ProcessingError(
@@ -162,6 +173,7 @@ class EventCreationTask(PipelineTask):
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
             'RepFR': repFRSessionLogParser, 
+            'DBOY': CourierSessionLogParser,
         }
         elif sys_num<3.3:
             return {
@@ -173,6 +185,7 @@ class EventCreationTask(PipelineTask):
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
                 'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
             }
         elif sys_num==3.3:
             return {
@@ -183,6 +196,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
                 'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
             }
         elif sys_num==3.4:
             return {
@@ -196,6 +210,7 @@ class EventCreationTask(PipelineTask):
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
                 'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
             }
 
         else:
@@ -277,6 +292,9 @@ class EventCreationTask(PipelineTask):
             else:
                 if self.r1_sys_num == 1.0:
                     aligner = System1Aligner(unaligned_events, files)
+                    events = aligner.align()
+                elif 'DBOY' in self.experiment: # FIXME 
+                    aligner = FreiburgAligner(unaligned_events, files)
                     events = aligner.align()
                 else:
                     if self.r1_sys_num == 2.0:
