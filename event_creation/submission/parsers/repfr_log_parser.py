@@ -3,30 +3,33 @@ import pandas as pd
 from . import dtypes
 from .base_log_parser import BaseUnityLTPLogParser
 
-class RepFRSessionLogParser(BaseUnityLTPLogParser):
+
+#TODO: update default to use list rather than trial
+
+class repFRSessionLogParser(BaseUnityLTPLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        super(RepFRLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
+        super(repFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
+
         self._session = -999
         self._trial = 0
         self._serialpos = -999
         self.practice = True
-        self.current_word = ''
         self.current_num = -999
 
 
-        #TODO: error out if not existent
         if("wordpool" in files.keys()):
             with open(files["wordpool"]) as f:
-                self.wordpool = f.readlines() 
+                self.wordpool = [line.rstrip().encode('utf-8') for line in f]
+
         else:
             raise Exception("wordpool not found in transferred files")
 
 
-        self._add_fields(*dtypes.vffr_fields)
+        self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session_start=self.event_sess_start,
             countdown=self.event_countdown,  # Pre-trial countdown video
-            microphone_test_recording=self.event_sess_start,  # Start of session (microphone test)
+            #microphone_test_recording=self.event_sess_start,  # Start of session (microphone test)
             orientation_stimulus=self._event_skip, # skip orientation events
             display_recall_text=self.event_rec_start,  # Start of vocalization period
             end_recall_period=self.event_rec_stop, # End of vocalization period
@@ -38,7 +41,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         
         self._add_type_to_modify_events(
             display_recall_text=self.modify_recalls,
-            session_start=self.modify_session
+
+            session_start=self.modify_session,
         )
 
     ###############
@@ -50,6 +54,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
     def event_sess_start(self, evdata):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
+        event["list"] = self._trial
+
         return event
 
     def event_countdown(self, evdata):
@@ -62,16 +68,17 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         return event
 
     def event_word_on(self, evdata):
-        # Read the word that was presented
-        self.current_word = evdata['data']['displayed text'].strip()
 
         # Build event
         event = self.event_default(evdata)
         event.type = "WORD"
-        event.item_name = self.current_word
-        event.serialpos = self._serialpos
 
-        event.item_num = self.wordpool.index(event.item_name)
+        event.item_name = evdata['data']['displayed text'].strip()
+
+        event.serialpos = self._serialpos
+        event["list"] = self._trial
+
+        event.item_num = self.wordpool.index(event.item_name) + 1
 
         return event
 
@@ -79,6 +86,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         event = self.event_default(evdata)
         event.type = "WORD_OFF"
         event.serialpos = self._serialpos
+        event["list"] = self._trial
+
 
         # increment serial position after word is processed 
         # to order words correctly
@@ -89,11 +98,15 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_START"
+        event["list"] = self._trial
+
         return event
 
     def event_rec_stop(self, evdata):
         event = self.event_default(evdata)
-        event.type = "REC_STOP"
+        event.type = "REC_END"
+        event["list"] = self._trial
+
 
         # increment list index at end of each list
         self._trial += 1
@@ -102,13 +115,25 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
 
     def event_disctract_start(self, evdata):
         event = self.event_default(evdata)
-        event.distractor = evdata['data']['problem']
+        event["list"] = self._trial
+
+        # process numbers out of problem
+        distractor = evdata['data']['displayed text']
+        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
+        event.distractor = nums
+
+        return event
 
     def event_distract_stop(self, evdata):
         event = self.event_default(evdata)
-        event.distractor = evdata['data']['problem']
-        event.distractor_answer = evdata['data']['answer']
+        event["list"] = self._trial
+        distractor = evdata['data']['problem']
+        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
+        event.distractor = nums
+        event.distractor_answer = evdata['data']['answer'] if evdata['data']['answer'] != '' else -999
         event.answer_correct = evdata['data']['correctness']
+
+        return event
 
 
     ###############
@@ -137,7 +162,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
             # Get the vocalized word from the annotation
             word = recall[-1]
             new_event = self._empty_event
-            new_event.trial = self._trial
+
+            new_event["list"] = self._trial
             new_event.session = self._session
             new_event.rectime = int(round(float(recall[0])))
             new_event.mstime = rec_start_time + new_event.rectime
@@ -154,34 +180,46 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
                 new_event.intrusion = -1
             else:  # Correct recall or PLI or XLI from later list
                 # Determines which list the recalled word was from (gives [] if from a future list)
-                pres_mask = self.find_presentation(new_event.item_num, events)
-                pres_trial = np.unique(events[pres_mask].trial)
+                pres_mask = (events.item_num == new_event.item_num) & (events.type == 'WORD')
+                pres_trial = np.unique(events["list"][pres_mask])
+
 
                 # Correct recall or PLI
                 if len(pres_trial) == 1:
                     # Determines how many lists back the recalled word was presented
-                    new_event.intrusion = self._trial - pres_trial[0]
+
+                    num_lists_back = self._trial - pres_trial[0]
                     # Retrieve the recalled word's serial position in its list, as well as the distractor(s) used
-                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
                     # Correct recall if word is from the most recent list
-                    if new_event.intrusion == 0:
+                    if num_lists_back == 0:
+                        new_event.intrusion = 0
+
                         # Retroactively log on the word pres event that the word was recalled
-                        if not any(events[pres_mask].recalled):
+                        if not any(events.recalled[pres_mask]):
                             events.recalled[pres_mask] = True
                     else:
-                        events.intruded[pres_mask] = new_event.intrusion
+                        new_event.intrusion = 1
+                        events.intruded[pres_mask] = num_lists_back
+
                 else:  # XLI from later list
                     new_event.intrusion = -1
 
             # Append the new event
             events = np.append(events, new_event).view(np.recarray)
+            events = self.modify_repeats(events)
+
 
         return events
 
     def modify_repeats(self, events):
-        for w in events[events["type"] == "WORD"]["item_name"].unique():
-            events[(events["type"] == "WORD") & (events["item_name"] == w)].repeats = events[(events["item_name"] == w) & (events["type"] == "WORD")].count()
-        
+        # FIXME: this could be a lot more readable
+        repeat_mask = [True if ev.item_num in events[:i][events[:i]["type"] =="WORD"].item_num else False for i, ev in enumerate(events)]
+        events.is_repeat[repeat_mask] = True
+
+        for w in np.unique(events[events["type"] == "WORD"]["item_name"]):
+            events.repeats[((events["type"] == "WORD") | (events["type"] == "REC_WORD")) & (events["item_name"] == w)] = len(events[(events["item_name"] == w) & (events["type"] == "WORD")])
+
+
         return events
 
     @staticmethod

@@ -28,7 +28,7 @@ class EEG_reader(object):
     DATA_FORMAT = 'int16'
 
     STRFTIME = '%d%b%y_%H%M'
-    MAX_CHANNELS = 256
+    MAX_CHANNELS = 512
 
     EPOCH = datetime.datetime.utcfromtimestamp(0)
 
@@ -185,7 +185,7 @@ class NK_reader(EEG_reader):
     def __init__(self, nk_filename, jacksheet_filename=None, channel_map_filename=None):
         self.raw_filename = nk_filename
         if jacksheet_filename:
-            self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
         else:
             self.jacksheet = None
 
@@ -209,7 +209,7 @@ class NK_reader(EEG_reader):
         return self.sample_rate
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
 
     def get_start_time(self):
         with open(self.raw_filename, 'rb') as f:
@@ -459,9 +459,11 @@ class NK_reader(EEG_reader):
             split_lines = [line.split('=') for line in lines[:end_range] if '=' in line]
             nums_21e, names_21e = zip(*split_lines[:end_range])
             nums_21e = [int(n) for n in nums_21e]
+#        channel_order = (range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] +
+#                        range(100, 254) +range(256,321)+ [50, 51])
 
             channel_order = range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] + \
-                            range(100, 254) + [50, 51]
+                            range(100, 254) + range(256,321)+[50, 51]
 
             jacksheet_nums = np.arange(len(channel_order)) + 1
             names_21e_ordered = np.chararray(len(channel_order), 16)
@@ -757,6 +759,7 @@ class EDF_reader(EEG_reader):
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
             raise
+
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
         if channel_map_filename:
@@ -837,6 +840,7 @@ class EDF_reader(EEG_reader):
             sys.stdout.flush()
             data = self.reader.readSignal(channel).astype(self.DATA_FORMAT)
             data.tofile(filename)
+
         if self.jacksheet:
             for label in self.jacksheet:
                 if label not in used_jacksheet_labels:

@@ -1,3 +1,4 @@
+import traceback
 import codecs
 import json
 import os
@@ -323,6 +324,7 @@ class BaseLogParser(object):
                 else:
                     raise LogParseError("Event type %s not parseable" % this_type)
 
+            
             new_event = handler(raw_event)
             if not isinstance(new_event, np.recarray) and not (new_event is False):
                 raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
@@ -579,7 +581,8 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def event_default(self, event_json):
         event = self._empty_event
-        event.mstime = event_json[self._MSTIME_FIELD]
+
+        event.mstime = event_json[self._MSTIME_FIELD] 
         event.type = event_json[self._TYPE_FIELD]
         event.phase = self._phase
 
@@ -593,6 +596,62 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         events.exp_version = version_info['task']['version']
         return events
 
+class BaseUnityLTPLogParser(BaseLogParser):
+
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log'):
+        if primary_log not in files:
+            primary_log = 'session_log_txt'
+
+        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
+                               allow_unparsed_events=True)
+        self._files = files
+        self._trial = -999
+
+    def _get_raw_event_type(self, event_json):
+        return event_json['type']
+
+    def parse(self):
+        try:
+            return super(BaseUnityLTPLogParser, self).parse()
+        except Exception as exc:
+            traceback.print_exc(exc)
+            logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
+                                                                                   str(type(exc)), exc.message))
+            raise exc
+
+    def _read_unityepl_log(self, filename):
+        """
+        Read events from the UnityEPL format (JSON strings separated by
+        newline characters).
+
+        :param str filename: The path to the session log you wish to parse.
+        """
+        # Read session log
+        df = pd.read_json(filename, lines=True)
+        # Filter out sync pulse events (these will be parsed later on during alignment)
+        df = df[df.type != 'Sync pulse begin']
+        # Create a list of dictionaries, where each dictionary is the information about one event
+        events = [e.to_dict() for _, e in df.iterrows()]
+        # Replace spaces in event type names with underscores
+        for i, e in enumerate(events):
+            events[i]['type'] = e['type'].replace(' ', '_')
+            if e['type'] == 'stimulus' and 'displayed text' in e['data']:
+                events[i]['type'] = 'stimulus_display'
+        return events
+
+    def _read_primary_log(self):
+        evdata = self._read_unityepl_log(self._primary_log)
+        return evdata
+
+    def event_default(self, event_json):
+        event = self._empty_event
+        event.mstime = event_json['time']
+        event.type = event_json['type']
+        event.trial = self._trial
+        return event
+
+class BaseUnityLogParser(BaseUnityLTPLogParser):
+    pass
 
 class BaseUnityLTPLogParser(BaseLogParser):
 

@@ -73,7 +73,6 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
 
         return '%1.1f' % new_montage_num
 
-
 def get_ltp_subject_sessions_by_experiment(experiment):
     events_dir = os.path.join(paths.data_root, 'scalp', 'ltp', experiment, 'behavioral', 'events')
     events_files = sorted(glob.glob(os.path.join(events_dir, 'events_all_LTP*.mat')),
@@ -441,7 +440,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else 'r1' if subject.startswith('R') else None
+                    protocol = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
                 )
                 completed_codes.add(code)
                 yield inputs
@@ -457,7 +456,8 @@ def session_inputs_from_json(filename):
             for session in sessions:
                 info = sessions[session]
                 if 'protocol' not in info:
-                    info['protocol'] = 'ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else 'r1' if subject.startswith('R') else None
+                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
+
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
@@ -589,6 +589,7 @@ def load_index(protocol):
     if protocol not in LOADED_INDEXES:
         index_file = os.path.join(paths.db_root, 'protocols', '{}.json'.format(protocol))
         if not os.path.exists(index_file):
+            print(index_file)
             with open(index_file, 'w') as f:
                 json.dump({}, f)
         LOADED_INDEXES[protocol] = JsonIndexReader(index_file)
@@ -633,8 +634,11 @@ def prompt_for_session_inputs(inputs, **opts):
 
     protocol = inputs.protocol
     if protocol is None:
-        protocol = 'ltp' if (subject.startswith('LTP') or subject.startswith('PLTP')) else \
-                   'r1' if subject.startswith('R') else None
+        protocol = 'ltp' if experiment.startswith('ltp') else \
+                   'r1' if subject.startswith('R') else \
+                   'r1' if subject.startswith('UT') else \
+                   'r1' if subject.startswith('FR') else None
+
     groups = (protocol,)
 
     montage = inputs.montage
@@ -787,6 +791,7 @@ def prompt_for_localization_inputs():
 def session_exists(protocol, subject, experiment, session):
     session_dir = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'behavioral', experiment,
                                'sessions', str(session))
+
     behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
 

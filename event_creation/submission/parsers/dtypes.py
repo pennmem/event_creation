@@ -41,7 +41,42 @@ stim_fields = (
         ('position', '', 'S64'),
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
                                  # to JSON
-    )
+)
+
+courier_fields = (
+    ('trial', -999, 'int16'), 
+    ('serialPos', -999, 'int16'), 
+    ('item', '-999', 'S64'), 
+    ('store', '-999', 'S64'), 
+    ('storeX', -999, 'float16'), 
+    ('storeZ', -999, 'float16'), 
+    ('presX', -999, 'float16'), 
+    ('presZ', -999, 'float16'), 
+    ('itemno', -999, 'int16'), 
+    ('recalled', -999, 'int16'), 
+    ('intruded', -999, 'int16'), 
+    ('finalrecalled', -999, 'int16'), 
+    ('rectime', -999, 'float32'), 
+    ('intrusion', -999, 'int16'), 
+    ('correctPointingDirection', -999, 'float16'), 
+    ('submittedPointingDirection', -999, 'float16')
+)
+
+repFR_fields = (
+    ('repeats', -999, 'int16'),
+    ('is_repeat', False, 'b1'),
+    ('list', -999, 'int16'),
+    ('serialpos', -999, 'int16'),
+    ('distractor', -999, 'int16', 3),
+    ('distractor_answer', -999, 'int16'),
+    ('answer_correct', False, 'b1'),
+    ('item_name', '', 'U64'),
+    ('item_num', -999, 'int16'),
+    ('recalled', False, 'b1'),
+    ('intruded', 0, 'int16'),
+    ('rectime', -999, 'int32'),
+    ('intrusion', -999, 'int16'),
+)
 
 # FR
 
@@ -52,7 +87,7 @@ fr_fields = (
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intrusion', -999, 'int16'),
-            ('exp_version', '', 'S64'),
+            ('exp_version', '', 'U64'),
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
             ('rectime',-999,'int16'),

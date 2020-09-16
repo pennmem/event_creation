@@ -450,7 +450,8 @@ class SyncPulseExtractionModel(object):
     def get_save_name(self):
         base_name = os.path.basename(os.path.dirname(self.eeg_file))
         dir_name = os.path.dirname(self.eeg_file)
-        return os.path.join(dir_name, '%s.%s.%s.sync.txt' % (base_name, self.elec1, self.elec2))
+        # FIXME
+        return os.path.join(dir_name, '%s.sync.txt' % (base_name))
 
     def save_peaks(self, filename):
         with open(filename, 'w') as f:

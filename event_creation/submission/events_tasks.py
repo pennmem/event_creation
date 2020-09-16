@@ -13,7 +13,8 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
-from .alignment.system3 import System3Aligner
+from .alignment.FreiburgAligner import FreiburgAligner 
+from .alignment.system3 import System3Aligner, System3FourAligner
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -26,8 +27,10 @@ from .parsers.base_log_parser import EventComparator
 from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
-from .parsers.repfr_log_parser import RepFRSessionLogParser
-from .parsers.fr_sys3_log_parser import FRSys3LogParser, catFRSys3LogParser
+from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
+from .parsers.repfr_log_parser import repFRSessionLogParser
+from .parsers.courier_log_parser import CourierSessionLogParser
+
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
                                   THMatConverter
@@ -82,7 +85,11 @@ class SplitEEGTask(PipelineTask):
 
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
-        # Scalp EEG post-processing
+
+        # sorry about this... FIXME
+        if self.experiment == 'DBOY1':
+            return
+          
         if self.protocol == 'ltp':
             # Process each EEG recording separately, if multiple exist
             success = np.zeros(len(raw_eeg_groups), dtype=bool)
@@ -98,11 +105,22 @@ class SplitEEGTask(PipelineTask):
                         continue
                 # Create EEG reader
                 reader = get_eeg_reader(raw_eeg, None)
-                # Set up ephys directory (note: does not actually "split" the data for scalp EEG sessions)
-                success[i] = reader.process_eeg(os.path.join(self.pipeline.destination))
+                split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
+                                                                experiment=self.experiment,
+                                                                session=self.session,
+                                                                time=reader.get_start_time_string())
+                # Split raw data file by channel & apply postprocessing
+                reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
+                bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
+                np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
+                # Calculate common average reference and save it to a file
+                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
 
-        # RAM post-processing
-        else:
+            # Detect EGI channel files
+            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+            # Detect Biosemi channel files
+            num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
+        elif self.protocol == 'r1':
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
@@ -127,8 +145,14 @@ class SplitEEGTask(PipelineTask):
                                                                 session=self.session,
                                                                 time=reader.get_start_time_string())
                 reader.split_data(db_folder, split_eeg_filename)
-            num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
-                               + len(glob.glob(os.path.join(db_folder, 'noreref', '*.h5'))))
+
+        else:
+            logger.warn('Splitting not implemented for protocol {}'.format(self.protocol))
+                
+
+        num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
+                        + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
+
 
             if num_split_files == 0:
                 raise ProcessingError(
@@ -157,14 +181,18 @@ class EventCreationTask(PipelineTask):
     def R1_PARSERS(cls, sys_num):
         if sys_num <= 3.0:
             return {
-                'FR': FRSessionLogParser,
-                'PAL': PALSessionLogParser,
-                'catFR': CatFRSessionLogParser,
-                'PS': PSLogParser,  # which has its own dispatching system ...
-                'TH': THSessionLogParser,
-                'THR': THRSessionLogParser,
-            }
-        elif sys_num < 3.3:
+
+            'FR': FRSessionLogParser,
+            'PAL': PALSessionLogParser,
+            'catFR': CatFRSessionLogParser,
+            'PS': PSLogParser,  # which has its own dispatching system ...
+            'TH': THSessionLogParser,
+            'THR': THRSessionLogParser,
+            'RepFR': repFRSessionLogParser, 
+            'DBOY': CourierSessionLogParser,
+        }
+        elif sys_num<3.3:
+
             return {
                 'FR': FRSys3LogParser,
                 'catFR': catFRSys3LogParser,
@@ -173,15 +201,20 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
+                'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
             }
         elif sys_num == 3.3:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR': catFRHostPCLogParser,
-                'PS': PSLogParser,
-                'PS_FR': PSLogParser,
-                'PS_catFR': PSLogParser,
-                'PAL': PALSys3LogParser,
+                'catFR':catFRHostPCLogParser,
+                'PS':PSLogParser,
+                'PS_FR':PSLogParser,
+                'PS_catFR':PSLogParser,
+                'PAL':PALSys3LogParser,
+                'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
+
             }
         elif sys_num == 3.4:
             return {
@@ -194,6 +227,8 @@ class EventCreationTask(PipelineTask):
                 'TICL_FR': FRHostPCLogParser,
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
+                'RepFR': repFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser,
             }
 
         else:
@@ -283,6 +318,9 @@ class EventCreationTask(PipelineTask):
             else:
                 if self.r1_sys_num == 1.0:
                     aligner = System1Aligner(unaligned_events, files)
+                    events = aligner.align()
+                elif 'DBOY' in self.experiment: # FIXME 
+                    aligner = FreiburgAligner(unaligned_events, files)
                     events = aligner.align()
                 else:
                     if self.r1_sys_num == 2.0:

@@ -1,8 +1,10 @@
 
 paths : &PATHS
-  rhino_root     : &RHINO '/Users/ckeane1/Documents/'
-  data_root      : !join [*RHINO,'repFR']
-  loc_db_root    : !join [*RHINO, 'repFR']
+
+  rhino_root     : &RHINO '/'
+  data_root      : !join [*RHINO,'data', 'eeg']
+  loc_db_root    : !join [*RHINO, 'data', 'loc']
+
   db_root        : *RHINO
   events_root    : !join [*RHINO, 'repFR/events']
 
