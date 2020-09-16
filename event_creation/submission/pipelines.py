@@ -32,7 +32,8 @@ GROUPS = {
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
     'ltpFR': ('verbal',),
-    'RepFR': ('verbal', )
+    'RepFR': ('verbal', ),
+    'DBOY1': ('verbal',)
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
@@ -58,7 +59,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
     groups += tuple(args)
 
-    if protocol == 'r1' and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
+    if (protocol == 'r1' or protocol == 'fr') and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
         kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
                       subject=subject,
@@ -68,7 +69,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'freiburg')
         misses = {}
         for sys in systems:
             try:
@@ -98,7 +99,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                 misses[sys] = str(e)
                 continue
         else:
-            raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
+             raise TransferError("System_# determination failed. I'm a failure. Nobody loves me.\n"
                                 "Missing files: \n {}".format(misses))
 
         groups += (sys,)
@@ -356,7 +357,9 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
 
     system = None
-    if protocol == 'r1':
+    if experiment == 'DBOY1':
+        tasks = [EventCreationTask(protocol, subject, montage, experiment, session, system, **kwargs)]
+    elif protocol == 'r1':
         system = [x for x in groups if 'system' in x][0]
         system = system.partition('_')[-1]
         tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
