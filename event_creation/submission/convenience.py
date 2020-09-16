@@ -441,7 +441,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    protocol = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
                 )
                 completed_codes.add(code)
                 yield inputs
@@ -457,7 +457,7 @@ def session_inputs_from_json(filename):
             for session in sessions:
                 info = sessions[session]
                 if 'protocol' not in info:
-                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
@@ -632,7 +632,9 @@ def prompt_for_session_inputs(inputs, **opts):
     protocol = inputs.protocol
     if protocol is None:
         protocol = 'ltp' if experiment.startswith('ltp') else \
-                   'r1' if subject.startswith('R') else None
+                   'r1' if subject.startswith('R') else \
+                   'r1' if subject.startswith('UT') else \
+                   'r1' if subject.startswith('FR') else None
     groups = (protocol,)
 
     montage = inputs.montage
@@ -785,10 +787,16 @@ def prompt_for_localization_inputs():
     return inputs
 
 def session_exists(protocol, subject, experiment, session):
+    print(session)
+    print(protocol)
+    print(subject)
+    print(experiment)
     session_dir = os.path.join(paths.db_root, 'protocols', protocol,
                                  'subjects', subject,
                                  'behavioral', experiment,
                                  'sessions', str(session))
+
+    print(session_dir)
     behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
 
