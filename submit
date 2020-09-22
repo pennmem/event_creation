@@ -1,17 +1,43 @@
 #!/usr/bin/env bash
+
 USR=`logname`
 
-if [[ $USER != "RAM_maint" ]] && [[ $USER != "maint" ]]; then
-    while true; do
-        echo "This script is meant to be run from maint or RAM_maint, not $USR"
-        read -p "Are you sure you want to continue? " yn
-        case $yn in 
-            [Nn]* ) exit;;
-            [Yy]* ) break;;
-            * ) echo "Please answer y/n";;
-        esac
-    done
+BACKUP=true;
+CHECK_USER=true;
+
+for arg in "$@"; do
+  case "$arg" in
+    "--no-backup")  BACKUP=false;;
+    "--ignore-user") CHECK_USER=false;
+                     BACKUP=false;;
+    "--help") echo "usage: submit {--ignore-user --no-backup}";;
+    *) ;;
+  esac
+done
+
+if $CHECK_USER; then
+    case $USER in
+        "RAM_maint") INDEX="/protocols/r1.json";;
+        "maint") INDEX="/protocols/ltp.json";;
+        * ) echo "This script is meant to be run from maint or RAM_maint not $USR";
+            exit;;
+    esac
 fi
+
+if $BACKUP; then
+    REPO="$HOME/index_file_tracker/"
+    echo "$REPO"
+    TIME=$(date "+%Y.%m.%d at %H.%M.%S")
+    cp "$INDEX" "$REPO"
+
+    cd "$REPO"
+    # we don't have git >1.8, so change directories
+    # git -C "$REPO" add .
+    git add .
+    git commit -m "Checkpoint for modifications made $TIME"
+    cd -
+fi
+
 
 if [[ ${HOSTNAME:0:4} != "node" ]]; then
     while true; do
