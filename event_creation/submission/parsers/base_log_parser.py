@@ -673,6 +673,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         except Exception as exc:
             logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
                                                                                    str(type(exc)), exc.message))
+            traceback.print_exc(exc)
             raise exc
 
     def _read_unityepl_log(self, filename):

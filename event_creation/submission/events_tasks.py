@@ -28,7 +28,7 @@ from .parsers.base_log_parser import StimComparator, EventCombiner
 from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
-from .parsers.repfr_log_parser import repFRSessionLogParser
+from .parsers.repfr_log_parser import RepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
 
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
@@ -154,10 +154,10 @@ class SplitEEGTask(PipelineTask):
                         + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
 
 
-            if num_split_files == 0:
-                raise ProcessingError(
-                    'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
-                        db_folder))
+        if num_split_files == 0:
+            raise ProcessingError(
+                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
+                    db_folder))
 
 
 class MatlabEEGConversionTask(PipelineTask):
@@ -188,7 +188,7 @@ class EventCreationTask(PipelineTask):
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
-            'RepFR': repFRSessionLogParser, 
+            'RepFR': RepFRSessionLogParser, 
             'DBOY': CourierSessionLogParser,
         }
         elif sys_num<3.3:
@@ -201,7 +201,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
-                'RepFR': repFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser,
             }
         elif sys_num == 3.3:
@@ -212,7 +212,7 @@ class EventCreationTask(PipelineTask):
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
-                'RepFR': repFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser,
 
             }
@@ -227,7 +227,7 @@ class EventCreationTask(PipelineTask):
                 'TICL_FR': FRHostPCLogParser,
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
-                'RepFR': repFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser,
             }
 

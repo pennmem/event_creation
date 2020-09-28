@@ -86,6 +86,9 @@ class EEG_reader(object):
         if label in channel_map:
             return channel_map[label]
 
+        if label in jacksheet_dict:
+            return label
+
         label = label.replace(' ', '').upper()
         if label in jacksheet_dict:
             return label

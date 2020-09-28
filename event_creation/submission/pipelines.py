@@ -30,7 +30,7 @@ GROUPS = {
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
     'RepFR': ('verbal', ),
-    'DBOY1': ('verbal',)
+    'DBOY1': ('verbal',),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
@@ -342,6 +342,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     try:
         kwargs['sync_folder'], kwargs['sync_filename'] = find_sync_file(code, experiment, original_session)
+        print("%%%%&&&&&!!!!!! Looking part 3")
     except Exception:
         logger.debug("Couldn't find sync pulses, which is fine unless this is system_1")
 

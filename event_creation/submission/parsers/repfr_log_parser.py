@@ -6,9 +6,9 @@ from .base_log_parser import BaseUnityLTPLogParser
 
 #TODO: update default to use list rather than trial
 
-class repFRSessionLogParser(BaseUnityLTPLogParser):
+class RepFRSessionLogParser(BaseUnityLTPLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        super(repFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
+        super(RepFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
 
         self._session = -999
         self._trial = 0
@@ -35,8 +35,6 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
             end_recall_period=self.event_rec_stop, # End of vocalization period
             word_stimulus=self.event_word_on,  # Start of word presentation
             clear_word_stimulus=self.event_word_off, # End of word presentation
-            display_distractor_problem=self.event_disctract_start, # TODO: distractor presented
-            distractor_answered=self.event_distract_stop # TODO: distractor answered
         )
         
         self._add_type_to_modify_events(
@@ -113,7 +111,7 @@ class repFRSessionLogParser(BaseUnityLTPLogParser):
 
         return event
 
-    def event_disctract_start(self, evdata):
+    def event_distract_start(self, evdata):
         event = self.event_default(evdata)
         event["list"] = self._trial
 

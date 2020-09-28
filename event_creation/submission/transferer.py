@@ -192,6 +192,7 @@ class Transferer(object):
 
 
 def find_sync_file(subject, experiment, session):
+
     subject_dir = os.path.join(paths.data_root, subject)
     # Look in raw folder first
     raw_sess_dir = os.path.join(subject_dir, 'raw', '{exp}_{sess}'.format(exp=experiment, sess=session))
@@ -221,14 +222,12 @@ def find_sync_file(subject, experiment, session):
     sync_pattern = os.path.join(raw_sess_dir, '*int32_sync.txt')
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
-        print("found freiburg sync")
         return raw_sess_dir, sync_files[0]
 
     raw_sess_dir = os.path.join(subject_dir, 'raw', '{exp}_{sess}'.format(exp=experiment, sess=session), "")
     sync_pattern = os.path.join(raw_sess_dir, '*int32_sync.txt')
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
-        print("found freiburg sync")
         return raw_sess_dir, sync_files[0]
 
     raise TransferError("{} sync files found at {}, expected 1".format(len(sync_files), sync_pattern))
@@ -352,6 +351,8 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
         try:
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
+            print("****&&&&&^^^^^^ trying part 2")
+            print(kwarg_inputs["sync_folder"])
         except TransferError:
             logger.warn("******* Could not find syncs! Will likely fail soon!")
 

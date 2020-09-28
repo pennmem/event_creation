@@ -1,7 +1,7 @@
 
 paths : &PATHS
 
-  rhino_root     : &RHINO '/'
+  rhino_root     : &RHINO '/scratch/connor.keane/sandbox/'
   data_root      : !join [*RHINO,'data', 'eeg']
   loc_db_root    : !join [*RHINO, 'data', 'loc']
 

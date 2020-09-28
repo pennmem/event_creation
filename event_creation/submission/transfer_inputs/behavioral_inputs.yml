@@ -242,6 +242,7 @@ files:
   - name: eeg_log
     << : *FILE
     groups: [ r1, transfer, verbal, system_1 ]
+    required: false
     origin_directory: *BEH_SESS_DIR
     origin_file: 'eeg.eeglog'
     destination: logs/eeg.eeglog
@@ -438,13 +439,6 @@ files:
     destination: experiment_files/wordpool.txt
 
 ## repFR
-  - name: eeg_log 
-    << : *FILE
-    groups: [RepFR]
-    origin_directory: *BEH_SESS_DIR
-    origin_file: 'eeg.eeglog.up'
-    destination: 'logs/eeg.eeglog.up'
-
   - name: wordpool
     << : *FILE
     groups: [RepFR]

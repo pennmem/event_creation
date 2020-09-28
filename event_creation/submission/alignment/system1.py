@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import scipy.stats
 import os
 
@@ -32,7 +33,21 @@ class System1Aligner:
         :param files:  The output of a Transferer -- a dictionary mapping file name to file location.
                        the files 'eeg_log', 'sync_pulses', and 'eeg_source' must be defined
         """
-        self.task_pulse_file = files['eeg_log']
+
+        self.eeg_log_file = None
+        self.unity_log_file = None
+
+        try:
+            self.eeg_log_file = files['eeg_log']
+        except:
+            logger.warn("Missing eeg log, checking for unity log")
+
+        try:
+            self.unity_log_file = files['session_log']
+        except:
+            logger.warn("Missing unity log")
+
+
         self.eeg_pulse_file = files['sync_pulses']
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
@@ -76,8 +91,18 @@ class System1Aligner:
         Gets the lines from eeg.eeglog that mark that a sync pulse has been sent
         :return: list of the mstimes at which the sync pulses were sent.
         """
-        split_lines = [line.split() for line in open(self.task_pulse_file).readlines()]
-        times = [float(line[0]) for line in split_lines if line[2] in ('CHANNEL_0_UP', 'ON')]
+        if self.eeg_log_file:
+            split_lines = [line.split() for line in open(self.task_pulse_file).readlines()]
+            times = [float(line[0]) for line in split_lines if line[2] in ('CHANNEL_0_UP', 'ON')]
+        elif self.unity_log_file:
+            events = pd.read_json(self.unity_log_file, lines=True)
+
+            # TODO: aggregate sync type for multiple experiments
+            sync_events = events.query("type == 'syncPulse'")
+            times = sync_events["time"].values
+        else:
+            raise Exception("Missing task pulse file")
+
         return times
 
     def get_eeg_pulses(self):

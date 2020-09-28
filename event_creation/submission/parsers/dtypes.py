@@ -104,11 +104,6 @@ category_fields = (
         ('category_num',-999,'int16'),
 )
 
-# repFR
-repFR_fields = (
-    ('repeats', -999, 'int16')
-    )
-
 #PAL
 
 pal_fields = (
