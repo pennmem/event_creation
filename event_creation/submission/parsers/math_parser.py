@@ -1,6 +1,7 @@
 from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
 from .system2_log_parser import System2LogParser
 import pandas as pd
+import numpy as np
 from ..exc import UnknownExperimentError
 
 
@@ -56,14 +57,7 @@ class MathSessionLogParser(BaseSessionLogParser):
             ('answer', -999, 'int16'),
             ('iscorrect', -999, 'int16'),
             ('rectime', -999, 'int32'),
-
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float32'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
+            ('eogArtifact', -1, 'int8')
         )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
@@ -102,7 +96,9 @@ class MathSessionLogParser(BaseSessionLogParser):
 
     def event_prob(self, split_line):
         event = self.event_default(split_line)
-        event.answer = int(split_line[4].replace('\'', ''))
+        answer = int(split_line[4].replace('\'', ''))
+        if np.iinfo(np.int16).min <= answer <= np.iinfo(np.int16).max:
+            event.answer = answer
         test = split_line[3].replace('=', '').replace(' ', '').strip("'").split('+')
         event.test[0] = int(test[0])
         event.test[1] = int(test[1])

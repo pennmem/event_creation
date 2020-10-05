@@ -8,9 +8,9 @@ from ..exc import AlignmentError
 from ..log import logger
 
 
-class System1Aligner:
+class FreiburgAligner:
     """
-    Alignment for System1 data.
+    Alignment for Freiburg data.
     Uses a file that marks the time at which pulses were sent on the behavioral system, and a text file that marks
     the samples at which the sync pulses were received in the EEG to determine an EEG time for each behavioral time.
 
@@ -33,30 +33,20 @@ class System1Aligner:
         :param files:  The output of a Transferer -- a dictionary mapping file name to file location.
                        the files 'eeg_log', 'sync_pulses', and 'eeg_source' must be defined
         """
-
-        self.eeg_log_file = None
-        self.unity_log_file = None
-
-        try:
-            self.eeg_log_file = files['eeg_log']
-        except:
-            logger.warn("Missing eeg log, checking for unity log")
-
-        try:
-            self.unity_log_file = files['session_log']
-        except:
-            logger.warn("Missing unity log")
-
-
+        print("Doing Freiburg Alignment")
+        self.task_pulse_file = files['session_log']
         self.eeg_pulse_file = files['sync_pulses']
-        eeg_sources = json.load(open(files['eeg_sources']))
-        if len(eeg_sources) != 1:
-            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
-        self.eeg_file_stem = eeg_sources.keys()[0]
-        eeg_source = eeg_sources.values()[0]
-        eeg_dir = os.path.dirname(self.eeg_pulse_file)
-        self.samplerate = eeg_source['sample_rate']
-        self.n_samples = eeg_source['n_samples']
+        print(self.eeg_pulse_file)
+
+        with open(files['recording_params'], 'r') as f:
+            recording_params = {k: v for k, v in (l.split('=') for l in f)}
+        # eeg_sources = json.load(open(files['eeg_sources']))
+        # self.eeg_file_stem = eeg_sources.keys()[0]
+        # eeg_source = eeg_sources.values()[0]
+        # eeg_dir = os.path.dirname(self.eeg_pulse_file)
+
+        self.n_samples = float(recording_params['duration_msec'])*float(recording_params["sample_rate"]) / 1000
+        self.samplerate = float(recording_params["sample_rate"])
         self.events = events
 
     def align(self):
@@ -65,13 +55,13 @@ class System1Aligner:
         :return: events that have been aligned
         """
         task_times, eeg_times = self.get_task_pulses(), self.get_eeg_pulses()
-        # Get the coefficients mapping the task times to the eeg times
+        # # Get the coefficients mapping the task times to the eeg times
         slope, intercept = self.get_coefficient(task_times, eeg_times)
-
+        
         # Apply to the events structure
         self.events[self.EEG_TIME_FIELD] = (self.events[self.TASK_TIME_FIELD] * slope + intercept) * self.samplerate/1000.
-        self.events[self.EEG_FILE_FIELD] = self.eeg_file_stem
-
+        # self.events[self.EEG_FILE_FIELD] = self.eeg_file_stem
+        
         # Check to make sure that all of the events aren't beyond the end or beginning of the recording
         out_of_range = np.logical_or(self.events[self.EEG_TIME_FIELD] < 0,
                                      self.events[self.EEG_TIME_FIELD] > self.n_samples)
@@ -80,7 +70,7 @@ class System1Aligner:
             raise AlignmentError('Could not align any events.')
         elif n_out_of_range:
             logger.warn('{} events out of range of eeg'.format(n_out_of_range))
-
+        
         # For files that are out of range, mark them as having no eegfile
         self.events[self.EEG_FILE_FIELD][out_of_range] = ''
         self.events[self.EEG_TIME_FIELD][out_of_range] = -1
@@ -91,30 +81,18 @@ class System1Aligner:
         Gets the lines from eeg.eeglog that mark that a sync pulse has been sent
         :return: list of the mstimes at which the sync pulses were sent.
         """
-        if self.eeg_log_file:
-            split_lines = [line.split() for line in open(self.task_pulse_file).readlines()]
-            times = [float(line[0]) for line in split_lines if line[2] in ('CHANNEL_0_UP', 'ON')]
-        elif self.unity_log_file:
-            events = pd.read_json(self.unity_log_file, lines=True)
-
-            # TODO: aggregate sync type for multiple experiments
-            sync_events = events.query("type == 'syncPulse'")
-            times = sync_events["time"].values
-        else:
-            raise Exception("Missing task pulse file")
-
-        return times
+        return pd.read_json(self.task_pulse_file, lines=True).query("type == 'Sync pulse begin'")["time"].to_numpy()
 
     def get_eeg_pulses(self):
         """
-        Gets the samples at which sync pulses were received by the eeg system.
-        Removes pulses that occur too close together (less than 100 samples)
+        Gets the times at which sync pulses were received by the eeg system.
+        Removes pulses that occur too close together (less than 10 ms)
         :return:
         """
-        times = np.array([float(line) for line in open(self.eeg_pulse_file).readlines()])
-        dp = np.diff(times)
-        times = times[:-1][dp > 100]
-        return times * 1000. / self.samplerate
+        samples = np.array([float(line.split(',')[0]) for line in open(self.eeg_pulse_file).readlines()])
+        dp = np.diff(samples)
+        samples = samples[:-1][dp > .001 * self.samplerate]
+        return samples * (1000 / self.samplerate)
 
     @classmethod
     def get_coefficient(cls, task_pulse_ms, eeg_pulse_ms):

@@ -1,37 +1,9 @@
 from .base_log_parser import BaseSessionLogParser
+from . import dtypes
 import numpy as np
 
 
 class LTPFR2SessionLogParser(BaseSessionLogParser):
-
-    @classmethod
-    def _ltpfr2_fields(cls):
-        """
-        Returns the templates for all LTPFR-specific fields (those not included under _BASE_FIELDS)
-        :return:
-        """
-        return (
-            ('trial', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('begin_distractor', -999, 'int16'),
-            ('final_distractor', -999, 'int16'),
-            ('begin_math_correct', -999, 'int16'),
-            ('final_math_correct', -999, 'int16'),
-            ('item_name', '', 'S16'),
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intruded', 0, 'int16'),
-            ('rectime', -999, 'int32'),
-            ('intrusion', -999, 'int16'),
-
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float16'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
-        )
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(LTPFR2SessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
@@ -44,14 +16,14 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
         self._distractor = 0
         self._math_correct = -999
 
-        self._add_fields(*self._ltpfr2_fields())
+        self._add_fields(*dtypes.ltpFR2_fields)
         self._add_type_to_new_event(
             SESS_START=self.event_sess_start,
             FR_PRES=self.event_fr_pres,
             REC_START=self.event_default,
             REST=self._event_skip,
             REST_REWET=self.event_default,
-            SESS_END=self._event_skip,
+            SESS_END=self.event_default,
             SESSION_SKIPPED=self._event_skip,
             DISTRACTOR_MATH=self.event_distractor,
             MATH_TOTAL_SCORE=self._event_skip
@@ -75,12 +47,13 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
 
     def event_sess_start(self, split_line):
         """
-        Extracts the session number from the fourth column of SESS_START log events
+        Extracts the session number from the fourth column of SESS_START log events, as well as creating an event
         :param split_line:
         :return:
         """
         self._session = int(split_line[3]) - 1
-        return False
+        event = self.event_default(split_line)
+        return event
 
     def event_fr_pres(self, split_line):
         self.update_trial(split_line)
@@ -128,9 +101,6 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
 
         for recall in ann_outputs:
             word = recall[-1]
-            # Vocalizations are skipped in the .mat files for ltpFR2
-            if word == '<>' or word == 'V' or word == '!':
-                continue
             new_event = self._empty_event
             new_event.trial = self._trial
             new_event.session = self._session
@@ -139,7 +109,11 @@ class LTPFR2SessionLogParser(BaseSessionLogParser):
             new_event.msoffset = 20
             new_event.item_name = word
             new_event.item_num = int(recall[1])
-            new_event.type = 'REC_WORD'
+            # Vocalizations are skipped in the .mat files for ltpFR2
+            if word == '<>' or word == 'V' or word == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
 
             # If XLI
             if recall[1] == -1:

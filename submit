@@ -1,9 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
+source /usr/global/Anaconda/2019-10/etc/profile.d/conda.sh
 
 USR=`logname`
 
 BACKUP=true;
 CHECK_USER=true;
+SCRIPT_ARGS=()
 
 for arg in "$@"; do
   case "$arg" in
@@ -11,7 +13,7 @@ for arg in "$@"; do
     "--ignore-user") CHECK_USER=false;
                      BACKUP=false;;
     "--help") echo "usage: submit {--ignore-user --no-backup}";;
-    *) ;;
+    *)SCRIPT_ARGS+=("$arg");;
   esac
 done
 
@@ -54,6 +56,6 @@ fi
 #USER_HOME=`eval echo ~$USR`
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
 #xauth add $XAUTH_LINE
-source ~/.bashrc
-source activate event_creation
-python -m event_creation.submission.convenience "$@"
+#source ~/.bashrc
+conda activate ec_release
+python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"

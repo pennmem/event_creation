@@ -1,5 +1,5 @@
 from __future__ import print_function
-import os,socket,getpass
+import os, socket, getpass
 import runpy
 import sys
 
@@ -19,7 +19,7 @@ def confirm(prompt):
 
 def submit():
     usr = getpass.getuser()
-    expected_users =["RAM_maint","RAM_clinical:"]
+    expected_users = ["RAM_maint", "RAM_clinical:"]
     if usr not in expected_users:
         print("This script is meant to be run from RAM_maint not", usr)
         confirm("Are you sure you want to continue? ")

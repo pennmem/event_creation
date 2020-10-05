@@ -18,6 +18,8 @@ directories:
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
+  sess_raw_dir : &SESS_RAW_DIR !join [*SUBJ_DIR, 'raw/session_{original_session}']
+  exp_raw_dir :  &EXP_RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
 
   sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
   sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
@@ -50,6 +52,48 @@ default_dir: &DIR
 
 files:
 
+  ## Freiburg System
+
+  - name: raw_eeg
+    << : *FILE
+    multiple: true
+    groups: [freiburg, transfer]
+    origin_directory: *EXP_RAW_DIR
+    origin_file:
+      - 'EEGData*.int32.*'
+    destination: 'raw_eeg/'
+
+  - name: sync_pulses 
+    << : *FILE
+    multiple: true
+    groups: [freiburg, transfer]
+    origin_directory: *EXP_RAW_DIR
+    origin_file:
+      - '*int32_sync.txt'
+    destination: 'raw_eeg/'
+
+  - name: micros
+    << : *DIR
+    required: false
+    multiple: true
+    groups: [freiburg, transfer]
+    origin_directory: *EXP_RAW_DIR
+    origin_file:
+      - 'micros/*'
+    destination: 'raw_eeg/micros/'
+
+  - name: metadata
+    << : *FILE
+    required: true
+    multiple: true
+    groups: [freiburg, transfer]
+    origin_directory: *EXP_RAW_DIR
+    origin_file:
+      - 'annotations.txt'
+      - 'channel-info.txt'
+      - 'cnv-info.txt'
+    destination: 'raw_eeg/metadata/'
+
   ## Conversion
 
   - name: matlab_events
@@ -62,7 +106,7 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3']
+    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg']
     checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:
@@ -72,11 +116,11 @@ files:
       - '*.EEG'
       - '*.ns*'
       - '*/*.ns*'
-    destination: raw_eeg/
+    destination: 'raw_eeg/'
 
   - name: host_pc_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1', '!system_2']
+    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
     origin_file: '20*'
@@ -96,7 +140,7 @@ files:
 
   - name: elec_file
     <<: *FILE
-    groups: [ r1, transfer ]
+    groups: [ r1, transfer,  '!freiburg']
     multiple: true
     required: false
     origin_directory: *RAW_DIR
@@ -105,14 +149,14 @@ files:
 
   - name: contacts
     <<: *LINK
-    groups: [ r1, transfer, '!system_3' ]
+    groups: [ r1, transfer, '!system_3',  '!freiburg']
     origin_directory: *CURR_MONT
     origin_file: contacts.json
     destination: contacts.json
 
   - name: contacts
     <<: *LINK
-    groups: [ r1, transfer, '!system_1', '!system_2' ]
+    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg']
     required: false
     origin_directory: *CURR_MONT
     origin_file: contacts.json
@@ -121,10 +165,12 @@ files:
   - name: channel_map
     <<: *FILE
     required: false
-    groups: [ r1, transfer ]
+    groups: [ r1, transfer,  '!freiburg']
     origin_directory: !join [*SUBJ_DIR, 'docs']
     origin_file: channel_map.json
     destination: channel_map.json
+
+  ### LTP (Scalp EEG)
 
   - name: raw_eeg
     <<: *LINK
@@ -132,15 +178,7 @@ files:
     multiple: true
     origin_directory: *LTP_EEG_DIR
     origin_file:
-      - '*.raw.bz2'
-      - '*.bdf.bz2'
+      - '*.bdf'
+      - '*.mff'
+      - '*.raw'
     destination: raw_eeg/
-
-  - name: artifact_log
-    <<: *FILE
-    groups: [ ltp ]
-    multiple: true
-    required: false
-    origin_directory: *LTP_EEG_DIR
-    origin_file: '*.log'
-    destination: 'logs/'

@@ -1,6 +1,7 @@
 import os
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import traceback as tb
 
 from . import fileutil
 from .configuration import paths
@@ -27,9 +28,10 @@ class Logger(object):
         if not os.path.exists(os.path.join(paths.db_root, 'protocols')):
             fileutil.makedirs(os.path.join(paths.db_root, 'protocols'))
 
-        self.master_file_handler = logging.handlers.TimedRotatingFileHandler(
-            os.path.join(paths.db_root, 'protocols', 'log.txt'),
-            'D', 30, backupCount=1)
+        # self.master_file_handler = logging.handlers.TimedRotatingFileHandler(
+            # os.path.join(paths.db_root, 'protocols', 'log.txt'),
+            # 'D', 30, backupCount=1)
+        self.master_file_handler = logging.FileHandler(os.path.join(paths.db_root, 'protocols', 'log.txt'))
         self.master_file_handler.setLevel(logging.INFO)
         self.master_file_handler.setFormatter(self.formatter)
         self._logger.addHandler(self.master_file_handler)
@@ -93,5 +95,6 @@ class Logger(object):
 
 try:
     logger = Logger()
-except Exception:
+except Exception as e:
+    tb.print_exc(e)
     logger = None

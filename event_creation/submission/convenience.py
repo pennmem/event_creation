@@ -24,17 +24,15 @@ import traceback
 from collections import defaultdict
 
 from . import fileutil
-from .configuration import  paths
+from .configuration import paths
 from .exc import MontageError
 from .tasks import CleanDbTask, IndexAggregatorTask
 from .events_tasks import ReportLaunchTask
 from .log import logger
 from .automation import Importer, ImporterCollection
 
-from ptsa.data.readers import JsonIndexReader
-
 try:
-    from ptsa.data.readers import BaseEventReader
+    from ptsa.data.readers import BaseEventReader, JsonIndexReader
 except:
     logger.warn('PTSA NOT LOADED')
 
@@ -70,11 +68,10 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
                 logger.warn('Skipping montages for {} from {} to {}'.format(code, new_montage_num, montage_code))
                 return '%d.%d' % (int(new_montage_num), montage_code)
             else:
-                raise Exception('Montage creation error: montages {} to {} do not exist'.format((new_montage_num%1)*10,
+                raise Exception('Montage creation error: montages {} to {} do not exist'.format((new_montage_num % 1)*10,
                                                                                                 montage_code))
 
-        return '%1.1f' % (new_montage_num)
-
+        return '%1.1f' % new_montage_num
 
 def get_ltp_subject_sessions_by_experiment(experiment):
     events_dir = os.path.join(paths.data_root, 'scalp', 'ltp', experiment, 'behavioral', 'events')
@@ -115,7 +112,7 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
     :param include_montage_changes:
     :return: subject, subject_code,  session, original_session, experiment, version
     """
-    json_reader = JsonIndexReader(os.path.join(paths.rhino_root,'protocols','%s.json'%protocol))
+    json_reader = JsonIndexReader(os.path.join(paths.rhino_root, 'protocols', '%s.json' % protocol))
     if experiment in json_reader.experiments():
         subjects = json_reader.subjects(experiment=experiment)
         for subject_no_montage in subjects:
@@ -124,18 +121,17 @@ def get_subject_sessions_by_experiment(experiment, protocol='r1', include_montag
                 sessions = json_reader.sessions(subject=subject_no_montage, montage=montage, experiment=experiment)
                 for session in sessions:
                     try:
-                        original_session =  json_reader.get_value('original_session',
-                                                                  subject=subject_no_montage,experiment=experiment,
-                                                                  session=session)
+                        original_session = json_reader.get_value('original_session', subject=subject_no_montage,
+                                                                 experiment=experiment, session=session)
                     except ValueError:
-                        original_session = session # not necessarily robust
-                    yield subject_no_montage, subject,session, original_session,  experiment, '0'
+                        original_session = session  # not necessarily robust
+                    yield subject_no_montage, subject, session, original_session,  experiment, '0'
     else:
         if re.match('catFR[0-4]', experiment):
             ram_exp = 'RAM_{}'.format(experiment[0].capitalize() + experiment[1:])
         else:
             ram_exp = 'RAM_{}'.format(experiment)
-        events_dir = os.path.join(paths.data_root,'events',ram_exp)
+        events_dir = os.path.join(paths.data_root, 'events', ram_exp)
         events_files = sorted(glob.glob(os.path.join(events_dir, '{}*_events.mat'.format(protocol.upper()))),
                               key=lambda f: f.split('_')[:-1])
         seen_experiments = defaultdict(list)
@@ -186,7 +182,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
         else:
             subject_sessions = get_subject_sessions_by_experiment(experiment, protocol, include_montage_changes)
         for subject, code, session, orig_session, new_experiment, version in subject_sessions:
-            if (not included_subjects is None) and (not code in included_subjects):
+            if (included_subjects is not None) and (code not in included_subjects):
                 continue
             if excluded_experiments and new_experiment in excluded_experiments:
                 continue
@@ -202,7 +198,7 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
                     'montage': determine_montage_from_code(code, allow_new=True, allow_skip=True),
                     'code': code
                 }
-            if (new_experiment != experiment):
+            if new_experiment != experiment:
                 if new_experiment == 'PS2.1':
                     session_dict['original_experiment'] = 'PS21'
                 else:
@@ -219,8 +215,8 @@ def build_json_import_db(out_file, orig_experiments=None, excluded_experiments=N
 
 
 def build_sharing_import_database():
-    subjects_for_export = [x.strip() for x in open(os.path.join(os.path.dirname(__file__),'subjects_for_export.txt')).readlines() if len(x.strip()) > 0 ]
-    experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2','TH1')
+    subjects_for_export = [x.strip() for x in open(os.path.join(os.path.dirname(__file__), 'subjects_for_export.txt')).readlines() if len(x.strip()) > 0]
+    experiments = ('FR1', 'FR2', 'YC1', 'YC2', 'PAL1', 'PAL2', 'catFR1', 'catFR2', 'TH1')
     build_json_import_db('export_sessions.json', experiments, [], subjects_for_export, 'r1', True)
 
 
@@ -238,12 +234,13 @@ def build_TH_import_database():
     experiments = ('TH1', 'TH3')
     build_json_import_db('th_sessions.json', experiments)
 
+
 RAM_EXPERIMENTS = ('FR1', 'FR2', 'FR3',
                    'YC1', 'YC2', 'YC3',
                    'PAL1', 'PAL2', 'PAL3',
                    'catFR1', 'catFR2', 'catFR3',
                    'TH1', 'TH3',
-                   'PS')
+                   'PS', 'repFR')
 
 
 def build_ram_import_database():
@@ -270,7 +267,7 @@ def attempt_importers(importers, force):
     :return: The importers that were attempted
     """
     success = False
-    i=0
+    i = 0
     for i, importer in enumerate(importers):
         logger.set_label(importer.label)
         logger.info("Attempting {}".format(importer.label))
@@ -303,13 +300,13 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     successes = [True]
 
     if do_import:
-        ephys_builder = Importer(Importer.BUILD_EPHYS,**kwargs)
-        success,attempts = attempt_importers([ephys_builder],force_eeg)
+        ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
+        success, attempts = attempt_importers([ephys_builder], force_eeg)
         attempted_importers.extend(attempts)
         successes.append(success)
         if success:
-            events_builder = Importer(Importer.BUILD_EVENTS,**kwargs)
-            success,attempts = attempt_importers([events_builder],force_events)
+            events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
+            success, attempts = attempt_importers([events_builder], force_events)
             attempted_importers.extend(attempts)
             if success:
                 return all(successes), ImporterCollection(attempted_importers)
@@ -323,13 +320,13 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
         logger.info('Unwinding.')
 
     if do_convert:
-        ephys_converter = Importer(Importer.CONVERT_EPHYS,**kwargs)
-        ephys_success,attempts = attempt_importers([ephys_converter],force_eeg)
+        ephys_converter = Importer(Importer.CONVERT_EPHYS, **kwargs)
+        ephys_success, attempts = attempt_importers([ephys_converter], force_eeg)
         attempted_importers.extend(attempts)
         successes.append(ephys_success)
         if ephys_success:
-            events_converter = Importer(Importer.CONVERT_EVENTS,**kwargs)
-            events_success,attempts = attempt_importers([events_converter],force_events)
+            events_converter = Importer(Importer.CONVERT_EVENTS, **kwargs)
+            events_success, attempts = attempt_importers([events_converter], force_events)
             attempted_importers.extend(attempts)
             successes.append(events_success)
             if not events_success:
@@ -341,24 +338,25 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     return all(successes), ImporterCollection(attempted_importers)
 
 
-def run_montage_import(kwargs, do_create= True,do_convert = False,force=False):
+def run_montage_import(kwargs, do_create=True, do_convert=False, force=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label('Montage Importer')
     importers = []
     if do_create:
-        importers.append( Importer(Importer.CREATE_MONTAGE,**kwargs))
+        importers.append(Importer(Importer.CREATE_MONTAGE, **kwargs))
     if do_convert:
-        importers.append( Importer(Importer.CONVERT_MONTAGE, **kwargs))
+        importers.append(Importer(Importer.CONVERT_MONTAGE, **kwargs))
     success, importers = attempt_importers(importers, force)
     return success, ImporterCollection(importers)
 
-def run_localization_import(kwargs, force=False,force_dykstra=False):
+
+def run_localization_import(kwargs, force=False, force_dykstra=False):
     logger.set_subject(kwargs['subject'], kwargs['protocol'])
     logger.set_label("Localization importer")
-    localization_kwargs = {k:kwargs[k] for k in ['subject','protocol','localization','code']}
+    localization_kwargs = {k: kwargs[k] for k in ['subject', 'protocol', 'localization','code']}
 
-    new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra,**localization_kwargs)
-    old_importer = Importer(Importer.LOCALIZATION, is_new=False,force_dykstra=force_dykstra,**localization_kwargs)
+    new_importer = Importer(Importer.LOCALIZATION, is_new=True, force_dykstra=force_dykstra, **localization_kwargs)
+    old_importer = Importer(Importer.LOCALIZATION, is_new=False, force_dykstra=force_dykstra, **localization_kwargs)
     success, importers = attempt_importers([new_importer, old_importer], force)
     return success, ImporterCollection(importers)
 
@@ -442,7 +440,7 @@ def montage_inputs_from_json(filename):
                     subject=subject,
                     code=code,
                     montage=info.get('montage', '0.0'),
-                    protocol='ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    protocol = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
                 )
                 completed_codes.add(code)
                 yield inputs
@@ -458,7 +456,8 @@ def session_inputs_from_json(filename):
             for session in sessions:
                 info = sessions[session]
                 if 'protocol' not in info:
-                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else None
+                    info['protocol'] = 'ltp' if subject.startswith('LTP') else 'r1' if subject.startswith('R') else 'r1' if subject.startswith('FR') else 'r1' if subject.startswith('UT') else None
+
                 inputs = build_session_inputs(subject, new_experiment, session, info)
                 yield inputs
 
@@ -476,7 +475,7 @@ def import_sessions_from_json(filename, do_import, do_convert, force_events=Fals
     interrupted = False
     try:
         for inputs in session_inputs_from_json(filename):
-            logger.set_subject(inputs['subject'],inputs['protocol'])
+            logger.set_subject(inputs['subject'], inputs['protocol'])
             success, importers = run_session_import(inputs, do_import, do_convert, force_events, force_eeg)
             if success:
                 successes.append(importers)
@@ -499,7 +498,7 @@ def import_montages_from_json(filename, force=False):
     try:
         for inputs in montage_inputs_from_json(filename):
             if inputs['protocol'] != 'ltp':  # Skip montage import for LTP participants
-                success, importers = run_montage_import(inputs, do_convert=True,force=force)
+                success, importers = run_montage_import(inputs, do_convert=True, force=force)
                 if success:
                     successes.append(importers)
                 else:
@@ -570,8 +569,8 @@ def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
         except ValueError:
             orig_sess = session
         if code != subject:
-            montage_str = ' ({}.{})'.format(r1.get_value('montage', subject=subject, experiment=experiment, session=session),
-                                         r1.get_value('localization', subject=subject, experiment=experiment, session=session))
+            montage_str = ' ({}.{})'.format(r1.get_value('montage', subject=subject, experiment=experiment,
+                                                         session=session), r1.get_value('localization', subject=subject, experiment=experiment, session=session))
         else:
             montage_str = ''
         import_type = r1.get_value('import_type', subject=subject, experiment=experiment, session=session)
@@ -582,11 +581,15 @@ def show_imported_sessions(subject, experiment, protocol='r1', show_info=False):
         print('|- {sess}: ({code}{montage}, {exp}_{orig_sess}{type})'.format(sess=session, code=code, exp=experiment, orig_sess=orig_sess,
                                                                              montage=montage_str, type=import_type))
 
+
 LOADED_INDEXES = {}
+
+
 def load_index(protocol):
     if protocol not in LOADED_INDEXES:
         index_file = os.path.join(paths.db_root, 'protocols', '{}.json'.format(protocol))
         if not os.path.exists(index_file):
+            print(index_file)
             with open(index_file, 'w') as f:
                 json.dump({}, f)
         LOADED_INDEXES[protocol] = JsonIndexReader(index_file)
@@ -624,15 +627,18 @@ def prompt_for_session_inputs(inputs, **opts):
     experiment = inputs.experiment
     if experiment is None:
         experiment = input('Enter experiment name: ')
-    if re.search('Cat',experiment):
+    if re.search('Cat', experiment):
         inputs.original_experiment = experiment
-        experiment = re.sub(r'Cat',r'cat',experiment)
-        logger.debug('Original experiment: %s'%inputs.original_experiment)
+        experiment = re.sub(r'Cat', r'cat', experiment)
+        logger.debug('Original experiment: %s' % inputs.original_experiment)
 
     protocol = inputs.protocol
     if protocol is None:
         protocol = 'ltp' if experiment.startswith('ltp') else \
-                   'r1' if subject.startswith('R') else None
+                   'r1' if subject.startswith('R') else \
+                   'r1' if subject.startswith('UT') else \
+                   'r1' if subject.startswith('FR') else None
+
     groups = (protocol,)
 
     montage = inputs.montage
@@ -670,7 +676,7 @@ def prompt_for_session_inputs(inputs, **opts):
         elif experiment == 'PS2.1':
             is_sys3 = confirm("Is this a system 3 session? ")
             if is_sys3:
-                groups+= ('system_3',)
+                groups += ('system_3',)
                 original_experiment = 'PS2'
             else:
                 groups += ('system_2',)
@@ -695,8 +701,6 @@ def prompt_for_session_inputs(inputs, **opts):
         else:
             ram_experiment = 'RAM_{}'.format(experiment)
 
-
-
     inputs = dict(
         protocol=protocol,
         subject=subject,
@@ -714,7 +718,7 @@ def prompt_for_session_inputs(inputs, **opts):
         groups=groups,
         attempt_import=attempt_import,
         attempt_conversion=attempt_conversion,
-        PS4 = ('ps4' in groups)
+        PS4=('ps4' in groups)
     )
 
     if opts.get('sys2', False):
@@ -739,9 +743,9 @@ def prompt_for_montage_inputs():
 
     montage_num = montage.split(".")[1]
     subject_split = code.split("_")
-    subject_montage = subject_split[1] if len(subject_split)>1 else "0"
+    subject_montage = subject_split[1] if len(subject_split) > 1 else "0"
 
-    if ( subject_montage ) != montage_num:
+    if subject_montage != montage_num:
         print("WARNING: subject code {} does not match montage number {} !".format(subject_montage, montage_num))
         confirmed = confirm("Are you sure you want to continue? ")
         if not confirmed:
@@ -755,13 +759,12 @@ def prompt_for_montage_inputs():
     elif reference_scheme.startswith('b'):
         reference_scheme = 'bipolar'
 
-
     inputs = dict(
         subject=subject,
         montage=montage,
         code=code,
         protocol='r1',
-        reference_scheme = reference_scheme
+        reference_scheme=reference_scheme
     )
 
     return inputs
@@ -776,37 +779,35 @@ def prompt_for_localization_inputs():
         localization = input("Enter localization number: ")
 
     inputs = dict(
-        code = code,
-        subject = subject,
-        localization = localization,
-        protocol = 'r1'
+        code=code,
+        subject=subject,
+        localization=localization,
+        protocol='r1'
     )
 
     return inputs
 
+
 def session_exists(protocol, subject, experiment, session):
-    session_dir = os.path.join(paths.db_root, 'protocols', protocol,
-                                 'subjects', subject,
-                                 'behavioral', experiment,
-                                 'sessions', str(session))
+    session_dir = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'behavioral', experiment,
+                               'sessions', str(session))
+
     behavioral_current = os.path.join(session_dir, 'behavioral', 'current_processed')
     eeg_current = os.path.join(session_dir, 'ephys', 'current_processed')
 
     return os.path.exists(behavioral_current) and os.path.exists(eeg_current)
 
+
 def localization_exists(protocol, subject, localization):
-    neurorad_current = os.path.join(paths.db_root, 'protocols', protocol,
-                           'subjects', subject,
-                           'localizations', localization,
-                           'neuroradiology', 'current_processed')
+    neurorad_current = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'localizations',
+                                    localization, 'neuroradiology', 'current_processed')
     return os.path.exists(neurorad_current)
+
 
 def montage_exists(protocol, subject, montage):
     montage_num = montage.split('.')[1]
     localization = montage.split('.')[0]
-    montage_dir = os.path.join(paths.db_root, 'protocols', protocol,
-                               'subjects', subject,
-                               'localizations', localization,
+    montage_dir = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'localizations', localization,
                                'montages', montage_num)
     neurorad_current = os.path.join(montage_dir, 'neuroradiology', 'current_processed')
 
@@ -839,9 +840,9 @@ def main():
         if config.db.name:
             db_builder = IMPORT_DB_BUILDERS[config.db.name]
             print('Building import database: {}'.format(config.db.name))
-        else: #config.db.experiment
-            db_builder = lambda:build_json_import_db('%s_import.json'%config.db.experiment,
-                                                     orig_experiments=[config.db.experiment])
+        else:  # config.db.experiment
+            db_builder = lambda: build_json_import_db('%s_import.json' % config.db.experiment,
+                                                      orig_experiments=[config.db.experiment])
             print('Building import database: {}'.format(config.db.experiment))
         db_builder()
         print('DB built. Exiting.')
@@ -853,7 +854,7 @@ def main():
     if config.json_file:
         print('Running from JSON file: {}'.format(config.json_file))
         import_log = 'json_import'
-        i=1
+        i = 1
         while os.path.exists(import_log + '.log'):
             import_log = 'json_import' + str(i)
             i += 1
@@ -882,7 +883,7 @@ def main():
         attempt_create = not config.force_convert
         attempt_convert = config.force_convert or config.allow_convert
         force = config.force_montage or config.force_convert
-        success, importer = run_montage_import(inputs, attempt_create,attempt_convert, force=force)
+        success, importer = run_montage_import(inputs, attempt_create, attempt_convert, force=force)
         print('Success:' if success else 'Failed:')
         print(importer.describe())
         exit(0)
@@ -892,10 +893,9 @@ def main():
         if not inputs:
             exit(0)
         exists = localization_exists(inputs['protocol'], inputs['subject'], inputs['localization'])
-        logger.debug('Path %s %s'%(os.path.join(paths.db_root, 'protocols', inputs['protocol'],
-                           'subjects', inputs['subject'],
-                           'localization', inputs['localization'],
-                           'neuroradiology', 'current_processed'),'exists' if exists else 'does not exist'))
+        logger.debug('Path %s %s' % (os.path.join(paths.db_root, 'protocols', inputs['protocol'], 'subjects',
+                                                  inputs['subject'], 'localization', inputs['localization'],
+                                                  'neuroradiology', 'current_processed'), 'exists' if exists else 'does not exist'))
         if localization_exists(inputs['protocol'], inputs['subject'], inputs['localization']):
             if not confirm('{subject}, loc {localization} already exists. Continue and overwrite? '.format(**inputs)):
                 print("Import aborted! Exiting.")
@@ -914,7 +914,6 @@ def main():
 
     inputs = prompt_for_session_inputs(**config.options)
 
-
     if session_exists(inputs['protocol'], inputs['subject'], inputs['new_experiment'], inputs['session']):
         if not confirm('{subject} {new_experiment} session {session} already exists. '
                        'Continue and overwrite? '.format(**inputs)):
@@ -922,15 +921,17 @@ def main():
             exit(0)
     print('Importing session')
     success, importers = run_session_import(inputs, attempt_import, attempt_convert, config.force_events,
-                                        config.force_eeg)
+                                            config.force_eeg)
     if success:
         print("Aggregating indexes...")
         IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
-        print("Requesting report")
-        ReportLaunchTask(subject=inputs['code'],experiment=inputs['experiment'],session=inputs['session']).request()
+
+        # print("Requesting report")
+        # ReportLaunchTask(subject=inputs['code'], experiment=inputs['experiment'], session=inputs['session']).request()
     print('Success:' if success else "Failed:")
     print(importers.describe())
     exit(0)
+
 
 if __name__ == "__main__":
     main()

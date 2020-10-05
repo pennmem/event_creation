@@ -43,10 +43,29 @@ stim_fields = (
                                  # to JSON
 )
 
+courier_fields = (
+    ('trial', -999, 'int16'), 
+    ('serialPos', -999, 'int16'), 
+    ('item', '-999', 'S64'), 
+    ('store', '-999', 'S64'), 
+    ('storeX', -999, 'float16'), 
+    ('storeZ', -999, 'float16'), 
+    ('presX', -999, 'float16'), 
+    ('presZ', -999, 'float16'), 
+    ('itemno', -999, 'int16'), 
+    ('recalled', -999, 'int16'), 
+    ('intruded', -999, 'int16'), 
+    ('finalrecalled', -999, 'int16'), 
+    ('rectime', -999, 'float32'), 
+    ('intrusion', -999, 'int16'), 
+    ('correctPointingDirection', -999, 'float16'), 
+    ('submittedPointingDirection', -999, 'float16')
+)
+
 repFR_fields = (
     ('repeats', -999, 'int16'),
     ('is_repeat', False, 'b1'),
-    ('trial', -999, 'int16'),
+    ('list', -999, 'int16'),
     ('serialpos', -999, 'int16'),
     ('distractor', -999, 'int16', 3),
     ('distractor_answer', -999, 'int16'),
@@ -108,9 +127,9 @@ pal_fields = (
             ('is_stim', False, 'b1'),
 )
 
-#Math
+# Math
 
-math_fields =  (
+math_fields = (
             ('list', -999, 'int16'),
             ('test', -999, 'int16', 3),
             ('answer', -999, 'int16'),
@@ -120,7 +139,9 @@ math_fields =  (
 
 # LTP
 
-ltp_fr2_fields = (
+ltp_fields = (('eogArtifact', -1, 'int8'),)
+
+ltpFR2_fields = (
             ('trial', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('begin_distractor', -999, 'int16'),
@@ -133,48 +154,71 @@ ltp_fr2_fields = (
             ('intruded', 0, 'int16'),
             ('rectime', -999, 'int32'),
             ('intrusion', -999, 'int16'),
+            ('eogArtifact', -1, 'int8')
 )
 
-ltp_fields = (
-            ('artifactMS', -1, 'int32'),
-            ('artifactNum', -1, 'int32'),
-            ('artifactFrac', -1, 'float16'),
-            ('artifactMeanMS', -1, 'float16'),
-            ('badEvent', False, 'b1'),
-            ('badEventChannel', '', 'S8', 132)  # Because recarrays require fields of type array to be a fixed length,
-                                                # all badEventChannel entries must be length 132
+ltpFR_fields = (
+        ('trial', -999, 'int16'),
+        ('studytrial', -999, 'int16'),
+        ('listtype', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('distractor', -999, 'int16'),
+        ('final_distractor', -999, 'int16'),
+        ('math_correct', -999, 'int16'),
+        ('final_math_correct', -999, 'int16'),
+        ('task', -999, 'int16'),
+        ('resp', -999, 'int16'),
+        ('rt', -999, 'int16'),
+        ('recog_resp', -999, 'int16'),
+        ('recog_conf', -999, 'int16'),
+        ('recog_rt', -999, 'int32'),
+        ('item_name', '', 'S16'),
+        ('item_num', -999, 'int16'),
+        ('recalled', False, 'b1'),
+        ('intruded', 0, 'int16'),
+        ('finalrecalled', False, 'b1'),
+        ('recognized', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', -999, 'int16'),
+        ('color_r', -999, 'float16'),
+        ('color_g', -999, 'float16'),
+        ('color_b', -999, 'float16'),
+        ('font', '', 'S32'),
+        ('case', '', 'S8'),
+        ('rejected', False, 'b1'),
+        ('rej_time', -999, 'int32'),
+        ('eogArtifact', -1, 'int8')
 )
 
-ltp_fr_fields = ( ('trial', -999, 'int16'),
-            ('studytrial', -999, 'int16'),
-            ('listtype', -999, 'int16'),
-            ('serialpos', -999, 'int16'),
-            ('distractor', -999, 'int16'),
-            ('final_distractor', -999, 'int16'),
-            ('math_correct', -999, 'int16'),
-            ('final_math_correct', -999, 'int16'),
-            ('task', -999, 'int16'),
-            ('resp', -999, 'int16'),
-            ('rt', -999, 'int16'),
-            ('recog_resp', -999, 'int16'),
-            ('recog_conf', -999, 'int16'),
-            ('recog_rt', -999, 'int32'),
-            ('item_name', '', 'S16'),  # Calling this 'item' will break things, due to the built-in recarray.item method
-            ('item_num', -999, 'int16'),
-            ('recalled', False, 'b1'),
-            ('intruded', 0, 'int16'),
-            ('finalrecalled', False, 'b1'),
-            ('recognized', False, 'b1'),
-            ('rectime', -999, 'int32'),
-            ('intrusion', -999, 'int16'),
-            ('color_r', -999, 'float16'),
-            ('color_g', -999, 'float16'),
-            ('color_b', -999, 'float16'),
-            ('font', '', 'S32'),
-            ('case', '', 'S8'),
-            ('rejected', False, 'b1'),
-            ('rej_time', -999, 'int32'),
+vffr_fields = (
+        ('trial', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('item_name', '', 'S16'),
+        ('item_num', -999, 'int16'),
+        ('recalled', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', False, 'b1'),
+        ('pres_dur', -999, 'int32'),
+        ('too_fast', False, 'b1'),
+        ('too_fast_msg', False, 'b1'),
+        ('correct', -1, 'int8'),
+        ('eogArtifact', -1, 'int8')
 )
+
+prelim_fields = (
+        ('trial', -999, 'int16'),
+        ('serialpos', -999, 'int16'),
+        ('item_name', '', 'S16'),
+        ('item_num', -999, 'int16'),
+        ('recalled', False, 'b1'),
+        ('rectime', -999, 'int32'),
+        ('intrusion', False, 'b1'),
+        ('intruded', False, 'b1'),
+        ('pres_dur', -999, 'int32'),
+        ('eogArtifact', -1, 'int8')
+)
+
+
 # PS2-3
 ps_fields = (
             ('exp_version', '', 'S16'),
