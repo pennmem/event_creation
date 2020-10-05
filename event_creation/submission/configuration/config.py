@@ -12,7 +12,6 @@ def yml_join(loader, node):
     return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
 
 
-print("adding join")
 yaml.add_constructor('!join', yml_join)
 
 

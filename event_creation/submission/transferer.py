@@ -351,8 +351,6 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
         try:
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
-            print("****&&&&&^^^^^^ trying part 2")
-            print(kwarg_inputs["sync_folder"])
         except TransferError:
             logger.warn("******* Could not find syncs! Will likely fail soon!")
 
