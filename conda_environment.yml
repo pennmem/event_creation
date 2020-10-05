@@ -9,7 +9,7 @@ dependencies:
     - numpy<1.16
     - nose
     - pandas
-    - pip
+    - pip>=10
     - pyqt=4.11
     - python=2.7.18
     - python-dateutil
@@ -24,11 +24,11 @@ dependencies:
     - pywavelets
     - scikit-image
     - requests
+    - bptools
+    - nibabel
+    - pyedflib
+    - mne<=0.17
+    - pytables
+    - bz2file
     - pip:
-        - bz2file
-        - mne<=0.17
-        - nibabel
-        - pyedflib
-        - tables
         - nolds
-        - traits
