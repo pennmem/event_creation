@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from . import dtypes
 from .base_log_parser import BaseUnityLogParser
+import six
 
 class CourierSessionLogParser(BaseUnityLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
@@ -154,6 +155,9 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.recalled = 0
         event.finalrecalled = 0
 
+        if isinstance(evdata['data']['store position'], six.string_types):
+            evdata['data']['store position'] = [float(p) for p in evdata['data']['store position'][1:-1].split(',')]
+
         event.storeX = evdata['data']['store position'][0]
         self.storeX = event.storeX
 
@@ -194,7 +198,13 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_store_mappings(self, evdata):
         event = self.event_default(evdata)
         event.type = "store mappings"
-        event.mappings = {"from {k}".format(k=k): {"to store": evdata['data'][k], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
+
+        # Different versions have different store mappings
+        try:
+            event.mappings = {"from {k}".format(k=k): {"to store": evdata['data'][k], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
+        except:
+            event.mappings = {"from {k}".format(k=k): {"to store": evdata['data']['_'.join(k.split())], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
+
 
         return event 
 
@@ -206,6 +216,9 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def add_cued_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
+
+        if isinstance(evdata['data']['store position'], six.string_types):
+            evdata['data']['store position'] = [float(p) for p in evdata['data']['store position'][1:-1].split(',')]
 
         event.storeX = evdata['data']['store position'][0]
         event.storeZ = evdata['data']['store position'][2]
