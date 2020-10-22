@@ -86,8 +86,8 @@ class SplitEEGTask(PipelineTask):
         raw_eeg_groups = self.group_ns2_files(raw_eegs)
 
 
-        # sorry about this... FIXME
-        if self.experiment == 'DBOY1':
+        # # sorry about this... FIXME
+        if self.experiment == 'DBOY1' and self.subject.startswith('FR'):
             return
           
         if self.protocol == 'ltp':
@@ -202,7 +202,7 @@ class EventCreationTask(PipelineTask):
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
                 'RepFR': RepFRSessionLogParser, 
-                'DBOY': CourierSessionLogParser,
+                'DBOY': CourierSessionLogParser, # TODO
             }
         elif sys_num == 3.3:
             return {
@@ -213,7 +213,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
                 'RepFR': RepFRSessionLogParser, 
-                'DBOY': CourierSessionLogParser,
+                'DBOY': CourierSessionLogParser, # TODO
 
             }
         elif sys_num == 3.4:
@@ -228,7 +228,7 @@ class EventCreationTask(PipelineTask):
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
                 'RepFR': RepFRSessionLogParser, 
-                'DBOY': CourierSessionLogParser,
+                'DBOY': CourierSessionLogParser, # TODO
             }
 
         else:
@@ -276,6 +276,7 @@ class EventCreationTask(PipelineTask):
         self.montage = montage
         self.experiment = experiment
         self.session = session
+        print("%%%%%%", r1_sys_num)
         self._r1_sys_num = r1_sys_num
         self.kwargs = kwargs
         self.event_label = event_label
@@ -319,7 +320,7 @@ class EventCreationTask(PipelineTask):
                 if self.r1_sys_num == 1.0:
                     aligner = System1Aligner(unaligned_events, files)
                     events = aligner.align()
-                elif 'DBOY' in self.experiment: # FIXME 
+                elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME 
                     aligner = FreiburgAligner(unaligned_events, files)
                     events = aligner.align()
                 else:

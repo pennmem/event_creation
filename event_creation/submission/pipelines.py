@@ -358,23 +358,25 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
     transferer.set_transfer_type(SOURCE_IMPORT_TYPE)
 
     system = None
-    if experiment == 'DBOY1':
-        tasks = [EventCreationTask(protocol, subject, montage, experiment, session, system, **kwargs)]
-    elif protocol == 'r1':
-        system = [x for x in groups if 'system' in x][0]
-        system = system.partition('_')[-1]
-        tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
-        if kwargs.get('new_experiment'):
-            new_exp = kwargs['new_experiment']
-            if 'PS4_' in new_exp:
-                task_kwargs = dict(**kwargs)
-                task_kwargs['new_experiment'] = new_exp.split('_')[-1]
+    if protocol == 'r1':
+        print(groups)
+        if "freiburg" in groups:
+            tasks = [EventCreationTask(protocol, subject, montage, experiment, session, system, **kwargs)]
+        else:
+            system = [x for x in groups if 'system' in x][0]
+            system = system.partition('_')[-1]
+            tasks = [MontageLinkerTask(protocol, subject, montage, critical=('3' in system))]
+            if kwargs.get('new_experiment'):
+                new_exp = kwargs['new_experiment']
+                if 'PS4_' in new_exp:
+                    task_kwargs = dict(**kwargs)
+                    task_kwargs['new_experiment'] = new_exp.split('_')[-1]
+                else:
+                    task_kwargs = kwargs
             else:
                 task_kwargs = kwargs
-        else:
-            task_kwargs = kwargs
-        tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
-                                       critical=('PS4' not in groups), **task_kwargs))
+            tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
+                                           critical=('PS4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
         do_math = 'math' in groups
