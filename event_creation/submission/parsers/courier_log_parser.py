@@ -8,7 +8,6 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(CourierSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
         self._trial = 0
-        self._serialpos = 0
         self.subject = subject
 
         self.practice = False
@@ -101,14 +100,14 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         elif word_event["trial"][0] == self._trial:
             new_event.intrusion = 0
-            new_event.serialPos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.serialpos = words[words['item'] == new_event["item"]]['serialPos'][0]
             new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
             new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
             new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
 
         elif word_event["trial"][0] >= 0: # PLI
             new_event.intrusion = self._trial - word_event["trial"][0]
-            new_event.serialPos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.serialpos = words[words['item'] == new_event["item"]]['serialPos'][0]
             new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
             new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
             new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
@@ -147,8 +146,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_object_presentation_begins(self, evdata):
         event = self.event_default(evdata)
         event.type = "WORD"
-        event.serialPos = evdata['data']["serial position"]
-        self._serialpos = event.serialPos
+        event.serialpos = evdata['data']["serial position"]
 
         event.store = '_'.join(evdata['data']['store name'].split(' '))
         event.intruded = 0
