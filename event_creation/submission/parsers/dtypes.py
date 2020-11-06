@@ -45,7 +45,7 @@ stim_fields = (
 
 courier_fields = (
     ('trial', -999, 'int16'), 
-    ('serialPos', -999, 'int16'), 
+    ('serialpos', -999, 'int16'), 
     ('item', '-999', 'S64'), 
     ('store', '-999', 'S64'), 
     ('storeX', -999, 'float16'), 
