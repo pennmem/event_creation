@@ -443,7 +443,7 @@ files:
     << : *FILE
     groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
-    origin_file: RAM_wordpool_en.txt
+    origin_file: wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: session_words
