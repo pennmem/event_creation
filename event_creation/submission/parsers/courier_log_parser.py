@@ -37,6 +37,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
          store_mappings=self.add_store_mappings,
          pointing_begins=self.add_pointing_begins,
          Player_transform=self.add_player_transform,
+         player_transform=self.add_player_transform,
+         Player_Transform=self.add_player_transform,
          pointing_finished=self.add_pointing_finished,
          object_presentation_begins=self.add_object_presentation_begins,
          cued_recall_recording_start=self.add_cued_recall_recording_start,
@@ -69,6 +71,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event = super(CourierSessionLogParser, self).event_default(evdata)
         event.trial = self._trial
         event.session = self._session
+        event.presX = self.presX
+        event.presZ = self.presZ
 
         return event
 
@@ -209,7 +213,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_familiarization_store_displayed(self, evdata):
         event = self.event_default(evdata)
         event.type = "STORE_FAM"
-        event.store = "_".join(evdata['data']['store name'].split(' '))
+        event.store = "_".join(evdata['data']['store name'].lower().split(' '))
         return event
 
     def add_cued_recall_recording_start(self, evdata):
@@ -227,8 +231,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.presZ = self.presZ
 
         event.type = 'CUED_REC_CUE'
-        event["item"] = evdata['data']['item'].lower().rstrip('.1')
-        event.store = '_'.join(evdata['data']['store'].split(' '))
+        event["item"] = evdata['data']['item'].rstrip('.1').upper()
+        event.store = '_'.join(evdata['data']['store'].lower().split(' '))
         return event 
 
     def add_final_object_recall_recording_start(self, evdata):
@@ -307,7 +311,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         store_name = rec_start_event.store
 
         try:
-            ann_outputs = self._parse_ann_file(str(self._trial) + '-' + " ".join(store_name.split('_')))
+            ann_outputs = self._parse_ann_file(str(self._trial) + '-' + " ".join(store_name.lower().split('_')))
 
         except:
             ann_outputs = []
@@ -363,12 +367,12 @@ class CourierSessionLogParser(BaseUnityLogParser):
             # Create a new event for the recall
             evtype = 'FFR_REC_WORD_VV' if "<>" in new_event["item"] else 'FFR_REC_WORD'
             new_event.type = evtype
-            new_event.trial = -999 # to match old events
             new_event = self._identify_intrusion(events, new_event)
+            new_event.trial = -999 # to match old events
 
             if new_event.intrusion >= 0:
                 new_event.intrusion = 0
-                events.finalrecalled[(events["type"] == "WORD") & (events["item"] == new_event.item)] = 1
+                events.finalrecalled[(events["type"] == "WORD") & (events["item"] == new_event["item"])] = 1
             
             events = np.append(events, new_event).view(np.recarray) 
 
