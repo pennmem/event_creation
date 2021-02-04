@@ -100,14 +100,14 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         elif word_event["trial"][0] == self._trial:
             new_event.intrusion = 0
-            new_event.serialpos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.serialpos = words[words['item'] == new_event["item"]]['serialpos'][0]
             new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
             new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
             new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
 
         elif word_event["trial"][0] >= 0: # PLI
             new_event.intrusion = self._trial - word_event["trial"][0]
-            new_event.serialpos = words[words['item'] == new_event["item"]]['serialPos'][0]
+            new_event.serialpos = words[words['item'] == new_event["item"]]['serialpos'][0]
             new_event.store  = words[words['item'] == new_event["item"]]['store'][0]
             new_event.storeX = words[words['item'] == new_event["item"]]['storeX'][0]
             new_event.storeZ = words[words['item'] == new_event["item"]]['storeZ'][0]
