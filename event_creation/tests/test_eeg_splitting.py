@@ -33,7 +33,7 @@ def xtest_edf_reader():
             except:
                 continue
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], num)
-            print('comparing %d' % num)
+            print(('comparing %d' % num))
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -68,7 +68,7 @@ def xtest_nk_converter():
         for lead in leads:
             old_file = old_files % lead
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], lead)
-            print('comparing %d' % lead)
+            print(('comparing %d' % lead))
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -103,7 +103,7 @@ def xtest_nsx_split():
         for lead in leads:
             old_file = old_files % lead
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], lead)
-            print('comparing %d' % lead)
+            print(('comparing %d' % lead))
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -145,7 +145,7 @@ def test_nk_split():
             except:
                 continue
             test_file = '../tests/test_output/%s/test.%03d' % (subject[0], num)
-            print('comparing %d' % num)
+            print(('comparing %d' % num))
 
             old_data = np.fromfile(old_file, 'int16') * old_gain
 
@@ -165,24 +165,24 @@ def test_egi_split():
     if split:
         reader.split_data(os.path.expanduser('~/noreref'), 'TEST')
     for i in range(1, 10):
-        print 'Channel', i, 'noreref'
+        print('Channel', i, 'noreref')
         old_file = os.path.expanduser('~/eeg.noreref/LTP117_15Jul14_1225.00'+str(i))
         new_file = os.path.expanduser('~/noreref/TEST.00'+str(i))
         old_data = np.fromfile(old_file, 'int16')
         new_data = np.fromfile(new_file, 'int16')
-        print old_data[0:10]
-        print new_data[0:10]
+        print(old_data[0:10])
+        print(new_data[0:10])
     if reref:
-        good_chans = np.array(range(1, 130))
+        good_chans = np.array(list(range(1, 130)))
         reader.reref(good_chans, os.path.expanduser('~/reref'))
     for i in range(1, 10):
-        print 'Channel', i, 'reref'
+        print('Channel', i, 'reref')
         old_file = os.path.expanduser('~/eeg.reref/LTP117_15Jul14_1225.00' + str(i))
         new_file = os.path.expanduser('~/reref/TEST.00' + str(i))
         old_data = np.fromfile(old_file, 'int16')
         new_data = np.fromfile(new_file, 'int16')
-        print old_data[0:10]
-        print new_data[0:10]
+        print(old_data[0:10])
+        print(new_data[0:10])
 
 if __name__ == '__main__':
     test_egi_split()

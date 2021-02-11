@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import os,tempfile,shutil,json,traceback
 from ptsa.data.readers import JsonIndexReader,CMLEventReader
 import argparse

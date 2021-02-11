@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 
 from ..submission.parsers.fr_log_parser import FRSessionLogParser
 from ..submission.parsers.catfr_log_parser import CatFRSessionLogParser
@@ -15,7 +15,7 @@ import os.path
 import glob
 
 import pytest
-import conftest
+from . import conftest
 
 
 beh_sess_root = os.path.join(paths.rhino_root, 'data', 'eeg', '{subject}', 'behavioral', '{experiment}', 'session_{session}')

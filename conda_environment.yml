@@ -6,12 +6,12 @@ channels:
 dependencies:
     - h5py
     - matplotlib
-    - numpy<1.16
+    - numpy
     - nose
     - pandas
-    - pip>=10
+    - pip
     - pyqt=4.11
-    - python=2.7.18
+    - python
     - python-dateutil
     - pyyaml
     - qt=4.8
@@ -27,7 +27,7 @@ dependencies:
     - bptools
     - nibabel
     - pyedflib
-    - mne<=0.17
+    - mne
     - pytables
     - bz2file
     - pip:
