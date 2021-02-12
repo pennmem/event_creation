@@ -11,7 +11,7 @@ dependencies:
     - pandas
     - pip
     - pyqt=4.11
-    - python
+    - python=3
     - python-dateutil
     - pyyaml
     - qt=4.8
