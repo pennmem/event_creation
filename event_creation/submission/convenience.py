@@ -618,7 +618,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     code = inputs.code
     if code is None:
-        code = eval(input('Enter subject code: '))
+        code = input('Enter subject code: ')
 
     subject = inputs.subject
     if subject is None:
@@ -626,7 +626,7 @@ def prompt_for_session_inputs(inputs, **opts):
 
     experiment = inputs.experiment
     if experiment is None:
-        experiment = eval(input('Enter experiment name: '))
+        experiment = input('Enter experiment name: ')
     if re.search('Cat', experiment):
         inputs.original_experiment = experiment
         experiment = re.sub(r'Cat', r'cat', experiment)
@@ -646,7 +646,7 @@ def prompt_for_session_inputs(inputs, **opts):
         montage = get_code_montage(code, protocol)
 
     if not montage:
-        montage = eval(input('Montage for this subject not found in database. Enter montage as #.#: '))
+        montage = input('Montage for this subject not found in database. Enter montage as #.#: ')
 
     montage_num = montage.split('.')[1]
 
@@ -658,21 +658,21 @@ def prompt_for_session_inputs(inputs, **opts):
 
     original_session = inputs.original_session or inputs.session
     if original_session is None:
-        original_session = eval(input('Enter original session number (suggested: {}): '.format(suggested_session)))
+        original_session = input('Enter original session number (suggested: {}): '.format(suggested_session))
 
     session = inputs.session
     if session is None:
         if opts.get('change_session', False) or subject != code or \
                 (experiment.startswith('PS') and not experiment.endswith('2.1')):
             suggested_session = get_next_new_session(subject, experiment, protocol)
-            session = int(eval(input('Enter new session number (suggested: {}): '.format(suggested_session))))
+            session = int(input('Enter new session number (suggested: {}): '.format(suggested_session)))
         else:
             session = original_session
 
     original_experiment = inputs.original_experiment or inputs.experiment
     if original_experiment is None:
         if opts.get('change_experiment', False):
-            original_experiment = eval(input('Enter original experiment: '))
+            original_experiment = input('Enter original experiment: ')
         elif experiment == 'PS2.1':
             is_sys3 = confirm("Is this a system 3 session? ")
             if is_sys3:
@@ -736,10 +736,10 @@ def prompt_for_session_inputs(inputs, **opts):
 
 
 def prompt_for_montage_inputs():
-    code = eval(input('Enter original subject code (including _#): '))
+    code = input('Enter original subject code (including _#): ')
     subject = re.sub(r'_.*', '', code)
 
-    montage = eval(input('Enter montage as #.#: '))
+    montage = input('Enter montage as #.#: ')
 
     montage_num = montage.split(".")[1]
     subject_split = code.split("_")
@@ -752,7 +752,7 @@ def prompt_for_montage_inputs():
             return False
     reference_scheme = ''
     while not reference_scheme.startswith('m') and not reference_scheme.startswith('b'):
-        reference_scheme = eval(input('Enter reference scheme \n (monopolar or bipolar) : '))
+        reference_scheme = input('Enter reference scheme \n (monopolar or bipolar) : ')
 
     if reference_scheme.startswith('m'):
         reference_scheme = 'monopolar'
@@ -771,12 +771,12 @@ def prompt_for_montage_inputs():
 
 
 def prompt_for_localization_inputs():
-    code = eval(input('Enter original subject code (including _#): '))
+    code = input('Enter original subject code (including _#): ')
     subject = re.sub(r'_.*', '', code)
 
     localization = ''
     while not localization.isdigit():
-        localization = eval(input("Enter localization number: "))
+        localization = input("Enter localization number: ")
 
     inputs = dict(
         code=code,
@@ -907,7 +907,7 @@ def main():
         exit(0)
 
     if config.view_only:
-        code = eval(input("Enter subject code: "))
+        code = input("Enter subject code: ")
         subject = re.sub(r'_.*', '', code)
         show_imported_experiments(subject)
         exit(0)

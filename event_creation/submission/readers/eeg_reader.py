@@ -61,9 +61,9 @@ class EEG_reader(object):
             'name': basename,
             'source_file': os.path.basename(self.get_source_file()),
             'start_time_str': self.get_start_time_string(),
-            'start_time_ms': self.get_start_time_ms(),
-            'n_samples': self.get_n_samples(),
-            'sample_rate': self.get_sample_rate(),
+            'start_time_ms': int(self.get_start_time_ms()),
+            'n_samples': int(self.get_n_samples()),
+            'sample_rate': int(self.get_sample_rate()),
             'data_format': self.DATA_FORMAT
         }
 

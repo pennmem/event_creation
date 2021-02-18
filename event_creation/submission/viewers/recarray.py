@@ -94,6 +94,8 @@ class MyEncoder(json.JSONEncoder):
             return obj.tolist()
         elif isinstance(obj, numpy.bool_):
             return bool(obj)
+        elif isinstance(obj, bytes):
+            return obj.decode()
         else:
             return super(MyEncoder, self).default(obj)
 

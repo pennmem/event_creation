@@ -155,7 +155,7 @@ class Transferer(object):
             return self._transfer_files()
         except Exception as e:
             traceback.print_exc()
-            logger.error('Exception encountered: %s' % e.message)
+            logger.error("Exception encounted: %s" % str(e))
 
             self.remove_transferred_files()
             raise

@@ -35,8 +35,8 @@ if $BACKUP; then
     cd "$REPO"
     # we don't have git >1.8, so change directories
     # git -C "$REPO" add .
-    git add .
-    git commit -m "Checkpoint for modifications made $TIME"
+#    git add .
+#    git commit -m "Checkpoint for modifications made $TIME"
     cd -
 fi
 
@@ -57,5 +57,5 @@ fi
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
 #xauth add $XAUTH_LINE
 #source ~/.bashrc
-conda activate ec_release
+#conda activate ec_release
 python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"

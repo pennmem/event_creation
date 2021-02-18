@@ -135,7 +135,7 @@ class BaseLogParser(object):
             try:
                 test(events, files)
             except Exception as e:
-                msgs.append('{}.{}: {}'.format(type(self).__name__, test.__name__, e.message))
+                msgs.append('{}.{}: {}'.format(type(self).__name__, test.__name__, str(e)))
         return msgs
 
     @staticmethod

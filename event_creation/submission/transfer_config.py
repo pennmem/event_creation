@@ -264,7 +264,8 @@ class TransferFile(object):
                     if filename.endswith('.mff'):
                         contents.append(os.path.basename(filename))
                     else:
-                        contents.append(open(filename).read())
+                        with open(filename, 'rb') as f:
+                            contents.append(f.read())
 
             for file in list(self.files.values()):
                 contents.extend(file.contents_to_check())
@@ -273,6 +274,8 @@ class TransferFile(object):
 
     def calculate_checksum(self):
         for element in self.contents_to_check():
+            if isinstance(element, str):
+                element = element.encode('utf-8')
             self._checksum.update(element)
         self._checksum_calculated = True
 

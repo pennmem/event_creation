@@ -277,7 +277,7 @@ class TransferPipeline(object):
             traceback.print_exc()
 
             self.transferer.remove_transferred_files()
-            logger.debug('Transfer pipeline errored: {}'.format(e.message))
+            logger.debug('Transfer pipeline errored: {}'.format(str(e)))
             logger.debug('Removing processed folder {}'.format(self.destination))
             if os.path.exists(self.destination):
                 shutil.rmtree(self.destination)
