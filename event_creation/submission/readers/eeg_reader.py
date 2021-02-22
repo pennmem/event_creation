@@ -308,7 +308,7 @@ class NK_reader(EEG_reader):
     def char_(cls, f, n=1):
         out = cls.fread(f, 'c', n, 1)
         if len(out) > 1:
-            return ''.join(out)
+            return b''.join(out)
         else:
             return out
 
@@ -732,7 +732,7 @@ class NSx_reader(EEG_reader):
 
     def _split_data(self, location, basename):
         channels = np.array(self.data['elec_ids'])
-        buffer_size = self.data['data_headers'][-1]['Timestamp'] / (self.TIC_RATE / self.get_sample_rate())
+        buffer_size = self.data['data_headers'][-1]['Timestamp'] // (self.TIC_RATE // self.get_sample_rate())
         for label, channel in list(self.labels.items()):
             recording_channel = channel - self.lowest_channel
             if recording_channel < 0 or not recording_channel in channels:

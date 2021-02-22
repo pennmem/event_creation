@@ -110,8 +110,10 @@ def get_element_dtype(element):
         return mkdtype(element)
     elif isinstance(element, int):
         return 'int64'
+    elif isinstance(element, numpy.integer):
+        return 'int64'
     elif isinstance(element, str):
-        return 'S256'
+        return 'U256'
     elif isinstance(element, bool):
         return 'b'
     elif isinstance(element, float):
@@ -201,10 +203,11 @@ def copy_values(dict_list, rec_arr, list_info=None):
 
             if isinstance(v, dict):
                 copy_values([v], rec_arr[i][k])
-            elif isinstance(v, str):
-                rec_arr[i][k] = strip_accents(v)
             else:
-                rec_arr[i][k] = v
+                try:
+                    rec_arr[i][k] = v
+                except:
+                    import pdb; pdb.set_trace()
 
     for i, sub_dict in enumerate(dict_list):
         for k,v in list(sub_dict.items()):
@@ -222,10 +225,6 @@ def copy_values(dict_list, rec_arr, list_info=None):
     for k, v in list(dict_fields.items()):
         copy_values( v, rec_arr[k])
 
-def strip_accents(s):
-    try:
-        return str(''.join(c for c in unicodedata.normalize('NFD', str(s))
-                      if unicodedata.category(c) != 'Mn'))
-    except UnicodeError: # If accents can't be converted, just remove them
-        return str(re.sub(r'[^A-Za-z0-9 -_.]', '', s))
-
+def strip_accents(word):
+    print("This function is deprecated and has no effect") 
+    return word

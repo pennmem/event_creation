@@ -1,5 +1,7 @@
 from event_creation.submission.convenience import run_session_import, IndexAggregatorTask
 import os
+import matplotlib
+matplotlib.use('agg')
 
 def build_inputs(experiment, subject, session):
     inputs = dict(
@@ -17,7 +19,7 @@ def build_inputs(experiment, subject, session):
         session=session,
         original_session=session,
         groups=('r1',),
-        attempt_import=False,
+        attempt_import=True,
         attempt_conversion=False,
         PS4=False
     )
@@ -46,7 +48,9 @@ for sub, exp, sess in subjects:
 
     try:
         inputs = build_inputs(exp, sub, sess)
-        success, importers = run_session_import(inputs, True, False, False)
+
+        # attempt import, attempt convert, force_events, force_eeg
+        success, importers = run_session_import(inputs, True, False, True, True)
         if success:
             IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
     except:
