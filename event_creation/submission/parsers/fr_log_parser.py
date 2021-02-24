@@ -7,7 +7,6 @@ from ..quality import fr_tests
 from .dtypes import fr_fields,ltp_fields
 
 
-
 class FRSessionLogParser(BaseSessionLogParser):
 
     @classmethod

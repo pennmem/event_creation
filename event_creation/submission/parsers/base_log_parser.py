@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sqlite3
+import numbers
 
 import numpy as np
 import pandas as pd
@@ -518,7 +519,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         try:
             return super(BaseSys3_1LogParser, self).parse()
         except Exception as exc:
-            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), exc.message))
+            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), str(exc)))
             if self._files.get('session_log_txt'):
                 logger.warn('Parsing session.log instead')
 
@@ -933,7 +934,7 @@ class EventCombiner(object):
         """
         if isinstance(instance, str):
             return ''
-        elif isinstance(instance, (int, float)):
+        elif isinstance(instance, numbers.Number):
             return -999
         elif isinstance(instance, (list, tuple, np.ndarray)):
             return []

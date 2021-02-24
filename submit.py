@@ -1,7 +1,10 @@
 from event_creation.submission.convenience import run_session_import, IndexAggregatorTask
+from event_creation.submission.log import logger
 import os
 import matplotlib
+
 matplotlib.use('agg')
+logger.set_stdout_level(0)
 
 def build_inputs(experiment, subject, session):
     inputs = dict(
@@ -40,6 +43,7 @@ subjects = [('R1505J', 'RepFR1', 0),
             ('R1515T', 'catFR1', 2),]
 
 sandbox = '/scratch/connor.keane/sandbox'
+# import pdb; pdb.set_trace()
 for sub, exp, sess in subjects:
     src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub)
 
