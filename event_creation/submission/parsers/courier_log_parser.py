@@ -38,6 +38,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
          pointing_begins=self.add_pointing_begins,
          Player_transform=self.add_player_transform,
          player_transform=self.add_player_transform,
+         PlayerTransform=self.add_player_transform,
          Player_Transform=self.add_player_transform,
          pointing_finished=self.add_pointing_finished,
          object_presentation_begins=self.add_object_presentation_begins,
@@ -82,6 +83,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
         new_event = self._empty_event
         new_event.trial = self._trial
         new_event.session = self._session
+        new_event.presX = self.presX
+        new_event.presZ = self.presZ
         # new_event.rectime = int(round(float(recall[0])))
         new_event.rectime = int(float(recall[0])) # old code did not round
         new_event.mstime = evdata.mstime + new_event.rectime
@@ -144,7 +147,6 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def add_player_transform(self, evdata):
         self.presX = evdata['data']['positionX']
         self.presZ = evdata['data']['positionZ']
-
         return False
 
     def add_object_presentation_begins(self, evdata):
