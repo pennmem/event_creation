@@ -224,8 +224,8 @@ class EventCreationTask(PipelineTask):
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
-                'TICL_FR': FRHostPCLogParser,
-                'TICL_catFR': TiclFRParser,
+                'TICL_FR': TiclFRParser,
+                'TICL_catFR': TiclFRParser, # is this correct?
                 'LocationSearch': PSLogParser,
                 'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser, # TODO
@@ -241,7 +241,7 @@ class EventCreationTask(PipelineTask):
                     'Remembering_Across_America': RAASessionLogParser,
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
-                    'repFR': RepFRSessionLogParser
+                    'ltpRepFR': RepFRSessionLogParser
                   }
 
     @property
