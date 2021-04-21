@@ -57,5 +57,5 @@ fi
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
 #xauth add $XAUTH_LINE
 #source ~/.bashrc
-conda activate ec_release
+conda activate event_creation
 python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"

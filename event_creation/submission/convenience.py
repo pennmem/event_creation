@@ -789,6 +789,11 @@ def prompt_for_localization_inputs():
 
 
 def session_exists(protocol, subject, experiment, session):
+    print(protocol)
+    print(subject)
+    print(experiment)
+    print(session)
+
     session_dir = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'behavioral', experiment,
                                'sessions', str(session))
 

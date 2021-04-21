@@ -85,6 +85,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         if filetype == '.bdf':
             eeg_chans = ['A%i' % i for i in range(1, 33)] + ['B%i' % i for i in range(1, 33)] +\
                         ['C%i' % i for i in range(1, 33)] + ['D%i' % i for i in range(1, 33)]
+
             eeg.pick_channels(eeg_chans)
         else:
             eeg.pick_types(eeg=True, eog=False, misc=False, stim=False)
