@@ -441,21 +441,21 @@ files:
 ## repFR
   - name: wordpool
     << : *FILE
-    groups: [RepFR]
+    groups: [RepFR, ltpRepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: session_words
     << : *FILE
-    groups: [RepFR]
+    groups: [RepFR, ltpRepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session_words.json
     destination: experiment_files/session_words.json
 
   - name: session_log
     << : *FILE
-    groups: [RepFR]
+    groups: [RepFR, ltpRepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session.jsonl
     destination: experiment_files/session.json
@@ -464,7 +464,7 @@ files:
     << : *FILE
     multiple: true
     required: false
-    groups: [RepFR]
+    groups: [RepFR, ltpRepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
@@ -489,7 +489,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [DBOY1]
+    groups: [DBOY1, ltpDBOY1]
     origin_directory: *BEH_SESS_DIR
     origin_file: session.jsonl
     destination: experiment_files/session.json
@@ -498,14 +498,14 @@ files:
     << : *FILE
     multiple: true
     required: false
-    groups: [DBOY1]
+    groups: [DBOY1, ltpDBOY1]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
 
   - name: wordpool
     << : *FILE
-    groups: [DBOY1]
+    groups: [DBOY1, ltpDBOY1]
     required: false    
     origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt

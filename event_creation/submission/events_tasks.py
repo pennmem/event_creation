@@ -247,7 +247,8 @@ class EventCreationTask(PipelineTask):
                     'Remembering_Across_America': RAASessionLogParser,
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
-                    'ltpRepFR': RepFRSessionLogParser
+                    'ltpRepFR': RepFRSessionLogParser,
+                    'ltpDBOY1': CourierSessionLogParser,
                   }
 
     @property
