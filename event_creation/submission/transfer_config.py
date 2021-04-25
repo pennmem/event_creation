@@ -48,10 +48,10 @@ class TransferConfig(object):
         self.filename = filename
         self.groups = groups
         self.kwargs = kwargs
+        
 
         self._raw_config = yaml.load(open(filename))
         self._files = build_group_index(self._raw_config['files'], groups)
-
         for file_ in self._files.values():
             file_.format(**kwargs)
 

@@ -98,16 +98,16 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # Identification of session breaks
         #
         ##########
-
+        import pdb; pdb.set_trace()
         # Mark all time points before and after the session for exclusion
         onsets = []
         offsets = []
         sess_start_in_recording = False
-        if evs[0].type == 'SESS_START':
+        if (evs[0].type == 'SESS_START')|(evs[0].type == 'session_start'):
             sess_start_in_recording = True
             onsets.append(0)
             offsets.append(evs[0].eegoffset)
-        if evs[-1].type == 'SESS_END':
+        if (evs[-1].type == 'SESS_END')|(evs[-1].type == 'session_end'):
             onsets.append(evs[-1].eegoffset)
             offsets.append(eeg.n_times - 1)
 
@@ -116,6 +116,12 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         rest_rewet_idx = np.where(evs.type == 'REST_REWET')[0]
         break_start_idx = np.where(evs.type == 'BREAK_START')[0]
         break_stop_idx = np.where(evs.type == 'BREAK_STOP')[0]
+        # ltpRepFR switched to "participant break" and removed "BREAK_STOP"
+        # language change is handled in the repfr parser but there are still no stops
+        if len(break_stop_idx) == 0:
+            # no explicit stop message, so just wait ~30 sync pulses
+            break_stop_idx = break_start_idx + 30
+
 
         # Handling for PyEPL studies (only break starts are logged)
         if len(rest_rewet_idx) > 0:

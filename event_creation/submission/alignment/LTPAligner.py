@@ -207,6 +207,8 @@ class LTPAligner:
         df = pd.read_json(logfile, lines=True)
         # Get the times when all sync pulses were sent
         pulses = np.array(df[df.type == 'Sync pulse begin'].time)
+        if len(pulses)==0:
+            pulses = np.array(df[df.type == 'syncPulse'].time)
         # Convert pulse times to integers before returning
         pulses = pulses.astype(int)
         return pulses

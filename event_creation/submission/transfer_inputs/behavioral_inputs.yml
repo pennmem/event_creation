@@ -371,6 +371,21 @@ files:
     origin_directory: *LTP_SUBJ_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
+  
+  - name: wordpool
+    << : *FILE
+    groups: [ ltp, unity]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: wordpool.txt
+    destination: experiment_files/wordpool.txt
+
+  - name: wordpool
+    << : *FILE
+    groups: [ltpDBOY1]
+    required: true    
+    origin_directory: *LTP_SUBJ_DIR
+    origin_file: all_items.txt
+    destination: experiment_files/wordpool.txt
 
   - name: eeg_log
     << : *FILE
@@ -397,6 +412,13 @@ files:
   - name: session_log
     << : *FILE
     groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/session.jsonl'
+
+  - name: session_log
+    << : *FILE
+    groups: [ ltpDBOY1 ]
     origin_directory: *LTP_SESS_DIR
     origin_file: 'session.jsonl'
     destination: 'logs/session.jsonl'
@@ -441,21 +463,21 @@ files:
 ## repFR
   - name: wordpool
     << : *FILE
-    groups: [RepFR, ltpRepFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: wordpool.txt
     destination: experiment_files/wordpool.txt
 
   - name: session_words
     << : *FILE
-    groups: [RepFR, ltpRepFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session_words.json
     destination: experiment_files/session_words.json
 
   - name: session_log
     << : *FILE
-    groups: [RepFR, ltpRepFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session.jsonl
     destination: experiment_files/session.json
@@ -464,7 +486,7 @@ files:
     << : *FILE
     multiple: true
     required: false
-    groups: [RepFR, ltpRepFR]
+    groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
@@ -489,7 +511,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [DBOY1, ltpDBOY1]
+    groups: [DBOY1]
     origin_directory: *BEH_SESS_DIR
     origin_file: session.jsonl
     destination: experiment_files/session.json
@@ -498,14 +520,14 @@ files:
     << : *FILE
     multiple: true
     required: false
-    groups: [DBOY1, ltpDBOY1]
+    groups: [DBOY1]
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'
 
   - name: wordpool
     << : *FILE
-    groups: [DBOY1, ltpDBOY1]
+    groups: [DBOY1]
     required: false    
     origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt
