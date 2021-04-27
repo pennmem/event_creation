@@ -98,7 +98,6 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # Identification of session breaks
         #
         ##########
-        import pdb; pdb.set_trace()
         # Mark all time points before and after the session for exclusion
         onsets = []
         offsets = []
