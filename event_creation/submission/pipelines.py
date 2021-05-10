@@ -23,6 +23,8 @@ from .transferer import generate_ephys_transferer, generate_session_transferer, 
 from .exc import TransferError
 from .log import logger
 
+# parsing of groups removes numbers
+# potentially a FIXME for determine_groups func below
 GROUPS = {
     'FR': ('verbal', 'stim'),
     'PAL': ('verbal', 'stim'),
@@ -30,7 +32,9 @@ GROUPS = {
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
     'RepFR': ('verbal', ),
-    'DBOY1': ('verbal',),
+    'ltpRepFR': ('verbal', 'unity'), 
+    'DBOY': ('verbal',),
+    'ltpDBOY': ('verbal', 'unity'),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
@@ -44,7 +48,7 @@ N_PS4_SESSIONS = 10
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
-
+    
     if '_' in full_experiment:
         groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]

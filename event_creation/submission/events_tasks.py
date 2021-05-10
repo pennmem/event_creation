@@ -105,21 +105,26 @@ class SplitEEGTask(PipelineTask):
                         continue
                 # Create EEG reader
                 reader = get_eeg_reader(raw_eeg, None)
-                split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
-                                                                experiment=self.experiment,
-                                                                session=self.session,
-                                                                time=reader.get_start_time_string())
-                # Split raw data file by channel & apply postprocessing
-                reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
-                bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
-                np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
-                # Calculate common average reference and save it to a file
-                reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
+
+                # Set up ephys directory (note: does not actually "split" the data for scalp EEG sessions)
+                success[i] = reader.process_eeg(os.path.join(self.pipeline.destination))
+
+                #split_eeg_filename = self.SPLIT_FILENAME.format(subject=self.subject,
+                #                                                experiment=self.experiment,
+                #                                                session=self.session,
+                #                                                time=reader.get_start_time_string())
+                ## Split raw data file by channel & apply postprocessing
+                #reader.split_data(os.path.join(self.pipeline.destination), split_eeg_filename)
+                #bad_chans = reader.find_bad_chans(files['artifact_log'][i], threshold=600000) if 'artifact_log' in files else np.array([])
+                #np.savetxt(os.path.join(self.pipeline.destination, 'bad_chans.txt'), bad_chans, fmt='%s')
+
+                ## Calculate common average reference and save it to a file
+                #reader.reref(bad_chans, os.path.join(self.pipeline.destination, 'reref'))
 
             # Detect EGI channel files
-            num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
-            # Detect Biosemi channel files
-            num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
+            #num_split_files = len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[0-9]*')))
+            # De#tect Biosemi channel files
+            #num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         elif self.protocol == 'r1':
             if 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
@@ -146,18 +151,19 @@ class SplitEEGTask(PipelineTask):
                                                                 time=reader.get_start_time_string())
                 reader.split_data(db_folder, split_eeg_filename)
 
+            num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
+                        + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
+
+
+            if num_split_files == 0:
+                raise ProcessingError(
+                    'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
+                        db_folder))
+
         else:
             logger.warn('Splitting not implemented for protocol {}'.format(self.protocol))
                 
 
-        num_split_files = (len(glob.glob(os.path.join(db_folder, 'noreref', '*.[0-9]*')))
-                        + len(glob.glob(os.path.join(db_folder,'noreref','*.h5'))))
-
-
-        if num_split_files == 0:
-            raise ProcessingError(
-                'Seems like splitting did not properly occur. No split files found in {}. Check jacksheet'.format(
-                    db_folder))
 
 
 class MatlabEEGConversionTask(PipelineTask):
@@ -241,7 +247,8 @@ class EventCreationTask(PipelineTask):
                     'Remembering_Across_America': RAASessionLogParser,
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
-                    'ltpRepFR': RepFRSessionLogParser
+                    'ltpRepFR': RepFRSessionLogParser,
+                    'ltpDBOY1': CourierSessionLogParser,
                   }
 
     @property
@@ -276,7 +283,6 @@ class EventCreationTask(PipelineTask):
         self.montage = montage
         self.experiment = experiment
         self.session = session
-        print("%%%%%%", r1_sys_num)
         self._r1_sys_num = r1_sys_num
         self.kwargs = kwargs
         self.event_label = event_label

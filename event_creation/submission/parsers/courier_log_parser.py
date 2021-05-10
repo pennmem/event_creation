@@ -28,10 +28,12 @@ class CourierSessionLogParser(BaseUnityLogParser):
             raise Exception("wordpool not found in transferred files")
 
         self._add_fields(*dtypes.courier_fields)
-
+        if protocol=='ltp':
+            self._add_fields(*dtypes.ltp_fields)
 
         self._add_type_to_new_event(
          versions=self.add_experiment_version,
+         instruction_message_cleared=self.event_sess_start,
          familiarization_store_displayed=self.add_familiarization_store_displayed,
          proceed_to_next_day_prompt=self.add_proceed_to_next_day,
          store_mappings=self.add_store_mappings,
@@ -51,6 +53,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
          object_recall_recording_stop=self.add_object_recall_recording_stop,
          final_store_recall_recording_stop=self.add_final_store_recall_recording_stop,
          final_object_recall_recording_stop=self.add_final_object_recall_recording_stop,
+         end_text=self.event_sess_end,
         )
 
         self._add_type_to_modify_events(
@@ -140,6 +143,25 @@ class CourierSessionLogParser(BaseUnityLogParser):
             self.old_syncs=False
         return False
                 
+    def event_break_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'BREAK_START'
+        return event
+
+    def event_break_stop(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'BREAK_STOP'
+        return event
+
+    def event_sess_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_START'
+        return event
+
+    def event_sess_end(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_END'
+        return event
 
     def add_proceed_to_next_day(self, evdata):
         self._trial += 1

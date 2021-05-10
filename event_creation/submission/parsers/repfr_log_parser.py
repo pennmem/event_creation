@@ -24,7 +24,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         else:
             raise Exception("wordpool not found in transferred files")
 
-
+        if protocol=='ltp':
+            self._add_fields(*dtypes.ltp_fields)
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session_start=self.event_sess_start,
@@ -35,6 +36,8 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
             end_recall_period=self.event_rec_stop, # End of vocalization period
             word_stimulus=self.event_word_on,  # Start of word presentation
             clear_word_stimulus=self.event_word_off, # End of word presentation
+            participant_break=self.event_break_start, # Mid session break
+            session_end=self.event_sess_end,
         )
         
         self._add_type_to_modify_events(
@@ -53,7 +56,15 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
         event["list"] = self._trial
-
+        event.type = 'SESS_START'
+        return event
+    
+    # added SESS_START and SESS_END to satisfy lcf partitions
+    def event_sess_end(self, evdata):
+        # FIXME: no session # attribute in embedded data
+        # like there is for session start above 
+        event = self.event_default(evdata)
+        event.type = 'SESS_END'
         return event
 
     def event_countdown(self, evdata):
@@ -63,6 +74,11 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         # reset serial position of presentation at start of list
         self._serialpos = 0
 
+        return event
+    
+    def event_break_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'BREAK_START'
         return event
 
     def event_word_on(self, evdata):
@@ -153,8 +169,13 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         rec_start_time = rec_start_event.mstime
 
         # Get list of recalls from the .ann file for the current list, formatted as (rectime, item_num, item_name)
-        ann_outputs = self._parse_ann_file(str(self._trial))
-
+        try:
+            ann_outputs = self._parse_ann_file(str(self._trial))
+        # final free recall is not names with integer 26, but internally is 
+        # considered trial 26
+        except:
+            ann_outputs = self._parse_ann_file("ffr")
+        
         for recall in ann_outputs:
 
             # Get the vocalized word from the annotation

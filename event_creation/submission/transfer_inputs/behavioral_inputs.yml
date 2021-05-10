@@ -371,6 +371,21 @@ files:
     origin_directory: *LTP_SUBJ_DIR
     origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
+  
+  - name: wordpool
+    << : *FILE
+    groups: [ ltp, unity]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: wordpool.txt
+    destination: experiment_files/wordpool.txt
+
+  - name: wordpool
+    << : *FILE
+    groups: [ltpDBOY1]
+    required: true    
+    origin_directory: *LTP_SUBJ_DIR
+    origin_file: all_items.txt
+    destination: experiment_files/wordpool.txt
 
   - name: eeg_log
     << : *FILE
@@ -397,6 +412,13 @@ files:
   - name: session_log
     << : *FILE
     groups: [ ltp, unity ]
+    origin_directory: *LTP_SESS_DIR
+    origin_file: 'session.jsonl'
+    destination: 'logs/session.jsonl'
+
+  - name: session_log
+    << : *FILE
+    groups: [ ltpDBOY1 ]
     origin_directory: *LTP_SESS_DIR
     origin_file: 'session.jsonl'
     destination: 'logs/session.jsonl'
