@@ -39,6 +39,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
          Player_transform=self.add_player_transform,
          player_transform=self.add_player_transform,
          PlayerTransform=self.add_player_transform,
+         playertransform=self.add_player_transform,
          Player_Transform=self.add_player_transform,
          pointing_finished=self.add_pointing_finished,
          object_presentation_begins=self.add_object_presentation_begins,

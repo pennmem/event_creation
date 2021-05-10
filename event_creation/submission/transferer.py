@@ -202,7 +202,7 @@ def find_sync_file(subject, experiment, session):
 
     # Now look in eeg.noreref
     noreref_dir = os.path.join(subject_dir, 'eeg.noreref')
-    sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}.sync.txt'.format(exp=experiment, sess=session))
+    sync_pattern = os.path.join(noreref_dir, '*{exp}_{sess}*.sync.txt'.format(exp=experiment, sess=session))
     sync_files = glob.glob(sync_pattern)
     if len(sync_files) == 1:
         return noreref_dir, sync_files[0]

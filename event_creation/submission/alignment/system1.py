@@ -49,6 +49,7 @@ class System1Aligner:
 
 
         self.eeg_pulse_file = files['sync_pulses']
+        print(self.eeg_pulse_file)
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
             raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
