@@ -217,7 +217,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
                         if not any(events.recalled[pres_mask]):
                             events.recalled[pres_mask] = True
                     else:
-                        new_event.intrusion = 1
+                        new_event.intrusion = num_lists_back
                         events.intruded[pres_mask] = num_lists_back
 
                 else:  # XLI from later list
