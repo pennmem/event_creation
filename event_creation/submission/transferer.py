@@ -155,7 +155,7 @@ class Transferer(object):
             return self._transfer_files()
         except Exception as e:
             traceback.print_exc()
-            logger.error('Exception encountered: %s' % e.message)
+            logger.error("Exception encounted: %s" % str(e))
 
             self.remove_transferred_files()
             raise
@@ -382,31 +382,31 @@ def test_load_groups():
 
     for combo in combos:
 
-        print '----- {} '.format(combo)
+        print('----- {} '.format(combo))
 
         transferer2 = Transferer('./transfer_inputs/behavioral_inputs.yml', combo, '/Users/iped/PycharmProjects/event_creation/tests/test_data/test_output',
                                  db_root=paths.db_root, protocol='r1', subject='R9999X', new_experiment='FR1', session=0,
                                  localization=0, montage_num=0, data_root=paths.data_root, experiment='FR1', code='R9999X',
                                  original_session=0, sync_folder='')
 
-        print combo, [f.name for f in transferer2.transfer_config.valid_files]
+        print(combo, [f.name for f in transferer2.transfer_config.valid_files])
 
 
 def transfer_dict_match(a ,b):
-    for k, v_a in a.items():
+    for k, v_a in list(a.items()):
         if k not in b:
-            print 'KEY MISSING: {}'.format(k)
+            print('KEY MISSING: {}'.format(k))
             continue
         v_b = b[k]
-        for kk, vv_a in v_a.items():
+        for kk, vv_a in list(v_a.items()):
             if kk == 'checksum_filename_only' and not vv_a:
                 continue
             if kk not in v_b :
-                print 'Missing key {} {}'.format(k, kk)
+                print('Missing key {} {}'.format(k, kk))
                 continue
             vv_b = v_b[kk]
             if vv_a != vv_b:
-                print 'Mismatch {} {}: {} vs {}'.format(k, kk, vv_a, vv_b)
+                print('Mismatch {} {}: {} vs {}'.format(k, kk, vv_a, vv_b))
 
 
 def xtest_transfer_files_sys2():
@@ -432,14 +432,14 @@ def test_transfer_files_sys3():
                             protocol='r1')
 
     if transferer.check_all_checksums():
-        print 'Checksum failed, which is okay!'
+        print('Checksum failed, which is okay!')
     output = transferer.transfer_with_rollback()
     from pprint import pprint
     pprint(output)
     if transferer.check_all_checksums():
-        print 'Checksum failed, which it should not!'
+        print('Checksum failed, which it should not!')
     else:
-        print 'Checksum succeeded!'
+        print('Checksum succeeded!')
 
 def xtest_transfer_files_sys3_2():
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'FR'), '../tests/test_output/test_transfer',
@@ -454,14 +454,14 @@ def xtest_transfer_files_sys3_2():
                             protocol='r1')
 
     if transferer.check_all_checksums():
-        print 'Checksum failed, which is okay!'
+        print('Checksum failed, which is okay!')
     output = transferer.transfer_with_rollback()
     from pprint import pprint
     pprint(output)
     if transferer.check_all_checksums():
-        print 'Checksum failed, which it should not!'
+        print('Checksum failed, which it should not!')
     else:
-        print 'Checksum succeeded!'
+        print('Checksum succeeded!')
 
 if __name__ == '__main__':
     logger.set_stdout_level(0)

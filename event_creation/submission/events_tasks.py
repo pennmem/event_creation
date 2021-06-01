@@ -395,7 +395,7 @@ class ReportLaunchTask(PipelineTask):
         self.session = session
 
     def request(self):
-        from configuration import paths
+        from .configuration import paths
         api_url = paths.report_url
         parameters = {
             'username': 'cmlbrainbuilder',
@@ -482,7 +482,7 @@ class MontageLinkerTask(PipelineTask):
                                                 montage=self.montage_num)
         self.pipeline.register_info('localization', self.localization)
         self.pipeline.register_info('montage', self.montage_num)
-        for name, file in self.FILES.items():
+        for name, file in list(self.FILES.items()):
             fullfile = os.path.join(montage_path, file)
             if not os.path.exists(os.path.join(paths.db_root, fullfile)):
                 raise ProcessingError("Cannot find montage for {} in {}".format(self.subject, fullfile))

@@ -215,7 +215,7 @@ class TransferPipeline(object):
         index = {}
         if len(self.output_files) > 0:
             index['files'] = {}
-            for name, path in self.output_files.items():
+            for name, path in list(self.output_files.items()):
                 index['files'][name] = os.path.relpath(path, self.current_dir)
         if len(self.output_info) > 0:
             index['info'] = self.output_info
@@ -281,7 +281,7 @@ class TransferPipeline(object):
             traceback.print_exc()
 
             self.transferer.remove_transferred_files()
-            logger.debug('Transfer pipeline errored: {}'.format(e.message))
+            logger.debug('Transfer pipeline errored: {}'.format(str(e)))
             logger.debug('Removing processed folder {}'.format(self.destination))
             if os.path.exists(self.destination):
                 shutil.rmtree(self.destination)
@@ -444,7 +444,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
         new_experiment = 'catFR' + experiment[-1]
 
     if 'groups' in kwargs:
-        no_group_kwargs = {k: v for k, v in kwargs.items() if k not in ('groups', )}
+        no_group_kwargs = {k: v for k, v in list(kwargs.items()) if k not in ('groups', )}
     else:
         no_group_kwargs = kwargs
 

@@ -269,7 +269,7 @@ class THSessionLogParser(BaseSessionLogParser):
         def makeEmptyDict(mstime=None,eventType=None,item=None,trial=None,block=None,chestNum=None,locationX=None,locationY=None,chosenLocationX=None,chosenLocationY=None,navStartLocationX=None,navStartLocationY=None,recStartLocationX=None,recStartLocationY=None,isRecFromNearSide=None,isRecFromStartSide=None,reactionTime=None,confidence=None,stimList=None):
             fields = ['mstime','type','item','trial','block','chestNum','locationX','locationY','chosenLocationX','chosenLocationY','navStartLocationX','navStartLocationY','recStartLocationX','recStartLocationY','isRecFromNearSide','isRecFromStartSide','reactionTime','confidence','stimList'];
             vals = [mstime,eventType,item,trial,block,chestNum,locationX,locationY,chosenLocationX,chosenLocationY,navStartLocationX,navStartLocationY,recStartLocationX,recStartLocationY,isRecFromNearSide,isRecFromStartSide,reactionTime,confidence,stimList]
-            emptyDict = dict(zip(fields,vals))
+            emptyDict = dict(list(zip(fields,vals)))
             return emptyDict
 
         def getPresDictKey(data,recItem,trialNum):
@@ -492,7 +492,7 @@ class THSessionLogParser(BaseSessionLogParser):
         # close files
         in_file.close()
         out_file.close()
-        os.chmod(out_file_path, 0644)
+        os.chmod(out_file_path, 0o644)
         playerPathsFile.close()
 
         # save out total score

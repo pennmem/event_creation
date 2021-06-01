@@ -4,6 +4,7 @@ import json
 import os
 import re
 import sqlite3
+import numbers
 
 import numpy as np
 import pandas as pd
@@ -135,7 +136,7 @@ class BaseLogParser(object):
             try:
                 test(events, files)
             except Exception as e:
-                msgs.append('{}.{}: {}'.format(type(self).__name__, test.__name__, e.message))
+                msgs.append('{}.{}: {}'.format(type(self).__name__, test.__name__, str(e)))
         return msgs
 
     @staticmethod
@@ -211,7 +212,7 @@ class BaseLogParser(object):
         :param params: Keyword/value pairs setting individual parameters
         """
 
-        for param, value in params.items():
+        for param, value in list(params.items()):
             if param == 'amplitude' and value < 5:
                 value *= 1000  # Put in uA. Ugly fix...
             if param == 'pulse_freq' and value > np.iinfo(event.stim_params[index][param].dtype).max:
@@ -220,13 +221,13 @@ class BaseLogParser(object):
                 event.stim_params[index][param] = value
 
         if 'anode_label' in params and 'anode_number' not in params:
-            reverse_jacksheet = {v: k for k, v in jacksheet.items()}
+            reverse_jacksheet = {v: k for k, v in list(jacksheet.items())}
             event.stim_params[index]['anode_number'] = reverse_jacksheet.get(params['anode_label'].upper(),
                                                                              reverse_jacksheet[params['anode_label']]
                                                                              )
 
         if 'cathode_label' in params and 'cathode_number' not in params:
-            reverse_jacksheet = {v: k for k, v in jacksheet.items()}
+            reverse_jacksheet = {v: k for k, v in list(jacksheet.items())}
             event.stim_params[index]['cathode_number'] = reverse_jacksheet.get(
                 params['cathode_label'].upper(), reverse_jacksheet[params['cathode_label']])
 
@@ -283,7 +284,7 @@ class BaseLogParser(object):
         Adds type-> creation function mapping
         :param kwargs: TYPE = function
         """
-        for (key, value) in kwargs.items():
+        for (key, value) in list(kwargs.items()):
             self._type_to_new_event[key] = value
 
     def _add_type_to_modify_events(self, **kwargs):
@@ -292,7 +293,7 @@ class BaseLogParser(object):
         Adds type-> modifying function mapping
         :param kwargs:  TYPE = function
         """
-        for (key, value) in kwargs.items():
+        for (key, value) in list(kwargs.items()):
             self._type_to_modify_events[key] = value
 
     @staticmethod
@@ -428,7 +429,7 @@ class BaseSessionLogParser(BaseLogParser):
         Adds type-> creation function mapping
         :param kwargs: TYPE = function
         """
-        for (key, value) in kwargs.items():
+        for (key, value) in list(kwargs.items()):
             self._type_to_new_event[key] = value
 
     def _add_type_to_modify_events(self, **kwargs):
@@ -437,7 +438,7 @@ class BaseSessionLogParser(BaseLogParser):
         Adds type-> modifying function mapping
         :param kwargs:  TYPE = function
         """
-        for (key, value) in kwargs.items():
+        for (key, value) in list(kwargs.items()):
             self._type_to_modify_events[key] = value
 
     def event_default(self, split_line):
@@ -518,7 +519,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         try:
             return super(BaseSys3_1LogParser, self).parse()
         except Exception as exc:
-            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), exc.message))
+            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), str(exc)))
             if self._files.get('session_log_txt'):
                 logger.warn('Parsing session.log instead')
 
@@ -570,7 +571,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
 
     def _read_primary_log(self):
         msgs = []
-        if isinstance(self._primary_log, basestring):
+        if isinstance(self._primary_log, str):
             logs = [self._primary_log]
         else:
             logs = self._primary_log
@@ -716,7 +717,7 @@ class EventComparator(object):
                     raise EventFieldError(name)
 
             for name in ev2_names:
-                if name not in ev1_names and name not in self.field_switch.values() and name not in self.field_ignore:
+                if name not in ev1_names and name not in list(self.field_switch.values()) and name not in self.field_ignore:
                     raise EventFieldError(name)
 
         self.events1 = events1
@@ -725,12 +726,12 @@ class EventComparator(object):
         for name in ev1_names:
             if name not in self.field_ignore and name not in self.field_switch:
                 self.field_switch[str(name)] = str(name)
-        self.events1 = self.events1[self.field_switch.keys()]
-        self.events2 = self.events2[self.field_switch.values()]
+        self.events1 = self.events1[list(self.field_switch.keys())]
+        self.events2 = self.events2[list(self.field_switch.values())]
 
         # Name all fields the same in both events
-        self.events2.dtype.names = self.field_switch.keys()
-        self.names = self.field_switch.keys()
+        self.events2.dtype.names = list(self.field_switch.keys())
+        self.names = list(self.field_switch.keys())
 
     def _get_field_mismatch(self, event1, event2, subfield=None):
         """
@@ -835,7 +836,7 @@ class StimComparator(object):
         self.events2 = events2
         self.fields_to_compare = {}
         self.match_field = match_field
-        for field_name1, field_name2 in fields_to_compare.items():
+        for field_name1, field_name2 in list(fields_to_compare.items()):
             try:
                 # Check that both fields can be retrieved from the events structures
                 _ = self.get_subfield(self.events1[0], field_name1)
@@ -873,7 +874,7 @@ class StimComparator(object):
         mismatches = ''
         bad_events_1 = []
         bad_events_2 = []
-        for field_name1, field_name2 in self.fields_to_compare.items():
+        for field_name1, field_name2 in list(self.fields_to_compare.items()):
             field1 = self.get_subfield(event1, field_name1)
             field2 = self.get_subfield(event2, field_name2)
             try:
@@ -931,9 +932,9 @@ class EventCombiner(object):
         :param instance: the model value
         :return: the default value
         """
-        if isinstance(instance, basestring):
+        if isinstance(instance, str):
             return ''
-        elif isinstance(instance, (int, float)):
+        elif isinstance(instance, numbers.Number):
             return -999
         elif isinstance(instance, (list, tuple, np.ndarray)):
             return []
@@ -953,12 +954,12 @@ class EventCombiner(object):
             dict_events = to_dict(events)
             # Add fields to each dictionary that don't appear in the other
             if len(all_dict_events) > 0:
-                keys = [k for k in dict_events[0].keys() if k not in all_dict_events[0].keys()]
+                keys = [k for k in list(dict_events[0].keys()) if k not in list(all_dict_events[0].keys())]
                 for key in keys:
                     default = self.get_default(dict_events[0][key])
                     for event in all_dict_events:
                         event[key] = default
-                keys = [k for k in all_dict_events[0].keys() if k not in dict_events[0].keys()]
+                keys = [k for k in list(all_dict_events[0].keys()) if k not in list(dict_events[0].keys())]
                 for key in keys:
                     default = self.get_default(all_dict_events[0][key])
                     for event in dict_events:
@@ -999,7 +1000,7 @@ class EventCombiner(object):
                         type_dict[name] = max(dtype_0[name], dtype[name])
                     else:
                         type_dict[name] = dtype_0[name] if name in dtype_0.names else dtype[name]
-                dtype_0 = np.dtype([x for x in type_dict.iteritems()])
+                dtype_0 = np.dtype([x for x in type_dict.items()])
         return dtype_0
 
 

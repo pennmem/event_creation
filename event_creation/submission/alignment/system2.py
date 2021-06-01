@@ -74,7 +74,7 @@ class System2TaskAligner(object):
         for name in nsx_info:
             nsx_info[name]['name'] = name
         # Get the nsx files in order of their start time
-        self.all_nsx_info = sorted([v for v in nsx_info.values()], key=lambda v: v['start_time_ms'])
+        self.all_nsx_info = sorted([v for v in list(nsx_info.values())], key=lambda v: v['start_time_ms'])
 
         # Get the coefficients that map task to host
         self.task_to_host_coefs, self.host_time_task_starts, _ = \
@@ -484,7 +484,7 @@ class System2HostAligner(System2TaskAligner):
         eeg_sources = json.load(open(files['eeg_sources']))
 
         # Get the start time of the first eeg source
-        first_eeg_source = sorted(eeg_sources.values(), key=lambda source: source['start_time_ms'])[0]
+        first_eeg_source = sorted(list(eeg_sources.values()), key=lambda source: source['start_time_ms'])[0]
         np_earliest_start = first_eeg_source['start_time_ms']
         host_offset = None
 

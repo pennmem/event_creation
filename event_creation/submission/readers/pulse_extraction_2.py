@@ -404,12 +404,12 @@ class SyncPulseExtractionModel(object):
     def set_elec1(self, elec1):
         self._elec1 = elec1
         if elec1:
-            self._elec1_num = self._labels.keys()[self._labels.values().index(self._elec1)]
+            self._elec1_num = list(self._labels.keys())[list(self._labels.values()).index(self._elec1)]
 
     def set_elec2(self, elec2):
         self._elec2 = elec2
         if elec2:
-            self._elec2_num = self._labels.keys()[self._labels.values().index(self._elec2)]
+            self._elec2_num = list(self._labels.keys())[list(self._labels.values()).index(self._elec2)]
 
     def set_eeg_file(self, eeg_file):
         self.eeg_file = os.path.join(self.raw_dir(), str(eeg_file))
@@ -474,7 +474,7 @@ class SyncPulseExtractionModel(object):
         jacksheet_filename = os.path.join(self.data_root, self.subject, 'docs', 'jacksheet.txt')
         if os.path.exists(jacksheet_filename):
             self._reader.set_jacksheet(jacksheet_filename)
-            self._labels = {v:k for k,v in self._reader.jacksheet.items()}
+            self._labels = {v:k for k,v in list(self._reader.jacksheet.items())}
         else:
             self._labels = self._reader.labels
 
@@ -544,7 +544,7 @@ class SyncPulseExtractionModel(object):
                     peaks.append((max_ind, data[max_ind]))
 
         if peaks:
-            return zip(*peaks)
+            return list(zip(*peaks))
         else:
             return [], []
 

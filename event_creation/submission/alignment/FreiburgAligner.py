@@ -36,7 +36,7 @@ class FreiburgAligner:
         print("Doing Freiburg Alignment")
         self.task_pulse_file = files['session_log']
         self.eeg_pulse_file = files['sync_pulses']
-        print(self.eeg_pulse_file)
+        print((self.eeg_pulse_file))
 
         with open(files['recording_params'], 'r') as f:
             recording_params = {k: v for k, v in (l.split('=') for l in f)}
@@ -155,10 +155,10 @@ class FreiburgAligner:
         max_residual = max(max_residual_start, max_residual_end)
 
         # Join the beginning and the end
-        task_range = np.union1d(range(task_start_range[0], task_start_range[1]),
-                               range(task_end_range[0], task_end_range[1]))
-        eeg_range = np.union1d(range(eeg_start_range[0], eeg_start_range[1]),
-                                 range(eeg_end_range[0], eeg_end_range[1]))
+        task_range = np.union1d(list(range(task_start_range[0], task_start_range[1])),
+                               list(range(task_end_range[0], task_end_range[1])))
+        eeg_range = np.union1d(list(range(eeg_start_range[0], eeg_start_range[1])),
+                                 list(range(eeg_end_range[0], eeg_end_range[1])))
 
         # Return the times that were used
         task_pulse_out = task_pulse_ms[task_range]

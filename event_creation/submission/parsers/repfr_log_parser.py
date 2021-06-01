@@ -17,7 +17,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         self.current_num = -999
 
 
-        if("wordpool" in files.keys()):
+        if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip().encode('utf-8') for line in f]
 

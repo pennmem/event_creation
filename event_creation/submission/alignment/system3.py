@@ -179,7 +179,7 @@ class System3Aligner(object):
 
     def apply_eeg_file(self, events):
 
-        eeg_info = sorted(self.eeg_info.items(), key= lambda info:info[1]['start_time_ms'])
+        eeg_info = sorted(list(self.eeg_info.items()), key= lambda info:info[1]['start_time_ms'])
 
         
         for eegfile, info in eeg_info:
@@ -201,7 +201,7 @@ class System3Aligner(object):
         dest = np.full(len(source), np.nan)
         dest[source == -1] = -1
 
-        sorted_ends, sorted_coefs = zip(*sorted(zip(ends, coefs)))
+        sorted_ends, sorted_coefs = list(zip(*sorted(zip(ends, coefs))))
 
         for (start, coef) in zip((0,)+sorted_ends, coefs):
             time_mask = (source >= start)
@@ -301,7 +301,7 @@ class System3FourAligner(System3Aligner):
         self.task_ends = self.host_ends
         
     def apply_eeg_file(self, events):
-        eeg_info = self.eeg_info.items()
+        eeg_info = list(self.eeg_info.items())
         if len(eeg_info) == 1:
             mask = events['eegoffset'] >= 0
             events[self.EEG_FILE_FIELD][mask] = eeg_info[0][0]

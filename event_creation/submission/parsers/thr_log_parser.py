@@ -247,7 +247,7 @@ class THSessionLogParser(BaseSessionLogParser):
         def makeEmptyDict(mstime=None,eventType=None,item=None,trial=None,block=None,list_length=None,serialpos=None,probepos=None,locationX=None,locationY=None,navStartLocationX=None,navStartLocationY=None,recStartLocationX=None,recStartLocationY=None,stimList=None):
             fields = ['mstime','type','item','trial','block','list_length','serialpos','probepos','locationX','locationY','navStartLocationX','navStartLocationY','recStartLocationX','recStartLocationY','stimList'];
             vals = [mstime,eventType,item,trial,block,list_length,serialpos,probepos,locationX,locationY,navStartLocationX,navStartLocationY,recStartLocationX,recStartLocationY,stimList]
-            emptyDict = dict(zip(fields,vals))
+            emptyDict = dict(list(zip(fields,vals)))
             return emptyDict
 
         def getPresDictKey(data,recItem,trialNum):
@@ -431,7 +431,7 @@ class THSessionLogParser(BaseSessionLogParser):
         # close files
         in_file.close()
         out_file.close()
-        os.chmod(out_file_path, 0644)
+        os.chmod(out_file_path, 0o644)
         playerPathsFile.close()
 
         # save out total score

@@ -10,7 +10,7 @@ PPRINT_PADDING = 2
 
 
 def pprint_rec(arr, recurse=True):
-    print(pformat_rec(arr, recurse))
+    print((pformat_rec(arr, recurse)))
 
 
 def pformat_rec(arr, recurse=True, init_indent=0):
@@ -37,7 +37,7 @@ def describe_recarray(arr):
     paddings = [padding_max - this_len for this_len in lens]
     for name, padding in zip(names, paddings):
         shape = arr[name].shape
-        print('%s:%s%s' % (name, ' '*padding,shape))
+        print(('%s:%s%s' % (name, ' '*padding,shape)))
 
 
 def _format_and_indent(this_input, indent):
@@ -64,7 +64,7 @@ def to_dict(arr):
 
     recarray_keys = []
     array_keys = []
-    for key, value in arr_as_dict[0].items():
+    for key, value in list(arr_as_dict[0].items()):
         if isinstance(value, (np.ndarray, np.record)) and value.dtype.names:
             recarray_keys.append(key)
         elif isinstance(value, (np.ndarray)):
@@ -75,7 +75,7 @@ def to_dict(arr):
             if entry[key].size > 1:
                 entry[key] = to_dict(entry[key])
             else:
-                entry[key] = dict(zip(entry[key].dtype.names, entry[key]))
+                entry[key] = dict(list(zip(entry[key].dtype.names, entry[key])))
 
     for key in array_keys:
         for entry in arr_as_dict:
@@ -94,6 +94,8 @@ class MyEncoder(json.JSONEncoder):
             return obj.tolist()
         elif isinstance(obj, numpy.bool_):
             return bool(obj)
+        elif isinstance(obj, bytes):
+            return obj.decode()
         else:
             return super(MyEncoder, self).default(obj)
 
@@ -108,8 +110,10 @@ def get_element_dtype(element):
         return mkdtype(element)
     elif isinstance(element, int):
         return 'int64'
-    elif isinstance(element, (str, unicode)):
-        return 'S256'
+    elif isinstance(element, numpy.integer):
+        return 'int64'
+    elif isinstance(element, str):
+        return 'U256'
     elif isinstance(element, bool):
         return 'b'
     elif isinstance(element, float):
@@ -125,7 +129,7 @@ def mkdtype(d):
         return dtype
     dtype = []
 
-    for k,v in d.items():
+    for k,v in list(d.items()):
         dtype.append((str(k), get_element_dtype(v)))
 
     return np.dtype(dtype)
@@ -154,7 +158,7 @@ def from_dict(d,dtypes=None):
 
     list_names = []
 
-    for k, v in d[0].items():
+    for k, v in list(d[0].items()):
         if isinstance(v, list):
             list_names.append(k)
 
@@ -170,7 +174,7 @@ def from_dict(d,dtypes=None):
                     list_info[k]['dtype'] = get_element_dtype(entry[k])
     if dtypes is None:
         dtypes = []
-        for k, v in d[0].items():
+        for k, v in list(d[0].items()):
             if not k in list_info:
                 dtypes.append((str(k), get_element_dtype(v)))
             else:
@@ -188,24 +192,25 @@ def copy_values(dict_list, rec_arr, list_info=None):
         return
 
     dict_fields = {}
-    for k, v, in dict_list[0].items():
+    for k, v, in list(dict_list[0].items()):
         if isinstance(v, dict):
             dict_fields[k] = [inner_dict[k] for inner_dict in dict_list]
 
     for i, sub_dict in enumerate(dict_list):
-        for k, v in sub_dict.items():
+        for k, v in list(sub_dict.items()):
             if k in dict_fields or  list_info and k in list_info:
                 continue
 
             if isinstance(v, dict):
                 copy_values([v], rec_arr[i][k])
-            elif isinstance(v, basestring):
-                rec_arr[i][k] = strip_accents(v)
             else:
-                rec_arr[i][k] = v
+                try:
+                    rec_arr[i][k] = v
+                except:
+                    import pdb; pdb.set_trace()
 
     for i, sub_dict in enumerate(dict_list):
-        for k,v in sub_dict.items():
+        for k,v in list(sub_dict.items()):
             if list_info and k in list_info:
                 arr = np.zeros(list_info[k]['len'], list_info[k]['dtype'])
                 if len(v) > 0:
@@ -217,13 +222,9 @@ def copy_values(dict_list, rec_arr, list_info=None):
 
                 rec_arr[i][k] = arr.view(np.recarray)
 
-    for k, v in dict_fields.items():
+    for k, v in list(dict_fields.items()):
         copy_values( v, rec_arr[k])
 
-def strip_accents(s):
-    try:
-        return str(''.join(c for c in unicodedata.normalize('NFD', unicode(s))
-                      if unicodedata.category(c) != 'Mn'))
-    except UnicodeError: # If accents can't be converted, just remove them
-        return str(re.sub(r'[^A-Za-z0-9 -_.]', '', s))
-
+def strip_accents(word):
+    print("This function is deprecated and has no effect") 
+    return word

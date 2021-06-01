@@ -103,7 +103,7 @@ class System3LogParser(object):
         }
         event = self.event_default(event_json)
 
-        for k, v in biomarker_dict_to_field.items():
+        for k, v in list(biomarker_dict_to_field.items()):
             event.stim_params[v] = params_dict[k]
 
          # Need stim event following it to tell if biomarker creation is pre-stim
@@ -217,7 +217,7 @@ class System3LogParser(object):
         stim_params['host_time'] = stim_dict[self.source_time_field] * self.source_time_multiplier
         if 'stim_channels' in stim_dict[self._STIM_PARAMS_FIELD]:
             for (i,channel) in enumerate(stim_dict[self._STIM_PARAMS_FIELD]['stim_channels']):
-                for inpt, param in self._DICT_TO_FIELD.items():
+                for inpt, param in list(self._DICT_TO_FIELD.items()):
                     stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD]['stim_channels'][channel][inpt]
                 stim_params['pulse_width'] = stim_dict[
                     'pulse_width'] if 'pulse_width' in stim_dict else self._DEFAULT_PULSE_WIDTH
@@ -231,7 +231,7 @@ class System3LogParser(object):
                                                     cathode_number=cathode_numbers,
                                                     **stim_params)
         else:
-            for input, param in self._DICT_TO_FIELD.items():
+            for input, param in list(self._DICT_TO_FIELD.items()):
                 try:
                     stim_params[param] = stim_dict[self._STIM_PARAMS_FIELD][input]
                 except KeyError:
@@ -295,7 +295,7 @@ class Sys3EventsParser(BaseSys3LogParser):
             self._ID_FIELD: 'id'
         }
         event = self.event_default(event_json)
-        for k, v in biomarker_dict_to_field.items():
+        for k, v in list(biomarker_dict_to_field.items()):
             event.stim_params[v] = params_dict[k]
 
         # Need stim event following it to tell if biomarker creation is pre-stim

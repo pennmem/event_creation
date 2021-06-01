@@ -9,24 +9,24 @@ Fields are specified as (name, default_value,dtype_string)
 # Defaults
 
 base_fields = (
-    ('protocol', '', 'S64'),
-    ('subject', '', 'S64'),
-    ('montage', '', 'S64'),
-    ('experiment', '', 'S64'),
+    ('protocol', '', 'U64'),
+    ('subject', '', 'U64'),
+    ('montage', '', 'U64'),
+    ('experiment', '', 'U64'),
     ('session', -1, 'int16'),
-    ('type', '', 'S64'),
+    ('type', '', 'U64'),
     ('mstime', -1, 'int64'),
     ('msoffset', -1, 'int16'),
     ('eegoffset', -1, 'int64'),
-    ('eegfile', '', 'S256'),
-    ('phase','','S16')
+    ('eegfile', '', 'U256'),
+    ('phase','','U16')
 )
 
 stim_fields = (
         ('anode_number', -1, 'int16'),
         ('cathode_number', -1, 'int16'),
-        ('anode_label', '', 'S64'),
-        ('cathode_label', '', 'S64'),
+        ('anode_label', '', 'U64'),
+        ('cathode_label', '', 'U64'),
         ('amplitude', -1, 'float16'),
         ('pulse_freq', -1, 'int16'),
         ('n_pulses', -1, 'int16'),
@@ -37,17 +37,17 @@ stim_fields = (
         ('stim_duration', -1, 'int16'),
         ('biomarker_value', -1, 'float64'),
         ('host_time',-999,'float64'),
-        ('id', '', 'S64'),
-        ('position', '', 'S64'),
+        ('id', '', 'U64'),
+        ('position', '', 'U64'),
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
                                  # to JSON
 )
 
 courier_fields = (
     ('trial', -999, 'int16'), 
-    ('serialpos', -999, 'int16'), 
-    ('item', '-999', 'S64'), 
-    ('store', '-999', 'S64'), 
+    ('serialPos', -999, 'int16'), 
+    ('item', '-999', 'U64'), 
+    ('store', '-999', 'U64'), 
     ('storeX', -999, 'float16'), 
     ('storeZ', -999, 'float16'), 
     ('presX', -999, 'float16'), 
@@ -67,9 +67,6 @@ repFR_fields = (
     ('is_repeat', False, 'b1'),
     ('list', -999, 'int16'),
     ('serialpos', -999, 'int16'),
-    ('distractor', -999, 'int16', 3),
-    ('distractor_answer', -999, 'int16'),
-    ('answer_correct', False, 'b1'),
     ('item_name', '', 'U64'),
     ('item_num', -999, 'int16'),
     ('recalled', False, 'b1'),
@@ -91,6 +88,8 @@ fr_fields = (
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
             ('rectime',-999,'int16'),
+            # ('answer',-999, 'int16'),
+            # ('iscorrect', -999, 'int16'),
             # Recognition stuff goes here
             ('recognized', -999, 'int16'),
             ('rejected', -999, 'int16'),
@@ -100,7 +99,7 @@ fr_fields = (
 
 # catFR
 category_fields = (
-        ('category','X','S64'),
+        ('category','X','U64'),
         ('category_num',-999,'int16'),
 )
 
@@ -110,19 +109,19 @@ pal_fields = (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('probepos', -999, 'int16'),
-            ('study_1', '', 'S16'),
-            ('study_2', '', 'S16'),
+            ('study_1', '', 'U16'),
+            ('study_2', '', 'U16'),
             ('cue_direction', -999, 'int16'),
-            ('probe_word', '', 'S16'),
-            ('expecting_word', '', 'S16'),
-            ('resp_word', '', 'S16'),
+            ('probe_word', '', 'U16'),
+            ('expecting_word', '', 'U16'),
+            ('resp_word', '', 'U16'),
             ('correct', -999, 'int16'),
             ('intrusion', -999, 'int16'),
             ('resp_pass', 0 , 'int16'),
             ('vocalization', -999, 'int16'),
             ('RT', -999, 'int16'),
-            ('exp_version', '', 'S16'),
-            ('stim_type', '', 'S16'),
+            ('exp_version', '', 'U16'),
+            ('stim_type', '', 'U16'),
             ('stim_list', 0, 'b1'),
             ('is_stim', False, 'b1'),
 )
@@ -148,7 +147,7 @@ ltpFR2_fields = (
             ('final_distractor', -999, 'int16'),
             ('begin_math_correct', -999, 'int16'),
             ('final_math_correct', -999, 'int16'),
-            ('item_name', '', 'S16'),
+            ('item_name', '', 'U16'),
             ('item_num', -999, 'int16'),
             ('recalled', False, 'b1'),
             ('intruded', 0, 'int16'),
@@ -172,7 +171,7 @@ ltpFR_fields = (
         ('recog_resp', -999, 'int16'),
         ('recog_conf', -999, 'int16'),
         ('recog_rt', -999, 'int32'),
-        ('item_name', '', 'S16'),
+        ('item_name', '', 'U16'),
         ('item_num', -999, 'int16'),
         ('recalled', False, 'b1'),
         ('intruded', 0, 'int16'),
@@ -183,8 +182,8 @@ ltpFR_fields = (
         ('color_r', -999, 'float16'),
         ('color_g', -999, 'float16'),
         ('color_b', -999, 'float16'),
-        ('font', '', 'S32'),
-        ('case', '', 'S8'),
+        ('font', '', 'U32'),
+        ('case', '', 'U8'),
         ('rejected', False, 'b1'),
         ('rej_time', -999, 'int32'),
         ('eogArtifact', -1, 'int8')
@@ -193,7 +192,7 @@ ltpFR_fields = (
 vffr_fields = (
         ('trial', -999, 'int16'),
         ('serialpos', -999, 'int16'),
-        ('item_name', '', 'S16'),
+        ('item_name', '', 'U16'),
         ('item_num', -999, 'int16'),
         ('recalled', False, 'b1'),
         ('rectime', -999, 'int32'),
@@ -208,7 +207,7 @@ vffr_fields = (
 prelim_fields = (
         ('trial', -999, 'int16'),
         ('serialpos', -999, 'int16'),
-        ('item_name', '', 'S16'),
+        ('item_name', '', 'U16'),
         ('item_num', -999, 'int16'),
         ('recalled', False, 'b1'),
         ('rectime', -999, 'int32'),
@@ -221,7 +220,7 @@ prelim_fields = (
 
 # PS2-3
 ps_fields = (
-            ('exp_version', '', 'S16'),
+            ('exp_version', '', 'U16'),
             ('ad_observed', 0, 'b1'),
             ('is_stim', 0, 'b1')
         )
@@ -236,7 +235,7 @@ system2_ps_fields = (
 # PS4
 
 location_subfields = (
-        ('loc_name','','S16'),
+        ('loc_name','','U16'),
         ('amplitude',-999,'float64'),
         ('delta_classifier',-999,'float64'),
         ('sem',-999,'float64'),
@@ -253,7 +252,7 @@ sham_subfields = (
 decision_subfields = (
         ('p_val',-999.0, 'float64'),
         ('t_stat',-999.0,'float64'),
-        ('best_location','','S16'),
+        ('best_location','','U16'),
         ('tie',-1,'int16'),
 
     )
@@ -262,7 +261,7 @@ decision_subfields = (
 # TH
 th_fields = (
             ('trial', -999, 'int16'),
-            ('item_name', '', 'S64'),
+            ('item_name', '', 'U64'),
             ('chestNum', -999, 'int16'),
             ('block', -999, 'int16'),
             ('locationX', -999, 'float64'),
@@ -282,7 +281,7 @@ th_fields = (
             ('distErr', -999, 'float64'),
             ('normErr', -999, 'float64'),
             ('recalled', False, 'b1'),
-            ('exp_version', '', 'S64'),
+            ('exp_version', '', 'U64'),
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
         )
@@ -290,8 +289,8 @@ th_fields = (
 
 thr_fields =(
     ('trial', -999, 'int16'),
-    ('item_name', '', 'S64'),
-    ('resp_word', '', 'S64'),
+    ('item_name', '', 'U64'),
+    ('resp_word', '', 'U64'),
     ('serialpos', -999, 'int16'),
     ('probepos', -999, 'int16'),
     ('block', -999, 'int16'),
@@ -304,7 +303,7 @@ thr_fields =(
     ('reactionTime', -999, 'float64'),
     ('list_length', -999, 'int16'),
     ('recalled', False, 'b1'),
-    ('exp_version', '', 'S64'),
+    ('exp_version', '', 'U64'),
     ('stim_list', False, 'b1'),
     ('is_stim', False, 'b1'),
 )

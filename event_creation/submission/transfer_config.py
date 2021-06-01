@@ -5,7 +5,7 @@ import glob
 import os
 import yaml
 import hashlib
-import fileutil
+from . import fileutil
 import shutil
 from collections import defaultdict
 
@@ -52,12 +52,13 @@ class TransferConfig(object):
 
         self._raw_config = yaml.load(open(filename))
         self._files = build_group_index(self._raw_config['files'], groups)
-        for file_ in self._files.values():
+
+        for file_ in list(self._files.values()):
             file_.format(**kwargs)
 
     @property
     def valid_files(self):
-        return [file for file in self._files.values() if file.valid]
+        return [file for file in list(self._files.values()) if file.valid]
         # return {name: file_ for name, file_ in self._files.items() if file_.valid}
 
     def located_files(self):
@@ -95,7 +96,7 @@ class TransferConfig(object):
 
     def missing_required_files(self):
         missing_files = []
-        for file in self._files.values():
+        for file in list(self._files.values()):
             if file.required:
                 if not file.located:
                     try:
@@ -217,7 +218,7 @@ class TransferFile(object):
             fileutil.makedirs(containing_dir)
 
         if self.type == 'directory':
-            for file in self.files.values():
+            for file in list(self.files.values()):
                 file.transfer(containing_dir)
             return
 
@@ -264,15 +265,18 @@ class TransferFile(object):
                     if filename.endswith('.mff'):
                         contents.append(os.path.basename(filename))
                     else:
-                        contents.append(open(filename).read())
+                        with open(filename, 'rb') as f:
+                            contents.append(f.read())
 
-            for file in self.files.values():
+            for file in list(self.files.values()):
                 contents.extend(file.contents_to_check())
 
         return contents
 
     def calculate_checksum(self):
         for element in self.contents_to_check():
+            if isinstance(element, str):
+                element = element.encode('utf-8')
             self._checksum.update(element)
         self._checksum_calculated = True
 
@@ -308,10 +312,10 @@ class TransferFile(object):
 
         self.formatted_origin_filenames = formatted
 
-        for file in self.files.values():
+        for file in list(self.files.values()):
             file.format(**kwargs)
 
-        self._valid = all(file.valid for file in self.files.values())
+        self._valid = all(file.valid for file in list(self.files.values()))
 
     def locate(self, root=''):
 
@@ -353,7 +357,7 @@ class TransferFile(object):
 
 
         for path in new_origin_paths:
-            for file in self.files.values():
+            for file in list(self.files.values()):
                 file.locate(path)
 
         if self.required and len(new_origin_paths) == 0:
@@ -393,7 +397,7 @@ class TransferFile(object):
             )
         }
 
-        for file in self.files.values():
+        for file in list(self.files.values()):
             index.update(file.transferred_index())
 
         return index
@@ -405,9 +409,9 @@ class TransferFile(object):
         if len(files) > 0:
             index[self.name] = files[0] if not multiple else files
 
-        for file in self.files.values():
+        for file in list(self.files.values()):
             transferred_files = file.transferred_filenames(multiple)
-            for name, filename in transferred_files.items():
+            for name, filename in list(transferred_files.items()):
                 if multiple:
                     index[name].extend(filename)
                 else:

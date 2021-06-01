@@ -19,13 +19,13 @@ class ConfigOption(object):
 
     def __init__(self, options):
         self.options = options
-        for k, v in options.items():
+        for k, v in list(options.items()):
             setattr(self, k, v)
 
     def set(self, k, v):
         if k not in self.options:
             raise ConfigurationError("Attempted to set invalid option {}. "
-                                     "Valid options are {}".format(k, self.options.keys()))
+                                     "Valid options are {}".format(k, list(self.options.keys())))
         self.options[k] = v
         setattr(self, k, v)
 
@@ -33,7 +33,7 @@ class ConfigOption(object):
         return self.options.get(k, default)
 
     def __str__(self):
-        return repr(self) + '(' + ', '.join('{}={}'.format(k, getattr(self, k)) for k in self.options.keys() ) + ')'
+        return repr(self) + '(' + ', '.join('{}={}'.format(k, getattr(self, k)) for k in list(self.options.keys()) ) + ')'
 
     def __contains__(self, item):
         return item in self.options
@@ -91,7 +91,7 @@ class Configuration(object):
     def parse_args(self, *args, **kwargs):
         parsed = self.parser.parse_args(*args, **kwargs)
 
-        for k, v in self.options.items():
+        for k, v in list(self.options.items()):
             new_v = getattr(parsed, k)
             if isinstance(v, ConfigOption):
                 if new_v is None:
@@ -104,7 +104,7 @@ class Configuration(object):
 
 
     def __str__(self):
-        return repr(self) + '(' + ', '.join('{}={}'.format(k,v) for k,v in self.options.items()) + ')'
+        return repr(self) + '(' + ', '.join('{}={}'.format(k,v) for k,v in list(self.options.items())) + ')'
 
     def __getattr__(self, item):
         try:

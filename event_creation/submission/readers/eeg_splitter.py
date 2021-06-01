@@ -428,7 +428,7 @@ class EEG_splitter_gui(QWidget):
 
     @staticmethod
     def strings_from_dict(d, separator=': '):
-        keys = d.keys()
+        keys = list(d.keys())
         keys.sort()
         return ['%d%s%s' % (k, separator, d[k]) for k in keys]
 
@@ -836,7 +836,7 @@ class EEG_splitter_model():
     @classmethod
     def get_matching_channels(cls, channel_dict, include_regexes):
         included_numbers = set()
-        for number, channel in channel_dict.items():
+        for number, channel in list(channel_dict.items()):
             for include_regex in include_regexes:
                 if re.search(include_regex, channel):
                     included_numbers.add(number)
@@ -893,13 +893,13 @@ class EEG_splitter_model():
             self.enable_channel_0()
 
     def remove_ref(self):
-        self._complete_channel_list = {k: re.sub('-REF$', '', v) for k, v in self._complete_channel_list.items()}
+        self._complete_channel_list = {k: re.sub('-REF$', '', v) for k, v in list(self._complete_channel_list.items())}
 
     def enable_channel_0(self):
-        self._complete_channel_list = {k-1: v for k, v in self._complete_channel_list.items()}
+        self._complete_channel_list = {k-1: v for k, v in list(self._complete_channel_list.items())}
 
     def remove_duplicates(self):
-        keys = self._complete_channel_list.keys()
+        keys = list(self._complete_channel_list.keys())
         keys.sort()
         unique_keys = []
         unique_values = []
@@ -910,7 +910,7 @@ class EEG_splitter_model():
                 unique_values.append(self._complete_channel_list[key])
             else:
                 skipped += 1
-        self._complete_channel_list = dict(zip(unique_keys, unique_values))
+        self._complete_channel_list = dict(list(zip(unique_keys, unique_values)))
 
     def jacksheet_exists(self, is_json):
         if is_json:
@@ -924,7 +924,7 @@ class EEG_splitter_model():
     @staticmethod
     def read_json_jacksheet(filename):
         jacksheet_str = json.load(open(filename))
-        return {int(k):v for k,v in jacksheet_str.items()}
+        return {int(k):v for k,v in list(jacksheet_str.items())}
     
     @staticmethod
     def read_txt_jacksheet(filename):
@@ -947,7 +947,7 @@ class EEG_splitter_model():
                 return 'Jacksheet, leads, or good leads could not be read'
 
         only_old = {}
-        for number, lead in jacksheet.items():
+        for number, lead in list(jacksheet.items()):
             number = int(number)
             label = lead['label']
             if lead['reref']:
@@ -960,35 +960,35 @@ class EEG_splitter_model():
                 only_old[int(number)] = '%s (Non-neural)' % label
 
         only_new_neural = {}
-        for number, lead in self.neural_channels.items():
+        for number, lead in list(self.neural_channels.items()):
             if number not in jacksheet or lead != jacksheet[number]['label'] or not jacksheet[number]['neural']\
                     or not jacksheet[number]['reref']:
                 only_new_neural[number] = '%s (Neural, reref)' % lead
 
         only_new_non_neural = {}
-        for number, lead in self.non_neural_channels.items():
+        for number, lead in list(self.non_neural_channels.items()):
             if number not in jacksheet or lead != jacksheet[number]['label'] or jacksheet[number]['neural']\
                     or jacksheet[number]['reref']:
                 only_new_non_neural[number] = '%s (Non-Neural)' % lead
 
         only_new_non_reref = {}
-        for number, lead in self.non_reref_channels.items():
+        for number, lead in list(self.non_reref_channels.items()):
             if number not in jacksheet or lead != jacksheet[number]['label'] or not jacksheet[number]['neural']\
                     or jacksheet[number]['reref']:
                 only_new_non_reref[number] = '%s (Neural, non-reref)' % lead
 
         error = ''
         if only_old:
-            print 'Only old: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_old))
+            print('Only old: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_old)))
             error += self.format_leads_for_message(only_old, 'old jacksheet')
         if only_new_neural:
-            print 'Only new neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_neural))
+            print('Only new neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_neural)))
             error += self.format_leads_for_message(only_new_neural, 'new neural channels')
         if only_new_non_reref:
-            print 'Only new non-reref: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_reref))
+            print('Only new non-reref: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_reref)))
             error += self.format_leads_for_message(only_new_non_reref, 'new non-reref channels')
         if only_new_non_neural:
-            print 'Only new non-neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_neural))
+            print('Only new non-neural: \n\t' + '\n\t'.join(EEG_splitter_gui.strings_from_dict(only_new_non_neural)))
             error += self.format_leads_for_message(only_new_non_neural, 'new non-neural channels')
         return error
 
@@ -1005,7 +1005,7 @@ class EEG_splitter_model():
             os.makedirs(os.path.dirname(self.leads_filename))
         current_channels = self.neural_channels.copy()
         current_channels.update(self.non_reref_channels)
-        numbers = current_channels.keys()
+        numbers = list(current_channels.keys())
         numbers.sort()
         with open(self.leads_filename, 'w') as f:
             f.write('\n'.join([str(n) for n in numbers]))
@@ -1013,18 +1013,18 @@ class EEG_splitter_model():
     def create_good_leads(self):
         if not os.path.exists(os.path.dirname(self.good_leads_filename)):
             os.makedirs(os.path.dirname(self.good_leads_filename))
-        numbers = self.neural_channels.keys()
+        numbers = list(self.neural_channels.keys())
         numbers.sort()
         with open(self.good_leads_filename, 'w') as f:
             f.write('\n'.join([str(n) for n in numbers]))
 
     def build_jacksheet_dict(self):
         output = {}
-        for k, v in self.neural_channels.items():
+        for k, v in list(self.neural_channels.items()):
             output[k] = {'label': v, 'neural': True, 'reref': True}
-        for k, v in self.non_neural_channels.items():
+        for k, v in list(self.non_neural_channels.items()):
             output[k] = {'label': v, 'neural': False, 'reref': False}
-        for k, v in self.non_reref_channels.items():
+        for k, v in list(self.non_reref_channels.items()):
             output[k] = {'label': v, 'neural': True, 'reref': False}
         return output
 
