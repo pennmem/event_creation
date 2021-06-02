@@ -26,6 +26,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
 
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
+	    self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session_start=self.event_sess_start,
@@ -36,7 +37,6 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
             end_recall_period=self.event_rec_stop, # End of vocalization period
             word_stimulus=self.event_word_on,  # Start of word presentation
             clear_word_stimulus=self.event_word_off, # End of word presentation
-            participant_break=self.event_break_start, # Mid session break
             session_end=self.event_sess_end,
         )
         
