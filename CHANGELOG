@@ -1,3 +1,7 @@
+2021-6-2 (v2.0.0)
+===================
+- Moved to Python 3 (following the deprecation of Python 2). Not all legacy experiments are fully supported in Python 3 at this point. All modern UnityEPL experiments are supported. 
+
 2018-11-12 (v1.2.4)
 ===================
 - Removed System3FourAligner from production
