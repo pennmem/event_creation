@@ -42,13 +42,15 @@ subjects = [('R1505J', 'RepFR1', 0),
             ('R1515T', 'catFR1', 1),
             ('R1515T', 'catFR1', 2),]
 
-sandbox = '/scratch/connor.keane/sandbox'
+sandbox = '/scratch/jrudoler/sandbox'
 # import pdb; pdb.set_trace()
 for sub, exp, sess in subjects:
     src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub)
 
     if not os.access(sandbox+src, os.F_OK):
-        os.symlink(src, sandbox+src)
+        print(sandbox+os.path.split(src)[0])
+        os.makedirs(sandbox+os.path.split(src)[0])
+        os.symlink(src, sandbox+src, target_is_directory=True)
 
     try:
         inputs = build_inputs(exp, sub, sess)
@@ -58,5 +60,5 @@ for sub, exp, sess in subjects:
         if success:
             IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
     except:
-        with open("/scratch/connor.keane/submit_log.txt", 'a') as f:
+        with open("/scratch/jrudoler/submit_log.txt", 'a') as f:
             f.write("Error with {sub}:{exp}:{sess}".format(sub=sub, exp=exp, sess=sess))

@@ -26,7 +26,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
 
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
-	    self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
+            self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session_start=self.event_sess_start,

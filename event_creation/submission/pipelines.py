@@ -74,7 +74,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'freiburg')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')
         misses = {}
         for sys in systems:
             try:

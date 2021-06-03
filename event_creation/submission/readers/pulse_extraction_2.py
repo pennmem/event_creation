@@ -332,7 +332,7 @@ class SyncPulseExtractor(QWidget):
             self.clear_axes()
 
     def show_message(self, message):
-        self.full_ax.hold(False)
+        #self.full_ax.hold(False)
         self.full_ax.clear()
         self.full_ax.text(.5, .5, message, fontsize=30,
                           horizontalalignment='center',
@@ -343,17 +343,16 @@ class SyncPulseExtractor(QWidget):
 
     def plot_full(self):
         # discards the old graph
-        self.full_ax.hold(False)
-
+        #self.full_ax.hold(False)
         # plot data
         self.full_ax.plot(self.model.data, '-')
 
-        self.full_ax.hold(True)
+        #self.full_ax.hold(True)
 
     def plot_zoom(self):
-        self.zoom_ax.hold(False)
+        #self.zoom_ax.hold(False)
         self.zoom_ax.plot(self.model.data, '-')
-        self.zoom_ax.hold(True)
+        #self.zoom_ax.hold(True)
         mid = len(self.model.data)/2
         data_range = [mid-20000, mid+20000]
         mid_data = self.model.data[data_range[0]:data_range[1]]
