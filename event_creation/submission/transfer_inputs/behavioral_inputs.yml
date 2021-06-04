@@ -19,6 +19,7 @@ directories:
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
   beh_exp_sess_dir    : &BEH_EXP_SESS_DIR !join [*BEH_EXP_DIR, '{experiment}_{original_session}']
   sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
+  sys3_host_dir      : &SYS4_HOST_DIR !join [*BEH_SESS_DIR, 'elemem']
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
   raw_dir : &RAW_DIR !join [*SUBJ_DIR, 'raw/{experiment}_{original_session}']
@@ -355,6 +356,42 @@ files:
      - short_ram_wordpool_en.txt
      - ltpFR3_wordpool_filtered.txt
     destination: experiment_files/wordpool.txt
+
+  # System 4
+
+  - name: elemem_logs
+    << : *DIR
+    groups: [ r1, transfer, '!system_1','!system_2', '!system_3*', '!freiburg']
+    multiple: true
+    origin_directory: *SYS4_HOST_DIR
+    origin_file: '20*'
+    destination: 'elemem/'
+    files:
+      - name: event_log
+        << : *FILE
+        origin_directory: ''
+        origin_file: 'event.log'
+        destination: event.log
+
+      - name: experiment_config
+        << : *FILE
+        origin_directory: ''
+        origin_file: 'experiment_config.json'
+        destination: experiment_config.json
+
+      - name: electrode_config
+        << : *FILE
+        origin_directory: 'config_files'
+        origin_file:
+        - '{subject}*.csv'
+        destination: electrode_config.csv
+
+      - name: electrode_binary
+        << : *FILE
+        required: false
+        origin_directory: 'config_files'
+        origin_file: '*.bin'
+        destination: unused/electrode_config.bin
 
   ### LTP (Scalp EEG)
 

@@ -27,7 +27,7 @@ directories:
   
   sys4_experiment_dir : &SYS4_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
   sys4_session_dir    : &SYS4_SESS_DIR !join [*SYS4_EXP_DIR, 'session_{original_session}']
-  sys4_host_dir       : &SYS4_HOST_DIR !join [*SYS4_SESS_DIR, "host_pc"]
+  sys4_host_dir       : &SYS4_HOST_DIR !join [*SYS4_SESS_DIR, "elemem"]
 
   ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
   ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
@@ -148,14 +148,14 @@ files:
     multiple: true
     origin_directory: *SYS4_HOST_DIR
     origin_file: '20*'
-    destination: 'host_pc/'
+    destination: 'elemem/'
     files:
       - name: raw_eeg
         <<: *FILE
         checksum_contents: false
         origin_directory: ''
-        origin_file: eeg_timeseries.h5
-        destination: eeg_timeseries.h5
+        origin_file: eeg_data.edf
+        destination: eeg_data.edf
       - name: experiment_config
         << : *FILE
         origin_directory: ''
