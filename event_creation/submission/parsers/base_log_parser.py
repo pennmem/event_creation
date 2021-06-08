@@ -597,6 +597,33 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         events.exp_version = version_info['task']['version']
         return events
 
+class BaseSys4LogParser(BaseLogParser):
+
+    _STIME_FIELD = 'time'
+    _TYPE_FIELD = 'type'
+    _EEG_OFFSET_FIELD = 'offset'
+
+    def _read_primary_log(self):
+        contents = []
+        for log in self._primary_log:
+            contents += json.load(codecs.open(log,  encoding='utf-8'))['events']
+        return contents
+
+    def event_default(self, event_json):
+        """
+        Returns a default event with mstime, msoffset, and type filled in
+        :param split_line: A single split line from the primary log file
+        :return: new event
+        """
+        event = self._empty_event
+        event.mstime = event_json[self._STIME_FIELD] * 1000
+        event.type = event_json[self._TYPE_FIELD]
+        event.eegoffset = event_json[self._EEG_OFFSET_FIELD]
+        return event
+
+    def _get_raw_event_type(self, event_json):
+        return event_json[self._TYPE_FIELD]
+
 class BaseUnityLTPLogParser(BaseLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log'):

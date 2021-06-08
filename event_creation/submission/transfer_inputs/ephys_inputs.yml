@@ -124,7 +124,7 @@ files:
 
   - name: host_pc_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg']
+    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg', '!system_4']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
     origin_file: '20*'
@@ -161,6 +161,12 @@ files:
         origin_directory: ''
         origin_file: 'experiment_config.json'
         destination: experiment_config.json
+      - name: electrode_config
+        << : *FILE
+        origin_directory: ''
+        origin_file:
+        - 'R1*.csv'
+        destination: electrode_config.csv
 
   - name: elec_file
     <<: *FILE

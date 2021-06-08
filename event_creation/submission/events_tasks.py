@@ -15,6 +15,7 @@ from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
 from .alignment.FreiburgAligner import FreiburgAligner 
 from .alignment.system3 import System3Aligner, System3FourAligner
+from .alignment.system4 import System4Aligner
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -126,7 +127,9 @@ class SplitEEGTask(PipelineTask):
             # De#tect Biosemi channel files
             #num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         elif self.protocol == 'r1':
-            if 'experiment_config' in files:
+            if 'electrode_config' in files:
+                jacksheet_files = files['electrode_config']
+            elif 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
                 jacksheet_files = [files['contacts']] * len(raw_eeg_groups)
@@ -237,6 +240,13 @@ class EventCreationTask(PipelineTask):
                 'DBOY': CourierSessionLogParser, # TODO
             }
 
+        elif sys_num == 4.0:
+            return {
+                'FR': FRHostPCLogParser,
+                'catFR': catFRHostPCLogParser,
+                'RepFR': RepFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser, # TODO
+            }
         else:
             raise KeyError
 
@@ -329,6 +339,9 @@ class EventCreationTask(PipelineTask):
                 elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME 
                     aligner = FreiburgAligner(unaligned_events, files)
                     events = aligner.align()
+                elif self.r1_sys_num == 4.0:
+                    aligner = System4Aligner(unaligned_events, files['session_log'],
+                                             os.path.dirname(files['event_log']))
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
