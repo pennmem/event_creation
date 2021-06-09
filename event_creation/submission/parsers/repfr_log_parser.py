@@ -19,7 +19,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
 
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
-                self.wordpool = [line.rstrip().encode('utf-8') for line in f]
+                self.wordpool = [line.rstrip() for line in f]
 
         else:
             raise Exception("wordpool not found in transferred files")
@@ -86,13 +86,15 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         # Build event
         event = self.event_default(evdata)
         event.type = "WORD"
-
+        
         event.item_name = evdata['data']['displayed text'].strip()
-
+        # FIXME: someone made a redundant "word stimulus" instead of 
+        # "word stimulus info". This will make duplicate events. Not my (JR) fault. 
         event.serialpos = self._serialpos
         event["list"] = self._trial
-
-        event.item_num = self.wordpool.index(event.item_name) + 1
+        
+        #FIXME: RepFR wordpool has "word" as the first item. Is this ok? 
+        event.item_num = self.wordpool.index(str(event.item_name)) + 1
 
         return event
 

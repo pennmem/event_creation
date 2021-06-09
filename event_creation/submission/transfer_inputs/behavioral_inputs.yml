@@ -277,7 +277,7 @@ files:
 
   - name: host_pc_logs
     << : *DIR
-    groups: [ r1, transfer, '!system_1','!system_2',  '!freiburg']
+    groups: [ r1, transfer, '!system_1','!system_2', '!system_4', '!freiburg']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
     origin_file: '20*'
@@ -304,7 +304,7 @@ files:
 
       - name: electrode_config
         << : *FILE
-        origin_directory: 'config_files'
+        origin_directory: ''
         origin_file:
 #        - 'contacts*.csv'
         - '{subject}*.csv'
@@ -378,13 +378,6 @@ files:
         origin_directory: ''
         origin_file: 'experiment_config.json'
         destination: experiment_config.json
-
-      - name: electrode_config
-        << : *FILE
-        origin_directory: 'config_files'
-        origin_file:
-        - 'R1*.csv'
-        destination: electrode_config.csv
 
   ### LTP (Scalp EEG)
 

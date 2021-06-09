@@ -791,10 +791,12 @@ class EDF_reader(EEG_reader):
             reader = self.reader
         else:
             reader = pyedflib.EdfReader(substitute_file)
-
         headers = {}
         for i in range(self.MAX_CHANNELS):
-            header = reader.getSignalHeader(i)
+            try:
+                header = reader.getSignalHeader(i)
+            except:
+                continue
             if header['label']!= '':
                 headers[i] = header
         return headers
@@ -837,7 +839,7 @@ class EDF_reader(EEG_reader):
                     logger.info("skipping channel {}".format(label))
             else:
                 out_channel = channel
-            filename = os.path.join(location, basename + '.%03d' % (out_channel))
+            filename = os.path.join(location, basename + '.%03d' % (int(out_channel)))
 
             logger.debug('{}: {}'.format(out_channel, header['label']))
             sys.stdout.flush()
@@ -1035,7 +1037,10 @@ def read_jacksheet(filename):
     elif ext.lower() == '.json':
         return read_json_jacksheet(filename)
     elif ext.lower() == '.csv':
-        return read_electrode_config_jacksheet(filename)
+        try:
+            return read_electrode_config_jacksheet(filename)
+        except:
+            return read_elemem_electrode_config_jacksheet(filename)
     else:
         raise NotImplementedError
 
@@ -1059,6 +1064,11 @@ def read_electrode_config_jacksheet(filename):
     ec = ElectrodeConfig(filename)
     return {c.jack_num: c.name for c in list(ec.contacts.values())}
 
+def read_elemem_electrode_config_jacksheet(filename):
+    # Elemem electrode configs are a simplified version of the Odin/ENS electrode configs.
+    with open(filename, 'r') as csv:
+        contacts = csv.read().splitlines()
+    return {contact[1]:contact[0] for contact in [line.split(',') for line in contacts]}
 
 READERS = {
     '.edf': EDF_reader,

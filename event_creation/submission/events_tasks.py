@@ -128,7 +128,7 @@ class SplitEEGTask(PipelineTask):
             #num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         elif self.protocol == 'r1':
             if 'electrode_config' in files:
-                jacksheet_files = files['electrode_config']
+                jacksheet_files = files['electrode_config'] # System 4
             elif 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
@@ -306,7 +306,7 @@ class EventCreationTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         logger.debug('self._parser_type is %s' % (None if not self._parser_type else str(self._parser_type)))
-        if self.r1_sys_num >= 3:
+        if 3 <= self.r1_sys_num < 4:
             with open(files['event_log'][0]) as event_log:
                 self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.', '_')
 

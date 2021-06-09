@@ -48,8 +48,8 @@ subjects = [('R1556J_1', 'RepFR1', 0),]
 sandbox = '/scratch/jrudoler/sandbox'
 # import pdb; pdb.set_trace()
 for sub, exp, sess in subjects:
-    src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub)
-
+    src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub.split('_')[0])
+    print(src)
     try:
         if not os.access(sandbox+src, os.F_OK):
             print(sandbox+os.path.split(src)[0])
