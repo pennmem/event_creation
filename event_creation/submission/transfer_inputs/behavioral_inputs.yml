@@ -503,7 +503,7 @@ files:
     groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
     origin_file: session.jsonl
-    destination: experiment_files/session.json
+    destination: experiment_files/session.jsonl
 
   - name: annotations
     << : *FILE

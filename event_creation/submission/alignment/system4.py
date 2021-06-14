@@ -13,7 +13,7 @@ class System4Aligner:
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESH = 10  # This many milliseconds may differ between sync pulse times during matching
 
-    def __init__(self, events, behav_log, eeg_dir):
+    def __init__(self, events, behav_log, eeg_log, eeg_dir):
         """
         Constructor for the System4 (Elemem) aligner.
 
@@ -34,15 +34,13 @@ class System4Aligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         """
-        #self.behav_files = eeg_log  # Get list of the behavioral computer's sync pulse logs
-        #if not hasattr(self.behav_files, '__iter__'):
-        #    self.behav_files = [self.behav_files]
         self.behav_log = behav_log
         self.eeg_dir = eeg_dir  # Path to current_processed ephys files
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
+        # FIXME: probably does not need to be iterable for system 4. Ask Ryan.
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
-        self.eeg_log = os.path.join(eeg_dir, 'event.log')
+        self.eeg_log = eeg_log
         self.eeg = {}
         for f in self.eeg_files:
             basename = os.path.basename(f)
@@ -76,8 +74,8 @@ class System4Aligner:
         logger.debug('Aligning...')
 
         # Get the behavioral heartbeat data
-        if self.is_unity():
-            self.extract_heartbeats_unity(self.behavioral_log)
+        if self.is_unity:
+            self.behav_ms = self.extract_heartbeats_unity(self.behav_log)
         else:
             logger.warn('No session.jsonl logfile could be found. Unable to align behavioral and EEG data.')
             return self.events
@@ -94,15 +92,18 @@ class System4Aligner:
             self.num_samples = self.eeg[basename].n_times
             self.sample_rate = self.eeg[basename].info['sfreq']
             
+            # Grab logged start time for the edf file
+            self.eeg_start_ms = self.extract_eegstart(self.eeg_log)
+
             self.ephys_ms = self.extract_heartbeats_eventlog(self.eeg_log)
             if not isinstance(self.ephys_ms, np.ndarray) or len(self.ephys_ms) < 2:
                 logger.warn('No heartbeats were found in the event.log file. Unable to align behavioral and EEG data.')
                 return self.events
 
-            # Calculate the eeg offset for each event using PTSA's alignment system
+            # Calculate the eeg offset for each event
             logger.debug('Calculating EEG offsets...')
             try:
-                eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.sample_rate,
+                eeg_offsets, s_ind, e_ind = times_to_offsets(self.behav_ms, self.ephys_ms, self.ev_ms, self.eeg_start_ms, self.sample_rate,
                                                              window=self.ALIGNMENT_WINDOW, thresh_ms=self.ALIGNMENT_THRESH)
                 logger.debug('Done.')
 
@@ -152,7 +153,7 @@ class System4Aligner:
         :param logfile: The filepath for the session log .jsonl file
         :return: 1-D numpy array containing the mstimes for all heartbeats
         """
-        strip_emptylines(logfile) 
+        strip_empty_lines(logfile) 
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the times when all heartbeats were sent
@@ -169,6 +170,20 @@ class System4Aligner:
         heartbeats = heartbeats.astype(int)
         return heartbeats
 
+    @staticmethod
+    def extract_eegstart(logfile):
+        """
+        Extract timing of heartbeat events from a session log for system 4.
+
+        :param logfile: The filepath for the event.log jsonl file
+        :return: the mstime at which the eeg file began recording
+        """
+        # Read session log
+        df = pd.read_json(logfile, lines=True)
+        # Get the mstime of eeg start
+        eeg_start_ms = df[df.type == 'HEARTBEAT'].time.iloc[0]
+        return eeg_start_ms
+
 def strip_empty_lines(logfile):
     """
     pandas read_json(line=True) fails if the file has empty lines. 
@@ -184,11 +199,11 @@ def strip_empty_lines(logfile):
             newlines.append(line)
     if len(lines)==len(newlines):
         import sys
-        sys.exit()
+        return
     with open(logfile, 'w') as file:
         file.writelines(newlines)
 
-def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_ms=10):
+def times_to_offsets(behav_ms, ephys_ms, ev_ms, eeg_start_ms, samplerate, window=100, thresh_ms=10):
     """
     Slightly modified version of the times_to_offsets_old function in PTSA's alignment systems. Aligns the sync pulses
     sent by the behavioral computer with those received by the ephys computer in order to find the start and end window
@@ -243,13 +258,11 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     # event mstimes and EEG offsets.
     x = np.r_[start_behav_vals, end_behav_vals]
     y = np.r_[start_ephys_vals, end_ephys_vals]
-    m, c = np.linalg.lstsq(np.vstack([x - x[0], np.ones(len(x))]).T, y)[0]
-    c = c - x[0] * m
-
-    # eeg_start_ms = round((1-c)/m)
-
+    m, c = np.polyfit(x, y, 1)
+    
+    # FIXME: replace y[0] with the actual eeg start time in ms 
     # Use the regression to convert task event mstimes to EEG offsets
-    offsets = np.round((m*ev_ms + c)*samplerate/1000.).astype(int)
+    offsets = np.round((m*ev_ms + c - eeg_start_ms)*samplerate/1000.).astype(int)
     # eeg_start = np.round(eeg_start_ms*samplerate/1000.)
 
     return offsets, s_ind, e_ind
