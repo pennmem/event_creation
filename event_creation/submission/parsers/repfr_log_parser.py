@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 from . import dtypes
-from .base_log_parser import BaseUnityLTPLogParser
+from .base_log_parser import BaseUnityLogParser
 
 
 #TODO: update default to use list rather than trial
 
-class RepFRSessionLogParser(BaseUnityLTPLogParser):
+class RepFRSessionLogParser(BaseUnityLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(RepFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
 

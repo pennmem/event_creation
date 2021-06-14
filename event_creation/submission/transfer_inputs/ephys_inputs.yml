@@ -144,7 +144,7 @@ files:
 
   - name: elemem_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1', '!system_2', '!system_3*', '!freiburg']
+    groups: [ r1, transfer, system_4]
     multiple: true
     origin_directory: *SYS4_HOST_DIR
     origin_file: '20*'

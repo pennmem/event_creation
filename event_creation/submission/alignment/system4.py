@@ -110,7 +110,8 @@ class System4Aligner:
                 # Add eeg offset and eeg file information to the events
                 logger.debug('Adding EEG file and offset information to events structure...')
 
-                eegfile_name = os.path.join(self.eeg_dir, basename)
+                # FIXME: point to split eeg files? Should really implement an EDFReader in cmlreaders
+                eegfile_name = eeg_dir.replace('current_source/raw_eeg', 'current_processed/eeg.noreref')
 
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):
