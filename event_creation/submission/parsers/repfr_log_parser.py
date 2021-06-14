@@ -30,6 +30,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session_start=self.event_sess_start,
+            start_trial=self.event_trial_start,
             countdown=self.event_countdown,  # Pre-trial countdown video
             #microphone_test_recording=self.event_sess_start,  # Start of session (microphone test)
             orientation_stimulus=self._event_skip, # skip orientation events
@@ -65,6 +66,12 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         # like there is for session start above 
         event = self.event_default(evdata)
         event.type = 'SESS_END'
+        return event
+
+    def event_trial_start(self, evdata):
+        event = self.event_default(evdata)
+        self._trial = evdata['data']['trial']
+        event.type = 'TRIAL_START'
         return event
 
     def event_countdown(self, evdata):
