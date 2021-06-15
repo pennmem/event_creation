@@ -3,6 +3,7 @@ import mne
 import glob
 import numpy as np
 import pandas as pd
+import json
 from ..log import logger
 
 
@@ -13,7 +14,7 @@ class System4Aligner:
     ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
     ALIGNMENT_THRESH = 10  # This many milliseconds may differ between sync pulse times during matching
 
-    def __init__(self, events, behav_log, eeg_log, eeg_dir):
+    def __init__(self, events, files, eeg_dir):
         """
         Constructor for the System4 (Elemem) aligner.
 
@@ -34,13 +35,17 @@ class System4Aligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         """
-        self.behav_log = behav_log
+        self.behav_log = files['session_log']
+        eeg_sources = json.load(open(files['eeg_sources']))
+        if len(eeg_sources) != 1:
+            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
+        self.eeg_file_stem = list(eeg_sources.keys())[0]
         self.eeg_dir = eeg_dir  # Path to current_processed ephys files
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
         # for each
         # FIXME: probably does not need to be iterable for system 4. Ask Ryan.
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
-        self.eeg_log = eeg_log
+        self.eeg_log = files['event_log'][0]
         self.eeg = {}
         for f in self.eeg_files:
             basename = os.path.basename(f)
@@ -111,7 +116,7 @@ class System4Aligner:
                 logger.debug('Adding EEG file and offset information to events structure...')
 
                 # FIXME: point to split eeg files? Should really implement an EDFReader in cmlreaders
-                eegfile_name = eeg_dir.replace('current_source/raw_eeg', 'current_processed/eeg.noreref')
+                eegfile_name = self.eeg_file_stem 
 
                 oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
                 for i in range(self.events.shape[0]):

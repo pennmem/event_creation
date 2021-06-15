@@ -342,8 +342,7 @@ class EventCreationTask(PipelineTask):
                 elif self.r1_sys_num == 4.0:
                     ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
                                             'ephys', 'current_source', 'raw_eeg')
-                    aligner = System4Aligner(unaligned_events, files['session_log'],
-                                             files['event_log'][0], ephys_dir)
+                    aligner = System4Aligner(unaligned_events, files, ephys_dir)
                     events = aligner.align()
                 else:
                     if self.r1_sys_num == 2.0:
