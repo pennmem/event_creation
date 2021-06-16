@@ -488,7 +488,9 @@ files:
     << : *FILE
     groups: [RepFR]
     origin_directory: *BEH_SESS_DIR
-    origin_file: wordpool.txt
+    origin_file: 
+        - wordpool.txt
+        - RAM_wordpool_en.txt
     destination: experiment_files/wordpool.txt
 
   - name: session_words
