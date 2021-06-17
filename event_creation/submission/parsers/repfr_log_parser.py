@@ -32,7 +32,6 @@ class RepFRSessionLogParser(BaseUnityLogParser):
             session_start=self.event_sess_start,
             start_trial=self.event_trial_start,
             countdown=self.event_countdown,  # Pre-trial countdown video
-            #microphone_test_recording=self.event_sess_start,  # Start of session (microphone test)
             orientation_stimulus=self._event_skip, # skip orientation events
             display_recall_text=self.event_rec_start,  # Start of vocalization period
             end_recall_period=self.event_rec_stop, # End of vocalization period
