@@ -1,6 +1,8 @@
 from .base_log_parser import BaseLogParser
 import numpy as np
 import pandas as pd
+from . import dtypes
+import json
 
 class BaseElememLogParser(BaseLogParser):
     """
@@ -10,14 +12,18 @@ class BaseElememLogParser(BaseLogParser):
     This should obviate the need for alignment, as Elemem records these events in the mstime/unix time according
     to its own clock, which is the same clock as the EEG recording.
     """
-    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log'):
+    # Maximum length of stim params
+    MAX_STIM_PARAMS = 1
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log', include_stim_params=False):
         if primary_log not in files:
             primary_log = 'event_log'
 
         BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
-                               allow_unparsed_events=True)
+                               allow_unparsed_events=True, include_stim_params=include_stim_params)
         self._files = files
         self._trial = -999
+        self._experiment_config = self._set_experiment_config()
+        self._include_stim_params = include_stim_params
 
     def _get_raw_event_type(self, event_json):
         return event_json['type'].lower()
@@ -45,26 +51,46 @@ class BaseElememLogParser(BaseLogParser):
         return events
 
     def _read_primary_log(self):
+        if hasattr(self._primary_log, '__iter__'):
+            self._primary_log = self._primary_log[0]
         evdata = self._read_event_log(self._primary_log)
         return evdata
+
+    def _set_experiment_config(self):
+        config_file = (self._files['experiment_config'][0] if isinstance(self._files['experiment_config'],list)
+                       else self._files['experiment_config'])
+        with open(config_file,'r') as ecf:
+            self._experiment_config = json.load(ecf)
 
     def event_default(self, event_json):
         event = self._empty_event
         event.mstime = event_json['time']
         event.type = event_json['type']
-        event.trial = self._trial
+        event.list = self._trial
+        event.session = self._session
+        if self._include_stim_params:
+            event.stim_list = self._stim_list
         return event
 
 class ElememRepFRParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        super().__init__(protocol, subject, montage, experiment, session, files)
+        if experiment=='RepFR2':
+            self._include_stim_params = True
+        elif experiment=='RepFR1':
+            self._include_stim_params = False
+        else:
+            raise Exception(f"Necessity of stim fields unknown for experiment {experiment}")
+
+        super().__init__(protocol, subject, montage, experiment, session, files,
+                        include_stim_params=self._include_stim_params)
 
         self._session = -999
         self._trial = 0
         self._serialpos = -999
         self.practice = True
         self.current_num = -999
-
+        if self._include_stim_params:
+            self._stim_list = False
 
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
@@ -103,7 +129,6 @@ class ElememRepFRParser(BaseElememLogParser):
     def event_sess_start(self, evdata):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
-        event["list"] = self._trial
         event.type = 'SESS_START'
         return event
     
@@ -116,8 +141,10 @@ class ElememRepFRParser(BaseElememLogParser):
         return event
 
     def event_trial_start(self, evdata):
-        event = self.event_default(evdata)
+        if self._include_stim_params:
+            self._stim_list = evdata['data']['stim']
         self._trial = evdata['data']['trial']
+        event = self.event_default(evdata)
         event.type = 'TRIAL_START'
         return event
 
@@ -141,11 +168,12 @@ class ElememRepFRParser(BaseElememLogParser):
         event = self.event_default(evdata)
         event.type = "WORD"
         
-        event.item_name = evdata['data']['displayed text'].strip()
+        event.item_name = evdata['data']['word'].strip()
         # FIXME: someone made a redundant "word stimulus" instead of 
         # "word stimulus info". This will make duplicate events. Not my (JR) fault. 
-        event.serialpos = self._serialpos
+        event.serialpos = evdata['data']['serialpos']
         event["list"] = self._trial
+        event.is_stim = evdata['data']['stim']
         
         #FIXME: RepFR wordpool has "word" as the first item. Is this ok? 
         event.item_num = self.wordpool.index(str(event.item_name)) + 1
@@ -165,6 +193,19 @@ class ElememRepFRParser(BaseElememLogParser):
 
         return event
 
+    def event_stimulation(self, evdata):
+        event = self.event_default(evdata)
+        event.type = "STIM"
+        event.stim_params.amplitude = evdata["data"]["amplitude"]
+        event.stim_params.stim_duration = evdata["data"]["duration"]
+        event.stim_params.anode_number = evdata["data"]["electrode_neg"]
+        event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
+        event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
+        event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
+        event.stim_params.burst_freq = evdata["data"]["frequency"]
+        event.stim_params._remove = False
+        return event
+
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_START"
@@ -182,29 +223,6 @@ class ElememRepFRParser(BaseElememLogParser):
         self._trial += 1
 
         return event
-
-    def event_distract_start(self, evdata):
-        event = self.event_default(evdata)
-        event["list"] = self._trial
-
-        # process numbers out of problem
-        distractor = evdata['data']['displayed text']
-        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
-        event.distractor = nums
-
-        return event
-
-    def event_distract_stop(self, evdata):
-        event = self.event_default(evdata)
-        event["list"] = self._trial
-        distractor = evdata['data']['problem']
-        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
-        event.distractor = nums
-        event.distractor_answer = evdata['data']['answer'] if evdata['data']['answer'] != '' else -999
-        event.answer_correct = evdata['data']['correctness']
-
-        return event
-
 
     ###############
     #

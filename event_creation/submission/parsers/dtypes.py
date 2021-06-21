@@ -65,6 +65,8 @@ courier_fields = (
 repFR_fields = (
     ('repeats', -999, 'int16'),
     ('is_repeat', False, 'b1'),
+    ('is_stim', False, 'b1'),
+    ('stim_list', False, 'b1'),
     ('list', -999, 'int16'),
     ('serialpos', -999, 'int16'),
     ('item_name', '', 'U64'),
@@ -88,8 +90,6 @@ fr_fields = (
             ('stim_list', False, 'b1'),
             ('is_stim', False, 'b1'),
             ('rectime',-999,'int16'),
-            # ('answer',-999, 'int16'),
-            # ('iscorrect', -999, 'int16'),
             # Recognition stuff goes here
             ('recognized', -999, 'int16'),
             ('rejected', -999, 'int16'),
