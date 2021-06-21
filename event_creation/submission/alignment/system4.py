@@ -6,6 +6,76 @@ import pandas as pd
 import json
 from ..log import logger
 
+class System4Offset:
+    def __init__(self, events, files, eeg_dir):
+        eeg_sources = json.load(open(files['eeg_sources']))
+        if len(eeg_sources) != 1:
+            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
+        self.eeg_file_stem = list(eeg_sources.keys())[0]
+        self.eeg_log = files['event_log'][0]
+        self.eeg_file = glob.glob(os.path.join(eeg_dir, '*.edf'))[0]
+        self.eeg = mne.io.read_raw_edf(self.eeg_file, preload=True)
+        self.ev_ms = events.view(np.recarray).mstime
+        self.events = events.view(np.recarray)
+    
+    @staticmethod
+    def extract_eegstart(logfile):
+        """
+        Extract timing of EEGSTART event from a session log for system 4.
+
+        :param logfile: The filepath for the event.log jsonl file
+        :return: the mstime at which the eeg file began recording
+        """
+        # Read session log
+        df = pd.read_json(logfile, lines=True)
+        # Get the mstime of eeg start
+        eeg_start_ms = df[df.type == 'EEGSTART'].time.iloc[0]
+        return eeg_start_ms
+    
+    def align(self):
+        # Skip alignment if there are no events or no sync pulse logs
+        if self.events.shape == ():
+            logger.warn('Skipping alignment due to there being no events')
+            return self.events
+
+        logger.debug('Aligning...')
+
+        # get the sample rate and length of recording for the current file
+        self.num_samples = self.eeg.n_times
+        self.sample_rate = self.eeg.info['sfreq']
+        
+        # get eeg start time
+        self.eeg_start_ms = self.extract_eegstart(self.eeg_log)
+        
+        #import pdb; pdb.set_trace()
+        # Calculate the eeg offset for each event
+        logger.debug('Calculating EEG offsets...')
+        try:
+            eeg_offsets = np.round((self.ev_ms - self.eeg_start_ms) * self.sample_rate / 1000.).astype(int)
+            
+            logger.debug('Done.')
+
+            # Add eeg offset and eeg file information to the events
+            logger.debug('Adding EEG file and offset information to events structure...')
+
+            oob = 0  # Counts the number of events that are out of bounds of the start and end sync pulses
+            for i in range(self.events.shape[0]):
+                if 0 <= eeg_offsets[i] <= self.num_samples:
+                    self.events[i].eegoffset = eeg_offsets[i]
+                    self.events[i].eegfile = self.eeg_file_stem
+                else:
+                    oob += 1
+            logger.debug('Done.')
+
+            if oob > 0:
+                logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+
+        except ValueError:
+            logger.warn('Unable to align events with EEG data!')
+
+        return self.events
+
+
 
 class System4Aligner:
     """
@@ -187,7 +257,7 @@ class System4Aligner:
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the mstime of eeg start
-        eeg_start_ms = df[df.type == 'HEARTBEAT'].time.iloc[0]
+        eeg_start_ms = df[df.type == 'EEGSTART'].time.iloc[0]
         return eeg_start_ms
 
 def strip_empty_lines(logfile):

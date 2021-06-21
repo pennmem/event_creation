@@ -15,7 +15,7 @@ from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
 from .alignment.FreiburgAligner import FreiburgAligner 
 from .alignment.system3 import System3Aligner, System3FourAligner
-from .alignment.system4 import System4Aligner
+from .alignment.system4 import System4Offset
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -43,6 +43,7 @@ from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
+from .parsers.elemem_parsers import ElememRepFRParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -242,9 +243,7 @@ class EventCreationTask(PipelineTask):
 
         elif sys_num == 4.0:
             return {
-                'FR': FRHostPCLogParser,
-                'catFR': catFRHostPCLogParser,
-                'RepFR': RepFRSessionLogParser, 
+                'RepFR': ElememRepFRParser, 
                 'DBOY': CourierSessionLogParser, # TODO
             }
         else:
@@ -342,7 +341,7 @@ class EventCreationTask(PipelineTask):
                 elif self.r1_sys_num == 4.0:
                     ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
                                             'ephys', 'current_source', 'raw_eeg')
-                    aligner = System4Aligner(unaligned_events, files, ephys_dir)
+                    aligner = System4Offset(unaligned_events, files, ephys_dir)
                     events = aligner.align()
                 else:
                     if self.r1_sys_num == 2.0:
