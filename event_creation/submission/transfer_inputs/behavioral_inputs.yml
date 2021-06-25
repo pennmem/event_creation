@@ -364,7 +364,7 @@ files:
     groups: [ r1, transfer, '!system_1','!system_2', '!system_3*', '!freiburg']
     multiple: true
     origin_directory: *SYS4_HOST_DIR
-    origin_file: '20*'
+    origin_file: '{subject}*'
     destination: 'elemem/'
     files:
       - name: event_log

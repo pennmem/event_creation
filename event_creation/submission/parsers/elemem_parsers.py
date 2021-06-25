@@ -14,7 +14,8 @@ class BaseElememLogParser(BaseLogParser):
     """
     # Maximum length of stim params
     MAX_STIM_PARAMS = 1
-    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log', include_stim_params=False):
+    # basically initialize a base log parser but specify that the primary log is event.log
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log', include_stim_params=True):
         if primary_log not in files:
             primary_log = 'event_log'
 
@@ -24,6 +25,11 @@ class BaseElememLogParser(BaseLogParser):
         self._trial = -999
         self._experiment_config = self._set_experiment_config()
         self._include_stim_params = include_stim_params
+        self._add_type_to_new_event(
+            start=self.event_elemem_start,
+            sham=self.event_sham,
+            stimming=self.event_stimulation,
+        )
 
     def _get_raw_event_type(self, event_json):
         return event_json['type'].lower()
@@ -71,6 +77,30 @@ class BaseElememLogParser(BaseLogParser):
         if self._include_stim_params:
             event.stim_list = self._stim_list
         return event
+
+    def event_elemem_start(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'START'
+        return event
+
+    def event_sham(self, even_json):
+        event = self.event_default(event_json)
+        event.type = 'SHAM'
+        return event
+
+    def event_stimulation(self, evdata):
+        event = self.event_default(evdata)
+        event.type = "STIM"
+        event.stim_params.amplitude = evdata["data"]["amplitude"]
+        event.stim_params.stim_duration = evdata["data"]["duration"]
+        event.stim_params.anode_number = evdata["data"]["electrode_neg"]
+        event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
+        event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
+        event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
+        event.stim_params.burst_freq = evdata["data"]["frequency"]
+        event.stim_params._remove = False
+        return event
+
 
 class ElememRepFRParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
@@ -193,18 +223,6 @@ class ElememRepFRParser(BaseElememLogParser):
 
         return event
 
-    def event_stimulation(self, evdata):
-        event = self.event_default(evdata)
-        event.type = "STIM"
-        event.stim_params.amplitude = evdata["data"]["amplitude"]
-        event.stim_params.stim_duration = evdata["data"]["duration"]
-        event.stim_params.anode_number = evdata["data"]["electrode_neg"]
-        event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
-        event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
-        event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
-        event.stim_params.burst_freq = evdata["data"]["frequency"]
-        event.stim_params._remove = False
-        return event
 
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)

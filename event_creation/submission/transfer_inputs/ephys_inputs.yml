@@ -110,7 +110,7 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg']
+    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3', '!system_4', '!freiburg']
     checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:
@@ -147,7 +147,7 @@ files:
     groups: [ r1, transfer, system_4]
     multiple: true
     origin_directory: *SYS4_HOST_DIR
-    origin_file: '20*'
+    origin_file: '{subject}*'
     destination: 'elemem/'
     files:
       - name: raw_eeg
