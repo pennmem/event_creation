@@ -23,6 +23,7 @@ class BaseElememLogParser(BaseLogParser):
                                allow_unparsed_events=True, include_stim_params=include_stim_params)
         self._files = files
         self._trial = -999
+        self._stim_list = True # base is non-behavioral stim, so always "stim list"
         self._experiment_config = self._set_experiment_config()
         self._include_stim_params = include_stim_params
         self._add_type_to_new_event(
@@ -83,7 +84,7 @@ class BaseElememLogParser(BaseLogParser):
         event.type = 'START'
         return event
 
-    def event_sham(self, even_json):
+    def event_sham(self, event_json):
         event = self.event_default(event_json)
         event.type = 'SHAM'
         return event

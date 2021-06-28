@@ -47,7 +47,6 @@ class System4Offset:
         # get eeg start time
         self.eeg_start_ms = self.extract_eegstart(self.eeg_log)
         
-        import pdb; pdb.set_trace()
         # Calculate the eeg offset for each event
         logger.debug('Calculating EEG offsets...')
         try:
