@@ -1066,7 +1066,8 @@ def read_electrode_config_jacksheet(filename):
 
 def read_elemem_electrode_config_jacksheet(filename):
     # Elemem electrode configs are a simplified version of the Odin/ENS electrode configs.
-    with open(filename, 'r') as csv:
+    # use utf-8-sig encoding to remove Byte Order Mark (BOM) that Windows sometimes adds.
+    with open(filename, 'r', encoding='utf-8-sig') as csv:
         contacts = csv.read().splitlines()
     return {contact[1]:contact[0] for contact in [line.split(',') for line in contacts]}
 
