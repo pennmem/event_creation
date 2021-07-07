@@ -1,21 +1,127 @@
+from .base_log_parser import BaseLogParser
 import numpy as np
 import pandas as pd
 from . import dtypes
-from .base_log_parser import BaseUnityLogParser
+import json
+
+class BaseElememLogParser(BaseLogParser):
+    """
+    Class for parsing Elemem / System4 event.log files. As a design choice, Elemem logs all messages
+    received over network cable from Unity tasks (or other sources, in theory)
+
+    This should obviate the need for alignment, as Elemem records these events in the mstime/unix time according
+    to its own clock, which is the same clock as the EEG recording.
+    """
+    # Maximum length of stim params
+    MAX_STIM_PARAMS = 1
+    # basically initialize a base log parser but specify that the primary log is event.log
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log', include_stim_params=True):
+        if primary_log not in files:
+            primary_log = 'event_log'
+
+        BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
+                               allow_unparsed_events=True, include_stim_params=include_stim_params)
+        self._files = files
+        self._trial = -999
+        self._stim_list = True # base is non-behavioral stim, so always "stim list"
+        self._experiment_config = self._set_experiment_config()
+        self._include_stim_params = include_stim_params
+        self._add_type_to_new_event(
+            start=self.event_elemem_start,
+            sham=self.event_sham,
+            stimming=self.event_stimulation,
+        )
+
+    def _get_raw_event_type(self, event_json):
+        return event_json['type'].lower()
+
+    def parse(self):
+        try:
+            return super().parse()
+        except Exception as exc:
+            traceback.print_exc(exc)
+            logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
+                                                                                   str(type(exc)), exc.message))
+            raise exc
+
+    def _read_event_log(self, filename):
+        """
+        Read events from the event.log format consistent with unity json lines output
+        (JSON strings separated by newline characters).
+
+        :param str filename: The path to the session log you wish to parse.
+        """
+        # Read session log
+        df = pd.read_json(filename, lines=True)
+        # Create a list of dictionaries, where each dictionary is the information about one event
+        events = [e.to_dict() for _, e in df.iterrows()]
+        return events
+
+    def _read_primary_log(self):
+        if hasattr(self._primary_log, '__iter__'):
+            self._primary_log = self._primary_log[0]
+        evdata = self._read_event_log(self._primary_log)
+        return evdata
+
+    def _set_experiment_config(self):
+        config_file = (self._files['experiment_config'][0] if isinstance(self._files['experiment_config'],list)
+                       else self._files['experiment_config'])
+        with open(config_file,'r') as ecf:
+            self._experiment_config = json.load(ecf)
+
+    def event_default(self, event_json):
+        event = self._empty_event
+        event.mstime = event_json['time']
+        event.type = event_json['type']
+        event.list = self._trial
+        event.session = self._session
+        if self._include_stim_params:
+            event.stim_list = self._stim_list
+        return event
+
+    def event_elemem_start(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'START'
+        return event
+
+    def event_sham(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'SHAM'
+        return event
+
+    def event_stimulation(self, evdata):
+        event = self.event_default(evdata)
+        event.type = "STIM"
+        event.stim_params.amplitude = evdata["data"]["amplitude"]
+        event.stim_params.stim_duration = evdata["data"]["duration"]
+        event.stim_params.anode_number = evdata["data"]["electrode_neg"]
+        event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
+        event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
+        event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
+        event.stim_params.burst_freq = evdata["data"]["frequency"]
+        event.stim_params._remove = False
+        return event
 
 
-#TODO: update default to use list rather than trial
-
-class RepFRSessionLogParser(BaseUnityLogParser):
+class ElememRepFRParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        super(RepFRSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
+        if experiment=='RepFR2':
+            self._include_stim_params = True
+        elif experiment=='RepFR1':
+            self._include_stim_params = False
+        else:
+            raise Exception(f"Necessity of stim fields unknown for experiment {experiment}")
+
+        super().__init__(protocol, subject, montage, experiment, session, files,
+                        include_stim_params=self._include_stim_params)
 
         self._session = -999
         self._trial = 0
         self._serialpos = -999
         self.practice = True
         self.current_num = -999
-        self.protocol = protocol
+        if self._include_stim_params:
+            self._stim_list = False
 
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
@@ -29,21 +135,20 @@ class RepFRSessionLogParser(BaseUnityLogParser):
             self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
-            session_start=self.event_sess_start,
-            start_trial=self.event_trial_start,
+            session=self.event_sess_start,
+            trial=self.event_trial_start,
             countdown=self.event_countdown,  # Pre-trial countdown video
-            orientation_stimulus=self._event_skip, # skip orientation events
-            display_recall_text=self.event_rec_start,  # Start of vocalization period
-            end_recall_period=self.event_rec_stop, # End of vocalization period
-            word_stimulus=self.event_word_on,  # Start of word presentation
-            clear_word_stimulus=self.event_word_off, # End of word presentation
-            session_end=self.event_sess_end,
+            rest=self._event_skip, # skip orientation events
+            recall=self.event_rec_start,  # Start of vocalization period
+            trialend=self.event_rec_stop, # End of vocalization period
+            word=self.event_word_on,  # Start of word presentation
+            stimming=self.event_stimulation,
+            exit=self.event_sess_end,
         )
         
         self._add_type_to_modify_events(
-            display_recall_text=self.modify_recalls,
-
-            session_start=self.modify_session,
+            recall=self.modify_recalls,
+            session=self.modify_session,
         )
 
     ###############
@@ -55,7 +160,6 @@ class RepFRSessionLogParser(BaseUnityLogParser):
     def event_sess_start(self, evdata):
         self._session = evdata['data']['session']
         event = self.event_default(evdata)
-        event["list"] = self._trial
         event.type = 'SESS_START'
         return event
     
@@ -68,8 +172,10 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         return event
 
     def event_trial_start(self, evdata):
-        event = self.event_default(evdata)
+        if self._include_stim_params:
+            self._stim_list = evdata['data']['stim']
         self._trial = evdata['data']['trial']
+        event = self.event_default(evdata)
         event.type = 'TRIAL_START'
         return event
 
@@ -93,11 +199,12 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         event = self.event_default(evdata)
         event.type = "WORD"
         
-        event.item_name = evdata['data']['displayed text'].strip()
+        event.item_name = evdata['data']['word'].strip()
         # FIXME: someone made a redundant "word stimulus" instead of 
         # "word stimulus info". This will make duplicate events. Not my (JR) fault. 
-        event.serialpos = self._serialpos
+        event.serialpos = evdata['data']['serialpos']
         event["list"] = self._trial
+        event.is_stim = evdata['data']['stim']
         
         #FIXME: RepFR wordpool has "word" as the first item. Is this ok? 
         event.item_num = self.wordpool.index(str(event.item_name)) + 1
@@ -117,6 +224,7 @@ class RepFRSessionLogParser(BaseUnityLogParser):
 
         return event
 
+
     def event_rec_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "REC_START"
@@ -134,29 +242,6 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         self._trial += 1
 
         return event
-
-    def event_distract_start(self, evdata):
-        event = self.event_default(evdata)
-        event["list"] = self._trial
-
-        # process numbers out of problem
-        distractor = evdata['data']['displayed text']
-        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
-        event.distractor = nums
-
-        return event
-
-    def event_distract_stop(self, evdata):
-        event = self.event_default(evdata)
-        event["list"] = self._trial
-        distractor = evdata['data']['problem']
-        nums = [int(s) for s in distractor.split('=')[0].split() if s.isdigit()]
-        event.distractor = nums
-        event.distractor_answer = evdata['data']['answer'] if evdata['data']['answer'] != '' else -999
-        event.answer_correct = evdata['data']['correctness']
-
-        return event
-
 
     ###############
     #
@@ -182,13 +267,8 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         # final free recall is not names with integer 26, but internally is 
         # considered trial 26
         except:
-            if self.protocol=='ltp':
-                ann_outputs = self._parse_ann_file("ffr")
-            else:
-                # could happen if the session was not finished
-                ann_outputs = []
-                
-
+            ann_outputs = self._parse_ann_file("ffr")
+        
         for recall in ann_outputs:
 
             # Get the vocalized word from the annotation

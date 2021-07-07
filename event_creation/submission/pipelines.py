@@ -31,6 +31,7 @@ GROUPS = {
     'catFR': ('verbal', 'stim'),
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
+    'OPS': ('stim',),
     'RepFR': ('verbal', ),
     'ltpRepFR': ('verbal', 'unity'), 
     'DBOY': ('verbal',),
@@ -74,7 +75,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'freiburg')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')
         misses = {}
         for sys in systems:
             try:
@@ -336,7 +337,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
     return TransferPipeline(transferer, *tasks)
 
 
-def build_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
+def build_events_pipeline(subject, montage, experiment, session, do_math=False, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
 
     logger.set_label("Building Event Creator")
@@ -351,6 +352,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
 
     groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
+    do_math = 'math' in groups
     try:
         if any('PS' in g and int(re.sub(r'PS','',g))>3 for g in groups):
             do_math = True
@@ -383,7 +385,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=True, p
                                            critical=('PS4' not in groups), **task_kwargs))
     elif protocol == 'ltp':
         tasks = [EventCreationTask(protocol, subject, montage, experiment, session, False)]
-        do_math = 'math' in groups
+        # do_math = 'math' in groups # redundant since adding above
     else:
         raise Exception('Unknown protocol %s' % protocol)
 

@@ -4,7 +4,7 @@ source /usr/global/Anaconda/2019-10/etc/profile.d/conda.sh
 USR=`logname`
 
 BACKUP=true;
-CHECK_USER=true;
+CHECK_USER=false;
 SCRIPT_ARGS=()
 
 for arg in "$@"; do

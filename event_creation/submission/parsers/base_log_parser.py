@@ -597,6 +597,7 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         events.exp_version = version_info['task']['version']
         return events
 
+
 class BaseUnityLTPLogParser(BaseLogParser):
 
     def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='session_log'):

@@ -15,6 +15,7 @@ from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
 from .alignment.FreiburgAligner import FreiburgAligner 
 from .alignment.system3 import System3Aligner, System3FourAligner
+from .alignment.system4 import System4Offset
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -42,6 +43,7 @@ from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
+from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -126,7 +128,9 @@ class SplitEEGTask(PipelineTask):
             # De#tect Biosemi channel files
             #num_split_files += len(glob.glob(os.path.join(self.pipeline.destination, 'noreref', '*.[A-Z]*')))
         elif self.protocol == 'r1':
-            if 'experiment_config' in files:
+            if 'electrode_config' in files:
+                jacksheet_files = files['electrode_config'] # System 4
+            elif 'experiment_config' in files:
                 jacksheet_files = files['experiment_config']  # Jacksheet embedded in hdf5 file
             elif 'contacts' in files:
                 jacksheet_files = [files['contacts']] * len(raw_eeg_groups)
@@ -237,6 +241,12 @@ class EventCreationTask(PipelineTask):
                 'DBOY': CourierSessionLogParser, # TODO
             }
 
+        elif sys_num == 4.0:
+            return {
+                'RepFR': ElememRepFRParser, 
+                'DBOY': CourierSessionLogParser,
+                'OPS': BaseElememLogParser,
+            }
         else:
             raise KeyError
 
@@ -296,7 +306,7 @@ class EventCreationTask(PipelineTask):
     def _run(self, files, db_folder):
         logger.set_label(self.name)
         logger.debug('self._parser_type is %s' % (None if not self._parser_type else str(self._parser_type)))
-        if self.r1_sys_num >= 3:
+        if 3 <= self.r1_sys_num < 4:
             with open(files['event_log'][0]) as event_log:
                 self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.', '_')
 
@@ -328,6 +338,11 @@ class EventCreationTask(PipelineTask):
                     events = aligner.align()
                 elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME 
                     aligner = FreiburgAligner(unaligned_events, files)
+                    events = aligner.align()
+                elif self.r1_sys_num == 4.0:
+                    ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
+                                            'ephys', 'current_source', 'elemem', f'{self.subject}*')
+                    aligner = System4Offset(unaligned_events, files, ephys_dir)
                     events = aligner.align()
                 else:
                     if self.r1_sys_num == 2.0:
