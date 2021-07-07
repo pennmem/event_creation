@@ -298,6 +298,8 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
 
     attempted_importers = []
     successes = [True]
+    
+    force_events=kwargs['force_events']
 
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
