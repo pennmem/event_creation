@@ -15,7 +15,7 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         self._serialpos = -999
         self.practice = True
         self.current_num = -999
-
+        self.protocol = protocol
 
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
@@ -174,8 +174,13 @@ class RepFRSessionLogParser(BaseUnityLTPLogParser):
         # final free recall is not names with integer 26, but internally is 
         # considered trial 26
         except:
-            ann_outputs = self._parse_ann_file("ffr")
-        
+            if self.protocol=='ltp':
+                ann_outputs = self._parse_ann_file("ffr")
+            else:
+                # could happen if the session was not finished
+                ann_outputs = []
+                
+
         for recall in ann_outputs:
 
             # Get the vocalized word from the annotation
