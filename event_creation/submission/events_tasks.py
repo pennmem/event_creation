@@ -258,7 +258,7 @@ class EventCreationTask(PipelineTask):
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
                     'ltpRepFR': RepFRSessionLogParser,
-                    'ltpDBOY1': CourierSessionLogParser,
+                    'NiclsCourierReadOnly': CourierSessionLogParser,
                   }
 
     @property
