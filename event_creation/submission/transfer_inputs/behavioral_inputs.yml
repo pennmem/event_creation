@@ -381,7 +381,7 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups: [ltpDBOY1]
+    groups: [NiclsCourierReadOnly]
     required: true    
     origin_directory: *LTP_SUBJ_DIR
     origin_file: all_items.txt
@@ -418,7 +418,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ ltpDBOY1 ]
+    groups: [ NiclsCourierReadOnly ]
     origin_directory: *LTP_SESS_DIR
     origin_file: 'session.jsonl'
     destination: 'logs/session.jsonl'
