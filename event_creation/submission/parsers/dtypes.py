@@ -62,6 +62,10 @@ courier_fields = (
     ('submittedPointingDirection', -999, 'float16')
 )
 
+efr_fields = (
+    ('efr_mark', -999, 'int16'),
+)
+
 repFR_fields = (
     ('repeats', -999, 'int16'),
     ('is_repeat', False, 'b1'),

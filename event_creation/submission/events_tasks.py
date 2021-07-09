@@ -30,6 +30,7 @@ from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 from .parsers.repfr_log_parser import RepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
+from .parsers.nicls_log_parser import NICLSSessionLogParser
 
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
@@ -248,7 +249,7 @@ class EventCreationTask(PipelineTask):
                     'VFFR': VFFRSessionLogParser,
                     'prelim': PrelimSessionLogParser,
                     'ltpRepFR': RepFRSessionLogParser,
-                    'NiclsCourierReadOnly': CourierSessionLogParser,
+                    'NiclsCourierReadOnly': NICLSSessionLogParser,
                   }
 
     @property

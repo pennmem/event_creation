@@ -34,7 +34,7 @@ GROUPS = {
     'RepFR': ('verbal', ),
     'ltpRepFR': ('verbal', 'unity'), 
     'DBOY': ('verbal',),
-    'ltpDBOY': ('verbal', 'unity'),
+    'NiclsCourierReadOnly': ('verbal', 'unity'),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
