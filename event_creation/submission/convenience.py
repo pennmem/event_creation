@@ -299,7 +299,8 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     attempted_importers = []
     successes = [True]
     
-    force_events=kwargs['force_events']
+    if 'force_events' in kwargs:
+        force_events=kwargs['force_events']
 
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
@@ -637,6 +638,7 @@ def prompt_for_session_inputs(inputs, **opts):
     protocol = inputs.protocol
     if protocol is None:
         protocol = 'ltp' if experiment.startswith('ltp') else \
+                   'ltp' if subject.startswith('LTP') else \
                    'r1' if subject.startswith('R') else \
                    'r1' if subject.startswith('UT') else \
                    'r1' if subject.startswith('FR') else None
@@ -795,7 +797,7 @@ def session_exists(protocol, subject, experiment, session):
     print(subject)
     print(experiment)
     print(session)
-
+    
     session_dir = os.path.join(paths.db_root, 'protocols', protocol, 'subjects', subject, 'behavioral', experiment,
                                'sessions', str(session))
 

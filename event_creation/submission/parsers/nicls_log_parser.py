@@ -1,25 +1,23 @@
 import numpy as np
 import pandas as pd
 from . import dtypes
-from .base_log_parser import BaseUnityLogParser
 from .courier_log_parser import CourierSessionLogParser
-import six
 
 class NICLSSessionLogParser(CourierSessionLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(NICLSSessionLogParser, self).__init__(protocol, subject, montage, experiment, session, files)
 
         self._add_fields(*dtypes.efr_fields)
-        self._add_fields(*dtypes.courier_fields)
-        self._add_fields(*dtypes.ltp_fields)
+        #self._add_fields(*dtypes.courier_fields)
+        #self._add_fields(*dtypes.ltp_fields)
 
         self._add_type_to_new_event(
-           start_movie=self.event_start_movie,
-           stop_movie=self.event_stop_movie,
+           start_movie=self.event_movie_start,
+           stop_movie=self.event_movie_stop,
            start_town_learning=self.event_town_learning_start,
            stop_town_learning=self.event_town_learning_end,
            keypress=self.event_efr_mark,
-           continuous_pointer=event_pointer_on,
+           continuous_pointer=self.event_pointer_on,
            start_required_break=self.event_break_start,
            stop_required_break=self.event_break_stop,
            start_deliveries=self.event_trial_start,
@@ -41,7 +39,7 @@ class NICLSSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_trial_start(self, evdata):
-        self._trial = evdata['trial number']
+        self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = 'TRIAL_START'
         return event
@@ -81,4 +79,10 @@ class NICLSSessionLogParser(CourierSessionLogParser):
         event.type = 'EFR_MARK'
         event.efr_mark = evdata['data']['response']=='correct'
         return event
+
+# Overwrite normal Courier FFR and store recall
+    def modify_store_recall(self, events):
+        return events
+    def modify_free_recall(self, events):
+        return events
 
