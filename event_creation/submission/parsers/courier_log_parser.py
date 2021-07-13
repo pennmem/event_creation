@@ -382,7 +382,10 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def modify_free_recall(self, events):
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-        ann_outputs = self._parse_ann_file("final recall")
+        try:
+            ann_outputs = self._parse_ann_file("final recall")
+        except:
+            ann_outputs = self._parse_ann_file("final free")
 
         words = events[events["type"] == 'WORD']
 
