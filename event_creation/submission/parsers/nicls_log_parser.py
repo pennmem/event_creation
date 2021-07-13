@@ -23,6 +23,10 @@ class NICLSSessionLogParser(CourierSessionLogParser):
            start_deliveries=self.event_trial_start,
            stop_deliveries=self.event_trial_end,
         )
+        #does not work until Python 3 upgrade
+        #self._add_type_to_modify_events(
+        #   stop_deliveries=self.modify_pointer_on,
+        #)
 
 
     ####################
@@ -83,6 +87,45 @@ class NICLSSessionLogParser(CourierSessionLogParser):
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events):
         return events
+
     def modify_free_recall(self, events):
+        rec_start_event = events[-1]
+        rec_start_time = rec_start_event.mstime
+        try:
+            ann_outputs = self._parse_ann_file("final recall")
+        except:
+            ann_outputs = self._parse_ann_file("final free-0")
+            ann_outputs = ann_outputs + self._parse_ann_file("final free-1")
+        words = events[events["type"] == 'WORD']
+
+        for recall in ann_outputs:
+            new_event = self._new_rec_event(recall, rec_start_event)
+
+            # Create a new event for the recall
+            evtype = 'FFR_REC_WORD_VV' if "<>" in new_event["item"] else 'FFR_REC_WORD'
+            new_event.type = evtype
+            new_event = self._identify_intrusion(events, new_event)
+            new_event.trial = -999 # to match old events
+
+            events = np.append(events, new_event).view(np.recarray) 
+
         return events
+    
+    def modify_store_recall(self, events):
+        return events
+    
+    def modify_pointer_on(self, events):
+        full_evs = pd.DataFrame.from_records(events)
+        part_idx = full_evs[(full_evs.type=='WORD')|(full_evs.type=='TL_END')].index.values
+        it = np.nditer(part_idx)
+        preserve_idx = []
+        last = int(it.value)
+        while it.iternext():
+            subset = full_evs[last:int(it.value)].type.eq('POINTER_ON')
+            if subset.sum()>0:
+                preserve_idx.append(subset.idxmax())
+            last = int(it.value)
+        point_idx = full_evs[full_evs.type=='POINTER_ON'].index.values
+        clipped_evs = full_evs.drop(index=[i for i in point_idx if i not in preserve_idx])
+        return clipped_evs.to_records()
 
