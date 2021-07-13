@@ -258,13 +258,13 @@ class CreateMontageTask(PipelineTask):
             for i in self.pairs_frame.index:
                 atlas_dict = {}
                 pair = self.pairs_frame.loc[i]
-                for pairs_name, (loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
+                for pairs_name, (loc_name,loc_t) in list(self.FIELD_NAMES_TABLE.items()):
                     coords = self.localization.get_pair_coordinate(loc_name,pair[['label1','label2']].values,loc_t)
                     atlas_dict[pairs_name]={}
                     for i,axis in enumerate('xyz'):
                         atlas_dict[pairs_name][axis] = coords.squeeze()[i]
                         atlas_dict[pairs_name]['region'] = None
-                for loc_name,pairs_name in self.ATLAS_NAMES_TABLE.items():
+                for loc_name,pairs_name in list(self.ATLAS_NAMES_TABLE.items()):
                     if pairs_name not in atlas_dict:
                         atlas_dict[pairs_name] = {}
                         for axis in 'xyz':
@@ -292,7 +292,7 @@ class CreateMontageTask(PipelineTask):
                 for contact in leads[lead][name]:
                     atlas_dict = {}
                     try:
-                        for contact_name,(loc_name,loc_t) in self.FIELD_NAMES_TABLE.items():
+                        for contact_name,(loc_name,loc_t) in list(self.FIELD_NAMES_TABLE.items()):
                             coords = [None,None,None]
                             if loc_name in contact['coordinate_spaces']:
                                 coords = contact['coordinate_spaces'][loc_name][loc_t]
@@ -300,7 +300,7 @@ class CreateMontageTask(PipelineTask):
                             for i,axis in enumerate(['x','y','z']):
                                 atlas_dict[contact_name][axis] = coords[i]
                                 atlas_dict[contact_name]['region']=None
-                        for contact_name,loc_name in self.ATLAS_NAMES_TABLE.items():
+                        for contact_name,loc_name in list(self.ATLAS_NAMES_TABLE.items()):
                             if loc_name not in atlas_dict:
                                 atlas_dict[loc_name]={}
                                 for axis in 'xyz':

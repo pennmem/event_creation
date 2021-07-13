@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import os, socket, getpass
 import runpy
 import sys
@@ -11,7 +11,7 @@ if sys.version_info[0] < 3:
 
 def confirm(prompt):
     while True:
-        resp = input(prompt)
+        resp = eval(input(prompt))
         if resp.lower() in ('y', 'n', 'yes', 'no'):
             return resp.lower() == 'y' or resp.lower() == 'yes'
         print('Please enter y or n')

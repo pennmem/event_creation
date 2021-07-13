@@ -53,8 +53,8 @@ class System1Aligner:
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
             raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
-        self.eeg_file_stem = eeg_sources.keys()[0]
-        eeg_source = eeg_sources.values()[0]
+        self.eeg_file_stem = list(eeg_sources.keys())[0]
+        eeg_source = list(eeg_sources.values())[0]
         eeg_dir = os.path.dirname(self.eeg_pulse_file)
         self.samplerate = eeg_source['sample_rate']
         self.n_samples = eeg_source['n_samples']
@@ -178,10 +178,10 @@ class System1Aligner:
         max_residual = max(max_residual_start, max_residual_end)
 
         # Join the beginning and the end
-        task_range = np.union1d(range(task_start_range[0], task_start_range[1]),
-                               range(task_end_range[0], task_end_range[1]))
-        eeg_range = np.union1d(range(eeg_start_range[0], eeg_start_range[1]),
-                                 range(eeg_end_range[0], eeg_end_range[1]))
+        task_range = np.union1d(list(range(task_start_range[0], task_start_range[1])),
+                               list(range(task_end_range[0], task_end_range[1])))
+        eeg_range = np.union1d(list(range(eeg_start_range[0], eeg_start_range[1])),
+                                 list(range(eeg_end_range[0], eeg_end_range[1])))
 
         # Return the times that were used
         task_pulse_out = task_pulse_ms[task_range]

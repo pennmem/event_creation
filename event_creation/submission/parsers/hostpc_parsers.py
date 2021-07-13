@@ -9,7 +9,7 @@ from copy import deepcopy
 import numpy as np
 from event_creation.submission.quality import fr_tests
 import os
-import dtypes
+from . import dtypes
 from collections import OrderedDict
 
 def with_offset(event_handler):
@@ -64,7 +64,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
         Overrides BaseSys3_1LogParser._read_primary_log
         :return: List of dicts, 1 per entry in the log
         """
-        if isinstance(self._primary_log,(str,unicode)):
+        if isinstance(self._primary_log,str):
 
             with open(self._primary_log,'r') as primary_log:
                 contents = pd.DataFrame.from_records(json.load(primary_log)['events']).dropna(subset=['msg_stub']).reset_index()
@@ -283,7 +283,7 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
             in_list = events.list==self._list
             list_stim_events = events[(events.type=='STIM_ON') & in_list]
             list_events= events[in_list]
-            for duration in np.unique([x['stim_duration'] for x in self._stim_params.values()]):
+            for duration in np.unique([x['stim_duration'] for x in list(self._stim_params.values())]):
                 stim_off_events = deepcopy(list_stim_events)
                 stim_off_events.eegoffset += int(duration*self._experiment_config['global_settings']['sampling_rate']/1000.)
                 stim_off_events.type='STIM_OFF'
@@ -408,7 +408,7 @@ class TiclFRParser(FRHostPCLogParser):
                       for k in event.stim_params.dtype.names
                       if not k.startswith('_')
             }
-            params.update(self._stim_params.values()[0])
+            params.update(list(self._stim_params.values())[0])
             self.set_event_stim_params(event, self._jacksheet, 0,
                                        **params)
             if params['position'] != 'post':

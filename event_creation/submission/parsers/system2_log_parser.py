@@ -194,7 +194,7 @@ class System2LogParser:
 
     @classmethod
     def get_columns_by_type(cls, host_log_file, line_type, columns=None, cast=None):
-        output = zip(*cls.get_rows_by_type(host_log_file, line_type, columns, cast))
+        output = list(zip(*cls.get_rows_by_type(host_log_file, line_type, columns, cast)))
         if (columns and not output):
             output = [[]] * len(columns)
         return output

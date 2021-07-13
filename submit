@@ -4,7 +4,7 @@ source /usr/global/Anaconda/2019-10/etc/profile.d/conda.sh
 USR=`logname`
 
 BACKUP=true;
-CHECK_USER=true;
+CHECK_USER=false;
 SCRIPT_ARGS=()
 
 for arg in "$@"; do
@@ -35,8 +35,8 @@ if $BACKUP; then
     cd "$REPO"
     # we don't have git >1.8, so change directories
     # git -C "$REPO" add .
-    git add .
-    git commit -m "Checkpoint for modifications made $TIME"
+#    git add .
+#    git commit -m "Checkpoint for modifications made $TIME"
     cd -
 fi
 
@@ -57,5 +57,7 @@ fi
 #XAUTH_LINE=`xauth -f $USER_HOME/.Xauthority list | tail -1`
 #xauth add $XAUTH_LINE
 #source ~/.bashrc
-conda activate event_creation
+
+# conda activate event_creation
+
 python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"

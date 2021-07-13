@@ -332,7 +332,7 @@ class SyncPulseExtractor(QWidget):
             self.clear_axes()
 
     def show_message(self, message):
-        self.full_ax.hold(False)
+        #self.full_ax.hold(False)
         self.full_ax.clear()
         self.full_ax.text(.5, .5, message, fontsize=30,
                           horizontalalignment='center',
@@ -343,17 +343,16 @@ class SyncPulseExtractor(QWidget):
 
     def plot_full(self):
         # discards the old graph
-        self.full_ax.hold(False)
-
+        #self.full_ax.hold(False)
         # plot data
         self.full_ax.plot(self.model.data, '-')
 
-        self.full_ax.hold(True)
+        #self.full_ax.hold(True)
 
     def plot_zoom(self):
-        self.zoom_ax.hold(False)
+        #self.zoom_ax.hold(False)
         self.zoom_ax.plot(self.model.data, '-')
-        self.zoom_ax.hold(True)
+        #self.zoom_ax.hold(True)
         mid = len(self.model.data)/2
         data_range = [mid-20000, mid+20000]
         mid_data = self.model.data[data_range[0]:data_range[1]]
@@ -404,12 +403,12 @@ class SyncPulseExtractionModel(object):
     def set_elec1(self, elec1):
         self._elec1 = elec1
         if elec1:
-            self._elec1_num = self._labels.keys()[self._labels.values().index(self._elec1)]
+            self._elec1_num = list(self._labels.keys())[list(self._labels.values()).index(self._elec1)]
 
     def set_elec2(self, elec2):
         self._elec2 = elec2
         if elec2:
-            self._elec2_num = self._labels.keys()[self._labels.values().index(self._elec2)]
+            self._elec2_num = list(self._labels.keys())[list(self._labels.values()).index(self._elec2)]
 
     def set_eeg_file(self, eeg_file):
         self.eeg_file = os.path.join(self.raw_dir(), str(eeg_file))
@@ -474,7 +473,7 @@ class SyncPulseExtractionModel(object):
         jacksheet_filename = os.path.join(self.data_root, self.subject, 'docs', 'jacksheet.txt')
         if os.path.exists(jacksheet_filename):
             self._reader.set_jacksheet(jacksheet_filename)
-            self._labels = {v:k for k,v in self._reader.jacksheet.items()}
+            self._labels = {v:k for k,v in list(self._reader.jacksheet.items())}
         else:
             self._labels = self._reader.labels
 
@@ -544,7 +543,7 @@ class SyncPulseExtractionModel(object):
                     peaks.append((max_ind, data[max_ind]))
 
         if peaks:
-            return zip(*peaks)
+            return list(zip(*peaks))
         else:
             return [], []
 

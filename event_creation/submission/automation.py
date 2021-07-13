@@ -21,7 +21,7 @@ class ImporterCollection(object):
         self.label = ','.join([importer.label for importer in self.importers])
         self.kwargs = defaultdict(set)
         for importer in importers:
-            for kwarg_key, kwarg_value in importer.kwargs.items():
+            for kwarg_key, kwarg_value in list(importer.kwargs.items()):
                 self.kwargs[kwarg_key].add(kwarg_value)
 
     def describe(self):
@@ -30,7 +30,7 @@ class ImporterCollection(object):
 
         label = self.label
         label += ':: ' + '\n\t\t'
-        label += '\n\t\t'.join([k + ': ' + ', '.join([str(v_o) for v_o in v]) for k, v in self.kwargs.items()])
+        label += '\n\t\t'.join([k + ': ' + ', '.join([str(v_o) for v_o in v]) for k, v in list(self.kwargs.items())])
         statuses = [label]
 
         initialization_statuses = self.describe_initializations()
@@ -193,7 +193,7 @@ class Importer(object):
 
     def describe(self):
         label = self.label
-        label += ':: ' + '\n\t\t' + '\n\t\t'.join([k + ': ' + str(v) for k, v in self.kwargs.items()])
+        label += ':: ' + '\n\t\t' + '\n\t\t'.join([k + ': ' + str(v) for k, v in list(self.kwargs.items())])
         statuses = [label]
         initialization_status = '\tInitialization status: ' + self.describe_initialization()
 
@@ -407,15 +407,15 @@ class Automator(object):
 def xtest_future_events():
     automator = Automator('r1')
     automator.add_future_events_importers()
-    print automator.describe()
+    print(automator.describe())
 
 def test_get_altered_montages():
     automator = Automator('r1')
     automator.populate_importers()
-    print automator.describe()
+    print(automator.describe())
 
 if __name__ == '__main__':
     automator = Automator('r1')
     automator.populate_importers()
     automator.run_all_imports()
-    print automator.describe()
+    print(automator.describe())

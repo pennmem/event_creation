@@ -120,7 +120,7 @@ class BaseMatConverter(object):
         """
         Convenience to reverse the field conversion dictionary
         """
-        return {v:k for k,v in self._field_conversion.items()}
+        return {v:k for k,v in list(self._field_conversion.items())}
 
     def _add_type_conversion(self, **kwargs):
         """
@@ -163,9 +163,9 @@ class BaseMatConverter(object):
         :return: the record array event
         """
         py_event = self._empty_event
-        for mat_field, py_field in self._field_conversion.items():
+        for mat_field, py_field in list(self._field_conversion.items()):
             if mat_field in mat_event.dtype.names:
-                if isinstance(mat_event[mat_field], basestring):
+                if isinstance(mat_event[mat_field], str):
                     py_event[py_field] = strip_accents(mat_event[mat_field])
                 else:
                     py_event[py_field] = mat_event[mat_field]
@@ -184,7 +184,7 @@ class BaseMatConverter(object):
         else:
             # Otherwise it undergoes the default conversion
             py_event = self.convert_fields(mat_event)
-            for key, value in self._value_converion.items():
+            for key, value in list(self._value_converion.items()):
                 mat_field = self._reverse_field_conversion[key]
                 if isinstance(mat_event[mat_field], np.ndarray):
                     mat_item = mat_event[mat_field].item()
@@ -285,7 +285,7 @@ class MatlabEEGExtractor(object):
                         out_file = os.path.join(noreref, os.path.basename(eeg_filename))
                         logger.debug('transfering channel {}'.format(os.path.splitext(out_file)[-1]))
                         data.tofile(out_file)
-                        os.chmod(out_file, 0446)
+                        os.chmod(out_file, 0o446)
                         n_samples = len(data)
 
             # Fill out the new parameters
@@ -626,11 +626,11 @@ class YCMatConverter(BaseMatConverter):
         :return: the record array event
         """
         py_event = self._empty_event
-        for mat_field, py_field in self._field_conversion.items():
+        for mat_field, py_field in list(self._field_conversion.items()):
             if mat_field in mat_event.dtype.names:
                 if mat_field == 'Path':
                     self.convert_path(py_event, self.events_for_path[i])
-                elif isinstance(mat_event[mat_field], basestring):
+                elif isinstance(mat_event[mat_field], str):
                     py_event[py_field] = strip_accents(mat_event[mat_field])
                 else:
                     py_event[py_field] = mat_event[mat_field]
@@ -655,7 +655,7 @@ class YCMatConverter(BaseMatConverter):
         else:
             # Otherwise it undergoes the default conversion
             py_event = self.convert_fields(mat_event, i)
-            for key, value in self._value_converion.items():
+            for key, value in list(self._value_converion.items()):
                 mat_field = self._reverse_field_conversion[key]
                 if isinstance(mat_event[mat_field], np.ndarray):
                     mat_item = mat_event[mat_field].item()
@@ -772,9 +772,9 @@ class THMatConverter(BaseMatConverter):
         :return: the record array event
         """
         py_event = self._empty_event
-        for mat_field, py_field in self._field_conversion.items():
+        for mat_field, py_field in list(self._field_conversion.items()):
             if mat_field in mat_event.dtype.names:
-                if isinstance(mat_event[mat_field], basestring):
+                if isinstance(mat_event[mat_field], str):
                     py_event[py_field] = strip_accents(mat_event[mat_field])
                 elif mat_field == 'item':
                     py_event[py_field] = ''
@@ -794,7 +794,7 @@ class THMatConverter(BaseMatConverter):
         else:
             # Otherwise it undergoes the default conversion
             py_event = self.convert_fields(mat_event, i)
-            for key, value in self._value_converion.items():
+            for key, value in list(self._value_converion.items()):
                 mat_field = self._reverse_field_conversion[key]
                 if isinstance(mat_event[mat_field], np.ndarray):
                     mat_item = mat_event[mat_field].item()
@@ -1364,7 +1364,7 @@ def test_fr_mat_converter():
         new_sess = session[1] if len(session)>1 else session[0]
 
         DB_ROOT = paths.events_root
-        print subject, exp, session
+        print(subject, exp, session)
 
         mat_file = os.path.join(paths.events_root, 'RAM_{}'.format(orig_exp[0].upper()+orig_exp[1:]), '{}_events.mat'.format(subject))
 
@@ -1392,17 +1392,17 @@ def compare_converted_events(new_events, old_events):
         close_old_events = old_events[np.abs(old_events.eegoffset - new_event.eegoffset) < 15]
         matching_old_event = close_old_events[close_old_events.type == new_event.type]
         if len(matching_old_event) == 0:
-            print 'MISSING EVENT! {}'.format(new_event.type)
+            print('MISSING EVENT! {}'.format(new_event.type))
             continue
         matching_old_event = matching_old_event[0]
         if compare_single_event(new_event, matching_old_event):
-            print '******1*****'
+            print('******1*****')
             ppr(new_event)
-            print '******2*****'
+            print('******2*****')
             ppr(matching_old_event)
-            print '------------'
+            print('------------')
         else:
-            print '.',
+            print('.', end=' ')
 
 
 def compare_single_event(new_event, old_event):
@@ -1415,13 +1415,13 @@ def compare_single_event(new_event, old_event):
                 is_bad = is_bad or compare_single_event(new_event[name], old_event[name])
             elif new_event[name] != old_event[name]:
                 if not exceptions(new_event, old_event, name):
-                    print '{}: {} vs {}'.format(name, new_event[name], old_event[name])
+                    print('{}: {} vs {}'.format(name, new_event[name], old_event[name]))
                     is_bad = True
     return is_bad
 
 
 def exceptions(new_event, old_event, field):
-    if isinstance(new_event[field], basestring):
+    if isinstance(new_event[field], str):
         if new_event[field].upper() == old_event[field].upper():
             return True
     if not 'type' in new_event.dtype.names:

@@ -21,7 +21,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         self.STORES = ['gym', 'pet store', 'barber shop', 'florist', 'craft shop', 'jewelry store', 'grocery store', 'music store', 'cafe', 'pharmacy', 'clothing store', 'pizzeria', 'dentist', 'toy store', 'hardware store', 'bakery', 'bike shop']
 
 
-        if("wordpool" in files.keys()):
+        if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip().encode('utf-8') for line in f]
         else:
@@ -340,7 +340,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         except:
             ann_outputs = []
-            print("MISSING ANNOTATIONS FOR %s" % rec_start_event.store)
+            print(("MISSING ANNOTATIONS FOR %s" % rec_start_event.store))
 
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)

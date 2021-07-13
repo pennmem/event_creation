@@ -4,7 +4,7 @@ import json
 import traceback
 import shutil
 
-import fileutil
+from . import fileutil
 from .log import logger
 from .configuration import paths
 from .exc import ProcessingError
@@ -48,7 +48,7 @@ class PipelineTask(object):
                 raise
             else:
                 traceback.print_exc()
-                self.error = e.message
+                self.error = e
 
     def _run(self, files, db_folder):
         raise NotImplementedError()
@@ -197,7 +197,7 @@ class IndexAggregatorTask(PipelineTask):
         current_dir = os.path.dirname(index_path)
         rel_dirname = os.path.relpath(current_dir, paths.db_root)
         if 'files' in index:
-            for name, file in index['files'].items():
+            for name, file in list(index['files'].items()):
                 sub_d[name] = os.path.join(rel_dirname, file)
         if 'info' in index:
             sub_d.update(index['info'])
@@ -281,7 +281,7 @@ def change_current(source_folder, *args):
         logger.info('Linking current source to {}'.format(source_folder))
         os.symlink(source_folder, current_source)
     except Exception as e:
-        logger.error('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(str(e)))
         os.symlink(previous_current_source, current_source)
         raise
 
@@ -290,7 +290,7 @@ def change_current(source_folder, *args):
         logger.info('Unlinking current processed: {}'.format(os.path.realpath(current_processed)))
         os.unlink(current_processed)
     except Exception as e:
-        logger.error('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(str(e)))
         os.symlink(previous_current_source, current_source)
 
     try:
@@ -298,6 +298,6 @@ def change_current(source_folder, *args):
         logger.info('Linking current processed to {}'.format(processed_folder))
         os.symlink(processed_folder, current_processed)
     except Exception as e:
-        logger.error('ERROR {}. Rolling back'.format(e.message))
+        logger.error('ERROR {}. Rolling back'.format(str(e)))
         os.symlink(previous_current_source, current_source)
         os.symlink(previous_current_processed, current_processed)

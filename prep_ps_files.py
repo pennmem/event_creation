@@ -39,7 +39,7 @@ def get_raw_start_strings(subject):
             else:
                 raw_dirnames[start_string] = os.path.dirname(filename)
         except:
-            print 'Couldn\'t read {}'.format(filename)
+            print('Couldn\'t read {}'.format(filename))
     return raw_dirnames
 
 def get_sync_file(subject, suffix):
@@ -65,7 +65,7 @@ def get_sync_file(subject, suffix):
 def make_raw_symlink(subject, orig_raw_dir, session):
     new_raw_dir = os.path.join(DATA_ROOT, subject, 'raw', 'PS_{}'.format(session))
     if os.path.realpath(orig_raw_dir) == os.path.realpath(new_raw_dir):
-        print 'Raw symlink already in place'
+        print('Raw symlink already in place')
         return
     if os.path.islink(new_raw_dir):
         os.unlink(new_raw_dir)
@@ -74,24 +74,24 @@ def make_raw_symlink(subject, orig_raw_dir, session):
     try:
         os.symlink(os.path.basename(orig_raw_dir), new_raw_dir)
     except OSError:
-        print 'Weird OS error...'
+        print('Weird OS error...')
         pass
     except:
-        print '{} -> {} unsuccessful!'.format(new_raw_dir, os.path.basename(orig_raw_dir))
+        print('{} -> {} unsuccessful!'.format(new_raw_dir, os.path.basename(orig_raw_dir)))
         raise
-    print('{} {} RAW LINK MADE SUCCESSFULLY'.format(subject, session))
+    print(('{} {} RAW LINK MADE SUCCESSFULLY'.format(subject, session)))
 
 
 def make_sync_symlink(subject, orig_sync, session):
     sync_basename = '.'.join(orig_sync.split('.')[:-3])
     new_sync_name = '{}.PS_{}.sync.txt'.format(sync_basename, session)
     if os.path.realpath(orig_sync) == os.path.realpath(new_sync_name):
-        print 'Sync symlink already in place'
+        print('Sync symlink already in place')
         return
     if os.path.exists(new_sync_name):
         raise Exception('{} already exists'.format(new_sync_name))
     os.symlink(os.path.basename(orig_sync), new_sync_name)
-    print('{} {} SYNC LINK MADE SUCCESSFULLY'.format(subject, session))
+    print(('{} {} SYNC LINK MADE SUCCESSFULLY'.format(subject, session)))
 
 def test_prep_ps():
     ps_subjects = json.load(open('submission/ps_sessions.json'))
@@ -119,11 +119,11 @@ def test_prep_ps():
                         continue
                     yield make_raw_symlink, code, raw_dir, original_session
                 except Exception as e:
-                    print 'subject {} raw skipped: {}'.format(code, e)
+                    print('subject {} raw skipped: {}'.format(code, e))
                 if sessions[new_session].get('system_1', False):
                     try:
                         yield get_sync_file, code, suffix
                         sync_file = get_sync_file(code, suffix)
                         yield make_sync_symlink, code, sync_file, original_session
                     except Exception as e:
-                        print 'subject {} sync skipped: {}'.format(subject, e)
+                        print('subject {} sync skipped: {}'.format(subject, e))

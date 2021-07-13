@@ -24,6 +24,10 @@ directories:
   sys3_experiment_dir : &SYS3_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
   sys3_session_dir    : &SYS3_SESS_DIR !join [*SYS3_EXP_DIR, 'session_{original_session}']
   sys3_host_dir       : &SYS3_HOST_DIR !join [*SYS3_SESS_DIR, "host_pc"]
+  
+  sys4_experiment_dir : &SYS4_EXP_DIR !join [*SUBJ_DIR, 'behavioral/{experiment}']
+  sys4_session_dir    : &SYS4_SESS_DIR !join [*SYS4_EXP_DIR, 'session_{original_session}']
+  sys4_host_dir       : &SYS4_HOST_DIR !join [*SYS4_SESS_DIR, "elemem"]
 
   ltp_subj_dir : &LTP_SUBJ_DIR '{data_root}/scalp/ltp/{experiment}/{code}'
   ltp_sess_dir : &LTP_SESS_DIR !join [*LTP_SUBJ_DIR, 'session_{original_session}']
@@ -106,7 +110,7 @@ files:
   - name: raw_eeg
     << : *FILE
     multiple: true
-    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg']
+    groups: [ r1, transfer, '!system_3_0', '!system_3_1', '!system_3_3', '!system_4', '!freiburg']
     checksum_contents: false
     origin_directory: *RAW_DIR
     origin_file:
@@ -120,7 +124,7 @@ files:
 
   - name: host_pc_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg']
+    groups: [ r1, transfer, '!system_1', '!system_2',  '!freiburg', '!system_4']
     multiple: true
     origin_directory: *SYS3_HOST_DIR
     origin_file: '20*'
@@ -137,6 +141,32 @@ files:
         origin_directory: ''
         origin_file: 'experiment_config.json'
         destination: experiment_config.json
+
+  - name: elemem_files
+    << : *DIR
+    groups: [ r1, transfer, system_4]
+    multiple: true
+    origin_directory: *SYS4_HOST_DIR
+    origin_file: '{subject}*'
+    destination: 'elemem/'
+    files:
+      - name: raw_eeg
+        <<: *FILE
+        checksum_contents: false
+        origin_directory: ''
+        origin_file: eeg_data.edf
+        destination: eeg_data.edf
+      - name: experiment_config
+        << : *FILE
+        origin_directory: ''
+        origin_file: 'experiment_config.json'
+        destination: experiment_config.json
+      - name: electrode_config
+        << : *FILE
+        origin_directory: ''
+        origin_file:
+        - 'R1*.csv'
+        destination: electrode_config.csv
 
   - name: elec_file
     <<: *FILE

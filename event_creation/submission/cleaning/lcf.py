@@ -206,7 +206,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         breakfile_path = os.path.join(ephys_dir, '%s_breaks.tsv' % basename)
         with open(breakfile_path, 'w') as f:
             f.write(partition_info)
-        os.chmod(breakfile_path, 0644)
+        os.chmod(breakfile_path, 0o644)
 
         ##########
         #
@@ -264,7 +264,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
 
         # Save data to a .fif file and set permissions to read only
         clean.save(clean_eegfile, fmt='single')
-        os.chmod(clean_eegfile, 0644)
+        os.chmod(clean_eegfile, 0o644)
 
         del clean
 
@@ -376,7 +376,7 @@ def run_split_lcf(inputs):
         # Save list of bad channels to a text file
         badchan_file = os.path.join(ephys_dir, basename + '_bad_chan%i.txt' % index)
         np.savetxt(badchan_file, badch, fmt='%s')
-        os.chmod(badchan_file, 0644)
+        os.chmod(badchan_file, 0o644)
 
         # Save a TSV file with extended info about each channel's scores
         badchan_file = os.path.join(ephys_dir, basename + '_bad_chan_info%i.tsv' % index)
@@ -384,7 +384,7 @@ def run_split_lcf(inputs):
             f.write('name\tlog_var\thurst\tbad\n')
             for i, ch in enumerate(eeg.ch_names):
                 f.write('%s\t%f\t%f\t%i\n' % (ch, var[i], hurst[i], bad[i]))
-        os.chmod(badchan_file, 0644)
+        os.chmod(badchan_file, 0o644)
 
         return badch.tolist()
 

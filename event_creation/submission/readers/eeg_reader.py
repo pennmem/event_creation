@@ -1,4 +1,4 @@
-from __future__ import print_function
+
 import warnings
 import struct
 import datetime
@@ -61,9 +61,9 @@ class EEG_reader(object):
             'name': basename,
             'source_file': os.path.basename(self.get_source_file()),
             'start_time_str': self.get_start_time_string(),
-            'start_time_ms': self.get_start_time_ms(),
-            'n_samples': self.get_n_samples(),
-            'sample_rate': self.get_sample_rate(),
+            'start_time_ms': int(self.get_start_time_ms()),
+            'n_samples': int(self.get_n_samples()),
+            'sample_rate': int(self.get_sample_rate()),
             'data_format': self.DATA_FORMAT
         }
 
@@ -188,7 +188,7 @@ class NK_reader(EEG_reader):
     def __init__(self, nk_filename, jacksheet_filename=None, channel_map_filename=None):
         self.raw_filename = nk_filename
         if jacksheet_filename:
-            self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v.upper():k for k,v in list(read_jacksheet(jacksheet_filename).items())}
         else:
             self.jacksheet = None
 
@@ -212,7 +212,7 @@ class NK_reader(EEG_reader):
         return self.sample_rate
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v.upper():k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v.upper():k for k,v in list(read_jacksheet(jacksheet_filename).items())}
 
     def get_start_time(self):
         with open(self.raw_filename, 'rb') as f:
@@ -308,7 +308,7 @@ class NK_reader(EEG_reader):
     def char_(cls, f, n=1):
         out = cls.fread(f, 'c', n, 1)
         if len(out) > 1:
-            return ''.join(out)
+            return b''.join(out)
         else:
             return out
 
@@ -322,12 +322,12 @@ class NK_reader(EEG_reader):
         lines = [line.strip() for line in open(elec_file).readlines()]
         end_range = lines.index('[SD_DEF]')
         split_lines = [line.split('=') for line in lines[:end_range] if '=' in line]
-        nums_21e, names_21e = zip(*split_lines[:end_range])
+        nums_21e, names_21e = list(zip(*split_lines[:end_range]))
         nums_21e = np.array([int(n) for n in nums_21e])
         names_21e = np.array(names_21e)
 
-        channel_order = (range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] +
-                        range(100, 254) +range(256,321)+ [50, 51])
+        channel_order = (list(range(10)) + [22, 23] + list(range(10, 19)) + [20, 21] + list(range(24, 37)) + [74, 75] +
+                        list(range(100, 254)) +list(range(256,321))+ [50, 51])
 
         channels = []
         for channel in channel_order:
@@ -460,13 +460,13 @@ class NK_reader(EEG_reader):
             lines = [line.strip() for line in open(elec_file).readlines()]
             end_range = lines.index('[SD_DEF]')
             split_lines = [line.split('=') for line in lines[:end_range] if '=' in line]
-            nums_21e, names_21e = zip(*split_lines[:end_range])
+            nums_21e, names_21e = list(zip(*split_lines[:end_range]))
             nums_21e = [int(n) for n in nums_21e]
 #        channel_order = (range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] +
 #                        range(100, 254) +range(256,321)+ [50, 51])
 
-            channel_order = range(10) + [22, 23] + range(10, 19) + [20, 21] + range(24, 37) + [74, 75] + \
-                            range(100, 254) + range(256,321)+[50, 51]
+            channel_order = list(range(10)) + [22, 23] + list(range(10, 19)) + [20, 21] + list(range(24, 37)) + [74, 75] + \
+                            list(range(100, 254)) + list(range(256,321))+[50, 51]
 
             jacksheet_nums = np.arange(len(channel_order)) + 1
             names_21e_ordered = np.chararray(len(channel_order), 16)
@@ -493,7 +493,7 @@ class NK_reader(EEG_reader):
                 jacksheet_dict[self.get_matching_jacksheet_dict_label(name, jacksheet_dict, self.channel_map)]
                 for name in names_21e_filtered]
 
-            for e_name, e_num in jacksheet_dict.items():
+            for e_name, e_num in list(jacksheet_dict.items()):
                 if e_num not in jacksheet_filtered:
                     logger.critical("skipping electruode {}: {}".format(e_num, e_name))
 
@@ -575,7 +575,7 @@ class NK_reader(EEG_reader):
             raise EEGError('Sample rate not determined')
 
         sys.stdout.flush()
-        for channel, channel_data in data.items():
+        for channel, channel_data in list(data.items()):
             filename = os.path.join(location, basename + ('.%03d' % channel))
 
             logger.debug(channel)
@@ -686,7 +686,7 @@ class NSx_reader(EEG_reader):
 
     @property
     def labels(self):
-        return {channel:num for num, channel in self.jacksheet.items()}
+        return {channel:num for num, channel in list(self.jacksheet.items())}
 
     @property
     def data(self):
@@ -732,8 +732,8 @@ class NSx_reader(EEG_reader):
 
     def _split_data(self, location, basename):
         channels = np.array(self.data['elec_ids'])
-        buffer_size = self.data['data_headers'][-1]['Timestamp'] / (self.TIC_RATE / self.get_sample_rate())
-        for label, channel in self.labels.items():
+        buffer_size = self.data['data_headers'][-1]['Timestamp'] // (self.TIC_RATE // self.get_sample_rate())
+        for label, channel in list(self.labels.items()):
             recording_channel = channel - self.lowest_channel
             if recording_channel < 0 or not recording_channel in channels:
                 logger.debug('Not getting channel {} from file {}'.format(channel, self.raw_filename))
@@ -755,7 +755,7 @@ class EDF_reader(EEG_reader):
                  channel_map_filename=None):
         self.raw_filename = edf_filename
         if jacksheet_filename:
-            self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+            self.jacksheet = {v:k for k,v in list(read_jacksheet(jacksheet_filename).items())}
         else:
             self.jacksheet = None
         try:
@@ -784,24 +784,26 @@ class EDF_reader(EEG_reader):
         return n_samples[0]
 
     def set_jacksheet(self, jacksheet_filename):
-        self.jacksheet = {v:k for k,v in read_jacksheet(jacksheet_filename).items()}
+        self.jacksheet = {v:k for k,v in list(read_jacksheet(jacksheet_filename).items())}
 
     def get_channel_info(self, substitute_file=None):
         if substitute_file is None:
             reader = self.reader
         else:
             reader = pyedflib.EdfReader(substitute_file)
-
         headers = {}
         for i in range(self.MAX_CHANNELS):
-            header = reader.getSignalHeader(i)
+            try:
+                header = reader.getSignalHeader(i)
+            except:
+                continue
             if header['label']!= '':
                 headers[i] = header
         return headers
 
     def get_sample_rate(self, channels=None):
         sample_rate = None
-        for channel, header in self.headers.items():
+        for channel, header in list(self.headers.items()):
             if channels and channel not in channels:
                 continue
             if header['sample_rate']:
@@ -813,7 +815,7 @@ class EDF_reader(EEG_reader):
 
     @property
     def labels(self):
-        return {i+1:header['label'] for i, header in self.headers.items()}
+        return {i+1:header['label'] for i, header in list(self.headers.items())}
 
     def channel_data(self, channel):
         return self.reader.readSignal(channel)
@@ -821,7 +823,7 @@ class EDF_reader(EEG_reader):
     def _split_data(self, location, basename):
         sys.stdout.flush()
         used_jacksheet_labels = []
-        for channel, header in self.headers.items():
+        for channel, header in list(self.headers.items()):
             if self.jacksheet:
                 label = self.get_matching_jacksheet_dict_label(header['label'], self.jacksheet, self.channel_map)
                 if not label or label in used_jacksheet_labels:
@@ -837,7 +839,7 @@ class EDF_reader(EEG_reader):
                     logger.info("skipping channel {}".format(label))
             else:
                 out_channel = channel
-            filename = os.path.join(location, basename + '.%03d' % (out_channel))
+            filename = os.path.join(location, basename + '.%03d' % (int(out_channel)))
 
             logger.debug('{}: {}'.format(out_channel, header['label']))
             sys.stdout.flush()
@@ -1035,7 +1037,10 @@ def read_jacksheet(filename):
     elif ext.lower() == '.json':
         return read_json_jacksheet(filename)
     elif ext.lower() == '.csv':
-        return read_electrode_config_jacksheet(filename)
+        try:
+            return read_electrode_config_jacksheet(filename)
+        except:
+            return read_elemem_electrode_config_jacksheet(filename)
     else:
         raise NotImplementedError
 
@@ -1051,14 +1056,20 @@ def read_json_jacksheet(filename):
     contacts = json_load[subject]['contacts']
     if contacts is None:
         raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
-    jacksheet = {int(v['channel']): k for k, v in contacts.items()}
+    jacksheet = {int(v['channel']): k for k, v in list(contacts.items())}
     return jacksheet
 
 
 def read_electrode_config_jacksheet(filename):
     ec = ElectrodeConfig(filename)
-    return {c.jack_num: c.name for c in ec.contacts.values()}
+    return {c.jack_num: c.name for c in list(ec.contacts.values())}
 
+def read_elemem_electrode_config_jacksheet(filename):
+    # Elemem electrode configs are a simplified version of the Odin/ENS electrode configs.
+    # use utf-8-sig encoding to remove Byte Order Mark (BOM) that Windows sometimes adds.
+    with open(filename, 'r', encoding='utf-8-sig') as csv:
+        contacts = csv.read().splitlines()
+    return {contact[1]:contact[0] for contact in [line.split(',') for line in contacts]}
 
 READERS = {
     '.edf': EDF_reader,

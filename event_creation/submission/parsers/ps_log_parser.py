@@ -7,7 +7,7 @@ import json
 from .electrode_config_parser import ElectrodeConfig
 from ..alignment.system3 import System3Aligner
 import codecs
-from hostpc_parsers import BaseHostPCLogParser
+from .hostpc_parsers import BaseHostPCLogParser
 
 def PSLogParser(protocol, subject, montage, experiment, session, files):
     """
@@ -264,7 +264,7 @@ class PSHostLogParser(BaseSessionLogParser):
         self.beginning_marked = False
 
         eeg_sources = json.load(open(files['eeg_sources']))
-        first_eeg_source = sorted(eeg_sources.values(), key=lambda source: source['start_time_ms'])[0]
+        first_eeg_source = sorted(list(eeg_sources.values()), key=lambda source: source['start_time_ms'])[0]
         np_earliest_start = first_eeg_source['start_time_ms']
         self.host_offset = None
 
@@ -436,7 +436,7 @@ class LocationSearchLogParser(BaseSys3LogParser, BaseHostPCLogParser):
         with open(self.files['eeg_sources']) as sf:
             sources = json.load(sf)
         key = lambda x: x['start_time_ms']
-        for info in sorted(sources.values(), key=key):
+        for info in sorted(list(sources.values()), key=key):
             after_start = events['mstime'] > key(info)
             events_after_start = events[after_start]
             events_after_start['eegfile']= info['name']
@@ -586,7 +586,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
             self._ID_FIELD:'id'
         }
         event=self.event_default(event_json)
-        for k,v in biomarker_dict_to_field.items():
+        for k,v in list(biomarker_dict_to_field.items()):
             event[v] = params_dict[k]
         event.eegoffset = event_json[self._STIM_PARAMS_FIELD]['start_offset']
         event['position'] = 'POST' if 'post' in params_dict['buffer_name'] else 'PRE'
@@ -646,7 +646,7 @@ class PS4Sys3LogParser(BaseSys3LogParser):
         decision_dict_from_fields = {
             'p_val':'p_val','t_stat':'t_stat','best_location':'best_location_name','tie':'Tie'
         }
-        for k,v in decision_dict_from_fields.items():
+        for k,v in list(decision_dict_from_fields.items()):
             event.decision[k] = event_json[self._STIM_PARAMS_FIELD]['decision'][v]
         return event
 

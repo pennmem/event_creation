@@ -401,7 +401,7 @@ class SyncPulseExtractionModel(object):
             filenames += glob.glob(os.path.join(self.noreref_dir(), '%s.%03d' % (self.basename, int(self.elec2))))
         else:
             filenames += [None]
-        print 'filenames', filenames
+        print('filenames', filenames)
         return filenames
 
     def find_eeg_files(self):
@@ -410,7 +410,7 @@ class SyncPulseExtractionModel(object):
             return
 
         if self.elec1:
-            print self.noreref_dir()
+            print(self.noreref_dir())
             possible_files += \
                     glob.glob(os.path.join(self.noreref_dir(), '*.%03d' % int(self.elec1)))
         if self.elec2:
@@ -522,7 +522,7 @@ class SyncPulseExtractionModel(object):
                     peaks.append((max_ind, data[max_ind]))
 
         if peaks:
-            return zip(*peaks)
+            return list(zip(*peaks))
         else:
             return [], []
 

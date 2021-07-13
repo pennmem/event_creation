@@ -7,7 +7,6 @@ from ..quality import fr_tests
 from .dtypes import fr_fields,ltp_fields
 
 
-
 class FRSessionLogParser(BaseSessionLogParser):
 
     @classmethod
@@ -540,7 +539,7 @@ def free_epochs(times, duration, pre, post, start=None, end=None):
         for interval in free_intervals:
             begin = post_times[interval]
             finish = pre_times[interval + 1] - duration
-            interval_epoch_times = range(begin, finish, duration)
+            interval_epoch_times = list(range(begin, finish, duration))
             trial_epoch_times.extend(interval_epoch_times)
         epoch_times.append(np.array(trial_epoch_times))
     epoch_array = np.empty((n_trials, max([len(x) for x in epoch_times])))

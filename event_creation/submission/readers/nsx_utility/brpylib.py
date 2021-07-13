@@ -382,8 +382,8 @@ def check_dataelecid(elec_ids, all_elec_ids):
             print('\nNone of the elec_ids passed exist in the data, returning None')
             return None
         else:
-            print("\n*** WARNING: Channels " + str(sorted(list(unique_elec_ids - all_elec_ids))) +
-                  " do not exist in the data")
+            print(("\n*** WARNING: Channels " + str(sorted(list(unique_elec_ids - all_elec_ids))) +
+                  " do not exist in the data"))
             unique_elec_ids = unique_elec_ids & all_elec_ids
 
     return sorted(list(unique_elec_ids))
@@ -687,7 +687,7 @@ class NevFile:
     def close(self):
         name = self.datafile.name
         self.datafile.close()
-        print('\n' + name.split('/')[-1] + ' closed')
+        print(('\n' + name.split('/')[-1] + ' closed'))
 
 
 class NsxFile:
@@ -871,8 +871,8 @@ class NsxFile:
             # Check to see if stop index is before the first data packet
             if len(output['data_headers']) == 1 and (STOP_OFFSET_MIN < stop_idx < timestamp_sample):
                 print("\nBecause of pausing, data section requested is before any data")
-                print("was saved, which starts at t = {0:.6f} s".format(
-                    output['data_headers'][0]['Timestamp'] / self.basic_header['TimeStampResolution']))
+                print(("was saved, which starts at t = {0:.6f} s".format(
+                    output['data_headers'][0]['Timestamp'] / self.basic_header['TimeStampResolution'])))
                 return
 
             # For the first data packet to be read
@@ -896,9 +896,9 @@ class NsxFile:
                             print("\nBecause of pausing, data section requested is during pause period")
                             return
                         else:
-                            print("\nFirst data packet requested begins at t = {0:.6f} s, "
+                            print(("\nFirst data packet requested begins at t = {0:.6f} s, "
                                   "initial section padded with zeros".format(
-                                   output['data_headers'][-1]['Timestamp'] / self.basic_header['TimeStampResolution']))
+                                   output['data_headers'][-1]['Timestamp'] / self.basic_header['TimeStampResolution'])))
                             start_offset = START_OFFSET_MIN
                             d_ptr        = timestamp_sample // downsample
                     hit_start = True
@@ -944,7 +944,7 @@ class NsxFile:
                     if loop == (num_loops - 1):  num_pts = ((total_pts * data_pt_size) % max_length) // data_pt_size
                     else:                        num_pts = max_length // data_pt_size
                         
-                if num_loops != 1:  print('Data extraction requires paging: {0} of {1}'.format(loop + 1, num_loops))
+                if num_loops != 1:  print(('Data extraction requires paging: {0} of {1}'.format(loop + 1, num_loops)))
 
                 num_pts = int(num_pts)
                 shape   = (num_pts, self.basic_header['ChannelCount'])
@@ -1046,7 +1046,7 @@ class NsxFile:
                 file_size += 32 + 4 * num_elecs
             else:
                 file_size += NSX_BASIC_HEADER_BYTES_22 + NSX_EXT_HEADER_BYTES_22 * num_elecs + 5
-            print("\nBased on timing request, file size will be {0:d} Mb".format(int(file_size / 1024**2)))
+            print(("\nBased on timing request, file size will be {0:d} Mb".format(int(file_size / 1024**2))))
         elif file_size:
             file_size = check_filesize(file_size)
 
@@ -1056,14 +1056,14 @@ class NsxFile:
         else:            file_name += '_subset'
 
         if ospath.isfile(file_name + "_000" + file_ext):
-            if 'y' != input("\nFile '" + file_name.split('/')[-1] + "_xxx" + file_ext +
-                                    "' already exists, overwrite [y/n]: "):
+            if 'y' != eval(input("\nFile '" + file_name.split('/')[-1] + "_xxx" + file_ext +
+                                    "' already exists, overwrite [y/n]: ")):
                 print("\nExiting, no overwrite, returning None"); return None
             else:
                 print("\n*** Overwriting existing subset files ***")
 
         subset_file = open(file_name + "_000" + file_ext, 'wb')
-        print("\nWriting subset file: " + ospath.split(subset_file.name)[1])
+        print(("\nWriting subset file: " + ospath.split(subset_file.name)[1]))
 
         # For file spec 2.1:
         #   1) copy the first 28 bytes from the datafile (these are unchanged)
@@ -1174,7 +1174,7 @@ class NsxFile:
                         elif 10 <= file_num < 100: numstr = "_0" + str(file_num)
                         else:                      numstr = "_" + str(file_num)
                         subset_file = open(file_name + numstr + file_ext, 'wb')
-                        print("Writing subset file: " + ospath.split(subset_file.name)[1])
+                        print(("Writing subset file: " + ospath.split(subset_file.name)[1]))
 
                         if self.basic_header['FileSpec']  == '2.1':
                             subset_file.write(prior_file.read(32 + 4 * num_elecs))
@@ -1240,4 +1240,4 @@ class NsxFile:
     def close(self):
         name = self.datafile.name
         self.datafile.close()
-        print('\n' + name.split('/')[-1] + ' closed')
+        print(('\n' + name.split('/')[-1] + ' closed'))

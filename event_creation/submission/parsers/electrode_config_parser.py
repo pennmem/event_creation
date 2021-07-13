@@ -105,17 +105,17 @@ class ElectrodeConfig(object):
     @property
     def contacts_csv(self):
         return '\n'.join([contact.as_csv() for contact in
-                          sorted(self.contacts.values(), key=lambda c: c.jack_num)])
+                          sorted(list(self.contacts.values()), key=lambda c: c.jack_num)])
 
     @property
     def sense_channels_csv(self):
         return '\n'.join([sense_channel.as_csv() for sense_channel in
-                          sorted(self.sense_channels.values(), key=lambda s: s.contact.jack_num)])
+                          sorted(list(self.sense_channels.values()), key=lambda s: s.contact.jack_num)])
 
     @property
     def stim_channels_csv(self):
         return '\n'.join([stim_channel.as_csv() for stim_channel in
-                          sorted(self.stim_channels.values(), key=lambda s: s.anodes[0])])
+                          sorted(list(self.stim_channels.values()), key=lambda s: s.anodes[0])])
 
     def as_csv(self):
         if not self.initialized:
@@ -159,10 +159,10 @@ class ElectrodeConfig(object):
             self.initialize(filename)
 
     def as_jacksheet(self):
-        return {channel.contact.jack_num:channel.contact.name for channel in self.sense_channels.values()}
+        return {channel.contact.jack_num:channel.contact.name for channel in list(self.sense_channels.values())}
 
     def get_contact_by_jack_num(self, jack_num):
-        for sense_channel in self.sense_channels.values():
+        for sense_channel in list(self.sense_channels.values()):
             if sense_channel.contact.jack_num == jack_num:
                 return sense_channel.contact
         return None
@@ -171,9 +171,9 @@ class ElectrodeConfig(object):
         contacts = OrderedDict()
         sense_channels = OrderedDict()
         stim_channels = OrderedDict()
-        for k, v in self.contacts.items(): contacts[k] = v.as_dict()
-        for k, v in self.sense_channels.items(): contacts[k] = v.as_dict()
-        for k, v in self.stim_channels.items(): contacts[k] = v.as_dict()
+        for k, v in list(self.contacts.items()): contacts[k] = v.as_dict()
+        for k, v in list(self.sense_channels.items()): contacts[k] = v.as_dict()
+        for k, v in list(self.stim_channels.items()): contacts[k] = v.as_dict()
         d = OrderedDict(
             config_version=self.config_version,
             config_name=self.config_name,
@@ -219,10 +219,10 @@ class ElectrodeConfig(object):
     def intitialize_from_dict(self, contacts_dict, config_name):
         self.config_version = '1.2'
         self.config_name = config_name
-        content = contacts_dict.values()[0]
+        content = list(contacts_dict.values())[0]
         self.subject_id = content['code']
         self.ref = 'REF:,0,common'
-        for contact_entry in content['contacts'].values():
+        for contact_entry in list(content['contacts'].values()):
             code = contact_entry['code']
             channel = contact_entry['channel']
             area = Contact.SURFACE_AREAS[contact_entry['type']]
@@ -333,10 +333,10 @@ def test_as_csv():
     csv_contents = open(csv_file).read()
     ec.initialize(csv_file)
     if not csv_contents == ec.as_csv():
-        print(''.join(difflib.ndiff(csv_contents.splitlines(True), ec.as_csv().splitlines(True))))
+        print((''.join(difflib.ndiff(csv_contents.splitlines(True), ec.as_csv().splitlines(True)))))
         #   assert False, "CSV not replicated!"
     else:
-        print "CSV successfully replicated"
+        print("CSV successfully replicated")
     return ec
 
 
