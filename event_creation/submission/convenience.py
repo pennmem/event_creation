@@ -299,7 +299,10 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     attempted_importers = []
     successes = [True]
     
-    force_events=kwargs['force_events']
+    if 'force_events' in kwargs:
+        force_events=kwargs['force_events']
+    if 'force_eeg' in kwargs:
+        force_eeg=kwargs['force_eeg']
 
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
