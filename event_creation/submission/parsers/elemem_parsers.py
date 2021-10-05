@@ -285,6 +285,7 @@ class ElememRepFRParser(BaseElememLogParser):
             new_event.msoffset = 20
             new_event.item_name = word
             new_event.item_num = int(recall[1])
+            new_event.phase = 'retrieval'
 
             # Create a new event for the recall
             evtype = 'REC_WORD_VV' if word == '<>' else 'REC_WORD'
