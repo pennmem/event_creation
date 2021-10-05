@@ -75,6 +75,7 @@ class BaseElememLogParser(BaseLogParser):
         event.type = event_json['type']
         event.list = self._trial
         event.session = self._session
+        event.phase = self._phase
         if self._include_stim_params:
             event.stim_list = self._stim_list
         return event
@@ -114,7 +115,7 @@ class ElememRepFRParser(BaseElememLogParser):
 
         super().__init__(protocol, subject, montage, experiment, session, files,
                         include_stim_params=self._include_stim_params)
-
+        self._phase = ''
         self._session = -999
         self._trial = 0
         self._serialpos = -999
@@ -176,6 +177,7 @@ class ElememRepFRParser(BaseElememLogParser):
             self._stim_list = evdata['data']['stim']
         self._trial = evdata['data']['trial']
         event = self.event_default(evdata)
+        self._phase = 'encoding'
         event.type = 'TRIAL_START'
         return event
 
@@ -226,6 +228,7 @@ class ElememRepFRParser(BaseElememLogParser):
 
 
     def event_rec_start(self, evdata):
+        self._phase = 'retrieval'
         event = self.event_default(evdata)
         event.type = "REC_START"
         event["list"] = self._trial
