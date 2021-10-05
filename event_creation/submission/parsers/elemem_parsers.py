@@ -21,6 +21,7 @@ class BaseElememLogParser(BaseLogParser):
 
         BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
                                allow_unparsed_events=True, include_stim_params=include_stim_params)
+        self._phase = ''
         self._files = files
         self._trial = -999
         self._stim_list = True # base is non-behavioral stim, so always "stim list"
@@ -115,7 +116,6 @@ class ElememRepFRParser(BaseElememLogParser):
 
         super().__init__(protocol, subject, montage, experiment, session, files,
                         include_stim_params=self._include_stim_params)
-        self._phase = ''
         self._session = -999
         self._trial = 0
         self._serialpos = -999
