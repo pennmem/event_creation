@@ -44,8 +44,8 @@ stim_fields = (
 )
 
 courier_fields = (
-    ('trial', -999, 'int16'), 
-    ('serialPos', -999, 'int16'), 
+    ('trial', -999, 'int16'),
+    ('serialpos', -999, 'int16'), 
     ('item', '-999', 'U64'), 
     ('store', '-999', 'U64'), 
     ('storeX', -999, 'float16'), 
@@ -60,6 +60,10 @@ courier_fields = (
     ('intrusion', -999, 'int16'), 
     ('correctPointingDirection', -999, 'float16'), 
     ('submittedPointingDirection', -999, 'float16')
+)
+
+nicls_fields = (        
+    ('classifier', 'X', 'U64'),
 )
 
 efr_fields = (

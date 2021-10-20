@@ -35,7 +35,7 @@ class LTPAligner:
         events: The events structure for the experimental session.
         """
         self.behav_files = eeg_log  # Get list of the behavioral computer's sync pulse logs
-        if not hasattr(self.behav_files, '__iter__'):
+        if not isinstance(self.behav_files, list):
             self.behav_files = [self.behav_files]
         self.eeg_dir = eeg_dir  # Path to current_processed ephys files
         # Get list of the ephys computer's EEG recordings, then get a list of their basenames, and create a Raw object
@@ -47,7 +47,8 @@ class LTPAligner:
             basename = os.path.basename(f)
             if f.endswith('.bdf'):
                 self.filetypes[basename] = 'biosemi'
-                self.eeg[basename] = mne.io.read_raw_edf(f, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', montage='biosemi128', preload=True)
+                self.eeg[basename] = mne.io.read_raw_bdf(f, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'], misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status', preload=True)
+                self.eeg[basename].set_montage('biosemi128')
             else:
                 self.filetypes[basename] = 'egi'
                 self.eeg[basename] = mne.io.read_raw_egi(f, preload=True)
@@ -82,7 +83,6 @@ class LTPAligner:
             return self.events
 
         logger.debug('Aligning...')
-
         # Get the behavioral sync data and create eeg.eeglog.up if necessary
         if len(self.behav_files) > 0:
             self.get_behav_sync()

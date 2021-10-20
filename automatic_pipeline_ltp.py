@@ -76,7 +76,7 @@ def automatic_event_creator(check_index=True):
                     print('Session to run: ', exp, subject, session)
 
     # Submit a job to the cluster for each session that needs to be processed
-    n_jobs = min(len(inputs), 15)
+    n_jobs = min(len(inputs), 30)
     #for inp in inputs:
     #    run_session_import(inp)
     if n_jobs > 0:
@@ -86,7 +86,7 @@ def automatic_event_creator(check_index=True):
 
 if __name__=='__main__':
     try:
-        automatic_event_creator(check_index=True)
+        automatic_event_creator(check_index=False)
     except:
         pass
     IndexAggregatorTask().run(protocols='ltp')

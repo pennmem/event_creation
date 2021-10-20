@@ -50,16 +50,18 @@ class ArtifactDetector:
                     logger.warn('Unidentifiable EEG system detected in file %s' % self.eegfile)
                     continue
 
-                # Pick only the EOG channels
+                # Pick only the EOG channels - need to be labeled as EEG
+                # channels to be rereferenced.
                 eog = self.eeg[self.eegfile].copy()
-                eog.pick_channels(self.left_eog + self.right_eog)
+                eog.pick_channels(self.left_eog + self.right_eog).set_channel_types(
+                        {c:'eeg' for c in self.left_eog+self.right_eog})
 
                 # Set bipolar reference for EOG channels. Note that the resulting channels will be anode - cathode
                 eog = mne.set_bipolar_reference(eog, anode=[self.left_eog[0], self.right_eog[0]],
                                                 cathode=[self.left_eog[1], self.right_eog[1]])
 
                 # Apply a 1-10 Hz bandpass filter on the EOG data to reduce irrelevant noise
-                eog.filter(1, 10, picks=mne.pick_types(eog.info, eog=True), filter_length='10s', phase='zero-double',
+                eog.filter(1, 10, filter_length='10s', phase='zero-double',
                            fir_window='hann', fir_design='firwin2')
 
                 # Record the indices of the bipolar EOG channels, as positioned in the mne object
@@ -107,7 +109,8 @@ class ArtifactDetector:
             'prelim': {'WORD': (0., 1.6)},
             'RepFR': {'WORD': (0., 1.6)},
             'ltpRepFR': {'WORD': (0., 1.6)},
-            'NiclsCourierReadOnly': {'WORD': (0, 1.6)}
+            'NiclsCourierReadOnly': {'WORD': (0, 1.6)},
+            'NiclsCourierClosedLoop': {'WORD': (0, 1.6)}
         }
 
         ev_types = SETTINGS[self.experiment]

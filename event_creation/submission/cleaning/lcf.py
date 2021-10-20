@@ -237,7 +237,8 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         try:
             with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
                 view.map(run_split_lcf, inputs)
-        except Exception:
+        except Exception as e:
+            print(e)
             logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
                         ' continue anyway...')
 
@@ -281,8 +282,8 @@ def run_split_lcf(inputs):
         use, the "iqr_thresh" IQR threshold to use for LCF, and the "lcf_winsize" to be used for LCF.
     :return: An MNE raw object containing the cleaned version of the data.
     """
-    import mkl
-    mkl.set_num_threads(1)
+    #import mkl
+    #mkl.set_num_threads(1)
     import os
     import mne
     import numpy as np
@@ -518,7 +519,7 @@ def run_split_lcf(inputs):
 
     # Run ICA for the current partition of the session. Note that ICA automatically excludes bad channels.
     logger.debug('Running ICA (part %i) on %s' % (index, basename))
-    ica = mne.preprocessing.ICA(method=method, max_pca_components=n_components)
+    ica = mne.preprocessing.ICA(method=method, n_components=n_components)
     ica.fit(eeg, reject_by_annotation=True)
 
     ######

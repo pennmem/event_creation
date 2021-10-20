@@ -947,16 +947,21 @@ class ScalpReader(EEG_reader):
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
-                self.data = mne.io.read_raw_edf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
+                self.data = mne.io.read_raw_bdf(self.raw_filename, eog=['EXG1', 'EXG2', 'EXG3', 'EXG4'],
                                                 misc=['EXG5', 'EXG6', 'EXG7', 'EXG8'], stim_channel='Status',
-                                                montage='biosemi128', preload=True)
+                                                preload=True)
+                self.data = self.data.set_montage('biosemi128')
 
             # Return error if unsupported filetype, though this should never happen
             else:
                 logger.critical('Unsupported EEG file type for file %s!' % self.raw_filename)
 
             # Pull relevant header info; Measurement date may be either an integer or a length-2 array
-            if isinstance(self.data.info['meas_date'], int):
+            if isinstance(self.data.info['meas_date'], datetime.datetime):
+                # epoch is timezone naive (.utcfromtimestamp() function) so
+                # replace timezone info
+                self.start_datetime = self.data.info['meas_date'].replace(tzinfo=None)
+            elif isinstance(self.data.info['meas_date'], int):
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'])
             else:
                 self.start_datetime = datetime.datetime.fromtimestamp(self.data.info['meas_date'][0])

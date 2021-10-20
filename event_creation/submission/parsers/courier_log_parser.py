@@ -10,6 +10,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         self._trial = 0
         self.subject = subject
 
+        self.phase = ''
         self.practice = False
         self.current_num = -999
 
@@ -33,7 +34,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         self._add_type_to_new_event(
          versions=self.add_experiment_version,
-         instruction_message_cleared=self.event_sess_start,
+         #instruction_message_cleared=self.event_sess_start,
          familiarization_store_displayed=self.add_familiarization_store_displayed,
          proceed_to_next_day_prompt=self.add_proceed_to_next_day,
          store_mappings=self.add_store_mappings,
@@ -78,7 +79,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.session = self._session
         event.presX = self.presX
         event.presZ = self.presZ
-
+        event.phase = 'practice' if self.practice else self.phase 
         return event
 
 
@@ -87,6 +88,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         new_event = self._empty_event
         new_event.trial = self._trial
         new_event.session = self._session
+        new_event.phase = 'practice' if self.practice else self.phase 
         new_event.presX = self.presX
         new_event.presZ = self.presZ
         # new_event.rectime = int(round(float(recall[0])))
@@ -102,7 +104,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def _identify_intrusion(self, events, new_event):
         words = events[events['type'] == 'WORD']
         word_event = words[(words['item'] == new_event["item"])]
-
+        
         if len(word_event) > 1:
             raise Exception("Repeat items not supported or expected. Please check your data.")
 
@@ -173,8 +175,9 @@ class CourierSessionLogParser(BaseUnityLogParser):
         return False
 
     def add_object_presentation_begins(self, evdata):
+        self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
-        event.type = "WORD"
+        event.type = "WORD" if not self.practice else "PRACTICE_WORD"
         event.serialpos = evdata['data']["serial position"]
 
         event.store = '_'.join(evdata['data']['store name'].split(' '))
@@ -230,8 +233,11 @@ class CourierSessionLogParser(BaseUnityLogParser):
         try:
             event.mappings = {"from {k}".format(k=k): {"to store": evdata['data'][k], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
         except:
-            event.mappings = {"from {k}".format(k=k): {"to store": evdata['data']['_'.join(k.split())], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
-
+            try:
+                event.mappings = {"from {k}".format(k=k): {"to store": evdata['data']['_'.join(k.split())], "storeX": evdata['data']["{} position X".format(k)] , "storeZ": evdata['data']["{} position Z".format(k)] } for k in self.STORES}
+            except:
+                print("mappings is null")
+                event.mappings = {}
 
         return event 
 
@@ -306,12 +312,15 @@ class CourierSessionLogParser(BaseUnityLogParser):
     ####################
 
     def modify_rec_start(self, events):
-
+            
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
 
-        ann_outputs = self._parse_ann_file(str(self._trial))
-
+        if self.practice:
+            # Practice parsing not implemented for Courier / NICLS
+            return events
+        else:
+            ann_outputs = self._parse_ann_file(str(self._trial))
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)
 
