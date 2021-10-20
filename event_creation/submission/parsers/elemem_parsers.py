@@ -21,6 +21,7 @@ class BaseElememLogParser(BaseLogParser):
 
         BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files, primary_log=primary_log,
                                allow_unparsed_events=True, include_stim_params=include_stim_params)
+        self._phase = ''
         self._files = files
         self._trial = -999
         self._stim_list = True # base is non-behavioral stim, so always "stim list"
@@ -75,6 +76,7 @@ class BaseElememLogParser(BaseLogParser):
         event.type = event_json['type']
         event.list = self._trial
         event.session = self._session
+        event.phase = self._phase
         if self._include_stim_params:
             event.stim_list = self._stim_list
         return event
@@ -114,7 +116,6 @@ class ElememRepFRParser(BaseElememLogParser):
 
         super().__init__(protocol, subject, montage, experiment, session, files,
                         include_stim_params=self._include_stim_params)
-
         self._session = -999
         self._trial = 0
         self._serialpos = -999
@@ -176,6 +177,7 @@ class ElememRepFRParser(BaseElememLogParser):
             self._stim_list = evdata['data']['stim']
         self._trial = evdata['data']['trial']
         event = self.event_default(evdata)
+        self._phase = 'encoding'
         event.type = 'TRIAL_START'
         return event
 
@@ -226,6 +228,7 @@ class ElememRepFRParser(BaseElememLogParser):
 
 
     def event_rec_start(self, evdata):
+        self._phase = 'retrieval'
         event = self.event_default(evdata)
         event.type = "REC_START"
         event["list"] = self._trial
@@ -282,6 +285,7 @@ class ElememRepFRParser(BaseElememLogParser):
             new_event.msoffset = 20
             new_event.item_name = word
             new_event.item_num = int(recall[1])
+            new_event.phase = 'retrieval'
 
             # Create a new event for the recall
             evtype = 'REC_WORD_VV' if word == '<>' else 'REC_WORD'
