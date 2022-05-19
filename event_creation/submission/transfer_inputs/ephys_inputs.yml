@@ -165,8 +165,15 @@ files:
         << : *FILE
         origin_directory: ''
         origin_file:
-        - 'R1*.csv'
+        - 'R1*_mono_*.csv'
         destination: electrode_config.csv
+      - name: bipolar_electrode_config
+        << : *FILE
+        required: false
+        origin_directory: ''
+        origin_file:
+        - 'R1*_bi_*.csv'
+        destination: bipolar_electrode_config.csv
 
   - name: elec_file
     <<: *FILE
