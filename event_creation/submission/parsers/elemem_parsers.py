@@ -34,7 +34,10 @@ class BaseElememLogParser(BaseLogParser):
         )
 
     def _get_raw_event_type(self, event_json):
-        return event_json['type'].lower()
+        try:
+            return event_json['type'].lower()
+        except:
+            import pdb; pdb.set_trace()
 
     def parse(self):
         try:
@@ -98,12 +101,92 @@ class BaseElememLogParser(BaseLogParser):
         event.stim_params.stim_duration = evdata["data"]["duration"]
         event.stim_params.anode_number = evdata["data"]["electrode_neg"]
         event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
-        event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
-        event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
+        try:
+            event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
+            event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
+        except KeyError:
+            # Riley changed on 7/9/2022. Elemem Jacksheet contacts were read as strings rather than ints
+            try:
+                event.stim_params.anode_label = self._jacksheet[str(evdata["data"]["electrode_neg"])]
+                event.stim_params.cathode_label = self._jacksheet[str(evdata["data"]["electrode_pos"])]
+            except:
+                raise ValueError
         event.stim_params.burst_freq = evdata["data"]["frequency"]
         event.stim_params._remove = False
         return event
 
+    
+class ElememCPSParser(BaseElememLogParser):
+    _PS_STATE_FIELDS = dtypes.ps_state_fields
+    
+    @classmethod
+    def empty_ps_state_params(cls):
+        """
+        :return: A record array of just the stimulation paramers
+        """
+        return cls.event_from_template(cls._PS_STATE_FIELDS)
+
+    @classmethod
+    def ps_state_params_template(cls):
+        return 'ps_state_params', cls.empty_ps_state_params(), cls.dtype_from_template(cls._PS_STATE_FIELDS)
+
+    def __init__(self, protocol, subject, montage, experiment, session, files, primary_log='event_log'):
+        self._include_stim_params = True
+        super().__init__(protocol, subject, montage, experiment, session, files, primary_log='event_log',
+                        include_stim_params=self._include_stim_params)
+        
+#         self._session = -999
+        self._fields += (self.ps_state_params_template(),)
+
+#         self._add_fields(*dtypes.cps_fields)
+        self._add_type_to_new_event(
+#             best_stim=self.event_best_stim,
+            classify_stim=self.event_classify_stim,
+            classify_sham=self.event_classify_sham,
+            classify_nostim=self.event_classify_nostim,
+            normalize=self.event_normalize,
+            update=self.event_update,
+            ps_metadata=self._event_skip,
+            exit=self.event_sess_end,
+        )
+
+    def event_normalize(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'NORMALIZE'
+        return event
+
+    def event_classify_stim(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'CLASSIFY_STIM'
+        return event
+
+    def event_classify_sham(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'CLASSIFY_SHAM'
+        return event
+
+    def event_classify_nostim(self, event_json):
+        event = self.event_default(event_json)
+        event.type = 'CLASSIFY_NOSTIM'
+        return event
+
+    def event_update(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'UPDATE'
+        event.ps_state_params.acquisition__y_best = evdata["data"]["acquisition__y_best"]
+        event.ps_state_params.num_samples = evdata["data"]["num_samples"]
+        event.ps_state_params.kernel__matern32_0__lengthScale = evdata["data"]["kernel__matern32_0__lengthScale"]
+        event.ps_state_params.kernel__matern32_0__variance = evdata["data"]["kernel__matern32_0__variance"]
+        event.ps_state_params.kernel__white_1__variance = evdata["data"]["kernel__white_1__variance"]
+        event.ps_state_params._remove = False
+        return event
+
+    def event_sess_end(self, evdata):
+#         self._session = evdata['data']['session']
+        event = self.event_default(evdata)
+        event.type = 'EXIT'
+        return event
+    
 
 class ElememRepFRParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):

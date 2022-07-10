@@ -32,6 +32,7 @@ GROUPS = {
     'CatFR': ('verbal', 'stim'),
     'PS': ('stim',),
     'OPS': ('stim',),
+    'CPS': ('stim',),
     'RepFR': ('verbal', ),
     'ltpRepFR': ('verbal', 'unity'), 
     'DBOY': ('verbal', 'courier'),

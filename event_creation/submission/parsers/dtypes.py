@@ -315,3 +315,22 @@ thr_fields =(
     ('stim_list', False, 'b1'),
     ('is_stim', False, 'b1'),
 )
+
+cps_fields =(
+    ('result', -1.0, 'float64'),
+    ('decision', False, 'b1'),
+#     ('ps_state_list', False, 'b1'), 
+)
+
+ps_state_fields = (
+        ('acquisition__y_best', -1.0, 'float64'),
+        ('num_samples', -1, 'int16'),
+        ('kernel__matern32_0__lengthScale', -1.0, 'float64'),
+        ('kernel__matern32_0__variance', -1.0, 'float64'),
+        ('kernel__white_1__variance', -1.0, 'float64'),
+        ('host_time', -999, 'float64'),
+        ('id', '', 'U64'),
+        ('position', '', 'U64'),
+        ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
+                                 # to JSON
+)

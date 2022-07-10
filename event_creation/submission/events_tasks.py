@@ -247,6 +247,7 @@ class EventCreationTask(PipelineTask):
                 'RepFR': ElememRepFRParser, 
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
+                'CPS': CPSElememLogParser,
             }
         else:
             raise KeyError
