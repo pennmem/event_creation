@@ -28,7 +28,10 @@ def build_inputs(experiment, subject, session):
     )
     return inputs
 # System 4 test
-subjects = [('R1556J_1', 'RepFR1', 0),]
+subjects = [
+    # ('R1556J_1', 'RepFR1', 0),
+    ('R1627T', 'catFR1', 0),
+]
 
 
 #subjects = [('R1505J', 'RepFR1', 0), 

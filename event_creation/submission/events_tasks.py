@@ -44,7 +44,8 @@ from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
-from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRParser
+from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
+        ElememCatFRLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -244,9 +245,11 @@ class EventCreationTask(PipelineTask):
 
         elif sys_num == 4.0:
             return {
-                'RepFR': ElememRepFRParser, 
+                'RepFR': ElememRepFRLogParser, 
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
+                'FR': ElememFRLogParser,
+                'catFR': ElememCatFRLogParser
             }
         else:
             raise KeyError
