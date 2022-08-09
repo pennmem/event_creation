@@ -86,7 +86,7 @@ def automatic_event_creator(check_index=True):
 
 if __name__=='__main__':
     try:
-        automatic_event_creator(check_index=False)
+        automatic_event_creator(check_index=True)
     except:
         pass
     IndexAggregatorTask().run(protocols='ltp')

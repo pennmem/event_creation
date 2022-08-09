@@ -44,7 +44,8 @@ from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
-from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRParser
+from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
+        ElememCatFRLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -244,9 +245,11 @@ class EventCreationTask(PipelineTask):
 
         elif sys_num == 4.0:
             return {
-                'RepFR': ElememRepFRParser, 
+                'RepFR': ElememRepFRLogParser, 
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
+                'FR': ElememFRLogParser,
+                'catFR': ElememCatFRLogParser
             }
         else:
             raise KeyError
@@ -327,8 +330,7 @@ class EventCreationTask(PipelineTask):
             del aligner
             events = artifact_detector.run()
             # Create a cleaned version of the EEG data using localized component filtering
-            # TODO: Fix lcf cleaning
-            # run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
+            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
             del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
