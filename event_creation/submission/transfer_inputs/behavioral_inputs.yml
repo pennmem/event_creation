@@ -550,3 +550,40 @@ files:
     origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt
     destination: experiment_files/wordpool.txt
+
+## EFRCourier
+
+  - name: elemem_files
+  << : *DIR
+  groups: [ verbal, unity, courier ]
+  multiple: true
+  origin_directory: *SYS4_HOST_DIR
+  origin_file: '{subject}*'
+  destination: 'elemem/'
+  files:
+    - name: event_log
+      << : *FILE
+      origin_directory: ''
+      origin_file: 'event.log'
+      destination: event.log
+
+    - name: experiment_config
+      << : *FILE
+      origin_directory: ''
+      origin_file: 'experiment_config.json'
+      destination: experiment_config.json
+
+  - name: annotations
+    << : *FILE
+    groups: [ verbal, unity, courier ]
+    multiple: true
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '*.ann'
+    destination: 'annotations/'
+
+  - name: wordpool
+    << : *FILE
+    groups : [ verbal, unity, courier ]
+    origin_directory: *BEH_EXPERIMENT_DIR
+    origin_file: all_items.txt
+    destination: experiment_files/wordpool.txt
