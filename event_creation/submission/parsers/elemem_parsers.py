@@ -1,8 +1,11 @@
 from .base_log_parser import BaseLogParser
+from .fr_log_parser import FRSessionLogParser
+from .catfr_log_parser import CatFRSessionLogParser
 import numpy as np
 import pandas as pd
 from . import dtypes
 import json
+import traceback
 
 class BaseElememLogParser(BaseLogParser):
     """
@@ -514,7 +517,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
         return events
 
 
-class ElememRepFRParser(BaseElememLogParser):
+class ElememRepFRLogParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         if experiment=='RepFR2':
             self._include_stim_params = True
@@ -540,9 +543,6 @@ class ElememRepFRParser(BaseElememLogParser):
         else:
             raise Exception("wordpool not found in transferred files")
 
-        if protocol=='ltp':
-            self._add_fields(*dtypes.ltp_fields)
-            self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
         self._add_fields(*dtypes.repFR_fields)
         self._add_type_to_new_event(
             session=self.event_sess_start,
@@ -628,13 +628,11 @@ class ElememRepFRParser(BaseElememLogParser):
         event.serialpos = self._serialpos
         event["list"] = self._trial
 
-
         # increment serial position after word is processed 
         # to order words correctly
         self._serialpos += 1
 
         return event
-
 
     def event_rec_start(self, evdata):
         self._phase = 'retrieval'
@@ -648,7 +646,6 @@ class ElememRepFRParser(BaseElememLogParser):
         event = self.event_default(evdata)
         event.type = "REC_END"
         event["list"] = self._trial
-
 
         # increment list index at end of each list
         self._trial += 1
@@ -747,7 +744,201 @@ class ElememRepFRParser(BaseElememLogParser):
 
         return events
 
+    # @staticmethod
+    # def find_presentation(item_num, events):
+    #     events = events.view(np.recarray)
+    #     return np.logical_and(events.item_num == item_num, events.type == 'WORD')
+
+
+
+class ElememFRLogParser(BaseElememLogParser):
+    _ITEM_FIELD = 'word'
+    _SERIAL_POS_FIELD = 'serialPos'
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        if int(experiment[-1])>1:
+            self._include_stim_params = True
+        else:
+            self._include_stim_params = False
+
+        super().__init__(protocol, subject, montage, experiment, session, files,
+                        include_stim_params=self._include_stim_params)
+        self._session = session
+        self._trial = 0
+        self._serialpos = -999
+        self.current_num = -999
+        if self._include_stim_params:
+            self._stim_list = False
+
+        if("wordpool" in list(files.keys())):
+            with open(files["wordpool"]) as f:
+                self.wordpool = [line.rstrip() for line in f]
+        else:
+            raise Exception("wordpool not found in transferred files")
+
+        self._add_fields(*dtypes.fr_fields)
+        self._add_type_to_new_event(
+            start=self.event_sess_start,
+            trial=self.event_trial_start,
+            countdown=self.event_countdown,  # Pre-trial countdown video
+            orient=self._event_skip, # skip orientation events
+            encoding=self.event_encoding_start,
+            recall=self.event_rec_start,  # Start of vocalization period
+            # trialend=self.event_rec_stop, # End of vocalization period
+            word=self.event_word_on,  # Start of word presentation
+            stimming=self.event_stimulation,
+            exit=self.event_sess_end,
+        )
+        
+        self._add_type_to_modify_events(
+            recall=self.modify_recalls,
+        )
+    def event_sess_start(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_START'
+        return event
+    
+    def event_sess_end(self, evdata):
+        # FIXME: no session # attribute in embedded data
+        # like there is for session start above 
+        event = self.event_default(evdata)
+        event.type = 'SESS_END'
+        return event
+
+    def event_encoding_start(self, event_json):
+        event = self.event_default(event_json)
+        # self._phase = 'encoding'
+        event.type = 'ENCODING_START'
+        return  event
+    def event_rec_start(self, event_json):
+        event = self.event_default(event_json)
+        # self._phase = 'encoding'
+        event.type = 'REC_START'
+        return  event
+    
+    def event_distract_start(self, event_json):
+        event = self.event_default(event_json)
+        # self._phase = 'distract'
+        event.type = 'DISTRACT_START'
+        return  event
+
+    def event_trial_start(self, event_json):
+        trial = event_json['data']['trial']
+        if trial == 0:
+            self._trial = -1
+        else:
+            self._trial= trial
+        if self._include_stim_params:
+            self._stim_list = event_json['data']['stim']
+        event = self.event_default(event_json)
+        return event
+    
+    def event_countdown(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'COUNTDOWN'
+        
+        # reset serial position of presentation at start of list
+        self._serialpos = 0
+
+        return event
+
+    def event_word_on(self, event_json):
+        event = self.event_default(event_json)
+        event.serialpos = event_json['data'][self._SERIAL_POS_FIELD] + 1
+        event.item_name = event_json['data'][self._ITEM_FIELD]
+        event.item_num = self.wordpool.index(str(event.item_name)) + 1
+        return event
+
+    def modify_recalls(self, events):
+        rec_start_event = events[-1]
+        rec_start_time = rec_start_event.mstime
+        ann_outputs = self._parse_ann_file(str(self._trial) if self._trial > 0 else '0')
+        for recall in ann_outputs:
+            word = recall[-1]
+
+            new_event = self._empty_event
+            new_event.list = self._trial
+            new_event.stim_list = self._stim_list
+            # new_event.exp_version = self._version
+            new_event.rectime = float(recall[0])
+            new_event.mstime = rec_start_time + new_event.rectime
+            new_event.msoffset = 20
+            new_event.item_name = word
+            new_event.item_num = recall[1]
+            new_event.phase = self._phase
+
+            # If vocalization
+            if word == '<>' or word == 'V' or word == '!':
+                new_event.type = 'REC_WORD_VV'
+            else:
+                new_event.type = 'REC_WORD'
+
+            pres_mask = self.find_presentation(new_event.item_num, events)
+            pres_list = np.unique(events[pres_mask].list)
+            pres_mask = np.logical_and(pres_mask, events.list == self._trial)
+
+            # Correct recall or PLI
+            if len(pres_list) >= 1:
+                new_event.intrusion = self._trial - max(pres_list)
+                if new_event.intrusion == 0:
+                    new_event.serialpos = np.unique(events[pres_mask].serialpos)
+                    new_event.recalled = True
+                    if not any(events.recalled[pres_mask]):
+                        events.recalled[pres_mask] = True
+                        events.rectime[pres_mask] = new_event.rectime
+            else:  # XLI
+                new_event.intrusion = -1
+
+            events = np.append(events, new_event).view(np.recarray)
+
+        return events
+
     @staticmethod
     def find_presentation(item_num, events):
         events = events.view(np.recarray)
         return np.logical_and(events.item_num == item_num, events.type == 'WORD')
+
+class ElememCatFRLogParser(ElememFRLogParser):
+
+    _CATEGORY = 'category'
+    _CATEGORY_NUM = 'category_num'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._add_fields(*dtypes.category_fields)
+
+    def event_word_on(self, event_json):
+        event = super().event_word_on(event_json)
+        event.category = event_json['data'][self._CATEGORY]
+        try:
+            event.category_num = event_json['data'][self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
+        except KeyError:
+            pass
+        return event
+
+    def event_word_off(self, event_json):
+        event = super().event_word_off(event_json)
+        event.category = event_json['data'][self._CATEGORY]
+        try:
+            event.category_num = event_json['data'][self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
+        except KeyError:
+            pass
+        return event
+
+    def clean_events(self, events):
+        """
+        Final processing of events
+        Here we add categories and category numbers to all the non-ELI recalls
+        In theory this could be added to modify_recalls, but we might as well wait until we've finished
+        and then do it all at once.
+        :param events:
+        :return:
+        """
+        events = super().clean_events(events) #.view(np.recarray)
+        is_recall = (events.type=='REC_WORD') & (events.intrusion != -1)
+        rec_events = events[is_recall]
+        categories = [events[(events.type=='WORD') & (events.item_name==r.item_name)].category[0] for r in rec_events]
+        category_nums = [events[(events.type=='WORD') & (events.item_name == r.item_name)].category_num[0] for r in rec_events]
+        rec_events['category']=categories
+        rec_events['category_num']=category_nums
+        events[is_recall] = rec_events
+        return events

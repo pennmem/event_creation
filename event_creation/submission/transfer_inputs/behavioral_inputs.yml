@@ -100,7 +100,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ transfer, verbal, '!system_3_3',  '!freiburg']
+    groups: [ transfer, verbal, '!system_3_3',  '!freiburg', '!system_4']
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.log'
@@ -108,7 +108,7 @@ files:
 
   - name: math_log
     << : *FILE
-    groups: [ r1, transfer, verbal, '!system_3_3',  '!freiburg']
+    groups: [ r1, transfer, verbal, '!system_3_3',  '!freiburg', '!system_4']
     required: false
     origin_directory: *BEH_SESS_DIR
     origin_file: math.log
@@ -361,7 +361,7 @@ files:
 
   - name: elemem_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1','!system_2', '!system_3*', '!freiburg']
+    groups: [ r1, transfer, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg']
     multiple: true
     origin_directory: *SYS4_HOST_DIR
     origin_file: '{subject}*'

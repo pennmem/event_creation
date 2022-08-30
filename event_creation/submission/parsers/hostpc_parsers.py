@@ -158,7 +158,7 @@ class BaseHostPCLogParser(BaseSessionLogParser):
 
 class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
 
-    _VALUE_FIELD = 'event_value'
+    _VALUE_FIELD = 'value'
 
     def __init__(self,protocol,subject,montage,experiment,session,files):
         FRSys3LogParser.__init__(self,protocol,subject,montage,experiment,session,files,primary_log='event_log')
