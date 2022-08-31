@@ -53,7 +53,7 @@ class LTPAligner:
                 self.filetypes[basename] = 'egi'
                 self.eeg[basename] = mne.io.read_raw_egi(f, preload=True)
                 self.eeg[basename].rename_channels({'E129': 'Cz'})
-                self.eeg[basename].set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
+                self.eeg[basename].set_montage('GSN-HydroCel-129')
                 self.eeg[basename].set_channel_types({'E8': 'eog', 'E25': 'eog', 'E126': 'eog', 'E127': 'eog', 'Cz': 'misc'})
 
         self.num_samples = None
