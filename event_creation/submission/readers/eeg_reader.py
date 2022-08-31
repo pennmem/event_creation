@@ -943,7 +943,7 @@ class ScalpReader(EEG_reader):
                 self.data = mne.io.read_raw_egi(self.raw_filename, preload=True)
                 # Correct the name of channel 129 to Cz, or else the montage will fail to load
                 self.data.rename_channels({'E129': 'Cz'})
-                self.data.set_montage(mne.channels.read_montage('GSN-HydroCel-129'))
+                self.data.set_montage('GSN-HydroCel-129')
 
             # Read a BioSemi recording
             elif self.filetype == '.bdf':
