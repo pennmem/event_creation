@@ -110,9 +110,9 @@ class BaseElememLogParser(BaseLogParser):
 # LC: EFRCourier Parser
 class ElememEFRCourierParser(BaseElememLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
-        if experiemnt=='EFRCourierReadOnly':
+        if 'EFRCourierReadOnly' in experiment:
             self._include_stim_params = False
-        elif experiment=='EFRCourierOpenLoop':
+        elif 'EFRCourierOpenLoop' in experiment:
             self._include_stim_params = True
         else:
             raise Exception(f"Necessity of stim fields unknown for experiment {experiment}")

@@ -1,3 +1,6 @@
 [submodule "neurorad"]
 	path = event_creation/neurorad
 	url = https://github.com/pennmem/neurorad_pipeline.git
+[submodule "neurorad_pipeline"]
+	path = neurorad_pipeline
+	url = https://github.com/pennmem/neurorad_pipeline.git
