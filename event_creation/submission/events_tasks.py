@@ -349,6 +349,7 @@ class EventCreationTask(PipelineTask):
                 elif self.r1_sys_num == 4.0:
                     ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
                                             'ephys', 'current_source', 'elemem', f'{self.subject}*')
+                    logger.debug("FILES: {}".format(files))
                     aligner = System4Offset(unaligned_events, files, ephys_dir)
                     events = aligner.align()
                 else:
@@ -502,6 +503,7 @@ class MontageLinkerTask(PipelineTask):
                                                 subject=self.subject,
                                                 localization=self.localization,
                                                 montage=self.montage_num)
+
         self.pipeline.register_info('localization', self.localization)
         self.pipeline.register_info('montage', self.montage_num)
         for name, file in list(self.FILES.items()):

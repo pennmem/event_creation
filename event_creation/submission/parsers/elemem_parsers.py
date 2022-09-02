@@ -6,6 +6,7 @@ import pandas as pd
 from . import dtypes
 import json
 import traceback
+import six
 
 class BaseElememLogParser(BaseLogParser):
     """
@@ -119,8 +120,9 @@ class ElememEFRCourierParser(BaseElememLogParser):
 
         super().__init__(protocol, subject, montage, experiment, session, files, include_stim_params=self._include_stim_params)
         self._session = -999
-        self._trial = 0
+        self._trial = -999
         self._serialpos = -999
+        self._stimtag = ""
         self.practice = True
         self.current_num = -999
 
@@ -136,7 +138,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
         else:
             raise Exception("wordpool not found in transferred files")
 
-
+        self.subject = subject
         self.phase= ''
         self.practice = False
         self.storeX = -999
@@ -149,39 +151,59 @@ class ElememEFRCourierParser(BaseElememLogParser):
         self._add_fields(*dtypes.courier_fields)
         self._add_fields(*dtypes.efr_fields)
 
-        self.add_type_to_new_event(
-            VERSIONS=self.add_experiment_version,
-            STORE_MAPPINGS=self.add_store_mappings,
+        self._add_type_to_new_event(
+            stimselect=self.event_stimtag,
+ 
+            versions=self.add_experiment_version,
+            store_mappings=self.add_store_mappings,
             PLAYERTRANSFORM=self.add_player_transform,
-            POINTING_BEGINS=self.add_pointing_begins,
-            POINTING_FINISHED=self.add_pointing_finished,
-            START_TOWN_LEARNING=self.event_town_learning_start,
-            STOP_TOWN_LEARNING=self.event_town_learning_end,
-            START_PRACTICE_DELIVERIES=self.event_practice_start,
-            STOP_PRACTICE_DELIVERIES=self.event_practice_end,
-            KEYPRESS=self.event_efr_mark,
-            CONTINUOUS_POINTER=self.event_pointer_on,
-            START_DELIVERIES=self.event_trial_start,
-            STOP_DELIVERIES=self.event_trial_end,
-            OBJECT_PRESENTATION_BEGINS=self.add_object_presentation_begins,
+            pointing_begins=self.add_pointing_begins,
+            pointing_finished=self.add_pointing_finished,
+            start_town_learning=self.event_town_learning_start,
+            stop_town_learning=self.event_town_learning_end,
+            start_practice_deliveries=self.event_practice_start,
+            stop_practice_deliveries=self.event_practice_end,
+            keypress=self.event_efr_mark,
+            continuous_pointer=self.event_pointer_on,
+            start_deliveries=self.event_trial_start,
+            stop_deliveries=self.event_trial_end,
+            object_presentation_begins=self.add_object_presentation_begins,
 
-            OBJECT_RECALL_RECORDING_START=self.add_object_recall_recording_start,
-            OBJECT_RECALL_RECORDING_STOP=self.add_object_recall_recording_stop,
-            CUED_RECALL_RECORDING_START=self.add_cued_recall_recording_start,
-            CUED_RECALL_RECORDING_STOP=self.add_cued_recall_recording_end,
-            FINAL_STORE_RECALL_RECORDING_START=self.add_final_store_recall_recording_start,
-            FINAL_STORE_RECALL_RECORDING_STOP=self.add_final_store_recall_recording_stop,
-            FINAL_OBJECT_RECALL_RECORDING_START=self.add_final_object_recall_recording_start,
-            FINAL_OBJECT_RECALL_RECORDING_STOP=self.add_final_object_recall_recording_stop,
-            END_TEXT=self.event_sess_end 
+            object_recall_recording_start=self.add_object_recall_recording_start,
+            object_recall_recording_stop=self.add_object_recall_recording_stop,
+            cued_recall_recording_start=self.add_cued_recall_recording_start,
+            cued_recall_recording_stop=self.add_cued_recall_recording_stop,
+            final_store_recall_recording_start=self.add_final_store_recall_recording_start,
+            final_store_recall_recording_stop=self.add_final_store_recall_recording_stop,
+            final_object_recall_recording_start=self.add_final_object_recall_recording_start,
+            final_object_recall_recording_stop=self.add_final_object_recall_recording_stop,
+            end_text=self.event_sess_end 
             )
 	
         self._add_type_to_modify_events(
-            FINAL_OBJECT_RECALL_RECORDING_START=self.modify_free_recall,
-            CUED_RECALL_RECORDING_START=self.modify_cued_rec,
-            FINAL_STORE_RECALL_RECORDING_START=self.modify_store_recall,
-            OBJECT_RECALL_RECORDING_START=self.modify_rec_start,
+            final_object_recall_recording_start=self.modify_free_recall,
+            cued_recall_recording_start=self.modify_cued_rec,
+            final_store_recall_recording_start=self.modify_store_recall,
+            object_recall_recording_start=self.modify_rec_start,
+            stimming=self.modify_event_stimulation,
             )
+
+    def _new_rec_event(self, recall, evdata):
+        word = recall[-1].strip().rstrip(".1") # some annotations have a .1 at the end?
+        new_event = self._empty_event
+        new_event.trial = self._trial
+        new_event.session = self._session
+        new_event.phase = 'practice' if self.practice else self.phase 
+        new_event.presX = self.presX
+        new_event.presZ = self.presZ
+        # new_event.rectime = int(round(float(recall[0])))
+        new_event.rectime = int(float(recall[0])) # old code did not round
+        new_event.mstime = evdata.mstime + new_event.rectime
+        new_event.msoffset = 20
+        new_event["item"] = word.upper()
+        new_event.itemno = int(recall[1])
+
+        return new_event
 
     def _identify_intrusion(self, events, new_event):
         words = events[events['type'] == 'WORD']
@@ -214,6 +236,11 @@ class ElememEFRCourierParser(BaseElememLogParser):
     ####################
     # Functions to add new events from a single line in the log
     ####################
+
+    # keep track of stimtag information for later
+    def event_stimtag(self, evdata):
+        self._stimtag = evdata["data"]["stimtag"]
+        return False
 
     def add_experiment_version(self, evdata):
         # version numbers are either v4.x or v4.x.x depending on the era,
@@ -281,7 +308,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
 
     def event_practice_start(self, evdata):
         self.practice = True
-        self.trial = 0
+        self._trial = 0
         event = self.event_default(evdata)
         event.type = 'PRACTICE_DELIVERY_START'
         return event
@@ -308,6 +335,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
         self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = 'TRIAL_START'
+        event.trial = evdata['data']['trial number']
         return event
     
     def event_trial_end(self, evdata):
@@ -316,11 +344,10 @@ class ElememEFRCourierParser(BaseElememLogParser):
         return event
 
     def add_object_presentation_begins(self, evdata):
-        self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
         event.serialpos = evdata['data']["serial position"]
-
+        event.trial = evdata['data']['trial number']
         event.store = '_'.join(evdata['data']['store name'].split(' '))
         event.intruded = 0
         event.recalled = 0
@@ -388,9 +415,9 @@ class ElememEFRCourierParser(BaseElememLogParser):
         event.type = "FSR_STOP"
         return event
 
-    def add_object_recall_recording_start(self, evdata):
+    def add_final_object_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
-        event.type = "REC_START"
+        event.type = "FFR_START"
 
         event.presX = self.presX
         event.presZ = self.presZ
@@ -474,12 +501,10 @@ class ElememEFRCourierParser(BaseElememLogParser):
     def modify_store_recall(self, events):
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
-        ann_outputs = self._parse_ann_file("store recall")
+        ann_outputs = self._parse_ann_file("final store-0")
 
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)
-            new_event = self._identify_intrusion(events, new_event)
-
             evtype = 'SR_REC_WORD_VV' if "<>" in new_event["item"] else 'SR_REC_WORD'
             new_event.type = evtype
             new_event.trial = -999 # to match old events
@@ -493,9 +518,9 @@ class ElememEFRCourierParser(BaseElememLogParser):
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         try:
-            ann_outputs = self._parse_ann_file("final recall")
+            ann_outputs = self._parse_ann_file("final recall-0")
         except:
-            ann_outputs = self._parse_ann_file("final free")
+            ann_outputs = self._parse_ann_file("final free-0")
 
         words = events[events["type"] == 'WORD']
 
@@ -505,7 +530,6 @@ class ElememEFRCourierParser(BaseElememLogParser):
             # Create a new event for the recall
             evtype = 'FFR_REC_WORD_VV' if "<>" in new_event["item"] else 'FFR_REC_WORD'
             new_event.type = evtype
-            new_event = self._identify_intrusion(events, new_event)
             new_event.trial = -999 # to match old events
 
             if new_event.intrusion >= 0:
@@ -514,6 +538,12 @@ class ElememEFRCourierParser(BaseElememLogParser):
             
             events = np.append(events, new_event).view(np.recarray) 
 
+        return events
+
+    # LC: update trial and stimtag info (3,8HZ)
+    def modify_event_stimulation(self, events):
+        events[-1].trial = self._trial
+        events[-1].stim_params.stimtag = self._stimtag
         return events
 
 

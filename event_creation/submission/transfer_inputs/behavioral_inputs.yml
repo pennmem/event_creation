@@ -55,7 +55,7 @@ files:
 
   ### R1 starts here
 
-  - name: eeg_sources
+  - name: eeg_source
     << : *LINK
     groups: [ r1,  '!freiburg' ]
     required: false # As groups are determined before ephys submission, event creation will fail if this is required
@@ -554,28 +554,28 @@ files:
 ## EFRCourier
 
   - name: elemem_files
-  << : *DIR
-  groups: [ verbal, unity, courier ]
-  multiple: true
-  origin_directory: *SYS4_HOST_DIR
-  origin_file: '{subject}*'
-  destination: 'elemem/'
-  files:
-    - name: event_log
-      << : *FILE
-      origin_directory: ''
-      origin_file: 'event.log'
-      destination: event.log
+    << : *DIR
+    groups: [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
+    multiple: true
+    origin_directory: *SYS4_HOST_DIR
+    origin_file: '{subject}*'
+    destination: 'elemem/'
+    files:
+      - name: event_log
+        << : *FILE
+        origin_directory: ''
+        origin_file: 'event.log'
+        destination: event.log
 
-    - name: experiment_config
-      << : *FILE
-      origin_directory: ''
-      origin_file: 'experiment_config.json'
-      destination: experiment_config.json
+      - name: experiment_config
+        << : *FILE
+        origin_directory: ''
+        origin_file: 'experiment_config.json'
+        destination: experiment_config.json
 
   - name: annotations
     << : *FILE
-    groups: [ verbal, unity, courier ]
+    groups: [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
     multiple: true
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
@@ -583,7 +583,7 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups : [ verbal, unity, courier ]
-    origin_directory: *BEH_EXPERIMENT_DIR
+    groups : [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
+    origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt
     destination: experiment_files/wordpool.txt
