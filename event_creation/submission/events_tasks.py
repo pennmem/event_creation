@@ -349,7 +349,6 @@ class EventCreationTask(PipelineTask):
                 elif self.r1_sys_num == 4.0:
                     ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
                                             'ephys', 'current_source', 'elemem', f'{self.subject}*')
-                    logger.debug("FILES: {}".format(files))
                     aligner = System4Offset(unaligned_events, files, ephys_dir)
                     events = aligner.align()
                 else:

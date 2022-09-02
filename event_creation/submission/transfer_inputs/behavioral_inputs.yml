@@ -55,7 +55,7 @@ files:
 
   ### R1 starts here
 
-  - name: eeg_source
+  - name: eeg_sources
     << : *LINK
     groups: [ r1,  '!freiburg' ]
     required: false # As groups are determined before ephys submission, event creation will fail if this is required
