@@ -177,6 +177,10 @@ class ArtifactDetector:
             # Also skip any events that run beyond the bounds of the EEG file (as determined previously)
             event_mask = event_mask[truncated_events_pre:]
             event_mask = event_mask[:-truncated_events_post] if truncated_events_post > 0 else event_mask
+            left_eog_art = left_eog_art[truncated_events_pre:]
+            left_eog_art = left_eog_art[:-truncated_events_post] if truncated_events_post > 0 else event_mask
+            right_eog_art = right_eog_art[truncated_events_pre:]
+            right_eog_art = right_eog_art[:-truncated_events_post] if truncated_events_post > 0 else event_mask
 
             # Set eogArtifact to 1 if an artifact was detected only on the left, 2 if only on the right, and 3 if both
             self.events.eogArtifact[event_mask] = 0
