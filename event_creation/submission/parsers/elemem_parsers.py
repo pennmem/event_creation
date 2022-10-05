@@ -543,7 +543,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
     # LC: update trial and stimtag info (3,8HZ)
     def modify_event_stimulation(self, events):
         events[-1].trial = self._trial
-        events[-1].stim_params.stimtag = self._stimtag
+        events[-1].stim_params.burst_freq = int(self._stimtag[0])
         return events
 
 

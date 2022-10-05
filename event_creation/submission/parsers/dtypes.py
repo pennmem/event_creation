@@ -39,7 +39,6 @@ stim_fields = (
         ('host_time',-999,'float64'),
         ('id', '', 'U64'),
         ('position', '', 'U64'),
-        ('stimtag', '', 'U64'),  ## LC: EFRCourier has alternating stimulation frequencies (3, 8Hz)
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
                                  # to JSON
 )

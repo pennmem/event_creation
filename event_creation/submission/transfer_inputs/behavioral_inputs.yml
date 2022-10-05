@@ -553,34 +553,6 @@ files:
 
 ## EFRCourier
 
-  - name: elemem_files
-    << : *DIR
-    groups: [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
-    multiple: true
-    origin_directory: *SYS4_HOST_DIR
-    origin_file: '{subject}*'
-    destination: 'elemem/'
-    files:
-      - name: event_log
-        << : *FILE
-        origin_directory: ''
-        origin_file: 'event.log'
-        destination: event.log
-
-      - name: experiment_config
-        << : *FILE
-        origin_directory: ''
-        origin_file: 'experiment_config.json'
-        destination: experiment_config.json
-
-  - name: annotations
-    << : *FILE
-    groups: [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
-    multiple: true
-    origin_directory: *BEH_SESS_DIR
-    origin_file: '*.ann'
-    destination: 'annotations/'
-
   - name: wordpool
     << : *FILE
     groups : [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
