@@ -555,7 +555,7 @@ files:
 
   - name: wordpool
     << : *FILE
-    groups : [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3', '!freiburg' ]
+    groups : [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3' ]
     origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt
     destination: experiment_files/wordpool.txt
