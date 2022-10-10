@@ -119,7 +119,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
             raise Exception(f"Necessity of stim fields unknown for experiment {experiment}")
 
         super().__init__(protocol, subject, montage, experiment, session, files, include_stim_params=self._include_stim_params)
-        self._session = -999
+        self._session = session 
         self._trial = -999
         self._serialpos = -999
         self._stimtag = ""
