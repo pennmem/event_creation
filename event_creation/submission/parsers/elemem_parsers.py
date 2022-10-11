@@ -155,7 +155,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
         self._add_fields(*dtypes.efr_fields)
 
         self._add_type_to_new_event(
-            stimselect=self.get_stimtag,
+            stimselect=self.event_stimtag,
 
             versions=self.add_experiment_version,
             store_mappings=self.add_store_mappings,
@@ -241,7 +241,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
     ####################
 
     # keep track of stimtag information for later
-    def get_stimtag(self, evdata):
+    def event_stimtag(self, evdata):
         self._stimtag = evdata["data"]["stimtag"]
         return False
 
