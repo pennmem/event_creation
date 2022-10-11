@@ -79,6 +79,7 @@ class BaseElememLogParser(BaseLogParser):
         event.mstime = event_json['time']
         event.type = event_json['type']
         event.list = self._trial
+        event.trial = self._trial
         event.session = self._session
         event.phase = self._phase
         if self._include_stim_params:
@@ -104,7 +105,7 @@ class BaseElememLogParser(BaseLogParser):
         event.stim_params.cathode_number = evdata["data"]["electrode_pos"]
         event.stim_params.anode_label = self._jacksheet[evdata["data"]["electrode_neg"]]
         event.stim_params.cathode_label = self._jacksheet[evdata["data"]["electrode_pos"]]
-        event.stim_params.burst_freq = evdata["data"]["frequency"]
+        event.stim_params.pulse_freq = evdata["data"]["frequency"]
         event.stim_params._remove = False
         return event
 
@@ -122,9 +123,11 @@ class ElememEFRCourierParser(BaseElememLogParser):
         self._session = session 
         self._trial = -999
         self._serialpos = -999
-        self._stimtag = ""
         self.practice = True
         self.current_num = -999
+        self._stimtag = ""
+        self._burst_freq = -1
+        self._set_experiment_config()
 
 	# LC: For EFRCourier, every list is stim list
         if self._include_stim_params:
@@ -152,8 +155,8 @@ class ElememEFRCourierParser(BaseElememLogParser):
         self._add_fields(*dtypes.efr_fields)
 
         self._add_type_to_new_event(
-            stimselect=self.event_stimtag,
- 
+            stimselect=self.get_stimtag,
+
             versions=self.add_experiment_version,
             store_mappings=self.add_store_mappings,
             PLAYERTRANSFORM=self.add_player_transform,
@@ -238,7 +241,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
     ####################
 
     # keep track of stimtag information for later
-    def event_stimtag(self, evdata):
+    def get_stimtag(self, evdata):
         self._stimtag = evdata["data"]["stimtag"]
         return False
 
@@ -277,7 +280,6 @@ class ElememEFRCourierParser(BaseElememLogParser):
     def add_pointing_begins(self, evdata):
         event = self.event_default(evdata)
         event.type = "pointing begins"
-	
         event.store = evdata['data']['store']
         event.storeX = self.storeX
         event.storeZ = self.storeZ
@@ -308,7 +310,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
 
     def event_practice_start(self, evdata):
         self.practice = True
-        self._trial = 0
+        self._trial = -1
         event = self.event_default(evdata)
         event.type = 'PRACTICE_DELIVERY_START'
         return event
@@ -540,10 +542,14 @@ class ElememEFRCourierParser(BaseElememLogParser):
 
         return events
 
-    # LC: update trial and stimtag info (3,8HZ)
+    # LC: update burst frequency 
     def modify_event_stimulation(self, events):
+        if self._burst_freq == -1:
+            stim_channels = self._experiment_config["experiment"]["stim_channels"]
+            self._burst_freq = [channel for channel in stim_channels if channel["stimtag"] == self._stimtag][0]["burst_slow_freq_Hz"]
+ 
         events[-1].trial = self._trial
-        events[-1].stim_params.burst_freq = int(self._stimtag[0])
+        events[-1].stim_params.burst_freq = self._burst_freq
         return events
 
 
