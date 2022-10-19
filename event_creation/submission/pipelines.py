@@ -40,6 +40,8 @@ GROUPS = {
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
+    'EFRCourierReadOnly': ('verbal', 'unity', 'courier'),
+    'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim')
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
