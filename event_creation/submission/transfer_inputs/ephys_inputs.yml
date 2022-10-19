@@ -165,8 +165,8 @@ files:
         << : *FILE
         origin_directory: ''
         origin_file:
-        - 'R1*_mono_*.csv'
-          #- 'R1*L0M0.csv'
+            #- 'R1*_mono_*.csv'
+          - 'R1*L0M0*.csv'
           #- 'R1*L0M0NOSTIM.csv'
         destination: electrode_config.csv
       - name: bipolar_electrode_config
