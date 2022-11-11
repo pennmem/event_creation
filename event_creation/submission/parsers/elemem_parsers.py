@@ -43,6 +43,7 @@ class BaseElememLogParser(BaseLogParser):
         try:
             return super().parse()
         except Exception as exc:
+            print(exc)
             traceback.print_exc(exc)
             logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
                                                                                    str(type(exc)), exc.message))
@@ -136,15 +137,16 @@ class ElememCPSParser(BaseElememLogParser):
                         include_stim_params=self._include_stim_params)
         
 #         self._session = -999
+        self._add_fields(*dtypes.cps_fields)
         self._fields += (self.ps_state_params_template(),)
 
-#         self._add_fields(*dtypes.cps_fields)
         self._add_type_to_new_event(
 #             best_stim=self.event_best_stim,
-            classify_stim=self.event_classify_stim,
-            classify_sham=self.event_classify_sham,
-            classify_nostim=self.event_classify_nostim,
             normalize=self.event_normalize,
+            classify_stim_cps=self.event_classify_stim,
+            classify_sham_cps=self.event_classify_sham,
+            classify_nostim_cps=self.event_classify_nostim,
+            stim_decision=self.event_stim_decision,
             update=self.event_update,
             ps_metadata=self._event_skip,
             exit=self.event_sess_end,
@@ -158,26 +160,45 @@ class ElememCPSParser(BaseElememLogParser):
     def event_classify_stim(self, event_json):
         event = self.event_default(event_json)
         event.type = 'CLASSIFY_STIM'
+        event.result = event_json["data"]["result"]
+        event.decision = event_json["data"]["decision"]
         return event
 
     def event_classify_sham(self, event_json):
         event = self.event_default(event_json)
         event.type = 'CLASSIFY_SHAM'
+        event.result = event_json["data"]["result"]
+        event.decision = event_json["data"]["decision"]
         return event
 
     def event_classify_nostim(self, event_json):
         event = self.event_default(event_json)
         event.type = 'CLASSIFY_NOSTIM'
+        event.result = event_json["data"]["result"]
+        event.decision = event_json["data"]["decision"]
         return event
+    
+    def event_stim_decision(self, event_json):
+        return False
 
     def event_update(self, evdata):
-        event = self.event_default(evdata)
+        # add stim params
+        for k, v in evdata["data"]["stim_params"].items():
+            evdata["data"][k] = v
+#         event = self.event_default(evdata)
+        event = self.event_stimulation(evdata)
+    
         event.type = 'UPDATE'
-        event.ps_state_params.acquisition__y_best = evdata["data"]["acquisition__y_best"]
-        event.ps_state_params.num_samples = evdata["data"]["num_samples"]
-        event.ps_state_params.kernel__matern32_0__lengthScale = evdata["data"]["kernel__matern32_0__lengthScale"]
-        event.ps_state_params.kernel__matern32_0__variance = evdata["data"]["kernel__matern32_0__variance"]
-        event.ps_state_params.kernel__white_1__variance = evdata["data"]["kernel__white_1__variance"]
+        event.ps_state_params.model_index = evdata["data"]["model_index"]
+        if "acquisition__y_best" in evdata["data"]:  # events with null ps_state_params are updates loaded from previous sessions
+            event.ps_state_params.acquisition__y_best = evdata["data"]["acquisition__y_best"]
+            event.ps_state_params.kernel__matern32_0__lengthScale = evdata["data"]["kernel__matern32_0__lengthScale"]
+            event.ps_state_params.kernel__matern32_0__variance = evdata["data"]["kernel__matern32_0__variance"]
+            event.ps_state_params.kernel__white_1__variance = evdata["data"]["kernel__white_1__variance"]
+            event.ps_state_params.num_samples = evdata["data"]["num_samples"]
+        event.ps_state_params.loaded = bool(evdata["loaded"])
+        event.ps_state_params.opt_params = evdata["data"]["x"][0][0]
+        event.ps_state_params.biomarker = evdata["data"]["biomarker"]
         event.ps_state_params._remove = False
         return event
 

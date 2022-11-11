@@ -10,8 +10,10 @@ def build_inputs(experiment, subject, session):
     inputs = dict(
         protocol='r1',
         subject=subject,
-        montage='0.1',
-        montage_num='1',
+        montage='0.0',
+        montage_num='0',
+#         montage='0.1',
+#         montage_num='1',
         localization='0',
         experiment=experiment,
         new_experiment=experiment,
@@ -29,6 +31,8 @@ def build_inputs(experiment, subject, session):
     return inputs
 # System 4 test
 subjects = [('R1556J_1', 'RepFR1', 0),]
+# subjects = [('R1505J', 'RepFR1', 0), ]
+# subjects = [('R1384J_0', 'CPS', 0),]
 
 
 #subjects = [('R1505J', 'RepFR1', 0), 
@@ -45,18 +49,29 @@ subjects = [('R1556J_1', 'RepFR1', 0),]
 #            ('R1515T', 'catFR1', 1),
 #            ('R1515T', 'catFR1', 2),]
 
-sandbox = '/scratch/jrudoler/sandbox'
+username = "rdehaan"
+sandbox = f'/scratch/{username}/event_creation_sandbox'
 # import pdb; pdb.set_trace()
 for sub, exp, sess in subjects:
-    src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub.split('_')[0])
-    print(src)
-    try:
-        if not os.access(sandbox+src, os.F_OK):
-            print(sandbox+os.path.split(src)[0])
-            os.makedirs(sandbox+os.path.split(src)[0])
-            os.symlink(src, sandbox+src, target_is_directory=True)
-    except:
-        print('could not make new dirs')
+#     src = "/protocols/r1/subjects/{sub}/localizations".format(sub=sub.split('_')[0])
+#     print(src)
+#     try:
+#         if not os.access(sandbox+src, os.F_OK):
+#             print(sandbox+os.path.split(src)[0])
+#             os.makedirs(sandbox+os.path.split(src)[0])
+#             os.symlink(src, sandbox+src, target_is_directory=True)
+#     except:
+#         print('could not make new dirs')
+
+#     src = "/data/eeg/{sub}".format(sub=sub.split('_')[0])
+#     print(src)
+#     try:
+#         if not os.access(sandbox+src, os.F_OK):
+#             print(sandbox+os.path.split(src)[0])
+#             os.makedirs(sandbox+os.path.split(src)[0])
+#             os.symlink(src, sandbox+src, target_is_directory=True)
+#     except:
+#         print('could not make new dirs')
 
     try:
         inputs = build_inputs(exp, sub, sess)
@@ -66,5 +81,5 @@ for sub, exp, sess in subjects:
         if success:
             IndexAggregatorTask().run_single_subject(inputs['subject'], inputs['protocol'])
     except:
-        with open("/scratch/jrudoler/submit_log.txt", 'a') as f:
+        with open(f"/scratch/{username}/submit_log.txt", 'a') as f:
             f.write("Error with {sub}:{exp}:{sess}".format(sub=sub, exp=exp, sess=sess))

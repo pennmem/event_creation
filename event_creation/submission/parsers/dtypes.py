@@ -323,11 +323,15 @@ cps_fields =(
 )
 
 ps_state_fields = (
+        ('model_index', -1.0, 'int64'),
         ('acquisition__y_best', -1.0, 'float64'),
+        ('biomarker', -1.0, 'float64'),
+        ('opt_params', -1.0, 'float64'),  # can extend field to array (with length greater than 1) with 4th tuple element giving length of 1d array
         ('num_samples', -1, 'int16'),
         ('kernel__matern32_0__lengthScale', -1.0, 'float64'),
         ('kernel__matern32_0__variance', -1.0, 'float64'),
         ('kernel__white_1__variance', -1.0, 'float64'),
+        ('loaded', False, 'b1'),
         ('host_time', -999, 'float64'),
         ('id', '', 'U64'),
         ('position', '', 'U64'),
