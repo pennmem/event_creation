@@ -243,6 +243,7 @@ class ElememEFRCourierParser(BaseElememLogParser):
     # keep track of stimtag information for later
     def event_stimtag(self, evdata):
         self._stimtag = evdata["data"]["stimtag"]
+        #print(self._stimtag)
         return False
 
     def add_experiment_version(self, evdata):
@@ -544,9 +545,9 @@ class ElememEFRCourierParser(BaseElememLogParser):
 
     # LC: update burst frequency 
     def modify_event_stimulation(self, events):
-        if self._burst_freq == -1:
-            stim_channels = self._experiment_config["experiment"]["stim_channels"]
-            self._burst_freq = [channel for channel in stim_channels if channel["stimtag"] == self._stimtag][0]["burst_slow_freq_Hz"]
+        #if self._burst_freq == -1:
+        stim_channels = self._experiment_config["experiment"]["stim_channels"]
+        self._burst_freq = [channel for channel in stim_channels if channel["stimtag"] == self._stimtag][0]["burst_slow_freq_Hz"]
  
         events[-1].trial = self._trial
         events[-1].stim_params.burst_freq = self._burst_freq
