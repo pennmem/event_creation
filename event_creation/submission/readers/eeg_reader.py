@@ -7,9 +7,12 @@ import os
 import re
 import mne
 import json
+import time
 import tables
 import numpy as np
 from shutil import copy
+from functools import partial
+from multiprocessing import Pool
 
 try:
     import pyedflib
@@ -758,10 +761,31 @@ class EDF_reader(EEG_reader):
             self.jacksheet = {v:k for k,v in list(read_jacksheet(jacksheet_filename).items())}
         else:
             self.jacksheet = None
+
         try:
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
-            raise
+            # Try again with 30k fixes
+            EDF_reader._fix_30k_edf(edf_filename)
+            self.reader = pyedflib.EdfReader(edf_filename)
+
+        # If 30k data, downsample to 1k and load that
+        if (self.reader.getSampleFrequency(0) == 30000):
+            self.reader.close()
+
+            # Rename edf file to 30k
+            dir_name, file_name = os.path.split(edf_filename)
+            old_edf_filename = os.path.join(dir_name, "30kHz_" + file_name)
+            os.rename(edf_filename, old_edf_filename)
+
+            # Downsample to 1k
+            temp_folder = dir_name.replace("/", "_") # Unique temp folder name
+            os.mkdir(temp_folder)
+            EDF_reader._downsample_data(old_edf_filename, 1000, edf_filename, temp_folder)
+            os.rmdir(temp_folder)
+
+            # Open the new downsampled edf
+            self.reader = pyedflib.EdfReader(edf_filename)
 
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
@@ -850,6 +874,129 @@ class EDF_reader(EEG_reader):
             for label in self.jacksheet:
                 if label not in used_jacksheet_labels:
                     logger.critical("label {} not split! Potentially missing data!".format(label))
+ 
+    @staticmethod
+    def _fix_30k_edf(fpath):
+      """
+      Manual fix for edf with 30 KHz formatting issue. Changes the 
+      8 ascii duration of a data record, in seconds 
+          '0.099999' --> '0.1     '
+      
+      Params
+      ______
+      fpath: str
+          File path to broken .edf
+      """
+      with open(fpath, 'r+b') as f:
+          f.seek(244)
+          f.write(b'0.1     ')
+
+    @staticmethod
+    def _resample(arr, factor):
+        extra = len(arr) % factor
+        if extra == 0:
+            return np.average(arr.reshape(-1, factor), axis=1)
+        else:
+            return np.average(arr[:-extra].reshape(-1, factor), axis=1)
+
+    @staticmethod
+    def _resample_channel_and_split(in_path, out_folder, freq, idx):
+        num_signals = 1
+        
+        # Read in old edf data
+        f_in = pyedflib.EdfReader(in_path)
+        resampling_factor = int(f_in.getSampleFrequency(0) / freq)
+        in_header = f_in.getHeader()
+        in_signal_header = f_in.getSignalHeader(idx)
+        in_annotations = f_in.readAnnotations()
+        in_signal = f_in.readSignal(idx)
+        in_duration = int(f_in.getFileDuration() / resampling_factor * 10000)
+        f_in.close()
+        
+        # Create new edf
+        out_path = os.path.join(out_folder, f"raw_{idx}.edf")
+        f_out = pyedflib.EdfWriter(out_path, num_signals, file_type=1)
+        
+        # Set Metadata
+        f_out.setHeader(in_header)
+        f_out.setSignalHeader(0, in_signal_header)
+        f_out.setSamplefrequency(0, int(freq))
+        
+        # Set Annotations
+        for ann in zip(*in_annotations):
+            f_out.writeAnnotation(*ann)
+        
+        # Set Signal
+        resampled_data = EDF_reader._resample(in_signal, resampling_factor)
+        resampled_data = resampled_data.astype(np.double)
+        f_out.writeSamples(np.expand_dims(resampled_data, axis=0))
+        
+        # Cleanup
+        f_out.close()
+
+    @staticmethod
+    def _recombine_channels(in_folder, out_path, num_signals):
+        # Create new edf
+        f_out = pyedflib.EdfWriter(out_path, num_signals, file_type=1)
+    
+        # Read in first edf metadata
+        in_path = os.path.join(in_folder, f"raw_0.edf")
+        f_in = pyedflib.EdfReader(in_path)
+        in_header = f_in.getHeader()
+        in_annotations = f_in.readAnnotations()
+        f_in.close()
+       
+        # Setup Metadata
+        f_out.setHeader(in_header)
+        for i in range(num_signals):
+            in_path = os.path.join(in_folder, f"raw_{i}.edf")
+            f_in = pyedflib.EdfReader(in_path)
+            in_signal_header = f_in.getSignalHeader(0)
+            f_out.setSignalHeader(i, in_signal_header)
+            f_in.close()
+    
+        # Set Annotations
+        for ann in zip(*in_annotations):
+            f_out.writeAnnotation(*ann)
+    
+        # Set signal
+        out_signals = []
+        for i in range(num_signals):
+            in_path = os.path.join(in_folder, f"raw_{i}.edf")
+            f_in = pyedflib.EdfReader(in_path)
+            in_signal = f_in.readSignal(0)
+            out_signals.append(in_signal)
+            f_in.close()
+            os.remove(in_path)
+        f_out.writeSamples(np.array(out_signals, dtype=np.double))
+    
+        # Cleanup
+        f_out.close()
+
+    @staticmethod
+    def _downsample_data(in_path, out_freq, out_path, temp_folder="."):
+        # Startup
+        logger.info("Starting downsample to 1kHz")
+        t0 = time.perf_counter()
+
+        # Read in first edf metadata
+        f_in = pyedflib.EdfReader(in_path)
+        num_signals = f_in.signals_in_file
+        if (out_freq > f_in.getSampleFrequency(0)):
+            raise ValueError("The out_freq cannot be greater than the frequency of the input data")
+        f_in.close()
+
+        # Resample/Split the channels
+        resample_channel = partial(EDF_reader._resample_channel_and_split, in_path, temp_folder, out_freq)
+        with Pool(16) as pool:
+            pool.map(resample_channel, range(num_signals))
+
+        # Recombine the channels
+        EDF_reader._recombine_channels(temp_folder, out_path, num_signals)
+
+        # Cleanup
+        logger.info("Finished downsample in {:.0f}s".format(time.perf_counter() - t0))
+
 
 
 class ScalpReader(EEG_reader):
