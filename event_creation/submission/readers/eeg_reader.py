@@ -773,12 +773,20 @@ class EDF_reader(EEG_reader):
         # If 30k data, downsample to 1k and load that
         if (self.reader.getSampleFrequency(0) == 30000):
             self.reader.close()
+
+            # Rename edf file to 30k
             dir_name, file_name = os.path.split(edf_filename)
-            new_edf_filename = os.path.join(dir_name, "1k_" + file_name)
-            self.raw_filename = new_edf_filename
-            EDF_reader._downsample_data(edf_filename, 1000, new_edf_filename, ".")
-            self.reader = pyedflib.EdfReader(new_edf_filename)
-            print(self.reader.getSampleFrequency(0))
+            old_edf_filename = os.path.join(dir_name, "30kHz_" + file_name)
+            os.rename(edf_filename, old_edf_filename)
+
+            # Downsample to 1k
+            temp_folder = dir_name.replace("/", "_") # Unique temp folder name
+            os.mkdir(temp_folder)
+            EDF_reader._downsample_data(old_edf_filename, 1000, edf_filename, temp_folder)
+            os.rmdir(temp_folder)
+
+            # Open the new downsampled edf
+            self.reader = pyedflib.EdfReader(edf_filename)
 
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
@@ -900,7 +908,7 @@ class EDF_reader(EEG_reader):
         f_in = pyedflib.EdfReader(in_path)
         resampling_factor = int(f_in.getSampleFrequency(0) / freq)
         in_header = f_in.getHeader()
-        in_signal_headers = f_in.getSignalHeaders()
+        in_signal_header = f_in.getSignalHeader(idx)
         in_annotations = f_in.readAnnotations()
         in_signal = f_in.readSignal(idx)
         in_duration = int(f_in.getFileDuration() / resampling_factor * 10000)
@@ -912,9 +920,8 @@ class EDF_reader(EEG_reader):
         
         # Set Metadata
         f_out.setHeader(in_header)
-        for i in range(num_signals):
-            f_out.setSignalHeader(i, in_signal_headers[i])
-            f_out.setSamplefrequency(i, int(freq))
+        f_out.setSignalHeader(0, in_signal_header)
+        f_out.setSamplefrequency(0, int(freq))
         
         # Set Annotations
         for ann in zip(*in_annotations):
@@ -970,7 +977,7 @@ class EDF_reader(EEG_reader):
     @staticmethod
     def _downsample_data(in_path, out_freq, out_path, temp_folder="."):
         # Startup
-        print("Starting data resampling")
+        logger.info("Starting downsample to 1kHz")
         t0 = time.perf_counter()
 
         # Read in first edf metadata
@@ -989,7 +996,7 @@ class EDF_reader(EEG_reader):
         EDF_reader._recombine_channels(temp_folder, out_path, num_signals)
 
         # Cleanup
-        print("Finished data resampling ({}s)".format(time.perf_counter() - t0))
+        logger.info("Finished downsample in {:.0f}s".format(time.perf_counter() - t0))
 
 
 
