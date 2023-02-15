@@ -763,7 +763,6 @@ class EDF_reader(EEG_reader):
             self.jacksheet = None
 
         try:
-            print(edf_filename)
             self.reader = pyedflib.EdfReader(edf_filename)
         except IOError:
             # Try again with 30k fixes
