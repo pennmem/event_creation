@@ -404,8 +404,8 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
                                        'math', critical=False, parser_type=MathLogParser, **kwargs))
         other_events += ('math',)
 
-    if other_events or protocol == 'ltp':  # Ensure that all scalp EEG experiments get an all_events.json file
-        tasks.append(EventCombinationTask(('task',) + other_events, critical=False,))
+    # Ensure that all EEG experiments get an all_events.json file
+    tasks.append(EventCombinationTask(('task',) + other_events, critical=False,))
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))
