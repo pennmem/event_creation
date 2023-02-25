@@ -45,7 +45,7 @@ from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
 from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
-        ElememCatFRLogParser
+        ElememCatFRLogParser, ElememEFRCourierParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -249,7 +249,9 @@ class EventCreationTask(PipelineTask):
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
                 'FR': ElememFRLogParser,
-                'catFR': ElememCatFRLogParser
+                'catFR': ElememCatFRLogParser,
+                'EFRCourierReadOnly': ElememEFRCourierParser,
+                'EFRCourierOpenLoop': ElememEFRCourierParser,
             }
         else:
             raise KeyError
@@ -500,6 +502,7 @@ class MontageLinkerTask(PipelineTask):
                                                 subject=self.subject,
                                                 localization=self.localization,
                                                 montage=self.montage_num)
+
         self.pipeline.register_info('localization', self.localization)
         self.pipeline.register_info('montage', self.montage_num)
         for name, file in list(self.FILES.items()):
