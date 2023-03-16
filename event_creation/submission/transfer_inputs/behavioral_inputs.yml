@@ -19,6 +19,7 @@ directories:
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
   beh_exp_sess_dir    : &BEH_EXP_SESS_DIR !join [*BEH_EXP_DIR, '{experiment}_{original_session}']
   sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
+  sys3_config_dir    : &SYS3_CONFIG_DIR !join [*SYS3_HOST_DIR, '20*/config_files']
   sys4_host_dir      : &SYS4_HOST_DIR !join [*BEH_SESS_DIR, 'elemem']
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
@@ -168,6 +169,14 @@ files:
     - RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, catFR, system_4]
+    origin_directory: *BEH_EXP_DIR
+    origin_file:
+    - ram_categorized_en.txt
+    destination: experiment_files/wordpool.txt
+
   - name: no_accent_wordpool
     << : *FILE
     groups: [r1, transfer, catFR]
@@ -304,7 +313,7 @@ files:
 
       - name: electrode_config
         << : *FILE
-        origin_directory: ''
+        origin_directory: *SYS3_CONFIG_DIR
         origin_file:
 #        - 'contacts*.csv'
         - '{subject}*.csv'

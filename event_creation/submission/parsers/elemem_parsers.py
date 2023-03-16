@@ -807,6 +807,7 @@ class ElememFRLogParser(BaseElememLogParser):
             self._stim_list = False
 
         if("wordpool" in list(files.keys())):
+            self._wordpool_dir = files["wordpool"]
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip() for line in f]
         else:
@@ -943,13 +944,17 @@ class ElememCatFRLogParser(ElememFRLogParser):
         super().__init__(*args, **kwargs)
         self._add_fields(*dtypes.category_fields)
 
+        with open(self._wordpool_dir) as f:
+            self.categories = np.unique([line.split("\t")[0] for line in f])
+        with open(self._wordpool_dir) as f:    
+            self.wordpool = [line.split("\t")[1].rstrip() for line in f]
+
     def event_word_on(self, event_json):
         event = super().event_word_on(event_json)
         event.category = event_json['data'][self._CATEGORY]
-        try:
-            event.category_num = event_json['data'][self._CATEGORY_NUM] if not(np.isnan(event_json[self._CATEGORY_NUM])) else -999
-        except KeyError:
-            pass
+        category_num = np.where(np.in1d(self.categories, event.category))
+        if len(category_num):
+            event.category_num = category_num[0][0]
         return event
 
     def event_word_off(self, event_json):
