@@ -20,15 +20,14 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip() for line in f]
-
         else:
             raise Exception("wordpool not found in transferred files")
 
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
             self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
-        self._add_fields(*dtypes.repFR_fields)
-        self._add_type_to_new_event(
+            self._add_fields(*dtypes.repFR_fields)
+            self._add_type_to_new_event(
             session_start=self.event_sess_start,
             start_trial=self.event_trial_start,
             countdown=self.event_countdown,  # Pre-trial countdown video

@@ -30,6 +30,7 @@ from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 from .parsers.repfr_log_parser import RepFRSessionLogParser
+from .parsers.delayrepfr_log_parser import DelayRepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
 from .parsers.nicls_log_parser import NICLSSessionLogParser
 
@@ -231,7 +232,8 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.4:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR': catFRHostPCLogParser,
+                #'catFR': catFRHostPCLogParser,
+                'catFR': CatFRSessionLogParser,
                 'PS': PSLogParser,
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
@@ -266,6 +268,7 @@ class EventCreationTask(PipelineTask):
                     'ltpRepFR': RepFRSessionLogParser,
                     'NiclsCourierReadOnly': NICLSSessionLogParser,
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
+                    'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
                   }
 
     @property
@@ -453,6 +456,7 @@ class EventCombinationTask(PipelineTask):
     COMBINED_LABEL = 'all'
 
     def __init__(self, event_labels, sort_field=None, critical=True):
+        logger.info(event_labels)
         super(EventCombinationTask, self).__init__(critical)
         self.name = 'Event combination: {}'.format(event_labels)
         self.event_labels = event_labels
