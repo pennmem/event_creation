@@ -803,7 +803,8 @@ class EDF_reader(EEG_reader):
     def get_n_samples(self):
         n_samples = np.unique(self.reader.getNSamples())
         n_samples = n_samples[n_samples != 0]
-        if len(n_samples) != 1:
+        # LC: Freiburg EDF has two samplerates. HAHAHAHAHA
+        if len(n_samples) < 1:
             raise EEGError('Could not determine number of samples in file %s' % self.raw_filename)
         return n_samples[0]
 
@@ -821,7 +822,7 @@ class EDF_reader(EEG_reader):
                 header = reader.getSignalHeader(i)
             except:
                 continue
-            if header['label']!= '':
+            if header['label']!= '' and header['label'][0]!= '_' and "EKG" not in header['label']:
                 headers[i] = header
         return headers
 
@@ -1204,7 +1205,8 @@ def read_text_jacksheet(filename):
 
 def read_json_jacksheet(filename):
     json_load = json.load(open(filename))
-    subject = [k for k in json_load if 'R1' in k][0]
+    # LC: Freiburg fix
+    subject = [k for k in json_load if 'R1' in k or 'F' in k][0]
     contacts = json_load[subject]['contacts']
     if contacts is None:
         raise Exception("Contacts.json has 'None' for contact list. Rerun localization")
@@ -1219,6 +1221,7 @@ def read_electrode_config_jacksheet(filename):
 def read_elemem_electrode_config_jacksheet(filename):
     # Elemem electrode configs are a simplified version of the Odin/ENS electrode configs.
     # use utf-8-sig encoding to remove Byte Order Mark (BOM) that Windows sometimes adds.
+    
     with open(filename, 'r', encoding='utf-8-sig') as csv:
         contacts = csv.read().splitlines()
     return {contact[1]:contact[0] for contact in [line.split(',') for line in contacts]}
