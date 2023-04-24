@@ -25,19 +25,19 @@ class RepFRSessionLogParser(BaseUnityLogParser):
 
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
-            self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
+            self._add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
             self._add_fields(*dtypes.repFR_fields)
             self._add_type_to_new_event(
-            session_start=self.event_sess_start,
-            start_trial=self.event_trial_start,
-            countdown=self.event_countdown,  # Pre-trial countdown video
-            orientation_stimulus=self._event_skip, # skip orientation events
-            display_recall_text=self.event_rec_start,  # Start of vocalization period
-            end_recall_period=self.event_rec_stop, # End of vocalization period
-            word_stimulus=self.event_word_on,  # Start of word presentation
-            clear_word_stimulus=self.event_word_off, # End of word presentation
-            session_end=self.event_sess_end,
-        )
+                session_start=self.event_sess_start,
+                start_trial=self.event_trial_start,
+                countdown=self.event_countdown,  # Pre-trial countdown video
+                orientation_stimulus=self._event_skip, # skip orientation events
+                display_recall_text=self.event_rec_start,  # Start of vocalization period
+                end_recall_period=self.event_rec_stop, # End of vocalization period
+                word_stimulus=self.event_word_on,  # Start of word presentation
+                clear_word_stimulus=self.event_word_off, # End of word presentation
+                session_end=self.event_sess_end,
+            )
         
         self._add_type_to_modify_events(
             display_recall_text=self.modify_recalls,

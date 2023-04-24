@@ -209,8 +209,12 @@ class LTPAligner:
         pulses = np.array(df[df.type == 'Sync pulse begin'].time)
         if len(pulses)==0:
             pulses = np.array(df[df.type == 'syncPulse'].time)
+        if len(pulses)==0:
+            pulses = np.array(df[df['data'].apply(lambda x:
+                x.get('message', None) == 'NSBSYNCPULSE')].time)
         # Convert pulse times to integers before returning
         pulses = pulses.astype(int)
+
         return pulses
 
 
