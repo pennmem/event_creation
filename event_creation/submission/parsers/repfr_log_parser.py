@@ -26,6 +26,7 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
             self._add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
+            self._add_type_to_modify_events(experiment_quit=self.add_break_stops)
             self._add_fields(*dtypes.repFR_fields)
             self._add_type_to_new_event(
                 session_start=self.event_sess_start,
@@ -36,6 +37,7 @@ class RepFRSessionLogParser(BaseUnityLogParser):
                 end_recall_period=self.event_rec_stop, # End of vocalization period
                 word_stimulus=self.event_word_on,  # Start of word presentation
                 clear_word_stimulus=self.event_word_off, # End of word presentation
+                experiment_quit=self.event_sess_end,
                 session_end=self.event_sess_end,
             )
         
@@ -170,10 +172,19 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         events.session = self._session
         return events
 
+    def add_break_stops(self, events):
+        events = pd.DataFrame.from_records(events)
+        break_start_events = events[events.type=="BREAK_START"]
+        break_stop_events = break_start_events.copy()
+        break_stop_events.mstime += 1000
+        break_stop_events.type = "BREAK_STOP"
+        events = pd.concat([events, break_stop_events]).sort_values(by="mstime")
+        return events.to_records()
+
     def modify_recalls(self, events):
         # Access the REC_START event for this recall period to determine the timestamp when the recording began
         rec_start_event = events[-1]
-        rec_start_time = rec_start_event.mstime
+        rec_start_time = rec_start_event.mstime 
 
         # Get list of recalls from the .ann file for the current list, formatted as (rectime, item_num, item_name)
         try:
