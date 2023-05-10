@@ -41,7 +41,8 @@ GROUPS = {
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
     'EFRCourierReadOnly': ('verbal', 'unity', 'courier'),
-    'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim')
+    'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim'),
+    'ltpDelayRepFRReadOnly': ('verbal', 'unity')
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
