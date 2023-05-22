@@ -10,8 +10,8 @@ def build_inputs(experiment, subject, session):
     inputs = dict(
         protocol='r1',
         subject=subject,
-        montage='0.1',
-        montage_num='1',
+        montage='0.0',
+        montage_num='0',
         localization='0',
         experiment=experiment,
         new_experiment=experiment,
@@ -30,7 +30,7 @@ def build_inputs(experiment, subject, session):
 # System 4 test
 subjects = [
     # ('R1556J_1', 'RepFR1', 0),
-    ('R1627T', 'catFR1', 0),
+    ('FBG490', 'EFRCourierOpenLoop', 2),
 ]
 
 
