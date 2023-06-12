@@ -50,7 +50,7 @@ class TransferConfig(object):
         self.kwargs = kwargs
         
         
-        self._raw_config = yaml.load(open(filename))
+        self._raw_config = yaml.load(open(filename), Loader=yaml.FullLoader)
         self._files = build_group_index(self._raw_config['files'], groups)
 
         for file_ in list(self._files.values()):

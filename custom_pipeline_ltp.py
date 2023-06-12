@@ -1,7 +1,7 @@
 from __future__ import print_function
 import json
 import sys
-from cluster_helper.cluster import cluster_view
+from clusterrun import ClusterCheckedTup
 sys.path.append('/home1/maint/event_creation')
 from event_creation.submission.convenience import run_session_import
 from event_creation.submission.tasks import IndexAggregatorTask
@@ -24,7 +24,7 @@ def build_inputs(exp, subj, sess):
         ram_experiment='RAM_%s' % exp,
         #force=False,
         force_events=True,
-        force_eeg=False,
+        force_eeg=True,
         do_compare=False,
         code=subj,
         session=sess,
@@ -76,13 +76,12 @@ def automatic_event_creator(experiment, check_index=True):
     #    run_session_import(inp)
     print(n_jobs, " jobs")
     if n_jobs > 0:
-        with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=n_jobs, cores_per_job=6) as view:
-            view.map(run_session_import, inputs)
+        ClusterCheckedTup(run_session_import, inputs, max_jobs=2, mem='60G')
 
 
 if __name__=='__main__':
     try:
-        automatic_event_creator(experiment="NiclsCourierReadOnly",
+        automatic_event_creator(experiment="ltpRepFR",
                 check_index=False)
     except Exception as e:
         print("failed")

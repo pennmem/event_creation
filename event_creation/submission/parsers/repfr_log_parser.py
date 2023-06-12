@@ -173,13 +173,13 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         return events
 
     def add_break_stops(self, events):
-        events = pd.DataFrame.from_records(events)
-        break_start_events = events[events.type=="BREAK_START"]
+        df_events = pd.DataFrame.from_records(events)
+        break_start_events = df_events[df_events.type=="BREAK_START"]
         break_stop_events = break_start_events.copy()
         break_stop_events.mstime += 1000
         break_stop_events.type = "BREAK_STOP"
-        events = pd.concat([events, break_stop_events]).sort_values(by="mstime")
-        return events.to_records()
+        df_events = pd.concat([df_events, break_stop_events]).sort_values(by="mstime")
+        return df_events.to_records(index=False, column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
     def modify_recalls(self, events):
         # Access the REC_START event for this recall period to determine the timestamp when the recording began

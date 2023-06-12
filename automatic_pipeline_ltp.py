@@ -1,8 +1,9 @@
 from __future__ import print_function
 import json
 import sys
-from cluster_helper.cluster import cluster_view
+#from cluster_helper.cluster import cluster_view
 sys.path.append('/home1/maint/event_creation')
+from clusterrun import ClusterCheckedTup
 from event_creation.submission.convenience import run_session_import
 from event_creation.submission.tasks import IndexAggregatorTask
 
@@ -80,9 +81,9 @@ def automatic_event_creator(check_index=True):
     #for inp in inputs:
     #    run_session_import(inp)
     if n_jobs > 0:
-        with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=n_jobs, cores_per_job=6) as view:
-            view.map(run_session_import, inputs)
-
+        #with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=n_jobs, cores_per_job=6) as view:
+        #    view.map(run_session_import, inputs)
+        ClusterCheckedTup(run_session_import, inputs, max_jobs=16, mem='20G')
 
 if __name__=='__main__':
     try:
