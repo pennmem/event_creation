@@ -57,6 +57,8 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
     if '_' in full_experiment:
         groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]
+    elif full_experiment.startswith('I'):               # re-route ICatFR to same pipeline process as CatFR
+        experiment = full_experiment[1:]
     else:
         experiment = full_experiment
     if protocol == 'r1' and 'FR5' in experiment:
