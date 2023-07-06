@@ -53,13 +53,16 @@ N_PS4_SESSIONS = 10
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
-    
+    recog = True                                        # toggle to bypass 'recog' group
     if '_' in full_experiment:
         groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]
+    elif full_experiment.startswith('I'):               # re-route ICatFR to same pipeline process as CatFR
+        experiment = full_experiment[1:]
+        recog = False
     else:
         experiment = full_experiment
-    if protocol == 'r1' and 'FR5' in experiment:
+    if protocol == 'r1' and 'FR5' in experiment and recog:
         groups += ('recog',)
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 

@@ -234,6 +234,7 @@ class EventCreationTask(PipelineTask):
                 'FR': FRHostPCLogParser,
                 #'catFR': catFRHostPCLogParser,
                 'catFR': CatFRSessionLogParser,
+                'ICatFR': CatFRSessionLogParser,
                 'PS': PSLogParser,
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
@@ -252,6 +253,7 @@ class EventCreationTask(PipelineTask):
                 'OPS': BaseElememLogParser,
                 'FR': ElememFRLogParser,
                 'catFR': ElememCatFRLogParser,
+                'ICatFR': ElememCatFRLogParser,
                 'EFRCourierReadOnly': ElememEFRCourierParser,
                 'EFRCourierOpenLoop': ElememEFRCourierParser,
             }
