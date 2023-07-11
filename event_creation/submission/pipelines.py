@@ -72,7 +72,24 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
     groups += tuple(args)
 
-    if (protocol == 'r1' or protocol == 'fr') and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
+    # temporary fix to bypass system matching and add system to groups from subject code
+    if '_' in subject:           # ex: R1999H_1 for second montage, potentially already taken care of
+        suj = subject.split('_')[0]
+    else:
+        suj = subject
+    match_sys = True            # toggle whether to run system matching
+    sys3 = ['A', 'S']
+    sys4 = ['J', 'T', 'E']
+    if suj[-1] in sys3:
+        groups += ('system_3_3',)
+        match_sys = False
+    elif suj[-1] in sys4:
+        groups += ('system_4',)
+        match_sys = False
+    else:
+        logger.info("Running a non system 3 or 4 subject {}".format(subject))
+
+    if (protocol == 'r1' or protocol == 'fr') and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups and match_sys:
         kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
                       subject=subject,
@@ -82,7 +99,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')   # missing system_3_4 (and system_3_2)
         misses = {}
         for sys in systems:
             try:
