@@ -163,11 +163,11 @@ files:
         destination: experiment_config.json
       - name: electrode_config
         << : *FILE
-        multiple: true                          # add multiple = true for both mono and bipolar
+        #multiple: true                          # add multiple = true for both mono and bipolar
         origin_directory: ''
         origin_file:
-            #- 'R1*_mono_*.csv'
-          - 'R1*L0M0*.csv'
+           - 'R1*_mono_*.csv'                    # only match on monopolar, will match bipolar in bipolar_electrode_config
+          #- 'R1*L0M0*.csv'
           #- 'R1*L0M0NOSTIM.csv'
         destination: electrode_config.csv
       - name: bipolar_electrode_config
