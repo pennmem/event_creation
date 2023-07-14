@@ -364,7 +364,7 @@ class TransferFile(object):
             raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
-
+        print(f'multiple = {self.multiple}, _multiple = {self._multiple}')
         if len(new_origin_paths) > 1 and not self._multiple:                              # changed from self.multiple
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,
