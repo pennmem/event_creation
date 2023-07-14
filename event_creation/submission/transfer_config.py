@@ -365,7 +365,7 @@ class TransferFile(object):
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
 
-        if len(new_origin_paths) > 1 and not self.multiple:
+        if len(new_origin_paths) > 1 and not self._multiple:                              # changed from self.multiple
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,
                                                                        containing_directory))
