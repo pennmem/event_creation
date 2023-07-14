@@ -318,7 +318,7 @@ class TransferFile(object):
         self._valid = all(file.valid for file in list(self.files.values()))
 
     def locate(self, root=''):
-
+        logger.debug(f'multiple = {self.multiple}, _multiple = {self._multiple}')
         if self.name=='output_log':
             pass
 
@@ -342,6 +342,8 @@ class TransferFile(object):
 
             if len(new_files) == 0:
                 logger.debug("Could not find files at {}".format(os.path.abspath(origin_path)))
+            else:
+                logger.debug("Found files {}".format(new_files))
 
             new_origin_paths.extend(new_files)
 
@@ -364,8 +366,8 @@ class TransferFile(object):
             raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
-        print(f'multiple = {self.multiple}, _multiple = {self._multiple}')
-        if len(new_origin_paths) > 1 and not self._multiple:                              # changed from self.multiple
+        
+        if len(new_origin_paths) > 1 and not self.multiple:
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,
                                                                        containing_directory))
