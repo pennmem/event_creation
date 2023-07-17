@@ -16,9 +16,9 @@ from .exc import ConfigurationError
 
 def build_group_index(input, groups):
     transfer_files = dict()
-
+    logger.debug(f'groups arg = {groups}')                  # add debug logging
     for file in input:
-
+        logger.debug(f'file groups = {file["groups"]}')
         do_process = True
         for group in file['groups']:
             if group.startswith('!'):
@@ -34,6 +34,7 @@ def build_group_index(input, groups):
             continue
 
         transfer_file = TransferFile(**file)
+        logger.debug(f'transfer_file = {transfer_file.__dict__}')
         transfer_file.expand_files(groups)
         transfer_files[transfer_file.name] = transfer_file
 
@@ -364,7 +365,7 @@ class TransferFile(object):
             raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
-
+        print(f'multiple = {self.multiple}, _multiple = {self._multiple}')
         if len(new_origin_paths) > 1 and not self.multiple:
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,

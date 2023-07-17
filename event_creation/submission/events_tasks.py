@@ -220,7 +220,9 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.3:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR':catFRHostPCLogParser,
+                'IFR': FRHostPCLogParser,         # not sure if necessary for system 3.3
+                'catFR': catFRHostPCLogParser,
+                'ICatFR': catFRHostPCLogParser,   # different parser than system 3.4
                 'PS':PSLogParser,
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
@@ -232,6 +234,7 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.4:
             return {
                 'FR': FRHostPCLogParser,
+                'IFR': FRHostPCLogParser,
                 #'catFR': catFRHostPCLogParser,
                 'catFR': CatFRSessionLogParser,
                 'ICatFR': CatFRSessionLogParser,
@@ -252,6 +255,7 @@ class EventCreationTask(PipelineTask):
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
                 'FR': ElememFRLogParser,
+                'IFR': ElememFRLogParser,
                 'catFR': ElememCatFRLogParser,
                 'ICatFR': ElememCatFRLogParser,
                 'EFRCourierReadOnly': ElememEFRCourierParser,

@@ -27,9 +27,11 @@ from .log import logger
 # potentially a FIXME for determine_groups func below
 GROUPS = {
     'FR': ('verbal', 'stim'),
+    'IFR': ('verbal', 'stim'),          # add IFR support
     'PAL': ('verbal', 'stim'),
     'catFR': ('verbal', 'stim'),
     'CatFR': ('verbal', 'stim'),
+    'ICatFR': ('verbal', 'stim'),       # add ICatFR support
     'PS': ('stim',),
     'OPS': ('stim',),
     'RepFR': ('verbal', ),
@@ -53,16 +55,13 @@ N_PS4_SESSIONS = 10
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
-    recog = True                                        # toggle to bypass 'recog' group
+    recog = False                # toggle to bypass 'recog' group
     if '_' in full_experiment:
         groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]
-    elif full_experiment.startswith('I'):               # re-route ICatFR to same pipeline process as CatFR
-        experiment = full_experiment[1:]
-        recog = False
     else:
         experiment = full_experiment
-    if protocol == 'r1' and 'FR5' in experiment and recog:
+    if protocol == 'r1' and 'FR5' in experiment and recog:    # understand and refactor
         groups += ('recog',)
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
