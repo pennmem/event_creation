@@ -290,6 +290,7 @@ class EventCreationTask(PipelineTask):
                 if self.event_label == 'math':
                     new_experiment = 'math'
                 else:
+                    logger.debug('self.kwargs.get("new_experiment") = {}, self.experiment = {}'.format(self.kwargs.get("new_experiment"), self.experiment))
                     new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS(self.r1_sys_num)[re.sub(r'[\d.]', '', new_experiment)]
