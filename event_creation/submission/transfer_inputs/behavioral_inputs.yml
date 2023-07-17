@@ -214,10 +214,10 @@ files:
 
   # IFR specific
   - name: wordpool
-    << : * FILE
+    << : *FILE
     groups: [r1, transfer, IFR]
     origin_directory: *BEH_EXP_DIR
-    origin_file: 
+    origin_file: RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
   # TH specific
