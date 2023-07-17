@@ -388,7 +388,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
 
     system = None
     if protocol == 'r1':
-        print(groups)
+        logger.debug('groups = {}'.format(groups))
         if "freiburg" in groups:
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, system, **kwargs)]
         else:
