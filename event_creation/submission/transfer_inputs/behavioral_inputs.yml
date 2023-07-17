@@ -187,7 +187,7 @@ files:
 
   # ICatFR specific           # should be same location for system 3 and system 4
   - name: wordpool
-   << : *FILE
+    << : *FILE
     groups: [r1, transfer, ICatFR]
     origin_directory: *BEH_EXP_DIR
     origin_file: 
