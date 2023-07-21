@@ -220,7 +220,9 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.3:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR':catFRHostPCLogParser,
+                'IFR': FRHostPCLogParser,         # not sure if necessary for system 3.3
+                'catFR': catFRHostPCLogParser,
+                'ICatFR': catFRHostPCLogParser,   # different parser than system 3.4
                 'PS':PSLogParser,
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
@@ -232,9 +234,11 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.4:
             return {
                 'FR': FRHostPCLogParser,
+                'IFR': FRHostPCLogParser,
                 #'catFR': catFRHostPCLogParser,
                 'catFR': CatFRSessionLogParser,
-                'ICatFR': CatFRSessionLogParser,
+                #'ICatFR': CatFRSessionLogParser,
+                'ICatFR': catFRHostPCLogParser,             # try same as system 3.3
                 'PS': PSLogParser,
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
@@ -252,6 +256,7 @@ class EventCreationTask(PipelineTask):
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
                 'FR': ElememFRLogParser,
+                'IFR': ElememFRLogParser,
                 'catFR': ElememCatFRLogParser,
                 'ICatFR': ElememCatFRLogParser,
                 'EFRCourierReadOnly': ElememEFRCourierParser,
@@ -286,6 +291,7 @@ class EventCreationTask(PipelineTask):
                 if self.event_label == 'math':
                     new_experiment = 'math'
                 else:
+                    logger.debug('self.kwargs.get("new_experiment") = {}, self.experiment = {}'.format(self.kwargs.get("new_experiment"), self.experiment))
                     new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS(self.r1_sys_num)[re.sub(r'[\d.]', '', new_experiment)]

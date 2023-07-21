@@ -185,6 +185,16 @@ files:
     origin_file: CatFR_WORDS_noAcc.txt
     destination: experiment_files/wordpool_no_accent.txt
 
+  # ICatFR specific           # should be same location for system 3 and system 4
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, ICatFR]
+    origin_directory: *BEH_EXP_DIR
+    origin_file: 
+    - ram_categorized_en.txt
+    destination: experiment_files/wordpool.txt
+
+
   # FR specific
 
   - name: wordpool
@@ -201,6 +211,14 @@ files:
     origin_directory: *BEH_EXP_DIR
     origin_file: RAM_wordpool_noAcc.txt
     destination: experiment_files/wordpool_no_accent.txt
+
+  # IFR specific
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, IFR]
+    origin_directory: *BEH_EXP_DIR
+    origin_file: RAM_wordpool.txt
+    destination: experiment_files/wordpool.txt
 
   # TH specific
   - name: sound_files
