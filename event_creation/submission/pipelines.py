@@ -26,11 +26,11 @@ from .log import logger
 # parsing of groups removes numbers
 # potentially a FIXME for determine_groups func below
 GROUPS = {
-    'FR': ('verbal', 'stim'),
+    'FR': ('verbal', 'stim', 'math'),   # math events in FR, PAL, catFR
     'IFR': ('verbal', 'stim'),          # add IFR support
-    'PAL': ('verbal', 'stim'),
-    'catFR': ('verbal', 'stim'),
-    'CatFR': ('verbal', 'stim'),
+    'PAL': ('verbal', 'stim', 'math'),
+    'catFR': ('verbal', 'stim', 'math'),
+    'CatFR': ('verbal', 'stim', 'math'),
     'ICatFR': ('verbal', 'stim'),       # add ICatFR support
     'PS': ('stim',),
     'OPS': ('stim',),
@@ -375,6 +375,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
 
     groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
+    logger.debug("After deterimine_groups function call, groups = {}".format(groups))
     do_math = 'math' in groups
     try:
         if any('PS' in g and int(re.sub(r'PS','',g))>3 for g in groups):
