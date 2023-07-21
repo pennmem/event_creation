@@ -239,6 +239,7 @@ class EventCreationTask(PipelineTask):
                 'catFR': CatFRSessionLogParser,
                 #'ICatFR': CatFRSessionLogParser,
                 'ICatFR': catFRHostPCLogParser,             # try same as system 3.3
+                'PS': PSLogParser,
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,

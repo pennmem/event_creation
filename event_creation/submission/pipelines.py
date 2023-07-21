@@ -72,6 +72,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
     groups += tuple(args)
 
     # temporary fix to bypass system matching and add system to groups from subject code
+    # THIS SHOULD BE CHANGED, SYSTEM 4 SITES USED TO BE SYSTEM 3
     if '_' in subject:           # ex: R1999H_1 for second montage, potentially already taken care of
         suj = subject.split('_')[0]
     else:
