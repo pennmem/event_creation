@@ -364,7 +364,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
                           groups=tuple(), do_compare=False, **kwargs):
 
     logger.set_label("Building Event Creator")
-
+    logger.debug("argument groups = {}; default is empty tuple".format(groups))           # check what is input as groups argument
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
 
@@ -418,7 +418,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        event_label='ps4', **kwargs))
         other_events += ('ps4',)
-
+    logger.debug("do_math = {}, groups = {}".format(do_math, groups))       # 'math' should be in groups for catFR
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', critical=False, parser_type=MathLogParser, **kwargs))
