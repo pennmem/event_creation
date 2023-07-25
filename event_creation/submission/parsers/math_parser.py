@@ -223,9 +223,10 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
                   'test': [int(x) for x in re.findall(r'\d+', row.data[self.TEST_FIELD])], 
                   'iscorrect': int(bool(row.data[self.ISCORRECT_FIELD])), 
                   'rectime': int(row.data[self.RECTIME_FIELD]), 
-                  'mstime': int(row.time - int(row.data[self.RECTIME_FIELD]))} if row.type == 'MATH' else 
-                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'mstime': int(row.time)} if row.type == 'DISTRACT' else 
-                  {} for _, row in md.iterrows()]
+                  'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
+                  'type': 'MATH'} if row.type == 'MATH' else 
+                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'mstime': int(row.time), 'type': 'DISTRACT'} 
+                  if row.type == 'DISTRACT' else {} for _, row in md.iterrows()]
         df_md = pd.DataFrame.from_records(md_ra)       # convert back to dataframe to add fields
         df_md['subject'] = self._subject
         df_md['experiment'] = self._experiment
@@ -242,9 +243,9 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
     def events_math(self, event_json):
         event = self.event_default(event_json)
         event['type'] = 'MATH'                       # probably not best that this is different from system 3 'PROB'
-        event['answer'] = int(event_json[self.ANSWER_FIELD])
-        event['test'] = [int(x) for x in re.findall(r'\d+', event_json[self.TEST_FIELD])]
-        event['iscorrect'] = int(event['answer'] == sum(event['test']))
-        event['rectime'] = int(event_json[self.RECTIME_FIELD])
-        event['mstime'] = event_json[self._MSTIME_FIELD] - event['rectime']     # timestamp of start of math problem
+        event['answer'] = event_json[self.ANSWER_FIELD]
+        event['test'] = event_json[self.TEST_FIELD]
+        event['iscorrect'] = event_json[self.ISCORRECT_FIELD]
+        event['rectime'] = event_json[self.RECTIME_FIELD]
+        event['mstime'] = event_json['mstime']     # timestamp of start of math problem
         return event
