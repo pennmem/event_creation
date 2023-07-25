@@ -1,6 +1,6 @@
 
 paths : &PATHS
-  rhino_root     : &RHINO '/'
+  rhino_root     : &RHINO '/home1/hherrema/programming_data/local_rhino/'
   data_root      : !join [*RHINO,'data','eeg']
   loc_db_root    : !join [*RHINO, 'home2', 'RAM_maint', 'stim']
   db_root        : *RHINO
