@@ -20,12 +20,12 @@ def MathLogParser(protocol,subject,montage,experiment,session,files):
     :param files:
     :return: Union[MathSessionLogParser,MathUnityLogParser]
     """
-    logger.debug("Files given to MathLogParser = {}".format(files))
+    #logger.debug("Files given to MathLogParser = {}".format(files))
     if 'math_log' in files:
         return MathSessionLogParser(protocol,subject,montage,experiment,session,files)
     elif 'session_log_json' in files:
         return MathUnityLogParser(protocol,subject,montage,experiment,session,files)
-    elif 'elemem_files' in files:          # conditioning on 'event_log' would also match system 3 (ok because of logic order)
+    elif 'event_log' in files:       # conditioning on 'event_log' may also match system 3 (ok because of logic order)
         return MathElememLogParser(protocol, subject, montage, experiment, session, files)
     else:
         raise UnknownExperimentError('Uknown math log file')
