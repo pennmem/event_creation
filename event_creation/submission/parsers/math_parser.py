@@ -1,8 +1,10 @@
 from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
+from .elemem_parsers import BaseElememLogParser
 from .system2_log_parser import System2LogParser
 import pandas as pd
 import numpy as np
 from ..exc import UnknownExperimentError
+import re
 
 
 def MathLogParser(protocol,subject,montage,experiment,session,files):
@@ -21,6 +23,8 @@ def MathLogParser(protocol,subject,montage,experiment,session,files):
         return MathSessionLogParser(protocol,subject,montage,experiment,session,files)
     elif 'session_log_json' in files:
         return MathUnityLogParser(protocol,subject,montage,experiment,session,files)
+    elif 'elemem_files' in files:          # conditioning on 'event_log' would also match system 3 (ok because of logic order)
+        return MathElememLogParser(protocol, subject, montage, experiment, session, files)
     else:
         raise UnknownExperimentError('Uknown math log file')
 
@@ -189,3 +193,56 @@ class MathUnityLogParser(BaseSys3_1LogParser):
         parser = MathUnityLogParser('r1','R1999X',0,'math_test',-1,files)
         events = parser.parse()
         return events
+    
+
+class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/distractor events
+    ANSWER_FIELD = 'response'
+    TEST_FIELD = 'problem'
+    RECTIME_FIELD = 'response_time_ms'
+    ISCORRECT_FIELD = 'correct'
+    _MSTIME_FIELD = 'time'
+    
+
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        super(MathElememLogParser, self).__init__(protocol, subject, montage, experiment, session, files, 
+                                                  primary_log='event_log')
+        self._add_fields(*MathSessionLogParser._math_fields())             # use other classes method for math columns in events
+        self._add_type_to_new_event(
+            MATH = self.events_math,
+            DISTRACT = self.events_distract,
+        )
+
+    # override method in BaseElememLogParser -> only reading MATH and DISTRACT events
+    def _read_event_log(self, filename):
+        df = pd.read_json(filename, lines=True)
+        md = df[(df['type']=='MATH') | (df['type']=='DISTRACT')]       # math and distract events
+        # have to convert from dataframe to grab necessary info
+        md_ra = [{'answer': int(row.data[self.ANSWER_FIELD]), 
+                  'test': [int(x) for x in re.findall(r'\d+', row.data[self.TEST_FIELD])], 
+                  'iscorrect': int(bool(row.data[self.ISCORRECT_FIELD])), 
+                  'rectime': int(row.data[self.RECTIME_FIELD]), 
+                  'mstime': int(row.time - int(row.data[self.RECTIME_FIELD]))} if row.type == 'MATH' else 
+                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'mstime': int(row.time)} if row.type == 'DISTRACT' else 
+                  {} for _, row in md.iterrows()]
+        df_md = pd.DataFrame.from_records(md_ra)       # convert back to dataframe to add fields
+        df_md['subject'] = self._subject
+        df_md['experiment'] = self._experiment
+        df_md['protocol'] = self._protocol
+        df_md['montage'] = self._montage
+        return [e.to_dict() for _, e in df_md.iterrows()]
+
+        
+    def events_distract(self, event_json):
+        event = self.event_default(event_json)
+        event['type'] = 'DISTRACT'                   # only distractor start (no stop) for system 4 logs
+        return event
+    
+    def events_math(self, event_json):
+        event = self.event_default(event_json)
+        event['type'] = 'MATH'                       # probably not best that this is different from system 3 'PROB'
+        event['answer'] = int(event_json[self.ANSWER_FIELD])
+        event['test'] = [int(x) for x in re.findall(r'\d+', event_json[self.TEST_FIELD])]
+        event['iscorrect'] = int(event['answer'] == sum(event['test']))
+        event['rectime'] = int(event_json[self.RECTIME_FIELD])
+        event['mstime'] = event_json[self._MSTIME_FIELD] - event['rectime']     # timestamp of start of math problem
+        return event
