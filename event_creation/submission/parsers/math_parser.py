@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from ..exc import UnknownExperimentError
 import re
+from ..log import logger
 
 
 def MathLogParser(protocol,subject,montage,experiment,session,files):
@@ -19,6 +20,7 @@ def MathLogParser(protocol,subject,montage,experiment,session,files):
     :param files:
     :return: Union[MathSessionLogParser,MathUnityLogParser]
     """
+    logger.debug("Files given to MathLogParser = {}".format(files))
     if 'math_log' in files:
         return MathSessionLogParser(protocol,subject,montage,experiment,session,files)
     elif 'session_log_json' in files:
