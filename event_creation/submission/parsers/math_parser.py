@@ -233,6 +233,12 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['protocol'] = self._protocol
         df_md['montage'] = self._montage
         return [e.to_dict() for _, e in df_md.iterrows()]
+    
+    # parse() gets called in event_tasks.py, so need to re-route here to return math/distractor events
+    def parse(self):
+        logger.debug("Primary log to parse = {}".format(self._primary_log))
+        events = self._read_event_log(self._primary_log)
+        return events
 
         
     def events_distract(self, event_json):
