@@ -203,6 +203,11 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
     RECTIME_FIELD = 'response_time_ms'
     ISCORRECT_FIELD = 'correct'
     _MSTIME_FIELD = 'time'
+    # manually specify field datatypes
+    dtypes = {'answer': 'int16', 'test': 'O', 'iscorrect': 'int16', 'rectime': 'int32', 'mstime': 'int64', 
+              'type': 'U64', 'subject': 'U64', 'experiment': 'U64', 'protocol': 'U64', 'montage': 'U64', 
+              'session': 'int16', 'eegoffset': 'int64', 'eegfile': 'U64', 'phase': 'U16', 'exp_version': 'U64', 
+              'category': 'U64', 'item_name': 'U64'}
     
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
@@ -213,6 +218,12 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             MATH = self.events_math,
             DISTRACT = self.events_distract,
         )
+        logger.debug("attributes: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}".format(
+            self._subject, self._experiment, self._protocol, self._montage, self._session
+        ))
+        logger.debug("arguments: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}, files = {}".format(
+            subject, experiment, protocol, montage, session, files
+        ))
 
     # override method in BaseElememLogParser -> only reading MATH and DISTRACT events
     def _read_event_log(self, filename):
@@ -235,8 +246,12 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['session'] = self._session
         df_md['eegfile'] = ''                         # alignment requires record array to have eegfile, eegoffset fields
         df_md['eegoffset'] = -999                     # set to defaults here, changed in alignment
+        df_md['phase'] = ''
+        df_md['exp_version'] = ''
+        df_md['category'] = 'X'
+        df_md['item_name'] = 'X'
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
-        dtype = np.dtype([(key, type(val)) for key, val in md_dl[0].items()])    # dtypes of each field
+        dtype = np.dtype([(key, val) for key, val in self.dtypes.items()])    # dtypes of each field
         record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
         for i, d in enumerate(md_dl):
             for k, v in d.items():

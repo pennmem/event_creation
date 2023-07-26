@@ -18,6 +18,7 @@ class System4Offset:
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
         logger.debug("Event fields = {}".format(events.view(np.recarray).dtype.names))
+        logger.debug("eeg_dir = {}, eeg_file = {}".format(eeg_dir, self.eeg_file))
     
     @staticmethod
     def extract_eegstart(logfile):
