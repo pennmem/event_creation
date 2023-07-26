@@ -17,6 +17,7 @@ class System4Offset:
         self.eeg = mne.io.read_raw_edf(self.eeg_file, preload=True)
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
+        logger.debug("Event fields = {}".format(events.view(np.recarray).dtype.names))
     
     @staticmethod
     def extract_eegstart(logfile):
