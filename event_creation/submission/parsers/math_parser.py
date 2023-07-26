@@ -218,12 +218,14 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             MATH = self.events_math,
             DISTRACT = self.events_distract,
         )
+        """
         logger.debug("attributes: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}".format(
             self._subject, self._experiment, self._protocol, self._montage, self._session
         ))
         logger.debug("arguments: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}, files = {}".format(
             subject, experiment, protocol, montage, session, files
         ))
+        """
 
     # override method in BaseElememLogParser -> only reading MATH and DISTRACT events
     def _read_event_log(self, filename):
@@ -234,10 +236,10 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
                   'test': [int(x) for x in re.findall(r'\d+', row.data[self.TEST_FIELD])], 
                   'iscorrect': int(bool(row.data[self.ISCORRECT_FIELD])), 
                   'rectime': int(row.data[self.RECTIME_FIELD]), 
-                  'mstime': int(row.time),         # don't subtract rectime
-                  #'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
-                  'type': 'MATH'} if row.type == 'MATH' else 
-                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'rectime': -999, 'mstime': int(row.time), 'type': 'DISTRACT'} 
+                  #'mstime': int(row.time),         # don't subtract rectime
+                  'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
+                  'type': 'PROB'} if row.type == 'MATH' else 
+                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'rectime': -999, 'mstime': int(row.time), 'type': 'DISTRACT_START'} 
                   if row.type == 'DISTRACT' else {} for _, row in md.iterrows()]
         df_md = pd.DataFrame.from_records(md_ra)       # convert back to dataframe to add fields
         df_md['subject'] = self._subject
@@ -255,7 +257,7 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         list_col = np.zeros(len(df_md.index), dtype=int)
         l = -1
         for idx in range(len(list_col)):
-            if idx in df_md.loc[df_md['type']=='DISTRACT'].index:
+            if idx in df_md.loc[df_md['type']=='DISTRACT_START'].index:
                 l += 1
             list_col[idx] = int(l)
         df_md['list'] = list_col

@@ -339,7 +339,7 @@ class BaseLogParser(object):
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
-        logger.debug("Events type = {}; Events = {}".format(type(events), events))
+        #logger.debug("Events type = {}; Events = {}".format(type(events), events))
         # Remove first (empty) event
         if events.ndim > 0:
             return events[1:]
