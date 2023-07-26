@@ -253,9 +253,13 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
         dtype = np.dtype([(key, self.dtypes.get(key)) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
         record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
-        for i, d in enumerate(md_dl):
-            for k, v in d.items():
-                record_array[k][i] = v
+        try:
+            for i, d in enumerate(md_dl):
+                for k, v in d.items():
+                    record_array[k][i] = v
+        except BaseException as be:
+            print(be)
+            print("i = {}, d = {}, k = {}, v = {}".format(i,d,k,v))
         
         return record_array
     
