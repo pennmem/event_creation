@@ -233,6 +233,8 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['protocol'] = self._protocol
         df_md['montage'] = self._montage
         df_md['session'] = self._session
+        df_md['eegfile'] = ''                         # alignment requires record array to have eegfile, eegoffset fields
+        df_md['eegoffest'] = -999                     # set to defaults here, changed in alignment
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
         dtype = np.dtype([(key, type(val)) for key, val in md_dl[0].items()])    # dtypes of each field
         record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
