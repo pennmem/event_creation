@@ -236,7 +236,7 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
                   'rectime': int(row.data[self.RECTIME_FIELD]), 
                   'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
                   'type': 'MATH'} if row.type == 'MATH' else 
-                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'mstime': int(row.time), 'type': 'DISTRACT'} 
+                  {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'rectime': -999, 'mstime': int(row.time), 'type': 'DISTRACT'} 
                   if row.type == 'DISTRACT' else {} for _, row in md.iterrows()]
         df_md = pd.DataFrame.from_records(md_ra)       # convert back to dataframe to add fields
         df_md['subject'] = self._subject
