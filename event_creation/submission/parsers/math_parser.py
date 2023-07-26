@@ -207,7 +207,7 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
     dtypes = {'answer': 'int16', 'test': 'O', 'iscorrect': 'int16', 'rectime': 'int32', 'mstime': 'int64', 
               'type': 'U64', 'subject': 'U64', 'experiment': 'U64', 'protocol': 'U64', 'montage': 'U64', 
               'session': 'int16', 'eegoffset': 'int64', 'eegfile': 'U64', 'phase': 'U16', 'exp_version': 'U64', 
-              'category': 'U64', 'item_name': 'U64'}
+              'category': 'U64', 'item_name': 'U64', 'list': 'int16'}
     
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
@@ -234,7 +234,8 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
                   'test': [int(x) for x in re.findall(r'\d+', row.data[self.TEST_FIELD])], 
                   'iscorrect': int(bool(row.data[self.ISCORRECT_FIELD])), 
                   'rectime': int(row.data[self.RECTIME_FIELD]), 
-                  'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
+                  'mstime': int(row.time),         # don't subtract rectime
+                  #'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
                   'type': 'MATH'} if row.type == 'MATH' else 
                   {'answer': -999, 'test': [0,0,0], 'iscorrect': -999, 'rectime': -999, 'mstime': int(row.time), 'type': 'DISTRACT'} 
                   if row.type == 'DISTRACT' else {} for _, row in md.iterrows()]
@@ -250,17 +251,20 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['exp_version'] = ''
         df_md['category'] = 'X'
         df_md['item_name'] = 'X'
+        # add list number field
+        list_col = np.zeros(len(df_md.index), dtype=int)
+        l = -1
+        for idx in range(len(list_col)):
+            if idx in df_md.loc[df_md['type']=='DISTRACT'].index:
+                l += 1
+            list_col[idx] = int(l)
+        df_md['list'] = list_col
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
         dtype = np.dtype([(key, self.dtypes.get(key)) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
         record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
-        try:
-            for i, d in enumerate(md_dl):
-                for k, v in d.items():
-                    record_array[k][i] = v
-        except BaseException as be:
-            print(be)
-            print("i = {}, d = {}, k = {}, v = {}".format(i,d,k,v))
-        
+        for i, d in enumerate(md_dl):
+            for k, v in d.items():
+                record_array[k][i] = v
         return record_array
     
     # parse() gets called in event_tasks.py, so need to re-route here to return math/distractor events
