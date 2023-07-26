@@ -331,6 +331,7 @@ class EventCreationTask(PipelineTask):
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         logger.debug('Using %s' % str(self.parser_type))
         unaligned_events = parser.parse()
+        #logger.debug("unaligned events = {}".format(unaligned_events))
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
         if self.protocol == 'ltp':
             sync_log = files['eeg_log'] if 'eeg_log' in files else []

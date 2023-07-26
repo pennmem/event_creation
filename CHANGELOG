@@ -1,3 +1,9 @@
+2023-7-26
+===================
+- System 3 and system 4 event creation supported by same codebase
+- Added parser for system 4 math events
+- Added support for ICatFR and IFR experiments (read only)
+
 2021-6-2 (v2.0.0)
 ===================
 - Moved to Python 3 (following the deprecation of Python 2). Not all legacy experiments are fully supported in Python 3 at this point. All modern UnityEPL experiments are supported. 
