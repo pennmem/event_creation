@@ -232,7 +232,15 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['experiment'] = self._experiment
         df_md['protocol'] = self._protocol
         df_md['montage'] = self._montage
-        return [e.to_dict() for _, e in df_md.iterrows()]
+        df_md['session'] = self._session
+        md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
+        dtype = np.dtype([(key, type(val)) for key, val in md_dl[0].items()])    # dtypes of each field
+        record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
+        for i, d in enumerate(md_dl):
+            for k, v in d.items():
+                record_array[k][i] = v
+        
+        return record_array
     
     # parse() gets called in event_tasks.py, so need to re-route here to return math/distractor events
     def parse(self):
