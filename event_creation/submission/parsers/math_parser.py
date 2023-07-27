@@ -6,6 +6,7 @@ import numpy as np
 from ..exc import UnknownExperimentError
 import re
 from ..log import logger
+from . import dtypes
 
 
 def MathLogParser(protocol,subject,montage,experiment,session,files):
@@ -203,13 +204,13 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
     RECTIME_FIELD = 'response_time_ms'
     ISCORRECT_FIELD = 'correct'
     _MSTIME_FIELD = 'time'
-    # manually specify field datatypes
-    dtypes = {'answer': 'int16', 'test': 'O', 'iscorrect': 'int16', 'rectime': 'int32', 'mstime': 'int64', 
-              'type': 'U64', 'subject': 'U64', 'experiment': 'U64', 'protocol': 'U64', 'montage': 'U64', 
-              'session': 'int16', 'eegoffset': 'int64', 'eegfile': 'U64', 'phase': 'U16', 'exp_version': 'U64', 
-              'category': 'U64', 'item_name': 'U64', 'list': 'int16'}
+    # dataframe of field, default value, datatype
+    fields = pd.concat([pd.DataFrame(dtypes.base_fields, columns=['field', 'default', 'datatype']), 
+                        pd.DataFrame(dtypes.fr_fields, columns=['field', 'default', 'datatype']), 
+                        pd.DataFrame(dtypes.category_fields, columns=['field', 'default', 'datatype']), 
+                        pd.DataFrame([('answer', -999, 'int16'), ('test', [0,0,0], 'O'), ('iscorrect', -999, 'int16')], columns=['field', 'default', 'datatype'])], 
+                        ignore_index=True)
     
-
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super(MathElememLogParser, self).__init__(protocol, subject, montage, experiment, session, files, 
                                                   primary_log='event_log')
@@ -246,13 +247,17 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['experiment'] = self._experiment
         df_md['protocol'] = self._protocol
         df_md['montage'] = self._montage
-        df_md['session'] = self._session                  
-        df_md['eegoffset'] = -999    # alignment requires record array to have eegfile, eegoffset fields
-        df_md['eegfile'] = ''        # set to defaults here, changed in alignment
-        df_md['phase'] = ''
-        df_md['exp_version'] = ''
-        df_md['category'] = 'X'
-        df_md['item_name'] = 'X'
+        df_md['session'] = self._session
+        df_md['eegoffset'] = self.fields.query("field == 'eegoffset'").iloc[0].default        # aligner requires eegoffset and eegfile fields
+        df_md['eegfile'] = self.fields.query("field == 'eegfile'").iloc[0].default
+        """
+        df_md['phase'] = self.fields.query("field == 'phase'").iloc[0].default
+        df_md['exp_version'] = self.fields.query("field == 'exp_version'").iloc[0].default
+        df_md['item_name'] = self.fields.query("field == item_name'").iloc[0].default
+        if 'cat' in self._experiment or 'Cat' in self._experiment:     # category fields
+            df_md['category'] = self.fields.query("field == 'category'").iloc[0].default
+            df_md['category_num'] = self.fields.query("field == 'category_num'").iloc[0].default
+        """
         # add list number field
         list_col = np.zeros(len(df_md.index), dtype=int)
         l = -1
@@ -262,7 +267,7 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             list_col[idx] = int(l)
         df_md['list'] = list_col
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
-        dtype = np.dtype([(key, self.dtypes.get(key)) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
+        dtype = np.dtype([(key, self.fields.query("field == @key").iloc[0].datatype) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
         record_array = np.empty(len(md_dl), dtype=dtype)      # convert to record array
         for i, d in enumerate(md_dl):
             for k, v in d.items():
