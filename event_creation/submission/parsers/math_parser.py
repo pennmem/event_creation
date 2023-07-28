@@ -248,16 +248,12 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         df_md['protocol'] = self._protocol
         df_md['montage'] = self._montage
         df_md['session'] = self._session
-        df_md['eegoffset'] = self.fields.query("field == 'eegoffset'").iloc[0].default        # aligner requires eegoffset and eegfile fields
-        df_md['eegfile'] = self.fields.query("field == 'eegfile'").iloc[0].default
-        """
-        df_md['phase'] = self.fields.query("field == 'phase'").iloc[0].default
-        df_md['exp_version'] = self.fields.query("field == 'exp_version'").iloc[0].default
-        df_md['item_name'] = self.fields.query("field == item_name'").iloc[0].default
+        for f in ['eegoffset', 'eegfile', 'exp_version', 'phase', 'intrusion', 'is_stim', 'item_name', 'msoffset', 'recalled', 
+                  'recog_resp', 'recog_rt', 'recognized', 'rejected', 'serialpos', 'stim_list']:
+            df_md = self.add_field(df_md, f)
         if 'cat' in self._experiment or 'Cat' in self._experiment:     # category fields
-            df_md['category'] = self.fields.query("field == 'category'").iloc[0].default
-            df_md['category_num'] = self.fields.query("field == 'category_num'").iloc[0].default
-        """
+            df_md = self.add_field(df_md, 'category')
+            df_md = self.add_field(df_md, 'category_num')
         # add list number field
         list_col = np.zeros(len(df_md.index), dtype=int)
         l = -1
@@ -279,6 +275,11 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         logger.debug("Primary log to parse = {}".format(self._primary_log))
         events = self._read_event_log(self._primary_log)
         return events
+    
+    # add columns to math events structure
+    def add_field(self, df, field_name):
+        df[field_name] = self.fields.query("field == @field_name").iloc[0].default
+        return df
 
         
     def events_distract(self, event_json):
