@@ -249,6 +249,22 @@ class EventCreationTask(PipelineTask):
                 'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser, # TODO
             }
+        elif sys_num == 3.6:
+            return {
+                'FR': FRHostPCLogParser,
+                'IFR': FRHostPCLogParser,
+                'catFR': CatFRSessionLogParser,
+                'ICatFR': catFRHostPCLogParser,
+                'PS': PSLogParser,
+                'PS_FR': PSLogParser,
+                'PS_catFR': PSLogParser,
+                'PAL': PALSys3LogParser,
+                'TICL_FR': TiclFRParser,
+                'TICL_catFR': TiclFRParser,
+                'LocationSearch': PSLogParser,
+                'RepFR': RepFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser
+            }
 
         elif sys_num == 4.0:
             return {
