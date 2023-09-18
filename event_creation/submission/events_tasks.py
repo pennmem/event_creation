@@ -382,7 +382,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0 <= self.r1_sys_num <= 3.4:
+                    elif 3.0 <= self.r1_sys_num <= 3.6:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
