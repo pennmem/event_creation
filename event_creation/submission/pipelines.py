@@ -79,7 +79,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         suj = subject
     match_sys = True            # toggle whether to run system matching
     sys3 = ['A', 'S']
-    sys4 = ['J', 'T', 'E']
+    sys4 = ['J', 'T', 'E', 'H']      # add Harvard  = H
     if suj[-1] in sys3:
         groups += ('system_3_3',)
         match_sys = False
