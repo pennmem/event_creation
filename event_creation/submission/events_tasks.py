@@ -235,8 +235,8 @@ class EventCreationTask(PipelineTask):
             return {
                 'FR': FRHostPCLogParser,
                 'IFR': FRHostPCLogParser,
-                #'catFR': catFRHostPCLogParser,
-                'catFR': CatFRSessionLogParser,
+                'catFR': catFRHostPCLogParser,             # confirmed as correct catFR log parser
+                #'catFR': CatFRSessionLogParser,
                 #'ICatFR': CatFRSessionLogParser,
                 'ICatFR': catFRHostPCLogParser,             # try same as system 3.3
                 'PS': PSLogParser,
@@ -253,7 +253,8 @@ class EventCreationTask(PipelineTask):
             return {
                 'FR': FRHostPCLogParser,
                 'IFR': FRHostPCLogParser,
-                'catFR': CatFRSessionLogParser,
+                'catFR': catFRHostPCLogParser,
+                #'catFR': CatFRSessionLogParser,
                 'ICatFR': catFRHostPCLogParser,
                 'PS': PSLogParser,
                 'PS_FR': PSLogParser,
@@ -344,6 +345,7 @@ class EventCreationTask(PipelineTask):
             with open(files['event_log'][0]) as event_log:
                 self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.', '_')
 
+        logger.debug(f'system number = {self.r1_sys_num}')
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         logger.debug('Using %s' % str(self.parser_type))
         unaligned_events = parser.parse()
