@@ -328,6 +328,8 @@ class TransferPipeline(object):
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
     logger.set_label("Building EEG Splitter")
+    if protocol == 'ltp':                           # for scalp subjects, enforce logging to subject-level log.txt
+        logger.set_subject(subject, protocol)
     new_experiment = new_experiment if not new_experiment is None else experiment
 
     groups = determine_groups(protocol, code, experiment, original_session,
@@ -363,7 +365,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=False, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
-
+    
     logger.set_label("Building Event Creator")
     logger.debug("argument groups = {}; default is empty tuple".format(groups))           # check what is input as groups argument
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
