@@ -2,7 +2,7 @@ from __future__ import print_function
 import json
 import sys
 #from cluster_helper.cluster import cluster_view
-sys.path.append('/home1/maint/event_creation')
+sys.path.append('/home1/maint/event_creation_py3')
 from clusterrun import ClusterCheckedTup
 from event_creation.submission.convenience import run_session_import
 from event_creation.submission.tasks import IndexAggregatorTask
