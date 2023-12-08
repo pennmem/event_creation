@@ -302,7 +302,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
     if 'force_eeg' in kwargs:
         force_eeg = kwargs['force_eeg']
 
-
+    logger.info(f'Running session import with kwargs = {kwargs}')
     if do_import:
         ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
         success, attempts = attempt_importers([ephys_builder], force_eeg)
