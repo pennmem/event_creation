@@ -13,10 +13,12 @@ class System4Offset:
             raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
         self.eeg_file_stem = list(eeg_sources.keys())[0]
         self.eeg_log = files['event_log'][0]
-        self.eeg_file = glob.glob(os.path.join(eeg_dir, '*.edf'))[0]
+        self.eeg_file = sorted(glob.glob(os.path.join(eeg_dir, '*.edf')), key=os.path.getmtime, reverse=True)[0]
         self.eeg = mne.io.read_raw_edf(self.eeg_file, preload=True)
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
+        #logger.debug("Event fields = {}".format(events.view(np.recarray).dtype.names))
+        #logger.debug("eeg_dir = {}, eeg_file = {}".format(eeg_dir, self.eeg_file))
     
     @staticmethod
     def extract_eegstart(logfile):

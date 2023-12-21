@@ -26,10 +26,12 @@ from .log import logger
 # parsing of groups removes numbers
 # potentially a FIXME for determine_groups func below
 GROUPS = {
-    'FR': ('verbal', 'stim'),
-    'PAL': ('verbal', 'stim'),
-    'catFR': ('verbal', 'stim'),
-    'CatFR': ('verbal', 'stim'),
+    'FR': ('verbal', 'stim', 'math'),   # math events in FR, PAL, catFR
+    'IFR': ('verbal', 'stim'),          # add IFR support
+    'PAL': ('verbal', 'stim', 'math'),
+    'catFR': ('verbal', 'stim', 'math'),
+    'CatFR': ('verbal', 'stim', 'math'),
+    'ICatFR': ('verbal', 'stim'),       # add ICatFR support
     'PS': ('stim',),
     'OPS': ('stim',),
     'CPS': ('stim',),
@@ -41,6 +43,9 @@ GROUPS = {
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
+    'EFRCourierReadOnly': ('verbal', 'unity', 'courier'),
+    'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim'),
+    'ltpDelayRepFRReadOnly': ('verbal', 'unity')
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
@@ -51,13 +56,13 @@ N_PS4_SESSIONS = 10
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
     groups = (protocol,)
-    
+    recog = False                # toggle to bypass 'recog' group
     if '_' in full_experiment:
         groups += (full_experiment.split('_')[0],)
         experiment = full_experiment.partition('_')[-1]
     else:
         experiment = full_experiment
-    if protocol == 'r1' and 'FR5' in experiment:
+    if protocol == 'r1' and 'FR5' in experiment and recog:    # understand and refactor
         groups += ('recog',)
     exp_type = re.sub(r'[^A-Za-z]', '', experiment)
 
@@ -67,7 +72,25 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
     groups += tuple(args)
 
-    if (protocol == 'r1' or protocol == 'fr') and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups:
+    # temporary fix to bypass system matching and add system to groups from subject code
+    # THIS SHOULD BE CHANGED, SYSTEM 4 SITES USED TO BE SYSTEM 3
+    if '_' in subject:           # ex: R1999H_1 for second montage, potentially already taken care of
+        suj = subject.split('_')[0]
+    else:
+        suj = subject
+    match_sys = True            # toggle whether to run system matching
+    sys3 = ['A', 'S']
+    sys4 = ['J', 'T', 'E', 'H']      # add Harvard  = H
+    if suj[-1] in sys3:
+        groups += ('system_3_3',)
+        match_sys = False
+    elif suj[-1] in sys4:
+        groups += ('system_4',)
+        match_sys = False
+    else:
+        logger.info("Running a non system 3 or 4 subject {}".format(subject))
+
+    if (protocol == 'r1' or protocol == 'fr') and 'system_1' not in groups and 'system_2' not in groups and 'system_3' not in groups and match_sys:
         kwargs['original_session'] = session
         inputs = dict(protocol=protocol,
                       subject=subject,
@@ -77,7 +100,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
                       **kwargs)
         inputs.update(**paths.options)
 
-        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')
+        systems = ('system_1', 'system_2', 'system_3_3', 'system_3_1', 'system_3_0', 'system_4', 'freiburg')   # missing system_3_4 (and system_3_2)
         misses = {}
         for sys in systems:
             try:
@@ -306,6 +329,8 @@ class TransferPipeline(object):
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
     logger.set_label("Building EEG Splitter")
+    if protocol == 'ltp':                           # for scalp subjects, enforce logging to subject-level log.txt
+        logger.set_subject(subject, protocol)
     new_experiment = new_experiment if not new_experiment is None else experiment
 
     groups = determine_groups(protocol, code, experiment, original_session,
@@ -341,9 +366,9 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=False, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
-
+    
     logger.set_label("Building Event Creator")
-
+    logger.debug("argument groups = {}; default is empty tuple".format(groups))           # check what is input as groups argument
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
     code = code or subject
 
@@ -354,6 +379,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
 
     groups = determine_groups(protocol, code, experiment, original_session,
                                TRANSFER_INPUTS['behavioral'], 'transfer', *groups, **kwargs)
+    logger.debug("After deterimine_groups function call, groups = {}".format(groups))
     do_math = 'math' in groups
     try:
         if any('PS' in g and int(re.sub(r'PS','',g))>3 for g in groups):
@@ -367,7 +393,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
 
     system = None
     if protocol == 'r1':
-        print(groups)
+        logger.debug('groups = {}'.format(groups))
         if "freiburg" in groups:
             tasks = [EventCreationTask(protocol, subject, montage, experiment, session, system, **kwargs)]
         else:
@@ -397,14 +423,14 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        event_label='ps4', **kwargs))
         other_events += ('ps4',)
-
+    logger.debug("do_math = {}, groups = {}".format(do_math, groups))       # 'math' should be in groups for catFR
     if do_math:
         tasks.append(EventCreationTask(protocol, subject, montage, experiment, session, system,
                                        'math', critical=False, parser_type=MathLogParser, **kwargs))
         other_events += ('math',)
 
-    if other_events or protocol == 'ltp':  # Ensure that all scalp EEG experiments get an all_events.json file
-        tasks.append(EventCombinationTask(('task',) + other_events, critical=False,))
+    # Ensure that all EEG experiments get an all_events.json file
+    tasks.append(EventCombinationTask(('task',) + other_events, critical=False,))
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))

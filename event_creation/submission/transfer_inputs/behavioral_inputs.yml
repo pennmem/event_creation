@@ -19,6 +19,7 @@ directories:
   beh_session_dir    : &BEH_SESS_DIR !join [*BEH_EXP_DIR, 'session_{original_session}']
   beh_exp_sess_dir    : &BEH_EXP_SESS_DIR !join [*BEH_EXP_DIR, '{experiment}_{original_session}']
   sys3_host_dir      : &SYS3_HOST_DIR !join [*BEH_SESS_DIR, 'host_pc']
+  sys3_config_dir    : &SYS3_CONFIG_DIR !join [*SYS3_HOST_DIR, '20*/config_files']
   sys4_host_dir      : &SYS4_HOST_DIR !join [*BEH_SESS_DIR, 'elemem']
   sync_dir           : &SYNC_DIR !join [*SUBJ_DIR, '{sync_folder}']
 
@@ -100,7 +101,7 @@ files:
 
   - name: session_log
     << : *FILE
-    groups: [ transfer, verbal, '!system_3_3',  '!freiburg']
+    groups: [ transfer, verbal, '!system_3_3',  '!freiburg', '!system_4']
     origin_directory: *BEH_SESS_DIR
     origin_file:
     - 'session.log'
@@ -108,7 +109,7 @@ files:
 
   - name: math_log
     << : *FILE
-    groups: [ r1, transfer, verbal, '!system_3_3',  '!freiburg']
+    groups: [ r1, transfer, verbal, '!system_3_3',  '!freiburg', '!system_4']
     required: false
     origin_directory: *BEH_SESS_DIR
     origin_file: math.log
@@ -168,6 +169,14 @@ files:
     - RAM_wordpool.txt
     destination: experiment_files/wordpool.txt
 
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, catFR, system_4]
+    origin_directory: *BEH_EXP_DIR
+    origin_file:
+    - ram_categorized_en.txt
+    destination: experiment_files/wordpool.txt
+
   - name: no_accent_wordpool
     << : *FILE
     groups: [r1, transfer, catFR]
@@ -175,6 +184,16 @@ files:
     origin_directory: *BEH_EXP_DIR
     origin_file: CatFR_WORDS_noAcc.txt
     destination: experiment_files/wordpool_no_accent.txt
+
+  # ICatFR specific           # should be same location for system 3 and system 4
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, ICatFR]
+    origin_directory: *BEH_EXP_DIR
+    origin_file: 
+    - ram_categorized_en.txt
+    destination: experiment_files/wordpool.txt
+
 
   # FR specific
 
@@ -192,6 +211,14 @@ files:
     origin_directory: *BEH_EXP_DIR
     origin_file: RAM_wordpool_noAcc.txt
     destination: experiment_files/wordpool_no_accent.txt
+
+  # IFR specific
+  - name: wordpool
+    << : *FILE
+    groups: [r1, transfer, IFR]
+    origin_directory: *BEH_EXP_DIR
+    origin_file: RAM_wordpool.txt
+    destination: experiment_files/wordpool.txt
 
   # TH specific
   - name: sound_files
@@ -304,7 +331,7 @@ files:
 
       - name: electrode_config
         << : *FILE
-        origin_directory: ''
+        origin_directory: *SYS3_CONFIG_DIR
         origin_file:
 #        - 'contacts*.csv'
         - '{subject}*.csv'
@@ -361,7 +388,7 @@ files:
 
   - name: elemem_files
     << : *DIR
-    groups: [ r1, transfer, '!system_1','!system_2', '!system_3*', '!freiburg']
+    groups: [ r1, transfer, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3' ]
     multiple: true
     origin_directory: *SYS4_HOST_DIR
     origin_file: '{subject}*'
@@ -547,6 +574,15 @@ files:
     << : *FILE
     groups: [DBOY1]
     required: false    
+    origin_directory: *BEH_EXP_DIR
+    origin_file: all_items.txt
+    destination: experiment_files/wordpool.txt
+
+## EFRCourier
+
+  - name: wordpool
+    << : *FILE
+    groups : [ r1, unity, courier, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3' ]
     origin_directory: *BEH_EXP_DIR
     origin_file: all_items.txt
     destination: experiment_files/wordpool.txt

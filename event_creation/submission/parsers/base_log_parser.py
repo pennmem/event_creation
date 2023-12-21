@@ -330,12 +330,16 @@ class BaseLogParser(object):
             if not isinstance(new_event, np.recarray) and not (new_event is False):
                 raise Exception('Event not properly provided from log parser for raw event {}'.format(raw_event))
             elif isinstance(new_event, np.recarray):
-                events = np.append(events, new_event)
+                try:
+                    events = np.append(events, new_event)
+                except Exception as e:
+                    import pdb; pdb.set_trace()
+                    print("suh")
 
             # Modify existing events if necessary
             if this_type in self._type_to_modify_events:
                 events = self._type_to_modify_events[this_type](events.view(np.recarray))
-
+        #logger.debug("Events type = {}; Events = {}".format(type(events), events))
         # Remove first (empty) event
         if events.ndim > 0:
             return events[1:]

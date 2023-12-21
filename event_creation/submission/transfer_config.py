@@ -16,9 +16,9 @@ from .exc import ConfigurationError
 
 def build_group_index(input, groups):
     transfer_files = dict()
-
+    logger.debug(f'groups arg = {groups}')                  # add debug logging
     for file in input:
-
+        logger.debug(f'file groups = {file["groups"]}')
         do_process = True
         for group in file['groups']:
             if group.startswith('!'):
@@ -34,6 +34,7 @@ def build_group_index(input, groups):
             continue
 
         transfer_file = TransferFile(**file)
+        logger.debug(f'transfer_file = {transfer_file.__dict__}')
         transfer_file.expand_files(groups)
         transfer_files[transfer_file.name] = transfer_file
 
@@ -49,8 +50,8 @@ class TransferConfig(object):
         self.groups = groups
         self.kwargs = kwargs
         
-
-        self._raw_config = yaml.load(open(filename))
+        
+        self._raw_config = yaml.load(open(filename), Loader=yaml.FullLoader)
         self._files = build_group_index(self._raw_config['files'], groups)
 
         for file_ in list(self._files.values()):
@@ -318,7 +319,7 @@ class TransferFile(object):
         self._valid = all(file.valid for file in list(self.files.values()))
 
     def locate(self, root=''):
-
+        logger.debug(f'multiple = {self.multiple}, _multiple = {self._multiple}')
         if self.name=='output_log':
             pass
 
@@ -342,6 +343,8 @@ class TransferFile(object):
 
             if len(new_files) == 0:
                 logger.debug("Could not find files at {}".format(os.path.abspath(origin_path)))
+            else:
+                logger.debug("Found files {}".format(new_files))
 
             new_origin_paths.extend(new_files)
 
@@ -364,7 +367,7 @@ class TransferFile(object):
             raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
-
+        
         if len(new_origin_paths) > 1 and not self.multiple:
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,

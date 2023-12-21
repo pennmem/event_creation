@@ -20,25 +20,26 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         if("wordpool" in list(files.keys())):
             with open(files["wordpool"]) as f:
                 self.wordpool = [line.rstrip() for line in f]
-
         else:
             raise Exception("wordpool not found in transferred files")
 
         if protocol=='ltp':
             self._add_fields(*dtypes.ltp_fields)
-            self.add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
-        self._add_fields(*dtypes.repFR_fields)
-        self._add_type_to_new_event(
-            session_start=self.event_sess_start,
-            start_trial=self.event_trial_start,
-            countdown=self.event_countdown,  # Pre-trial countdown video
-            orientation_stimulus=self._event_skip, # skip orientation events
-            display_recall_text=self.event_rec_start,  # Start of vocalization period
-            end_recall_period=self.event_rec_stop, # End of vocalization period
-            word_stimulus=self.event_word_on,  # Start of word presentation
-            clear_word_stimulus=self.event_word_off, # End of word presentation
-            session_end=self.event_sess_end,
-        )
+            self._add_type_to_new_event(participant_break=self.event_break_start) # Mid session break
+            self._add_type_to_modify_events(experiment_quit=self.add_break_stops)
+            self._add_fields(*dtypes.repFR_fields)
+            self._add_type_to_new_event(
+                session_start=self.event_sess_start,
+                start_trial=self.event_trial_start,
+                countdown=self.event_countdown,  # Pre-trial countdown video
+                orientation_stimulus=self._event_skip, # skip orientation events
+                display_recall_text=self.event_rec_start,  # Start of vocalization period
+                end_recall_period=self.event_rec_stop, # End of vocalization period
+                word_stimulus=self.event_word_on,  # Start of word presentation
+                clear_word_stimulus=self.event_word_off, # End of word presentation
+                experiment_quit=self.event_sess_end,
+                session_end=self.event_sess_end,
+            )
         
         self._add_type_to_modify_events(
             display_recall_text=self.modify_recalls,
@@ -171,10 +172,19 @@ class RepFRSessionLogParser(BaseUnityLogParser):
         events.session = self._session
         return events
 
+    def add_break_stops(self, events):
+        df_events = pd.DataFrame.from_records(events)
+        break_start_events = df_events[df_events.type=="BREAK_START"]
+        break_stop_events = break_start_events.copy()
+        break_stop_events.mstime += 1000
+        break_stop_events.type = "BREAK_STOP"
+        df_events = pd.concat([df_events, break_stop_events]).sort_values(by="mstime")
+        return df_events.to_records(index=False, column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
+
     def modify_recalls(self, events):
         # Access the REC_START event for this recall period to determine the timestamp when the recording began
         rec_start_event = events[-1]
-        rec_start_time = rec_start_event.mstime
+        rec_start_time = rec_start_event.mstime 
 
         # Get list of recalls from the .ann file for the current list, formatted as (rectime, item_num, item_name)
         try:

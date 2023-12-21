@@ -631,7 +631,7 @@ def prompt_for_session_inputs(inputs, **opts):
     experiment = inputs.experiment
     if experiment is None:
         experiment = input('Enter experiment name: ')
-    if re.search('Cat', experiment):
+    if re.search('Cat', experiment) and not experiment.startswith('I'):     # don't change ICatFR to IcatFR
         inputs.original_experiment = experiment
         experiment = re.sub(r'Cat', r'cat', experiment)
         logger.debug('Original experiment: %s' % inputs.original_experiment)

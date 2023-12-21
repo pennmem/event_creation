@@ -35,8 +35,8 @@ if $BACKUP; then
     cd "$REPO"
     # we don't have git >1.8, so change directories
     # git -C "$REPO" add .
-#    git add .
-#    git commit -m "Checkpoint for modifications made $TIME"
+    git add .
+    git commit -m "Checkpoint for modifications made $TIME"
     cd -
 fi
 

@@ -3,7 +3,8 @@ import mne
 import numpy as np
 from glob import glob
 from scipy import linalg
-from cluster_helper.cluster import cluster_view
+#from cluster_helper.cluster import cluster_view
+from clusterrun import ClusterChecked
 from ..log import logger
 
 
@@ -117,9 +118,12 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         break_stop_idx = np.where(evs.type == 'BREAK_STOP')[0]
         # ltpRepFR switched to "participant break" and removed "BREAK_STOP"
         # language change is handled in the repfr parser but there are still no stops
-        if len(break_stop_idx) == 0:
-            # no explicit stop message, so just wait ~30 sync pulses
-            break_stop_idx = break_start_idx + 30
+        # JR 5/8/23: updated ltpRepFR parser to add stops 1000ms after start
+        # code below skips word evs if sync pulses are network level (changed
+        # by JPB April/May 2023)
+        #if len(break_stop_idx) == 0:
+        #    # no explicit stop message, so just wait ~30 sync pulses
+        #    break_stop_idx = break_start_idx + 30
 
 
         # Handling for PyEPL studies (only break starts are logged)
@@ -234,13 +238,18 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
 
         # Run ICA and then LCF on each part of the sesion in parallel. Sometimes cluster helper returns errors even
         # when successful, so avoid crashing event creation if an error comes up here.
-        try:
-            with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
-                view.map(run_split_lcf, inputs)
-        except Exception as e:
-            print(e)
-            logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
-                        ' continue anyway...')
+        #for input in inputs:
+        #    run_split_lcf(input)
+        #try:
+        #    with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
+        #        view.map(run_split_lcf, inputs)
+        print(f"Cleaning {len(inputs)} partitions")
+        ClusterChecked(run_split_lcf, inputs, max_jobs=5, mem='50G')
+        #except Exception as e:
+        #    print(e)
+        #    logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
+        #                ' continue anyway...')
+        #    logger.error(str(e))
 
         # Load cleaned EEG data partitions and remove the temporary partition files and their subfiles (.fif files are
         # broken into multiple 2 GB subfiles)
@@ -457,12 +466,12 @@ def run_split_lcf(inputs):
         return S_clean
 
     def reconstruct_signal(sources, ica):
-
         # Mix sources to translate back into PCA components (PCA components x Time)
         data = np.dot(ica.mixing_matrix_, sources)
 
         # Mix PCA components to translate back into original EEG channels (Channels x Time)
-        data = np.dot(linalg.pinv(ica.pca_components_), data)
+        data = np.dot(
+                linalg.pinv(ica.pca_components_[:ica.n_components, :]), data)
 
         # Invert transformations that MNE performs prior to PCA
         data += ica.pca_mean_[:, None]
@@ -516,7 +525,6 @@ def run_split_lcf(inputs):
     ######
     # ICA
     ######
-
     # Run ICA for the current partition of the session. Note that ICA automatically excludes bad channels.
     logger.debug('Running ICA (part %i) on %s' % (index, basename))
     ica = mne.preprocessing.ICA(method=method, n_components=n_components)
@@ -544,3 +552,4 @@ def run_split_lcf(inputs):
     # Save clean data from current partition of session
     clean_eegfile = os.path.join(ephys_dir, '%s_clean%i_raw.fif' % (basename, index))
     eeg.save(clean_eegfile, overwrite=True)
+    return True

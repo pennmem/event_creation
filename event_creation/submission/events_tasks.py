@@ -30,6 +30,7 @@ from .parsers.catfr_log_parser import CatFRSessionLogParser
 from .parsers.fr_log_parser import FRSessionLogParser
 from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 from .parsers.repfr_log_parser import RepFRSessionLogParser
+from .parsers.delayrepfr_log_parser import DelayRepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
 from .parsers.nicls_log_parser import NICLSSessionLogParser
 
@@ -44,7 +45,8 @@ from .parsers.thr_log_parser import THSessionLogParser as THRSessionLogParser
 from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
-from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRParser
+from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
+        ElememCatFRLogParser, ElememEFRCourierParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -218,7 +220,9 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.3:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR':catFRHostPCLogParser,
+                'IFR': FRHostPCLogParser,         # not sure if necessary for system 3.3
+                'catFR': catFRHostPCLogParser,
+                'ICatFR': catFRHostPCLogParser,   # different parser than system 3.4
                 'PS':PSLogParser,
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
@@ -230,7 +234,11 @@ class EventCreationTask(PipelineTask):
         elif sys_num == 3.4:
             return {
                 'FR': FRHostPCLogParser,
-                'catFR': catFRHostPCLogParser,
+                'IFR': FRHostPCLogParser,
+                'catFR': catFRHostPCLogParser,             # confirmed as correct catFR log parser
+                #'catFR': CatFRSessionLogParser,
+                #'ICatFR': CatFRSessionLogParser,
+                'ICatFR': catFRHostPCLogParser,             # try same as system 3.3
                 'PS': PSLogParser,
                 'PS_FR': PSLogParser,
                 'PS_catFR': PSLogParser,
@@ -241,13 +249,36 @@ class EventCreationTask(PipelineTask):
                 'RepFR': RepFRSessionLogParser, 
                 'DBOY': CourierSessionLogParser, # TODO
             }
+        elif sys_num == 3.6:
+            return {
+                'FR': FRHostPCLogParser,
+                'IFR': FRHostPCLogParser,
+                'catFR': catFRHostPCLogParser,
+                #'catFR': CatFRSessionLogParser,
+                'ICatFR': catFRHostPCLogParser,
+                'PS': PSLogParser,
+                'PS_FR': PSLogParser,
+                'PS_catFR': PSLogParser,
+                'PAL': PALSys3LogParser,
+                'TICL_FR': TiclFRParser,
+                'TICL_catFR': TiclFRParser,
+                'LocationSearch': PSLogParser,
+                'RepFR': RepFRSessionLogParser, 
+                'DBOY': CourierSessionLogParser
+            }
 
         elif sys_num == 4.0:
             return {
-                'RepFR': ElememRepFRParser, 
+                'RepFR': ElememRepFRLogParser, 
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
                 'CPS': CPSElememLogParser,
+                'FR': ElememFRLogParser,
+                'IFR': ElememFRLogParser,
+                'catFR': ElememCatFRLogParser,
+                'ICatFR': ElememCatFRLogParser,
+                'EFRCourierReadOnly': ElememEFRCourierParser,
+                'EFRCourierOpenLoop': ElememEFRCourierParser,
             }
         else:
             raise KeyError
@@ -262,6 +293,7 @@ class EventCreationTask(PipelineTask):
                     'ltpRepFR': RepFRSessionLogParser,
                     'NiclsCourierReadOnly': NICLSSessionLogParser,
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
+                    'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
                   }
 
     @property
@@ -277,6 +309,7 @@ class EventCreationTask(PipelineTask):
                 if self.event_label == 'math':
                     new_experiment = 'math'
                 else:
+                    logger.debug('self.kwargs.get("new_experiment") = {}, self.experiment = {}'.format(self.kwargs.get("new_experiment"), self.experiment))
                     new_experiment = self.kwargs.get('new_experiment') or self.experiment
                 try:
                     self._parser_type = self.R1_PARSERS(self.r1_sys_num)[re.sub(r'[\d.]', '', new_experiment)]
@@ -313,9 +346,11 @@ class EventCreationTask(PipelineTask):
             with open(files['event_log'][0]) as event_log:
                 self._r1_sys_num = json.load(event_log)['versions']['Ramulator'].rpartition('.')[0].replace('.', '_')
 
+        logger.debug(f'system number = {self.r1_sys_num}')
         parser = self.parser_type(self.protocol, self.subject, self.montage, self.experiment, self.session, files)
         logger.debug('Using %s' % str(self.parser_type))
         unaligned_events = parser.parse()
+        #logger.debug("unaligned events = {}".format(unaligned_events))
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
         if self.protocol == 'ltp':
             sync_log = files['eeg_log'] if 'eeg_log' in files else []
@@ -328,8 +363,7 @@ class EventCreationTask(PipelineTask):
             del aligner
             events = artifact_detector.run()
             # Create a cleaned version of the EEG data using localized component filtering
-            # TODO: Fix lcf cleaning
-            # run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
+            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
             del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
@@ -351,7 +385,7 @@ class EventCreationTask(PipelineTask):
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)
-                    elif 3.0 <= self.r1_sys_num <= 3.4:
+                    elif 3.0 <= self.r1_sys_num <= 3.6:
                         aligner = System3Aligner(unaligned_events, files, db_folder)
                     else:
                         raise ProcessingError(
@@ -450,6 +484,7 @@ class EventCombinationTask(PipelineTask):
     COMBINED_LABEL = 'all'
 
     def __init__(self, event_labels, sort_field=None, critical=True):
+        logger.info(event_labels)
         super(EventCombinationTask, self).__init__(critical)
         self.name = 'Event combination: {}'.format(event_labels)
         self.event_labels = event_labels
@@ -499,6 +534,7 @@ class MontageLinkerTask(PipelineTask):
                                                 subject=self.subject,
                                                 localization=self.localization,
                                                 montage=self.montage_num)
+
         self.pipeline.register_info('localization', self.localization)
         self.pipeline.register_info('montage', self.montage_num)
         for name, file in list(self.FILES.items()):

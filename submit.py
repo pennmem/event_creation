@@ -12,8 +12,6 @@ def build_inputs(experiment, subject, session):
         subject=subject,
         montage='0.0',
         montage_num='0',
-#         montage='0.1',
-#         montage_num='1',
         localization='0',
         experiment=experiment,
         new_experiment=experiment,
@@ -30,9 +28,11 @@ def build_inputs(experiment, subject, session):
     )
     return inputs
 # System 4 test
-subjects = [('R1556J_1', 'RepFR1', 0),]
-# subjects = [('R1505J', 'RepFR1', 0), ]
-# subjects = [('R1384J_0', 'CPS', 0),]
+subjects = [
+    # ('R1556J_1', 'RepFR1', 0),
+    ('FBG490', 'EFRCourierOpenLoop', 2),
+    # ('R1384J_0', 'CPS', 0)
+]
 
 
 #subjects = [('R1505J', 'RepFR1', 0), 
@@ -49,6 +49,7 @@ subjects = [('R1556J_1', 'RepFR1', 0),]
 #            ('R1515T', 'catFR1', 1),
 #            ('R1515T', 'catFR1', 2),]
 
+# sandbox testing
 username = "rdehaan"
 sandbox = f'/scratch/{username}/event_creation_sandbox'
 # import pdb; pdb.set_trace()

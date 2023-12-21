@@ -15,9 +15,17 @@ def timed(timed_function):
 def get_time_field(files):
     import yaml
     if 'event_log' in files:
-        with open(files['event_log'][0]) as event_log_file:
-            event_log = yaml.load(event_log_file)
-        version_no = event_log['versions']['Ramulator']
+        try:
+            with open(files['event_log'][0]) as event_log_file:
+                event_log = yaml.load(event_log_file, Loader=yaml.FullLoader)       # specify Loader
+                version_no = event_log['versions']['Ramulator']
+        except yaml.parser.ParserError as e:
+            with open(files['event_log'][0]) as event_log_file:
+                event_log = yaml.load(event_log_file.readline(), Loader=yaml.FullLoader)
+                if event_log["type"] == 'ELEMEM':
+                    version_no = '4.0'
+                else:
+                    raise e
         if version_no >= '3.3':
             time_field = 'eegoffset'
         else:
