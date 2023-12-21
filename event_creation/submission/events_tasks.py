@@ -46,7 +46,7 @@ from .parsers.math_parser import MathSessionLogParser
 from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
 from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
-        ElememCatFRLogParser, ElememEFRCourierParser
+        ElememCatFRLogParser, ElememEFRCourierParser, ElememCPSParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -272,7 +272,7 @@ class EventCreationTask(PipelineTask):
                 'RepFR': ElememRepFRLogParser, 
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
-                'CPS': CPSElememLogParser,
+                'CPS': ElememCPSParser,
                 'FR': ElememFRLogParser,
                 'IFR': ElememFRLogParser,
                 'catFR': ElememCatFRLogParser,
