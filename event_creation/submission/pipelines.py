@@ -329,7 +329,8 @@ class TransferPipeline(object):
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
     logger.set_label("Building EEG Splitter")
-    if protocol == 'ltp':                           # for scalp subjects, enforce logging to subject-level log.txt
+    # for scalp and intracranial subjects, enforce logging to subject-level log.txt
+    if protocol == 'ltp' or protocol == 'r1':
         logger.set_subject(subject, protocol)
     new_experiment = new_experiment if not new_experiment is None else experiment
 
