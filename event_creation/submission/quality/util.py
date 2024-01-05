@@ -25,6 +25,7 @@ def get_time_field(files):
                 if event_log["type"] == 'ELEMEM':
                     version_no = '4.0'
                 else:
+                    print(f'event_log = {event_log}')   # debugging
                     raise e
         if version_no >= '3.3':
             time_field = 'eegoffset'
