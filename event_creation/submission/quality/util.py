@@ -26,7 +26,9 @@ def get_time_field(files):
                     version_no = '4.0'
                 else:
                     raise e
-        if version_no >= '3.3':
+        if version_no == '4.0':
+            time_field = 'mstime'     # use mstime field for system 4 (helps with eeg replacement checks)
+        elif version_no >= '3.3':
             time_field = 'eegoffset'
         else:
             time_field = 'mstime'
