@@ -168,8 +168,8 @@ files:
         origin_file:
            - 'R1*_mono_*.csv'                    # only match on monopolar, will match bipolar in bipolar_electrode_config
            #- 'R1*[!oi][!_]L0M0*.csv'             # allow matching on multiple files for older system 4 sessions, but don't double match
-           - 'R1*L0M0_STIM.csv'
-           #- 'R1*[!oi][!_]L0M0NOSTIM.csv'
+           #- 'R1*L0M0_STIM.csv'
+           - 'R1*[!oi][!_]L0M0NOSTIM.csv'
         destination: electrode_config.csv
       - name: bipolar_electrode_config
         << : *FILE
