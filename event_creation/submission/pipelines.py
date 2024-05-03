@@ -431,7 +431,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
         other_events += ('math',)
 
     # Ensure that all EEG experiments get an all_events.json file
-    tasks.append(EventCombinationTask(('task',) + other_events, critical=False,))
+    tasks.append(EventCombinationTask(('task',) + other_events, critical=True,))    # set critical=True to roll back
 
     if 'recog' in groups:
         tasks.append(RecognitionFlagTask(critical=False))

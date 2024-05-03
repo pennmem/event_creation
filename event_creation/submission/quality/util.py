@@ -22,11 +22,13 @@ def get_time_field(files):
         except yaml.parser.ParserError as e:
             with open(files['event_log'][0]) as event_log_file:
                 event_log = yaml.load(event_log_file.readline(), Loader=yaml.FullLoader)
-                if event_log["type"] == 'ELEMEM':
+                if event_log["type"] == 'ELEMEM' or event_log["type"] == 'EEGSTART':  # some sys4 no metadata 1st line
                     version_no = '4.0'
                 else:
                     raise e
-        if version_no >= '3.3':
+        if version_no >= '4.0':
+            time_field = 'mstime'     # use mstime field for system 4 (helps with eeg replacement checks)
+        elif version_no >= '3.3' and version_no < '4.0':
             time_field = 'eegoffset'
         else:
             time_field = 'mstime'

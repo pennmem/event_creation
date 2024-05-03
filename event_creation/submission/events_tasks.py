@@ -497,6 +497,7 @@ class EventCombinationTask(PipelineTask):
             sort_field = self.sort_field
         event_files = [os.path.join(db_folder, '{}_events.json'.format(label)) for label in self.event_labels]
         event_files = [f for f in event_files if os.path.isfile(f)]
+        logger.debug(f'event_files = {event_files}')             # using task events or event.log?
         events = [from_json(event_file) for event_file in event_files]
         combiner = EventCombiner(events, sort_field=sort_field)
         combined_events = combiner.combine()

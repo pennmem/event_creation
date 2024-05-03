@@ -3,6 +3,7 @@ import re
 import json
 import traceback
 import shutil
+import tqdm
 
 from . import fileutil
 from .log import logger
@@ -162,7 +163,7 @@ class IndexAggregatorTask(PipelineTask):
     def build_index(cls, protocol):
         index_files = cls.find_index_files(os.path.join(cls.PROTOCOLS_DIR, protocol))
         d = {}
-        for index_file in index_files:
+        for index_file in tqdm.tqdm(index_files):
             cls.build_single_file_index(index_file, d)
         return d
 
