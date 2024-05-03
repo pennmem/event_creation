@@ -170,6 +170,7 @@ files:
            #- 'R1*[!oi][!_]L0M0*.csv'             # allow matching on multiple files for older system 4 sessions, but don't double match
            #- 'R1*L0M0_STIM.csv'
            #- 'R1*[!oi][!_]L0M0STIM.csv'
+           
         destination: electrode_config.csv
       - name: bipolar_electrode_config
         << : *FILE
