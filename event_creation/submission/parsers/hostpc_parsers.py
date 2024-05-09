@@ -262,11 +262,11 @@ class FRHostPCLogParser(BaseHostPCLogParser,FRSys3LogParser):
         if event_json[self._VALUE_FIELD]:
             event.type='REC_START'
         else:
-            if not event_json[self._VALUE_FIELD] and not event_json.get('current_trial'):
+            if not event_json.get('current_trial'):    # REC_END event, current_trial = 0
                 if self._list == -1:
                     self._list = 1
-                else:
-                    self._list += 1
+            else:                                      # REC_END event, current_trial > 0
+                self._list = int(event_json.get('current_trial') + 1)
             event.type='REC_END'
         return event
 
