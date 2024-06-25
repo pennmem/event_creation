@@ -139,7 +139,9 @@ class HD5_reader(EEG_reader):
 
     @property
     def by_row(self):
-         return 'orient' in self.h5file.root.timeseries.attrs and  self.h5file.root.timeseries.attrs['orient']=='row'
+         return ('orient' in self.h5file.root.timeseries.attrs and
+                 (self.h5file.root.timeseries.attrs['orient']=='row' or
+                  self.h5file.root.timeseries.attrs['orient']==b'row'))
 
     def get_start_time(self):
         try:
