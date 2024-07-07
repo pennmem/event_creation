@@ -338,3 +338,7 @@ ps_state_fields = (
         ('_remove', True, 'b'),  # This field is removed before saving, and it used to mark whether it should be output
                                  # to JSON
 )
+
+keystroke_fields = (
+    ('key', -1.0, 'U64'),
+)
