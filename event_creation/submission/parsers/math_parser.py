@@ -219,14 +219,6 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             MATH = self.events_math,
             DISTRACT = self.events_distract,
         )
-        """
-        logger.debug("attributes: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}".format(
-            self._subject, self._experiment, self._protocol, self._montage, self._session
-        ))
-        logger.debug("arguments: subject = {}, experiment = {}, protocol = {}, montage = {}, session = {}, files = {}".format(
-            subject, experiment, protocol, montage, session, files
-        ))
-        """
 
     # override method in BaseElememLogParser -> only reading MATH and DISTRACT events
     def _read_event_log(self, filename):
@@ -235,7 +227,7 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         # have to convert from dataframe to grab necessary info
         md_ra = [{'answer': int(row.data[self.ANSWER_FIELD]), 
                   'test': [int(x) for x in re.findall(r'\d+', row.data[self.TEST_FIELD])], 
-                  'iscorrect': int(bool(row.data[self.ISCORRECT_FIELD])), 
+                  'iscorrect': 1 if row.data[self.ISCORRECT_FIELD] == 'True' else 0 if row.data[self.ISCORRECT_FIELD] == 'False' else -999, 
                   'rectime': int(row.data[self.RECTIME_FIELD]), 
                   #'mstime': int(row.time),         # don't subtract rectime
                   'mstime': int(row.time - int(row.data[self.RECTIME_FIELD])), 
