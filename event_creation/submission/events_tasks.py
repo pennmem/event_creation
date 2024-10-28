@@ -13,7 +13,7 @@ from ..tests.test_event_creation import SYS1_COMPARATOR_INPUTS, SYS2_COMPARATOR_
 from .alignment.LTPAligner import LTPAligner
 from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
-from .alignment.FreiburgAligner import FreiburgAligner 
+from .alignment.FreiburgAligner import FreiburgAligner
 from .alignment.system3 import System3Aligner, System3FourAligner
 from .alignment.system4 import System4Offset
 from .configuration import paths
@@ -94,7 +94,7 @@ class SplitEEGTask(PipelineTask):
         # # sorry about this... FIXME
         if self.experiment == 'DBOY1' and self.subject.startswith('FR'):
             return
-          
+
         if self.protocol == 'ltp':
             # Process each EEG recording separately, if multiple exist
             success = np.zeros(len(raw_eeg_groups), dtype=bool)
@@ -169,7 +169,7 @@ class SplitEEGTask(PipelineTask):
 
         else:
             logger.warn('Splitting not implemented for protocol {}'.format(self.protocol))
-                
+
 
 
 
@@ -201,7 +201,7 @@ class EventCreationTask(PipelineTask):
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
             'THR': THRSessionLogParser,
-            'RepFR': RepFRSessionLogParser, 
+            'RepFR': RepFRSessionLogParser,
             'DBOY': CourierSessionLogParser,
         }
         elif sys_num<3.3:
@@ -214,7 +214,7 @@ class EventCreationTask(PipelineTask):
                 'PS_catFR': PSLogParser,
                 'PAL': PALSys3LogParser,
                 'THR': THRSessionLogParser,
-                'RepFR': RepFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser,
                 'DBOY': CourierSessionLogParser, # TODO
             }
         elif sys_num == 3.3:
@@ -227,7 +227,7 @@ class EventCreationTask(PipelineTask):
                 'PS_FR':PSLogParser,
                 'PS_catFR':PSLogParser,
                 'PAL':PALSys3LogParser,
-                'RepFR': RepFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser,
                 'DBOY': CourierSessionLogParser, # TODO
 
             }
@@ -246,7 +246,7 @@ class EventCreationTask(PipelineTask):
                 'TICL_FR': TiclFRParser,
                 'TICL_catFR': TiclFRParser, # is this correct?
                 'LocationSearch': PSLogParser,
-                'RepFR': RepFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser,
                 'DBOY': CourierSessionLogParser, # TODO
             }
         elif sys_num == 3.6:
@@ -263,13 +263,13 @@ class EventCreationTask(PipelineTask):
                 'TICL_FR': TiclFRParser,
                 'TICL_catFR': TiclFRParser,
                 'LocationSearch': PSLogParser,
-                'RepFR': RepFRSessionLogParser, 
+                'RepFR': RepFRSessionLogParser,
                 'DBOY': CourierSessionLogParser
             }
 
         elif sys_num == 4.0:
             return {
-                'RepFR': ElememRepFRLogParser, 
+                'RepFR': ElememRepFRLogParser,
                 'DBOY': CourierSessionLogParser,
                 'OPS': BaseElememLogParser,
                 'CPS': ElememCPSParser,
@@ -294,6 +294,7 @@ class EventCreationTask(PipelineTask):
                     'NiclsCourierReadOnly': NICLSSessionLogParser,
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
+                    'NiclsCourier_v2.0': NICLSSessionLogParser,
                   }
 
     @property
@@ -374,7 +375,7 @@ class EventCreationTask(PipelineTask):
                 if self.r1_sys_num == 1.0:
                     aligner = System1Aligner(unaligned_events, files)
                     events = aligner.align()
-                elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME 
+                elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME
                     aligner = FreiburgAligner(unaligned_events, files)
                     events = aligner.align()
                 elif self.r1_sys_num == 4.0:
