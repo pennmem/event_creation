@@ -36,10 +36,11 @@ GROUPS = {
     'OPS': ('stim',),
     'CPS': ('stim',),
     'RepFR': ('verbal', ),
-    'ltpRepFR': ('verbal', 'unity'), 
+    'ltpRepFR': ('verbal', 'unity'),
     'DBOY': ('verbal', 'courier'),
     'NiclsCourierReadOnly': ('verbal', 'unity', 'courier'),
     'NiclsCourierClosedLoop': ('verbal', 'unity', 'courier'),
+    'NiclsCourier_v2.0': ('verbal', 'unity', 'courier'),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),
@@ -105,7 +106,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         for sys in systems:
             try:
                 logger.info("Checking if this system is {}".format(sys))
-                
+
                 transfer_cfg = TransferConfig(transfer_cfg_file, groups + (sys,), **inputs)
                 transfer_cfg.locate_origin_files()
 
@@ -367,7 +368,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 
 def build_events_pipeline(subject, montage, experiment, session, do_math=False, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
-    
+
     logger.set_label("Building Event Creator")
     logger.debug("argument groups = {}; default is empty tuple".format(groups))           # check what is input as groups argument
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
