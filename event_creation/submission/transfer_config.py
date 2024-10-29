@@ -18,7 +18,6 @@ def build_group_index(input, groups):
     transfer_files = dict()
     logger.debug(f'groups arg = {groups}')                  # add debug logging
     for file in input:
-        logger.debug(f'file groups = {file["groups"]}')
         do_process = True
         for group in file['groups']:
             if group.startswith('!'):
@@ -37,7 +36,7 @@ def build_group_index(input, groups):
         logger.debug(f'transfer_file = {transfer_file.__dict__}')
         transfer_file.expand_files(groups)
         transfer_files[transfer_file.name] = transfer_file
-    logger.debug(f"transfer_files = {transfer_files}")    # debug no transfer files
+
     return transfer_files
 
 
@@ -52,7 +51,6 @@ class TransferConfig(object):
         
         
         self._raw_config = yaml.load(open(filename), Loader=yaml.FullLoader)
-        logger.debug(f"raw_config files = {self._raw_config['files']}")     # debug no transfer files
         self._files = build_group_index(self._raw_config['files'], groups)
 
         for file_ in list(self._files.values()):
@@ -65,8 +63,6 @@ class TransferConfig(object):
 
     def located_files(self):
         located_files = []
-        logger.debug(f"_files = {self._files}")              # debug no transfer files
-        logger.debug(f"valid_files = {self.valid_files}")    # debug no transfer files
         for file in self.valid_files:
             if not file.location_attempted:
                 file.locate()
