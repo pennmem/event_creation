@@ -294,7 +294,7 @@ class EventCreationTask(PipelineTask):
                     'NiclsCourierReadOnly': NICLSSessionLogParser,
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
-                    'NiclsCourier_v2.0': NICLSSessionLogParser,
+                    'CourierReinstate1': NICLSSessionLogParser,
                   }
 
     @property
