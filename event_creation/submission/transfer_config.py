@@ -52,7 +52,7 @@ class TransferConfig(object):
         
         
         self._raw_config = yaml.load(open(filename), Loader=yaml.FullLoader)
-        logger.debug(f"raw_config = {self._raw_config}")     # debug no transfer files
+        logger.debug(f"raw_config files = {self._raw_config['files']}")     # debug no transfer files
         self._files = build_group_index(self._raw_config['files'], groups)
 
         for file_ in list(self._files.values()):
