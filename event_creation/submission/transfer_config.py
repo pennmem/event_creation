@@ -65,6 +65,7 @@ class TransferConfig(object):
 
     def located_files(self):
         located_files = []
+        logger.debug(f"_files = {self._files}")              # debug no transfer files
         logger.debug(f"valid_files = {self.valid_files}")    # debug no transfer files
         for file in self.valid_files:
             if not file.location_attempted:
