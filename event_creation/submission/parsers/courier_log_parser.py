@@ -66,7 +66,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def parse(self):
         events = super(CourierSessionLogParser, self).parse()
-        
+
         if self.old_syncs:
             events.mstime = events.mstime + 500
 
@@ -79,7 +79,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.session = self._session
         event.presX = self.presX
         event.presZ = self.presZ
-        event.phase = 'practice' if self.practice else self.phase 
+        event.phase = 'practice' if self.practice else self.phase
         return event
 
 
@@ -88,7 +88,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         new_event = self._empty_event
         new_event.trial = self._trial
         new_event.session = self._session
-        new_event.phase = 'practice' if self.practice else self.phase 
+        new_event.phase = 'practice' if self.practice else self.phase
         new_event.presX = self.presX
         new_event.presZ = self.presZ
         # new_event.rectime = int(round(float(recall[0])))
@@ -104,7 +104,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
     def _identify_intrusion(self, events, new_event):
         words = events[events['type'] == 'WORD']
         word_event = words[(words['item'] == new_event["item"])]
-        
+
         if len(word_event) > 1:
             raise Exception("Repeat items not supported or expected. Please check your data.")
 
@@ -137,14 +137,17 @@ class CourierSessionLogParser(BaseUnityLogParser):
         # version numbers are either v4.x or v4.x.x depending on the era,
         # due to a lack of foresight. At this point, we only need to check
         # that the version is greater than 4.0
-        minor_version = int(evdata["data"]["Experiment version"].split('.')[1])
+        try:
+            minor_version = int(evdata["data"]["Experiment version"].split('.')[1])
+        except (ValueError):
+            minor_version = int(6)
         if minor_version == 0 \
            and self.subject.startswith('R'):
             self.old_syncs=True
         else:
             self.old_syncs=False
         return False
-                
+
     def event_break_start(self, evdata):
         event = self.event_default(evdata)
         event.type = 'BREAK_START'
@@ -167,7 +170,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
     def add_proceed_to_next_day(self, evdata):
         self._trial += 1
-        return False 
+        return False
 
     def add_player_transform(self, evdata):
         self.presX = evdata['data']['positionX']
@@ -239,7 +242,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
                 print("mappings is null")
                 event.mappings = {}
 
-        return event 
+        return event
 
     def add_familiarization_store_displayed(self, evdata):
         event = self.event_default(evdata)
@@ -264,13 +267,13 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event.type = 'CUED_REC_CUE'
         event["item"] = evdata['data']['item'].rstrip('.1').upper()
         event.store = '_'.join(evdata['data']['store'].lower().split(' '))
-        return event 
+        return event
 
     def add_final_object_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "FFR_START"
         return event
-    
+
     def add_final_store_recall_recording_start(self, evdata):
         event = self.event_default(evdata)
         event.type = "SR_START"
@@ -289,7 +292,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         event = self.event_default(evdata)
         event.type = "FFR_STOP"
         return event
-    
+
     def add_final_store_recall_recording_stop(self, evdata):
         event = self.event_default(evdata)
         event.type = "SR_STOP"
@@ -312,7 +315,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
     ####################
 
     def modify_rec_start(self, events):
-            
+
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
 
@@ -334,7 +337,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
             elif new_event.intrusion == 0:
                 events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
 
-            events = np.append(events, new_event).view(np.recarray) 
+            events = np.append(events, new_event).view(np.recarray)
 
         return events
 
@@ -366,7 +369,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
             new_event["intrusion"] = -999
 
-            events = np.append(events, new_event).view(np.recarray) 
+            events = np.append(events, new_event).view(np.recarray)
 
         return events
 
@@ -384,7 +387,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
             new_event.trial = -999 # to match old events
             new_event.intrusion = 0 if new_event["item"] in ["_".join(s.upper().split()) for s in self.STORES] else -1
 
-            events = np.append(events, new_event).view(np.recarray) 
+            events = np.append(events, new_event).view(np.recarray)
 
         return events
 
@@ -410,8 +413,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
             if new_event.intrusion >= 0:
                 new_event.intrusion = 0
                 events.finalrecalled[(events["type"] == "WORD") & (events["item"] == new_event["item"])] = 1
-            
-            events = np.append(events, new_event).view(np.recarray) 
+
+            events = np.append(events, new_event).view(np.recarray)
 
         return events
-
