@@ -40,7 +40,7 @@ GROUPS = {
     'DBOY': ('verbal', 'courier'),
     'NiclsCourierReadOnly': ('verbal', 'unity', 'courier'),
     'NiclsCourierClosedLoop': ('verbal', 'unity', 'courier'),
-    'CourierReinstate1': ('verbal', 'unity', 'courier'),
+    'CourierReinstate': ('verbal', 'unity', 'courier'),
     'ltpFR': ('verbal', 'math', 'pyepl'),
     'VFFR': ('verbal', 'unity'),
     'prelim': ('verbal', 'unity'),

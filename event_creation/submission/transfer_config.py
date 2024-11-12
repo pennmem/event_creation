@@ -18,7 +18,6 @@ def build_group_index(input, groups):
     transfer_files = dict()
     logger.debug(f'groups arg = {groups}')                  # add debug logging
     for file in input:
-        logger.debug(f'file groups = {file["groups"]}')
         do_process = True
         for group in file['groups']:
             if group.startswith('!'):
