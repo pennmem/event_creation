@@ -33,6 +33,7 @@ from .parsers.repfr_log_parser import RepFRSessionLogParser
 from .parsers.delayrepfr_log_parser import DelayRepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
 from .parsers.nicls_log_parser import NICLSSessionLogParser
+from .parsers.courierreinstate1_log_parser import CourierReinstate1SessionLogParser
 
 from .parsers.mat_converter import FRMatConverter, MatlabEEGExtractor, PALMatConverter, \
                                   CatFRMatConverter, PSMatConverter, MathMatConverter, YCMatConverter, \
@@ -294,7 +295,7 @@ class EventCreationTask(PipelineTask):
                     'NiclsCourierReadOnly': NICLSSessionLogParser,
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
-                    'CourierReinstate1': NICLSSessionLogParser,
+                    'CourierReinstate1': CourierReinstate1SessionLogParser,
                   }
 
     @property
