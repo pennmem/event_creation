@@ -28,7 +28,7 @@ class CourierReinstate1SessionLogParser(CourierSessionLogParser):
            start_practice_deliveries=self.event_practice_start,
            stop_practice_deliveries=self.event_practice_end,
            keypress=self.event_efr_mark,
-           item_reinstatement = self.object_reinstatement
+           item_reinstatement = self.object_reinstatement,
            continuous_pointer=self.event_pointer_on,
            start_required_break=self.event_break_start,
            stop_required_break=self.event_break_stop,
