@@ -157,6 +157,8 @@ class CourierReinstate1SessionLogParser(CourierSessionLogParser):
         event = self.event_default(evdata)
         event.type = "REINSTATEMENT"
         event["item"] = ['data']['previously delivered item seen'].upper().rstrip('.1')
+        event["positionX"] = ['data']['positionX']
+        event["positionZ"] = ['data']['positionZ']
 
         event.store = '_'.join(evdata['data']['store name'].split(' '))
         event.intruded = 0
