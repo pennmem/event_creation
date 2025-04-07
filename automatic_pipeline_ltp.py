@@ -1,8 +1,9 @@
 from __future__ import print_function
 import json
 import sys
+import os
 #from cluster_helper.cluster import cluster_view
-sys.path.append('/home1/maint/event_creation')
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from clusterrun import ClusterCheckedTup
 from event_creation.submission.convenience import run_session_import
 from event_creation.submission.tasks import IndexAggregatorTask
@@ -50,6 +51,9 @@ def automatic_event_creator(check_index=True):
 
     inputs = []
     for exp in experiments:
+        exp = exp.strip()
+        if not exp:
+            continue
         try:
             # Get dictionary of new/recently modified sessions
             with open('/data/eeg/scalp/ltp/%s/recently_modified.json' % exp, 'r') as f:
@@ -91,3 +95,4 @@ if __name__=='__main__':
     except:
         pass
     IndexAggregatorTask().run(protocols='ltp')
+
