@@ -142,7 +142,6 @@ class TransferFile(object):
 
         self._roots_located = []
 
-        self._checksum = hashlib.md5()
         self._checksum_calculated = False
 
         self._transferred_files = []
@@ -274,10 +273,12 @@ class TransferFile(object):
         return contents
 
     def calculate_checksum(self):
+        hl_checksum = hashlib.md5()
         for element in self.contents_to_check():
             if isinstance(element, str):
                 element = element.encode('utf-8')
-            self._checksum.update(element)
+            hl_checksum.update(element)
+        self._checksum = hl_checksum.hexdigest()
         self._checksum_calculated = True
 
     def format(self, **kwargs):
@@ -395,7 +396,7 @@ class TransferFile(object):
         index = {
             self.name: dict(
                 origin_files=[os.path.relpath(origin_path, paths.rhino_root) for origin_path in self.origin_paths],
-                md5=self.checksum.hexdigest(),
+                md5=self.checksum,
             )
         }
 
@@ -422,7 +423,7 @@ class TransferFile(object):
         return index
 
     def matches_transferred_index(self, entry):
-        if self.checksum.hexdigest() == entry['md5']:
+        if self.checksum == entry['md5']:
             return True
         # TODO: Check contents of self.files? Not really necessary
         return False

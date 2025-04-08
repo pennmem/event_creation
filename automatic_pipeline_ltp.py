@@ -87,7 +87,7 @@ def automatic_event_creator(check_index=True):
     if n_jobs > 0:
         #with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=n_jobs, cores_per_job=6) as view:
         #    view.map(run_session_import, inputs)
-        ClusterCheckedTup(run_session_import, inputs, max_jobs=16, mem='20G')
+        ClusterCheckedTup(run_session_import, inputs, max_jobs=16, mem='60G')
 
 if __name__=='__main__':
     try:
