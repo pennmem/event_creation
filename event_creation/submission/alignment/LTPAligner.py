@@ -10,7 +10,7 @@ class LTPAligner:
     """
     Used for aligning the EEG data from the ephys computer with the task events from the behavioral computer.
     """
-    ALIGNMENT_WINDOW = 100  # Tries to align this many sync pulses
+    ALIGNMENT_WINDOW = 50  # Tries to align this many sync pulses
     ALIGNMENT_THRESH = 10  # This many milliseconds may differ between sync pulse times during matching
 
     def __init__(self, events, eeg_log, eeg_dir):
@@ -154,8 +154,8 @@ class LTPAligner:
                 if oob > 0:
                     logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
 
-            except ValueError:
-                logger.warn('Unable to align events with EEG data!')
+            except ValueError as e:
+                logger.warn('Unable to align events with EEG data!  ' + str(e))
 
         return self.events
 
@@ -218,7 +218,45 @@ class LTPAligner:
         return pulses
 
 
-def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_ms=10):
+def diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms):
+  report = []
+  if '_align_min_diff' in globals():
+    min_diff = globals()['_align_min_diff']
+    report.append(f'Min alignment diff {min_diff}')
+
+  report.append(f'{len(behav_ms)} sync events, {len(ephys_ms)} sync pulses')
+
+  e_diff = np.diff(ephys_ms)
+  b_diff = np.diff(behav_ms)
+  report.append('(min, mean, max) diff for events ' +
+      f'({np.min(b_diff)}, {np.mean(b_diff)}, {np.max(b_diff)}) and '
+      f'pulses ({np.min(e_diff)}, {np.mean(e_diff)}, {np.max(e_diff)})')
+
+  min_pos = np.min(b_diff)-thresh_ms
+  max_pos = np.max(b_diff)+thresh_ms
+  amnt_below = np.sum(e_diff < min_pos)
+  amnt_above = np.sum(e_diff > max_pos)
+
+  report.append(f'{amnt_below} pulse diffs below min_event-thresh, {amnt_above} pulse diffs above max_event+thresh')
+  report.append(f'Average pulses before out of threshold is {len(ephys_ms)/(amnt_below+amnt_above)} with window size {window}')
+
+  if amnt_below > 10:
+    indices = np.argwhere(e_diff < min_pos).ravel()
+    indices_10 = round(100*indices[round(len(indices)*0.1)]/len(e_diff))
+    indices_90 = round(100*indices[round(len(indices)*0.9)]/len(e_diff))
+    report.append(f'80% of below thresh issue from {indices_10}% to {indices_90}% through pulse sequence')
+
+  if amnt_above > 10:
+    indices = np.argwhere(e_diff > max_pos).ravel()
+    indices_10 = round(100*indices[round(len(indices)*0.1)]/len(e_diff))
+    indices_90 = round(100*indices[round(len(indices)*0.9)]/len(e_diff))
+    report.append(f'80% of above thresh issue from {indices_10}% to {indices_90}% through pulse sequence')
+
+  return '.  '.join(report) + '.'
+
+
+
+def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=50, thresh_ms=10):
     """
     Slightly modified version of the times_to_offsets_old function in PTSA's alignment systems. Aligns the sync pulses
     sent by the behavioral computer with those received by the ephys computer in order to find the start and end window
@@ -255,8 +293,10 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
             start_behav_vals = behav_ms[s_ind:s_ind + window]
             break
     if s_ind is None:
-        raise ValueError("Unable to find a start window.")
+        raise ValueError('Unable to find a start window.  ' +
+            diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms))
 
+    globals().pop('_align_min_diff')
     # Determine which ephys sync pulses correspond with the ending behavioral sync pulses
     for i in range(len(ephys_ms) - window):
         e_ind = match_sequence(np.diff(ephys_ms[::-1][i:i + window]), np.diff(behav_ms[::-1]), thresh_ms)
@@ -267,7 +307,8 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
             end_behav_vals = behav_ms[e_ind:e_ind + window]
             break
     if e_ind is None:
-        raise ValueError("Unable to find an end window.")
+        raise ValueError('Unable to find an end window.  ' +
+            diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms))
 
     # Perform a regression on the corresponding behavioral and ephys sync pulse times to enable a conversion between
     # event mstimes and EEG offsets.
@@ -275,6 +316,10 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=100, thresh_m
     y = np.r_[start_ephys_vals, end_ephys_vals]
     m, c = np.linalg.lstsq(np.vstack([x - x[0], np.ones(len(x))]).T, y)[0]
     c = c - x[0] * m
+    logger.info(f'Linear regression alignment fit: y = {m} * x + {c}')
+    if c<0.99 or c>1.01:
+      raise ValueError(f'Alignment scaling factor {c} is more than 1% different from 1.  This should not happen with millisecond inputs.  ' +
+          diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms))
 
     # eeg_start_ms = round((1-c)/m)
 
@@ -292,7 +337,10 @@ def match_sequence(needle, haystack, maxdiff):
     nlen = len(needle)
     found = False
     for i in range(len(haystack)-nlen):
-        if np.abs(haystack[i:i+nlen] - needle).max() < maxdiff:
+        diff = np.median(np.abs(haystack[i:i+nlen] - needle))
+        globals()['_align_min_diff'] = min(
+            globals().get('_align_min_diff', np.inf), diff)
+        if diff < maxdiff:
             found = True
             break
     if not found:
