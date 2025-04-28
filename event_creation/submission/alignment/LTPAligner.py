@@ -317,8 +317,8 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=50, thresh_ms
     m, c = np.linalg.lstsq(np.vstack([x - x[0], np.ones(len(x))]).T, y)[0]
     c = c - x[0] * m
     logger.info(f'Linear regression alignment fit: y = {m} * x + {c}')
-    if c<0.99 or c>1.01:
-      raise ValueError(f'Alignment scaling factor {c} is more than 1% different from 1.  This should not happen with millisecond inputs.  ' +
+    if m<0.99 or m>1.01:
+      raise ValueError(f'Alignment scaling factor {m} is more than 1% different from 1.  This should not happen with millisecond inputs.  ' +
           diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms))
 
     # eeg_start_ms = round((1-c)/m)
