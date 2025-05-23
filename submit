@@ -58,6 +58,19 @@ fi
 #xauth add $XAUTH_LINE
 #source ~/.bashrc
 
-# conda activate event_creation
+STANDARD_ENV="workshop"
+if [ "$CONDA_DEFAULT_ENV" == "" -o "$CONDA_DEFAULT" == "" ]
+then
+  CONDA_EXISTS="$(which conda >/dev/null 2>/dev/null && echo "yes" || echo "no")"
+  if [ "$CONDA_EXISTS" == "yes" ]
+  then
+    ENV_EXISTS="$(conda list -n "$STANDARD_ENV" >/dev/null 2>/dev/null && echo "yes" || echo "no")"
+    if [ "$ENV_EXISTS" == "yes" ]
+    then
+      conda activate "$STANDARD_ENV" &&
+      echo "Activated $STANDARD_ENV"
+    fi
+  fi
+fi
 
 python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"
