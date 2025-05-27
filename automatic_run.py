@@ -34,7 +34,7 @@ if exp == 'CourierReinstate1':
   os.system(f'{fix_script} {sub} {sess} &>>{logfile}')
 
 os.chdir(script_dir)
-os.system('echo Would run: ./submit --set-input ' +
+os.system('./submit --set-input ' +
     f'"protocol=ltp:code={sub}:experiment={exp}:session={sess}:montage=0.0"' +
     f' &>>{logfile}')
 

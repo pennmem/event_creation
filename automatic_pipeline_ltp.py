@@ -58,9 +58,12 @@ def automatic_event_creator(check_index=True):
         # Minimize consistent problems by shuffling the list each time
         random.shuffle(inputs)
 
+        outdir = os.path.join(os.environ['HOME'], 'logs', 'stdouterr')
         # Use sbatch to launch automatic_run.py,
         # which in turn will call ./submit
-        os.system(f'sbatch --mem-per-cpu=60G -t 23:00:00 -a 0-{n_jobs-1}%16 ' +
+        os.system(f'sbatch --mem-per-cpu=60G -t 23:00:00 ' +
+            f'-o {outdir}/slurm-%A_%a.out -e {outdir}/slurm-%A_%a.err ' +
+            f'-a 0-{n_jobs-1}%16 ' +
             f'{script_dir}/automatic_run.py ' +
             ' '.join(inputs))
 
