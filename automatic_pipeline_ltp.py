@@ -1,42 +1,14 @@
+#!/usr/global/shared/runvenv workshop
+
 from __future__ import print_function
 import json
 import sys
 import os
-#from cluster_helper.cluster import cluster_view
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-from clusterrun import ClusterCheckedTup
-from event_creation.submission.convenience import run_session_import
+import random
 from event_creation.submission.tasks import IndexAggregatorTask
 
-
-##########
-#
-# Input builders:
-#
-##########
-def build_inputs(exp, subj, sess):
-    inputs = dict(
-        protocol='ltp',
-        subject=subj,
-        montage='0.0',
-        montage_num='0',
-        localization='0',
-        experiment=exp,
-        new_experiment=exp,
-        ram_experiment='RAM_%s' % exp,
-        #force=False,
-        force_events=True,
-        force_eeg=False,
-        do_compare=False,
-        code=subj,
-        session=sess,
-        original_session=sess,
-        groups=('ltp',),
-        attempt_import=False,
-        attempt_conversion=False,
-        PS4=False
-    )
-    return inputs
+script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(script_dir)
 
 ##########
 #
@@ -74,20 +46,23 @@ def automatic_event_creator(check_index=True):
                 if check_index:
                     print('checking index')
                     if (db_index == {}) or (subject not in db_index) or (exp not in db_index[subject]['experiments']) or (str(session) not in db_index[subject]['experiments'][exp]['sessions']):
-                        inputs.append(build_inputs(exp, subject, session))
+                        inputs.append(f'{exp}:{subject}:{session}')
                         print('Session to run: ', exp, subject, session)
                 else:
-                    inputs.append(build_inputs(exp, subject, session))
+                    inputs.append(f'{exp}:{subject}:{session}')
                     print('Session to run: ', exp, subject, session)
 
     # Submit a job to the cluster for each session that needs to be processed
-    n_jobs = min(len(inputs), 30)
-    #for inp in inputs:
-    #    run_session_import(inp)
+    n_jobs = len(inputs)
     if n_jobs > 0:
-        #with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=n_jobs, cores_per_job=6) as view:
-        #    view.map(run_session_import, inputs)
-        ClusterCheckedTup(run_session_import, inputs, max_jobs=16, mem='60G')
+        # Minimize consistent problems by shuffling the list each time
+        random.shuffle(inputs)
+
+        # Use sbatch to launch automatic_run.py,
+        # which in turn will call ./submit
+        os.system(f'sbatch --mem-per-cpu=60G -t 23:00:00 -a 0-{n_jobs-1}%16 ' +
+            f'{script_dir}/automatic_run.py ' +
+            ' '.join(inputs))
 
 if __name__=='__main__':
     try:
