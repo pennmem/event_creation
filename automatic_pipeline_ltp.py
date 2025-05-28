@@ -64,7 +64,7 @@ def automatic_event_creator(check_index=True):
         os.system(f'sbatch --mem-per-cpu=60G -t 23:00:00 ' +
             f'-o {outdir}/slurm-%A_%a.out -e {outdir}/slurm-%A_%a.err ' +
             f'-a 0-{n_jobs-1}%16 ' +
-            f'{script_dir}/automatic_run.py ' +
+            f'{script_dir}/automatic_run.py {script_dir} ' +
             ' '.join(inputs))
 
 if __name__=='__main__':

@@ -25,12 +25,15 @@ def ClusterRunSlurm(function, parameter_list, max_jobs=64, procs_per_job=1,
   '''
   import cmldask.CMLDask as da
   from dask.distributed import wait, as_completed, progress
+  import os
 
   num_jobs = len(parameter_list)
   num_jobs = min(num_jobs, max_jobs)
 
   with da.new_dask_client_slurm(function.__name__, mem, max_n_jobs=num_jobs,
-      processes_per_job=procs_per_job, walltime='23:00:00') as client:
+      processes_per_job=procs_per_job, walltime='23:00:00',
+      log_directory=os.path.join(os.environ['HOME'], 'logs',
+        'event_creation_outputs')) as client:
     futures = client.map(function, parameter_list)
     wait(futures)
     res = client.gather(futures)

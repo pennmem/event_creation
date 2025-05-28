@@ -4,7 +4,19 @@ import os
 import sys
 import datetime
 
-script_dir = os.path.dirname(os.path.realpath(__file__))
+if len(sys.argv) < 2 or '--help' in sys.argv[1:]:
+  print(f'{sys.argv[0]} <script_dir> <exp:sub:sess> [exp:sub:sess] ...')
+  print('  - With environment variable SLURM_ARRAY_TASK_ID indicating which index of')
+  print('    exp:sub:sess to process.  This is used for sbatch runs.')
+  print(f'{sys.argv[0]} <exp:sub:sess>')
+  print('  - For manual running, defaults to SLURM_ARRAY_TASK_ID of 0 if not set.')
+  print('    This also finds its own script directory the normal way.')
+  sys.exit(-1)
+
+if len(sys.argv) > 2:
+  script_dir = sys.argv.pop(1)
+else:
+  script_dir = os.path.dirname(os.path.realpath(__file__))
 
 array_id = int(os.environ.get('SLURM_ARRAY_TASK_ID', 0))
 target = sys.argv[1+array_id]
@@ -24,6 +36,9 @@ with open(logfile, 'w') as fw:
       'slurm jobid': slurm_jobid}
   for k,v in info.items():
     fw.write(f'  {k}: {v}\n')
+  fw.write(f'Running in: {script_dir}\n')
+
+os.chdir(script_dir)
 
 os.system(f'squeue -o "%.11i %.5P %.8j %.8u %.2t %.11M %.11L %.2c %.5m %.6N"'
     + f' -j {slurm_jobid} &>>{logfile}')
@@ -33,7 +48,6 @@ if exp == 'CourierReinstate1':
       'fix_one_session_jsonl.sh')
   os.system(f'{fix_script} {sub} {sess} &>>{logfile}')
 
-os.chdir(script_dir)
 os.system('./submit --set-input ' +
     f'"protocol=ltp:code={sub}:experiment={exp}:session={sess}:montage=0.0"' +
     f' &>>{logfile}')
