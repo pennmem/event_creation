@@ -5,7 +5,7 @@ source ~/.bashrc
 SCRIPTDIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" >/dev/null 2>&1 && pwd)"
 cd "$SCRIPTDIR"
 
-LOG=~/logs/automation_log.txt
+LOG=~/logs/automatic_pipeline.log
 mkdir ~/logs 2>/dev/null
 mkdir ~/logs/event_creation_outputs 2>/dev/null
 mkdir ~/logs/stdouterr 2>/dev/null
