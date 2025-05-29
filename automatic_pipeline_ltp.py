@@ -41,10 +41,10 @@ def automatic_event_creator(check_index=True):
             continue
         
         # Create an input structure for each new session that has not been processed
+        print(f'{"Checking index for" if check_index else "Processing"} {exp} sessions: {new_sess}')
         for subject in new_sess:
             for session in new_sess[subject]:
                 if check_index:
-                    print('checking index')
                     if (db_index == {}) or (subject not in db_index) or (exp not in db_index[subject]['experiments']) or (str(session) not in db_index[subject]['experiments'][exp]['sessions']):
                         inputs.append(f'{exp}:{subject}:{session}')
                         print('Session to run: ', exp, subject, session)
