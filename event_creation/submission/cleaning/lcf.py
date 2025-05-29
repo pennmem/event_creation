@@ -162,10 +162,29 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
                 offsets.append(evs[break_stop_idx[i]].eegoffset)
 
         # Annotate the EEG object with the timings of excluded periods (pre-session, post-session, & breaks)
+        onsetsL = onsets
+        offsetsL = offsets
         onsets = np.sort(onsets)
         offsets = np.sort(offsets)
-        onset_times = eeg.times[onsets]
-        offset_times = eeg.times[offsets]
+        try:
+          onset_times = eeg.times[onsets]
+        except IndexError as e:
+          if len(onsetsL) == 0:
+            raise ValueError(f'Diagnostic:  No onset times found within {eegfile} duration')
+          for i,ot in enumerate(onsetsL):
+            if not isinstance(ot, int):
+              raise ValueError(f'Diagnostic:  onsetsL[{i} of {len(onsetsL)}] = {ot} is not an integer')
+          raise
+        try:
+          offset_times = eeg.times[offsets]
+        except IndexError as e:
+          if len(offsetsL) == 0:
+            raise ValueError(f'Diagnostic:  No offset times found within {eegfile} duration')
+          for i,ot in enumerate(offsetsL):
+            if not isinstance(ot, int):
+              raise ValueError(f'Diagnostic:  offsetsL[{i} of {len(offsetsL)}] = {ot} is not an integer')
+          raise
+        del onsetsL,offsetsL
         durations = offset_times - onset_times
         descriptions = ['bad_break' for _ in onsets]
         annotations = mne.Annotations(eeg.times[onsets], durations, descriptions)
