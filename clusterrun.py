@@ -25,12 +25,15 @@ def ClusterRunSlurm(function, parameter_list, max_jobs=64, procs_per_job=1,
   '''
   import cmldask.CMLDask as da
   from dask.distributed import wait, as_completed, progress
+  import os
 
   num_jobs = len(parameter_list)
   num_jobs = min(num_jobs, max_jobs)
 
   with da.new_dask_client_slurm(function.__name__, mem, max_n_jobs=num_jobs,
-      processes_per_job=procs_per_job) as client:
+      processes_per_job=procs_per_job, walltime='23:00:00',
+      log_directory=os.path.join(os.environ['HOME'], 'logs',
+        'event_creation_outputs')) as client:
     futures = client.map(function, parameter_list)
     wait(futures)
     res = client.gather(futures)
@@ -56,7 +59,7 @@ def ClusterCheckedTup(function, parameter_list, *args, **kwargs):
   '''Parallelizes and raises an exception if any results have False
      as the first value of the returned list/tuple.'''
   res = ClusterRunSlurm(function, parameter_list, *args, **kwargs)
-  if all(res):
+  if all([bool(b[0]) for b in res]):
     print('All', len(res), 'jobs successful.')
   else:
     failed = sum([not bool(b[0]) for b in res])
@@ -65,6 +68,6 @@ def ClusterCheckedTup(function, parameter_list, *args, **kwargs):
     else:
       print('Error on job parameters:\n  ' + 
           '\n  '.join(str(parameter_list[i]) for i in range(len(res))
-            if not bool(res[i])))
+            if not bool(res[i][0])))
       raise RuntimeError(str(failed)+' of '+str(len(res))+' jobs failed!')
 

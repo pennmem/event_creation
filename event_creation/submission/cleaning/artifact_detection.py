@@ -11,7 +11,7 @@ class ArtifactDetector:
     def __init__(self, events, eeg, ephys_dir, experiment):
         """
         :param events: The events structure (a recarray) for the session
-        :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with 
+        :param eeg: A dictionary matching the basename of each EEG recording to its data (designed for cases with
         multiple recordings from a single session).
         :param ephys_dir: The path to the current_processed ephys folder for the current session.
         :param experiment: The name of the experiment. This can be used to modify event types and timings for different
@@ -111,7 +111,8 @@ class ArtifactDetector:
             'ltpRepFR': {'WORD': (0., 1.6)},
             'NiclsCourierReadOnly': {'WORD': (0, 1.6)},
             'NiclsCourierClosedLoop': {'WORD': (0, 1.6)},
-            'ltpDelayRepFRReadOnly': {'WORD': (0., 1.6)}
+            'ltpDelayRepFRReadOnly': {'WORD': (0., 1.6)},
+            'CourierReinstate1': {'WORD': (0, 3.0)}
         }
 
         ev_types = SETTINGS[self.experiment]

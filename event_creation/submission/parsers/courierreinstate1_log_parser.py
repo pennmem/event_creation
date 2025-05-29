@@ -28,7 +28,7 @@ class CourierReinstate1SessionLogParser(CourierSessionLogParser):
            start_practice_deliveries=self.event_practice_start,
            stop_practice_deliveries=self.event_practice_end,
            keypress=self.event_efr_mark,
-           item_reinstatement = self.object_reinstatement
+           Object_Reinstatement = self.object_reinstatement,
            continuous_pointer=self.event_pointer_on,
            start_required_break=self.event_break_start,
            stop_required_break=self.event_break_stop,
@@ -154,11 +154,12 @@ class CourierReinstate1SessionLogParser(CourierSessionLogParser):
         self._trial = evdata['data']['trial number']
         self._reinstated_item = evdata['data']['previously delivered item seen']
         self._angle_difference = evdata['data']['Angle of Approach']
+        self.presX = evdata['data']['positionX']
+        self.presZ = evdata['data']['positionZ']
         event = self.event_default(evdata)
         event.type = "REINSTATEMENT"
-        event["item"] = ['data']['previously delivered item seen'].upper().rstrip('.1')
+        event["item"] = evdata['data']['previously delivered item seen'].upper().rstrip('.1')
 
-        event.store = '_'.join(evdata['data']['store name'].split(' '))
         event.intruded = 0
         event.recalled = 0
         event.finalrecalled = 0
