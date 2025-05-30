@@ -170,7 +170,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
           onset_times = eeg.times[onsets]
         except IndexError as e:
           if len(onsetsL) == 0:
-            raise ValueError(f'Diagnostic:  No onset times found within {eegfile} duration')
+            raise ValueError(f'Diagnostic:  No session start or break-end onset times found within {eegfile} duration')
           for i,ot in enumerate(onsetsL):
             if not isinstance(ot, int):
               raise ValueError(f'Diagnostic:  onsetsL[{i} of {len(onsetsL)}] = {ot} is not an integer')
@@ -179,7 +179,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
           offset_times = eeg.times[offsets]
         except IndexError as e:
           if len(offsetsL) == 0:
-            raise ValueError(f'Diagnostic:  No offset times found within {eegfile} duration')
+            raise ValueError(f'Diagnostic:  No session stop or break-start offset times found within {eegfile} duration')
           for i,ot in enumerate(offsetsL):
             if not isinstance(ot, int):
               raise ValueError(f'Diagnostic:  offsetsL[{i} of {len(offsetsL)}] = {ot} is not an integer')
