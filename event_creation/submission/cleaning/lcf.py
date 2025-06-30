@@ -79,8 +79,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         # The recording for LTP346-12 was left on for several hours after the experiment ended. Truncate the recording
         # to avoid memory errors.
         if basename.endswith('LTP346_session_12') or \
-            basename.endswith('LTP568_session_5') or \
-            basename.endswith('LTP586_session_0'):
+            basename.endswith('LTP568_session_5'):
             eeg.crop(0, 5050)
 
         # Drop all channels except EEG data channels. Manually specify channels for BioSemi in case E, F, G, and H
@@ -265,7 +264,7 @@ def run_lcf(events, eeg_dict, ephys_dir, method='fastica', highpass_freq=.5, iqr
         #    with cluster_view(scheduler='sge', queue='RAM.q', num_jobs=len(inputs), cores_per_job=6) as view:
         #        view.map(run_split_lcf, inputs)
         print(f"Cleaning {len(inputs)} partitions")
-        ClusterChecked(run_split_lcf, inputs, max_jobs=5, mem='50G')
+        ClusterChecked(run_split_lcf, inputs, max_jobs=5, mem='70G')
         #except Exception as e:
         #    print(e)
         #    logger.warn('Cluster helper returned an error. This may happen even if LCF was successful, so attempting to'
