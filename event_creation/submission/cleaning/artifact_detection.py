@@ -112,7 +112,8 @@ class ArtifactDetector:
             'NiclsCourierReadOnly': {'WORD': (0, 1.6)},
             'NiclsCourierClosedLoop': {'WORD': (0, 1.6)},
             'ltpDelayRepFRReadOnly': {'WORD': (0., 1.6)},
-            'CourierReinstate1': {'WORD': (0, 3.0)}
+            'CourierReinstate1': {'WORD': (0, 3.0)},
+            'ValueCourier': {'WORD': (0, 3.0), 'VALUE_RECALL': (0, 3.0)}
         }
 
         ev_types = SETTINGS[self.experiment]

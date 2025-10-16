@@ -1,3 +1,12 @@
+2025-10-02
+===================
+- Added ValueCourierSessionLogParse class for integrating typed value recall into Courier sessions.
+- Implemented VALUE_RECALL event creation via add_value_recall.
+- Implemented modify_word_with_value_recall to attach typed recall and actual value fields to corresponding WORD events.
+- Updated _add_type_to_modify_events to automatically process VALUE_RECALL events without modifying add_value_recall itself.
+- Overwrote default modify_store_recall and modify_free_recall to customize handling for value recall sessions.
+- Ensured all value recall modifications preserve recarray structure for pipeline compatibility.
+
 2023-7-26
 ===================
 - System 3 and system 4 event creation supported by same codebase

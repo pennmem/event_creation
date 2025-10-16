@@ -32,6 +32,7 @@ from .parsers.fr_sys3_log_parser import FRSys3LogParser,catFRSys3LogParser
 from .parsers.repfr_log_parser import RepFRSessionLogParser
 from .parsers.delayrepfr_log_parser import DelayRepFRSessionLogParser
 from .parsers.courier_log_parser import CourierSessionLogParser
+from .parsers.value_courier_log_parser import ValueCourierSessionLogParser
 from .parsers.nicls_log_parser import NICLSSessionLogParser
 from .parsers.courierreinstate1_log_parser import CourierReinstate1SessionLogParser
 
@@ -296,6 +297,7 @@ class EventCreationTask(PipelineTask):
                     'NiclsCourierClosedLoop': NICLSSessionLogParser,
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
                     'CourierReinstate1': CourierReinstate1SessionLogParser,
+                    'ValueCourier': ValueCourierSessionLogParser,
                   }
 
     @property
