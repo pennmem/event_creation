@@ -1,6 +1,6 @@
 2025-10-02
 ===================
-- Added ValueCourierSessionLogParse class for integrating typed value recall into Courier sessions.
+- Added ValueCourierSessionLogParser class for integrating typed value recall into Courier sessions.
 - Implemented VALUE_RECALL event creation via add_value_recall.
 - Implemented modify_word_with_value_recall to attach typed recall and actual value fields to corresponding WORD events.
 - Updated _add_type_to_modify_events to automatically process VALUE_RECALL events without modifying add_value_recall itself.
