@@ -44,6 +44,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
+            object_recall_recording_start=self.modify_rec_start,
         )
 
 
@@ -360,3 +361,44 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
                 return event
         except:
             return event
+
+#overwrite
+def modify_rec_start(self, events):
+    rec_start_event = events[-1]
+    rec_start_time = rec_start_event.mstime
+
+    if self.practice:
+        # Practice parsing not implemented for Courier / NICLS
+        return events
+    else:
+        ann_outputs = self._parse_ann_file(str(self._trial))
+
+    for recall in ann_outputs:
+        new_event = self._new_rec_event(recall, rec_start_event)
+
+        # Create a new event for the recall
+        evtype = 'REC_WORD_VV' if "<>" in new_event["item"] else 'REC_WORD'
+        new_event.type = evtype
+        new_event = self._identify_intrusion(events, new_event)
+
+        # Update recalled/intruded fields on matching WORDs
+        if new_event.intrusion > 0:
+            events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+        elif new_event.intrusion == 0:
+            events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+
+        # --- 🔧 Coerce new_event to match events dtype ---
+        new_event_casted = np.zeros(1, dtype=events.dtype).view(np.recarray)
+        for name in events.dtype.names:
+            if hasattr(new_event, name):
+                new_event_casted[name][0] = getattr(new_event, name)
+            elif isinstance(new_event, dict) and name in new_event:
+                new_event_casted[name][0] = new_event[name]
+            else:
+                # leave default (0, '', etc.)
+                pass
+
+        # Append safely
+        events = np.concatenate([events, new_event_casted]).view(np.recarray)
+
+    return events
