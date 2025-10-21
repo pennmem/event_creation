@@ -204,7 +204,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
         event.serialpos = evdata['data']["serial position"]
 
-        event.store = '_'.join(evdata['data']['store name'].split(' '))
+        store_name = evdata['data']['store name']
+        if isinstance(store_name, list):
+            store_name = ' '.join(map(str, store_name))
+        elif not isinstance(store_name, str):
+            store_name = str(store_name)
+
+        event.store = '_'.join(store_name.split(' '))
+        
         event.intruded = 0
         event.recalled = 0
         event.finalrecalled = 0
