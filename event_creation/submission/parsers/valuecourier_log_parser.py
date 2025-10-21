@@ -363,41 +363,94 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             return event
 
     #overwrite
+    # def modify_rec_start(self, events):
+    #     print("modify rec start called")
+    #     rec_start_event = events[-1]
+    #     rec_start_time = rec_start_event.mstime
+
+    #     if self.practice:
+    #         # Practice parsing not implemented for Courier / NICLS
+    #         return events
+    #     else:
+    #         ann_outputs = self._parse_ann_file(str(self._trial))
+
+    #     for recall in ann_outputs:
+    #         new_event = self._new_rec_event(recall, rec_start_event)
+
+    #         # Create a new event for the recall
+    #         evtype = 'REC_WORD_VV' if "<>" in new_event["item"] else 'REC_WORD'
+    #         new_event.type = evtype
+    #         new_event = self._identify_intrusion(events, new_event)
+
+    #         # Update recalled/intruded fields on matching WORDs
+    #         if new_event.intrusion > 0:
+    #             events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+    #         elif new_event.intrusion == 0:
+    #             events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+
+    #         # --- 🔧 Coerce new_event to match events dtype ---
+    #         new_event_casted = np.zeros(1, dtype=events.dtype).view(np.recarray)
+    #         for name in events.dtype.names:
+    #             if hasattr(new_event, name):
+    #                 new_event_casted[name][0] = getattr(new_event, name)
+    #             elif isinstance(new_event, dict) and name in new_event:
+    #                 new_event_casted[name][0] = new_event[name]
+    #             else:
+    #                 # leave default (0, '', etc.)
+    #                 pass
+
+    #         # Append safely
+    #         print("old")
+    #         # print(events)
+    #         print(events.dtype)
+    #         print("new")
+    #         # print(new_event)
+    #         print(new_event_casted.dtype)
+    #         events = np.concatenate([events, new_event_casted]).view(np.recarray)
+
+    #     return events
+
     def modify_rec_start(self, events):
-        print("modify rec start called")
+        print("modify_rec_start called")
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
 
+        # Skip practice trials
         if self.practice:
-            # Practice parsing not implemented for Courier / NICLS
             return events
-        else:
+
+        # Load annotations for the current trial
+        try:
             ann_outputs = self._parse_ann_file(str(self._trial))
+        except Exception as e:
+            print(f"⚠️ Missing or unreadable annotation file for trial {self._trial}: {e}")
+            return events
 
         for recall in ann_outputs:
             new_event = self._new_rec_event(recall, rec_start_event)
 
-            # Create a new event for the recall
+            # Label the recall type
             evtype = 'REC_WORD_VV' if "<>" in new_event["item"] else 'REC_WORD'
             new_event.type = evtype
+
+            # Identify intrusion and link back to word presentation
             new_event = self._identify_intrusion(events, new_event)
 
-            # Update recalled/intruded fields on matching WORDs
+            # Mark recalled/intruded items
             if new_event.intrusion > 0:
                 events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
             elif new_event.intrusion == 0:
                 events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
 
-            # --- 🔧 Coerce new_event to match events dtype ---
+            # --- Ensure dtype match ---
             new_event_casted = np.zeros(1, dtype=events.dtype).view(np.recarray)
             for name in events.dtype.names:
-                if hasattr(new_event, name):
-                    new_event_casted[name][0] = getattr(new_event, name)
+                if isinstance(new_event, np.recarray) and name in new_event.dtype.names:
+                    new_event_casted[name][0] = new_event[name]
                 elif isinstance(new_event, dict) and name in new_event:
                     new_event_casted[name][0] = new_event[name]
-                else:
-                    # leave default (0, '', etc.)
-                    pass
+                elif hasattr(new_event, name):
+                    new_event_casted[name][0] = getattr(new_event, name)
 
             # Append safely
             print("old")
@@ -406,6 +459,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             print("new")
             # print(new_event)
             print(new_event_casted.dtype)
-            events = np.concatenate([events, new_event_casted]).view(np.recarray)
+            # Append new recall event
+            events = np.append(events, new_event_casted).view(np.recarray)
 
         return events
