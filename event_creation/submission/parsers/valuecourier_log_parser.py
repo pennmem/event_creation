@@ -256,25 +256,30 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 
     def modify_word_with_value_recall(self, events):
+    # Convert to DataFrame for easier manipulation
         full_evs = pd.DataFrame.from_records(events)
 
-        # Only keep WORD and VALUE_RECALL events
+        # Ensure required columns exist
+        for col in ["value_recall", "actual_value"]:
+            if col not in full_evs.columns:
+                full_evs[col] = np.nan
+
+        # Separate WORD and VALUE_RECALL events
         words = full_evs[full_evs.type == "WORD"].copy()
         recalls = full_evs[full_evs.type == "VALUE_RECALL"].copy()
 
         if words.empty or recalls.empty:
             return events  # nothing to do
 
-        # Reset index on words to preserve mapping back to full_evs
-        words_reset = words.reset_index()  # 'index' column maps to original full_evs index
-        merged = words_reset.merge(
-            recalls[["trial", "value_recall", "actual_value"]],
-            on="trial",
-            how="left",
-            suffixes=("", "_rec")
-        )
+        # Only keep the relevant recall columns if they exist
+        recall_cols = [c for c in ["trial", "value_recall", "actual_value"] if c in recalls.columns]
+        recalls = recalls[recall_cols].dropna(subset=["trial"], how="any")
 
-        # Update WORD events in full_evs using the preserved original index
+        # Merge recall data into word events (trial-based merge)
+        words_reset = words.reset_index()  # preserve mapping to original indices
+        merged = words_reset.merge(recalls, on="trial", how="left", suffixes=("", "_rec"))
+
+        # Apply updates back to full_evs
         for _, row in merged.iterrows():
             orig_idx = int(row["index"])
             if pd.notna(row.get("value_recall")):
@@ -282,8 +287,9 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             if pd.notna(row.get("actual_value")):
                 full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
 
-        # Return as numpy recarray; keep it simple and let dtype coercion happen
+        # Return as record array with same dtype as input
         return full_evs.to_records(index=False)
+
 
 
 # Overwrite normal Courier FFR and store recall
