@@ -175,8 +175,16 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event = self.event_default(evdata)
         event.type = 'VALUE_RECALL'
         event.trial = evdata['data']['trial number']
-        event.value_recall = evdata['data']['typed response']
-        event.actual_value = evdata['data']['actual value']
+        value_recall = self.stringify_list(evdata['data']['typed response'])
+        event.value_recall = int(value_recall)
+        if 'actual value' in evdata['data']:
+            event.actual_value = evdata['data']['actual value']
+        else:
+            event.actual_value = None
+            logger.warning(
+                f"Missing 'actual value' field in VALUE_RECALL event for subject "
+                f"{self._subject}, session {self._session}, trial {event.trial}"
+            )
         return event
 
     def event_pointer_on(self, evdata):
