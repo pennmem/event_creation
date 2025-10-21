@@ -197,7 +197,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.multiplier = evdata['data']['multiplier']
         return event
 
-    def stringify_list(input_val):
+    def stringify_list(self, input_val):
         """
         Convert a list of characters or other types into a single string.
         If already a string, returns unchanged. Otherwise casts to string.
