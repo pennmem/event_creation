@@ -216,7 +216,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
         event.serialpos = evdata['data']["serial position"]
 
-        store_name = stringify_list(evdata['data']['store name'])
+        store_name = self.stringify_list(evdata['data']['store name'])
         event.store = '_'.join(store_name.split(' '))
 
         event.intruded = 0
@@ -225,7 +225,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.value = evdata['data']['store value']
 
         # Convert store position to string
-        store_pos_str = stringify_list(evdata['data']['store position'])
+        store_pos_str = self.stringify_list(evdata['data']['store position'])
 
         # Parse string into floats
         store_position = [float(p) for p in store_pos_str.strip('()').replace(' ', '').split(',')]
