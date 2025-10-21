@@ -181,8 +181,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             event.actual_value = evdata['data']['actual value']
         else:
             event.actual_value = None
-            logger.warning(
-                f"Missing 'actual value' field in VALUE_RECALL event for subject "
+            print(
+                f"Missing 'actual value' field in VALUE_RECALL event for subject " +
                 f"{self._subject}, session {self._session}, trial {event.trial}"
             )
         return event
