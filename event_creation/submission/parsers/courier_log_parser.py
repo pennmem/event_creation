@@ -336,7 +336,12 @@ class CourierSessionLogParser(BaseUnityLogParser):
                 events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
             elif new_event.intrusion == 0:
                 events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
-
+            print("old")
+            print(events)
+            print(events.dtype)
+            print("new")
+            print(new_event)
+            print(new_event.dtype)
             events = np.append(events, new_event).view(np.recarray)
 
         return events
