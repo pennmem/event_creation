@@ -333,7 +333,7 @@ class BaseLogParser(object):
                 try:
                     events = np.append(events, new_event)
                 except Exception as e:
-                    import pdb; pdb.set_trace()
+                    # import pdb; pdb.set_trace()
                     print("suh")
 
             # Modify existing events if necessary
