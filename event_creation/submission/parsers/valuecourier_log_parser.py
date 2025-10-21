@@ -197,6 +197,18 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.multiplier = evdata['data']['multiplier']
         return event
 
+    def stringify_list(input_val):
+        """
+        Convert a list of characters or other types into a single string.
+        If already a string, returns unchanged. Otherwise casts to string.
+        """
+        if isinstance(input_val, list):
+            return ''.join(map(str, input_val))
+        elif not isinstance(input_val, str):
+            return str(input_val)
+        else:
+            return input_val
+
     # overwrite normal courier object presentation to add fields
     def add_object_presentation_begins(self, evdata):
         self._trial = evdata['data']['trial number']
@@ -204,27 +216,22 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
         event.serialpos = evdata['data']["serial position"]
 
-        store_name = evdata['data']['store name']
-        if isinstance(store_name, list):
-            store_name = ' '.join(map(str, store_name))
-        elif not isinstance(store_name, str):
-            store_name = str(store_name)
-
+        store_name = stringify_list(evdata['data']['store name'])
         event.store = '_'.join(store_name.split(' '))
-        
+
         event.intruded = 0
         event.recalled = 0
         event.finalrecalled = 0
         event.value = evdata['data']['store value']
 
-        if isinstance(evdata['data']['store position'], six.string_types):
-            evdata['data']['store position'] = [float(p) for p in evdata['data']['store position'][1:-1].split(',')]
+        # Convert store position to string
+        store_pos_str = stringify_list(evdata['data']['store position'])
 
-        event.storeX = evdata['data']['store position'][0]
-        self.storeX = event.storeX
+        # Parse string into floats
+        store_position = [float(p) for p in store_pos_str.strip('()').replace(' ', '').split(',')]
 
-        event.storeZ = evdata['data']['store position'][2]
-        self.storeZ = event.storeZ
+        event.storeX = store_position[0] if len(store_position) > 0 else None
+        event.storeZ = store_position[2] if len(store_position) > 2 else None
 
         event.presX = self.presX
         event.presZ = self.presZ
