@@ -180,7 +180,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         if 'actual value' in evdata['data']:
             event.actual_value = evdata['data']['actual value']
         else:
-            event.actual_value = None
+            event.actual_value = -999
             print(
                 f"Missing 'actual value' field in VALUE_RECALL event for subject " +
                 f"{self._subject}, session {self._session}, trial {event.trial}"
