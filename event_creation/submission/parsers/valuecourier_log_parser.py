@@ -241,7 +241,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         event.numInGroupChosen = evdata['data']['number of in group chosen']
 
-        event["item"] = evdata['data']['item name'].upper().rstrip('.1')
+        item_name = self.stringify_list(evdata['data']['item name'])
+        event["item"] = item_name.upper().rstrip('.1')
 
         return event
 
