@@ -139,7 +139,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         # that the version is greater than 4.0
         try:
             minor_version = int(evdata["data"]["Experiment version"].split('.')[1])
-        except (ValueError):
+        except (ValueError, AttributeError):
             minor_version = int(6)
         if minor_version == 0 \
            and self.subject.startswith('R'):
