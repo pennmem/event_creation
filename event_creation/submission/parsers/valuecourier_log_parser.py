@@ -239,7 +239,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.primacyBuf = evdata['data']['primacy buffer']
         event.recencyBuf = evdata['data']['recency buffer']
 
-        event.numInGroupChosen = evdata['data']['number in group chosen']
+        event.numInGroupChosen = evdata['data']['number of in group chosen']
 
         event["item"] = evdata['data']['item name'].upper().rstrip('.1')
 
