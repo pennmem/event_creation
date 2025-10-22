@@ -245,6 +245,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.presX = self.presX
         event.presZ = self.presZ
 
+        if 'player orientation' in evdata['data']:
+            player_rot_str = self.stringify_list(evdata['data']['player orientation'])
+            player_orientation = [float(o) for o in player_rot_str.strip('()').replace(' ', '').split(',')]
+
+            event.playerRotY = player_orientation[1] if len(player_orientation) > 1 else None
+            event.playerRotX = player_orientation[0] if len(player_orientation) > 0 else None
+            event.playerRotZ = player_orientation[2] if len(player_orientation) > 2 else None
+
         event.primacyBuf = evdata['data']['primacy buffer']
         event.recencyBuf = evdata['data']['recency buffer']
 
