@@ -252,6 +252,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         item_name = self.stringify_list(evdata['data']['item name'])
         event["item"] = item_name.upper().rstrip('.1')
+        if 'store point type' in evdata['data']:
+            event.store_point_type = self.stringify_list(evdata['data']['store point type'])
 
         return event
 
