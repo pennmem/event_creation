@@ -39,6 +39,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            start_deliveries=self.event_trial_start,
            stop_deliveries=self.event_trial_end,
            receive_compensation=self.add_receive_compensation,
+           earned_tips=self.event_sess_end,
         )
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
@@ -52,6 +53,11 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event = self.event_default(evdata)
         print( "event_break_start called")
         event.type = 'BREAK_START'
+        return event
+
+    def event_sess_end(self, evdata):
+        event = self.event_default(evdata)
+        event.type = 'SESS_END'
         return event
 
     def event_break_stop(self, evdata):
