@@ -50,11 +50,13 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     ####################
     def event_break_start(self, evdata):
         event = self.event_default(evdata)
+        print( "event_break_start called")
         event.type = 'BREAK_START'
         return event
 
     def event_break_stop(self, evdata):
         event = self.event_default(evdata)
+        print( "event_break_stop called")
         event.type = 'BREAK_STOP'
         return event
 

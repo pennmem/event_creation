@@ -34,7 +34,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         self._add_type_to_new_event(
          versions=self.add_experiment_version,
-         #instruction_message_cleared=self.event_sess_start,
+         instruction_message_cleared=self.event_sess_start,
          familiarization_store_displayed=self.add_familiarization_store_displayed,
          proceed_to_next_day_prompt=self.add_proceed_to_next_day,
          store_mappings=self.add_store_mappings,
