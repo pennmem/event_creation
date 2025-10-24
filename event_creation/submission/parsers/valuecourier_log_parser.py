@@ -5,10 +5,11 @@ from . import dtypes
 from .courier_log_parser import CourierSessionLogParser
 
 
+
 class ValueCourierSessionLogParser(CourierSessionLogParser):
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super().__init__(protocol, subject, montage, experiment, session, files)
-
+        pd.set_option('display.max_columns', None)
         self.phase = '1'
 
         self._add_fields(*dtypes.efr_fields)
