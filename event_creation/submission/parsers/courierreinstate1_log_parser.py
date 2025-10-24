@@ -204,9 +204,6 @@ class CourierReinstate1SessionLogParser(CourierSessionLogParser):
 
         return events
 
-    def modify_store_recall(self, events):
-        return events
-
     def modify_pointer_on(self, events):
         full_evs = pd.DataFrame.from_records(events)
         part_idx = full_evs[(full_evs.type=='WORD')|(full_evs.type=='TL_END')].index.values

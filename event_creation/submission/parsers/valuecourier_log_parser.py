@@ -38,17 +38,11 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            stop_required_break=self.event_break_stop,
            start_deliveries=self.event_trial_start,
            stop_deliveries=self.event_trial_end,
-           start_classifier_wait=self.event_classifier_wait,
-           stop_classifier_wait=self.event_classifier_result,
            receive_compensation=self.add_receive_compensation,
-           add_pointing_finished=self.add_pointing_finished,
-           event_classifier_wait=self.event_classifier_wait,
-           event_classifier_result=self.event_classifier_result,
         )
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
-            object_recall_recording_start=self.modify_rec_start,
         )
 
     ####################
@@ -259,7 +253,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             event.playerRotY = player_orientation[1] if len(player_orientation) > 1 else None
             event.playerRotX = player_orientation[0] if len(player_orientation) > 0 else None
             event.playerRotZ = player_orientation[2] if len(player_orientation) > 2 else None
-
+        
         event.primacyBuf = evdata['data']['primacy buffer']
         event.recencyBuf = evdata['data']['recency buffer']
 
@@ -342,9 +336,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
             events = np.append(events, new_event).view(np.recarray)
 
-        return events
-
-    def modify_store_recall(self, events):
         return events
 
     def modify_pointer_on(self, events):
