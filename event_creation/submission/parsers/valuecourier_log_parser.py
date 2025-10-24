@@ -91,7 +91,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         # self.phase = 'video'
         # event = self.event_default(evdata)
         # event.type = 'MUSIC_VIDEOS_START'
-        return evdatax``
+        return evdata
 
     def event_music_videos_stop(self, evdata):
         # self.phase = '2'
