@@ -40,13 +40,15 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            start_classifier_wait=self.event_classifier_wait,
            stop_classifier_wait=self.event_classifier_result,
            receive_compensation=self.add_receive_compensation,
+           add_pointing_finished=self.add_pointing_finished,
+           event_classifier_wait=self.event_classifier_wait,
+           event_classifier_result=self.event_classifier_result,
         )
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
             object_recall_recording_start=self.modify_rec_start,
         )
-
 
     ####################
     # Functions to add new events from a single line in the log
@@ -86,16 +88,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_music_videos_start(self, evdata):
-        self.phase = 'video'
-        event = self.event_default(evdata)
-        event.type = 'MUSIC_VIDEOS_START'
-        return event
+        # self.phase = 'video'
+        # event = self.event_default(evdata)
+        # event.type = 'MUSIC_VIDEOS_START'
+        return evdatax``
 
     def event_music_videos_stop(self, evdata):
-        self.phase = '2'
-        event = self.event_default(evdata)
-        event.type = 'MUSIC_VIDEOS_STOP'
-        return event
+        # self.phase = '2'
+        # event = self.event_default(evdata)
+        # event.type = 'MUSIC_VIDEOS_STOP'
+        return evdata
+
 
     def event_video_start(self, evdata):
         event = self.event_default(evdata)
@@ -110,16 +113,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_start_music_videos_recall(self, evdata):
-        self.phase = 'video'
-        event = self.event_default(evdata)
-        event.type = 'MUSIC_VIDEOS_REC_START'
-        return event
+        # self.phase = 'video'
+        # event = self.event_default(evdata)
+        # event.type = 'MUSIC_VIDEOS_REC_START'
+        return evdata
+
 
     def event_stop_music_videos_recall(self, evdata):
-        self.phase = '2'
-        event = self.event_default(evdata)
-        event.type = 'MUSIC_VIDEOS_REC_STOP'
-        return event
+        # self.phase = '2'
+        # event = self.event_default(evdata)
+        # event.type = 'MUSIC_VIDEOS_REC_STOP'
+        return evdata
 
     def event_video_rec_start(self, evdata):
         event = self.event_default(evdata)
@@ -194,10 +198,10 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_efr_mark(self, evdata):
-        event = self.event_default(evdata)
-        event.type = 'EFR_MARK'
-        event.efr_mark = evdata['data']['response']=='correct'
-        return event
+        # event = self.event_default(evdata)
+        # event.type = 'EFR_MARK'
+        # event.efr_mark = evdata['data']['response']=='correct'
+        return evdata
 
     def add_receive_compensation(self, evdata):
         event = self.event_default(evdata)
@@ -230,7 +234,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         event.intruded = 0
         event.recalled = 0
-        event.finalrecalled = 0
         event.value = evdata['data']['store value']
 
         # Convert store position to string
@@ -305,8 +308,9 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events):
-        return events
+        return evdata
 
+    # overwrite
     def modify_free_recall(self, events):
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
@@ -349,28 +353,15 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return clipped_evs.to_records(index=False,
                 column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
+    #overwrite
+    def add_pointing_finished(self, evdata):
+        return evdata
+
     def event_classifier_wait(self, evdata):
-        event = self.event_default(evdata)
-        event.type = 'CLASSIFIER_WAIT'
-        return event
+        return evdata
 
     def event_classifier_result(self, evdata):
-        # Event indicates that the task stopped waiting for the classifier
-        # This can either mean it received the desired value, timed out, or was
-        # a sham
-        event = self.event_default(evdata)
-        event.type = 'CLASSIFIER'
-        event.classifier = evdata['data']['type']
-        try:
-            # Sham events do not time out, and don't have "timed out" field
-            if evdata['data']['timed out']==0:
-                return event
-            # Don't return timed out events
-            else:
-                event.type = 'TIMEOUT'
-                return event
-        except:
-            return event
+        return evdata
 
     #overwrite
     # def modify_rec_start(self, events):
