@@ -185,7 +185,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         if 'actual value' in evdata['data']:
             event.actual_value = evdata['data']['actual value']
         else:
-            event.actual_value = -999
+            event.actual_value = -1
             print(
                 f"Missing 'actual value' field in VALUE_RECALL event for subject " +
                 f"{self._subject}, session {self._session}, trial {event.trial}"
@@ -270,39 +270,40 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 
     def modify_word_with_value_recall(self, events):
-    # Convert to DataFrame for easier manipulation
-        full_evs = pd.DataFrame.from_records(events)
+    # # Convert to DataFrame for easier manipulation
+    #     full_evs = pd.DataFrame.from_records(events)
 
-        # Ensure required columns exist
-        for col in ["value_recall", "actual_value"]:
-            if col not in full_evs.columns:
-                full_evs[col] = np.nan
+    #     # Ensure required columns exist
+    #     for col in ["value_recall", "actual_value"]:
+    #         if col not in full_evs.columns:
+    #             full_evs[col] = np.nan
 
-        # Separate WORD and VALUE_RECALL events
-        words = full_evs[full_evs.type == "WORD"].copy()
-        recalls = full_evs[full_evs.type == "VALUE_RECALL"].copy()
+    #     # Separate WORD and VALUE_RECALL events
+    #     words = full_evs[full_evs.type == "WORD"].copy()
+    #     recalls = full_evs[full_evs.type == "VALUE_RECALL"].copy()
 
-        if words.empty or recalls.empty:
-            return events  # nothing to do
+    #     if words.empty or recalls.empty:
+    #         return events  # nothing to do
 
-        # Only keep the relevant recall columns if they exist
-        recall_cols = [c for c in ["trial", "value_recall", "actual_value"] if c in recalls.columns]
-        recalls = recalls[recall_cols].dropna(subset=["trial"], how="any")
+    #     # Only keep the relevant recall columns if they exist
+    #     recall_cols = [c for c in ["trial", "value_recall", "actual_value"] if c in recalls.columns]
+    #     recalls = recalls[recall_cols].dropna(subset=["trial"], how="any")
 
-        # Merge recall data into word events (trial-based merge)
-        words_reset = words.reset_index()  # preserve mapping to original indices
-        merged = words_reset.merge(recalls, on="trial", how="left", suffixes=("", "_rec"))
+    #     # Merge recall data into word events (trial-based merge)
+    #     words_reset = words.reset_index()  # preserve mapping to original indices
+    #     merged = words_reset.merge(recalls, on="trial", how="left", suffixes=("", "_rec"))
 
-        # Apply updates back to full_evs
-        for _, row in merged.iterrows():
-            orig_idx = int(row["index"])
-            if pd.notna(row.get("value_recall")):
-                full_evs.at[orig_idx, "value_recall"] = row["value_recall"]
-            if pd.notna(row.get("actual_value")):
-                full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
+    #     # Apply updates back to full_evs
+    #     for _, row in merged.iterrows():
+    #         orig_idx = int(row["index"])
+    #         if pd.notna(row.get("value_recall")):
+    #             full_evs.at[orig_idx, "value_recall"] = row["value_recall"]
+    #         if pd.notna(row.get("actual_value")):
+    #             full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
 
         # Return as record array with same dtype as input
-        return full_evs.to_records(index=False)
+        # full_evs.to_records(index=False)
+        return events
 
 
 
