@@ -278,10 +278,10 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         full_evs = pd.DataFrame.from_records(events)
         print(full_evs.head())
 
-        # Ensure required columns exist
-        for col in ["value_recall", "actual_value"]:
-            if col not in full_evs.columns:
-                full_evs[col] = np.nan
+        # # Ensure required columns exist
+        # for col in ["value_recall", "actual_value"]:
+        #     if col not in full_evs.columns:
+        #         full_evs[col] = np.nan
 
         # Separate WORD and VALUE_RECALL events
         words = full_evs[full_evs.type == "WORD"]
