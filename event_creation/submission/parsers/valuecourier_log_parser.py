@@ -222,6 +222,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     # overwrite normal courier object presentation to add fields
     def add_object_presentation_begins(self, evdata):
+        print("add_object_presentation_begins called")
         self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
@@ -312,10 +313,12 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events):
+        print("modify_store_recall called") 
         return evdata
 
     # overwrite
     def modify_free_recall(self, events):
+        print("modify_free_recall called")
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         try:
@@ -356,12 +359,15 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     #overwrite
     def add_pointing_finished(self, evdata):
+        print("add_pointing_finished called")
         return evdata
 
     def event_classifier_wait(self, evdata):
+        print("event_classifier_wait called")
         return evdata
 
     def event_classifier_result(self, evdata):
+        print("event_classifier_result called")
         return evdata
 
     #overwrite
