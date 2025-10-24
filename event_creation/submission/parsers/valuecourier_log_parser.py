@@ -305,7 +305,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             if pd.notna(row.get("actual_value")):
                 full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
 
-        Return as record array with same dtype as input
         full_evs.to_records(index=False)
         return events
 
