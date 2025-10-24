@@ -484,6 +484,10 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     def parse(self):
         events = super(ValueCourierSessionLogParser, self).parse()
 
+        print("\n--- EVENT TYPES FOUND ---")
+        print(pd.Series(events["type"]).value_counts())
+        print("--------------------------\n")
+
         # --- Diagnostic check for required event types ---
         event_types = set(events["type"])
         missing = []
