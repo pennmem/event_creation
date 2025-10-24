@@ -182,8 +182,11 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.trial = evdata['data']['trial number']
         value_recall = self.stringify_list(evdata['data']['typed response'])
         event.value_recall = int(value_recall)
+        print(value_recall)
         if 'actual value' in evdata['data']:
-            event.actual_value = evdata['data']['actual value']
+            print(evdata['data']['actual value'])
+            # event.actual_value = evdata['data']['actual value']
+            event.actual_value = -1
         else:
             event.actual_value = -1
             print(
