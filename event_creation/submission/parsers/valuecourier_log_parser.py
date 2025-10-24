@@ -185,8 +185,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         print(value_recall)
         if 'actual value' in evdata['data']:
             print(evdata['data']['actual value'])
-            # event.actual_value = evdata['data']['actual value']
-            event.actual_value = -1
+            event.actual_value = evdata['data']['actual value']
+            # event.actual_value = -1
         else:
             event.actual_value = -1
             print(
