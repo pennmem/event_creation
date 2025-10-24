@@ -457,14 +457,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
                 elif hasattr(new_event, name):
                     new_event_casted[name][0] = getattr(new_event, name)
 
-            # Append safely
-            print("old")
-            # print(events)
-            print(events.dtype)
-            print("new")
-            # print(new_event)
-            print(new_event_casted.dtype)
-            # Append new recall event
+            # # Append safely
+            # print("old")
+            # # print(events)
+            # print(events.dtype)
+            # print("new")
+            # # print(new_event)
+            # print(new_event_casted.dtype)
+            # # Append new recall event
             events = np.append(events, new_event_casted).view(np.recarray)
 
         return events
