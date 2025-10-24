@@ -480,3 +480,21 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             events = np.append(events, new_event_casted).view(np.recarray)
 
         return events
+
+    def parse(self):
+        events = super(ValueCourierSessionLogParser, self).parse()
+
+        # --- Diagnostic check for required event types ---
+        event_types = set(events["type"])
+        missing = []
+        if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
+            missing.append("SESSION_START")
+        if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
+            missing.append("BREAK_END")
+
+        if missing:
+            print(f"⚠️ Warning: Missing expected event(s): {missing}")
+        else:
+            print("✅ Found SESSION_START and BREAK_END events")
+
+        return events
