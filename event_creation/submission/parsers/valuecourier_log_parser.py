@@ -206,6 +206,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = 'FINAL_COMPENSATION'
         event.compensation = evdata['data']['compensation']
         event.multiplier = evdata['data']['multiplier']
+        print("Compensation event added:")
+        print(event)
         return event
 
     def stringify_list(self, input_val):
@@ -273,11 +275,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         full_evs = pd.DataFrame.from_records(events)
         print(full_evs.head())
 
-        # # Ensure required columns exist
-        for col in ["value_recall", "actual_value"]:
-            if col not in full_evs.columns:
-                full_evs[col] = np.nan
-
         # Separate WORD and VALUE_RECALL events
         words = full_evs[full_evs.type == "WORD"]
         recalls = full_evs[full_evs.type == "VALUE_RECALL"]
@@ -304,6 +301,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
                 full_evs.at[orig_idx, "value_recall"] = row["value_recall"]
             if pd.notna(row.get("actual_value")):
                 full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
+
+            if pd.notna(row.get("primacyBuf")):
+                full_evs.at[orig_idx, "primacyBuf"] = row["primacyBuf"]
+
+            if pd.notna(row.get("recencyBuf")):
+                full_evs.at[orig_idx, "recencyBuf"] = row["recencyBuf"]
+            if pd.notna(row.get("numInGroupChosen")):
+                full_evs.at[orig_idx, "numInGroupChosen"] = row["numInGroupChosen"]
+
+            if pd.notna(row.get("store_point_type")):
+                full_evs.at[orig_idx, "store_point_type"] = row["store_point_type"]
 
         full_evs.to_records(index=False)
         return events

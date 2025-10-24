@@ -344,7 +344,7 @@ vc_fields = (
     ('recencyBuf', -999, 'int16'),
     ('numInGroupChosen', -999, 'int16'),
     ('value_recall', -999, 'int16'),
-    ('actual_value', -999, 'int16'),
+    ('actual_value', -999, 'float32'),
     ('compensation', -999, 'float32'),
     ('multiplier', -999, 'float32'),
     ('store_point_type', '', 'U64')
