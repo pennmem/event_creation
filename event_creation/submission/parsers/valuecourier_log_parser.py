@@ -198,10 +198,10 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_efr_mark(self, evdata):
-        # event = self.event_default(evdata)
-        # event.type = 'EFR_MARK'
-        # event.efr_mark = evdata['data']['response']=='correct'
-        return evdata
+        event = self.event_default(evdata)
+        event.type = 'EFR_MARK'
+        event.efr_mark = evdata['data']['response']=='correct'
+        return event
 
     def add_receive_compensation(self, evdata):
         event = self.event_default(evdata)
