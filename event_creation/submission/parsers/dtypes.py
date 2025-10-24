@@ -340,21 +340,6 @@ ps_state_fields = (
 )
 
 vc_fields = (
-    ('trial', -999, 'int16'),
-    # ('type', '', 'U64'),
-    ('serialpos', -999, 'int16'), 
-    ('item', '-999', 'U64'), 
-    ('store', '-999', 'U64'), 
-    ('storeX', -999, 'float16'), 
-    ('storeZ', -999, 'float16'), 
-    ('presX', -999, 'float16'), 
-    ('presZ', -999, 'float16'), 
-    ('itemno', -999, 'int16'), 
-    ('recalled', -999, 'int16'), 
-    ('intruded', -999, 'int16'), 
-    ('finalrecalled', -999, 'int16'), 
-    # ('rectime', -999, 'float32'), 
-    # ('intrusion', -999, 'int16'), 
     ('primacyBuf', -999, 'int16'),
     ('recencyBuf', -999, 'int16'),
     ('numInGroupChosen', -999, 'int16'),
@@ -362,4 +347,5 @@ vc_fields = (
     ('actual_value', -999, 'int16'),
     ('compensation', -999, 'float32'),
     ('multiplier', -999, 'float32'),
+    ('store_point_type', '', 'U64')
 )
