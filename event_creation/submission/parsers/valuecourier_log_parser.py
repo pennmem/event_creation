@@ -38,7 +38,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            stop_required_break=self.event_break_stop,
            start_deliveries=self.event_trial_start,
            stop_deliveries=self.event_trial_end,
-           receive_compensation=self.add_receive_compensation,
+           final_compensation=self.add_receive_compensation,
            earned_tips=self.event_sess_end,
         )
         self._add_type_to_modify_events(
@@ -279,50 +279,73 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 
     def modify_word_with_value_recall(self, events):
-    # Convert to DataFrame for easier manipulation
+        # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
         print(full_evs.head())
 
-        # Separate WORD and VALUE_RECALL events
+        # Separate key event types
         words = full_evs[full_evs.type == "WORD"]
+        rec_words = full_evs[full_evs.type == "REC_WORD"]
         recalls = full_evs[full_evs.type == "VALUE_RECALL"]
 
         print(words.head())
+        print(rec_words.head())
         print(recalls.head())
 
-        if words.empty or recalls.empty:
-            print("No WORD or VALUE_RECALL events found; skipping modification.")
-            return events  # nothing to do
+        if (words.empty and rec_words.empty) or recalls.empty:
+            print("No WORD/REC_WORD or VALUE_RECALL events found; skipping modification.")
+            return events
 
-        # Only keep the relevant recall columns if they exist
-        recall_cols = [c for c in ["trial", "value_recall", "actual_value"] if c in recalls.columns]
-        recalls = recalls[recall_cols].dropna(subset=["trial"], how="any")
+        # Verify both event types contain item_name
+        if "item_name" not in full_evs.columns:
+            print("Missing 'item_name' column; cannot merge by item.")
+            return events
 
-        # Merge recall data into word events (trial-based merge)
-        words_reset = words.reset_index()  # preserve mapping to original indices
-        merged = words_reset.merge(recalls, on="trial", how="left", suffixes=("", "_rec"))
+        # ===============================
+        # WORD + REC_WORD <- VALUE_RECALL
+        # ===============================
+        recall_cols = [
+            c for c in ["trial", "item_name", "value_recall", "actual_value"]
+            if c in recalls.columns
+        ]
+        recalls_sub = recalls[recall_cols].dropna(subset=["trial", "item_name"], how="any")
 
-        # Apply updates back to full_evs
-        for _, row in merged.iterrows():
+        for event_type in ["WORD", "REC_WORD"]:
+            subset = full_evs[full_evs.type == event_type].reset_index()
+            if subset.empty:
+                continue
+            merged = subset.merge(
+                recalls_sub, on=["trial", "item_name"], how="left", suffixes=("", "_rec")
+            )
+
+            for _, row in merged.iterrows():
+                orig_idx = int(row["index"])
+                for col in ["value_recall", "actual_value"]:
+                    if pd.notna(row.get(col)):
+                        full_evs.at[orig_idx, col] = row[col]
+
+        # =========================================
+        # VALUE_RECALL <- WORD: contextual features
+        # =========================================
+        word_cols = [
+            c
+            for c in ["trial", "item_name", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
+            if c in words.columns
+        ]
+        words_sub = words[word_cols].dropna(subset=["trial", "item_name"], how="any")
+
+        recalls_reset = recalls.reset_index()
+        merged_to_recalls = recalls_reset.merge(
+            words_sub, on=["trial", "item_name"], how="left", suffixes=("", "_word")
+        )
+
+        for _, row in merged_to_recalls.iterrows():
             orig_idx = int(row["index"])
-            if pd.notna(row.get("value_recall")):
-                full_evs.at[orig_idx, "value_recall"] = row["value_recall"]
-            if pd.notna(row.get("actual_value")):
-                full_evs.at[orig_idx, "actual_value"] = row["actual_value"]
+            for col in ["numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]:
+                if pd.notna(row.get(col)):
+                    full_evs.at[orig_idx, col] = row[col]
 
-            if pd.notna(row.get("primacyBuf")):
-                full_evs.at[orig_idx, "primacyBuf"] = row["primacyBuf"]
-
-            if pd.notna(row.get("recencyBuf")):
-                full_evs.at[orig_idx, "recencyBuf"] = row["recencyBuf"]
-            if pd.notna(row.get("numInGroupChosen")):
-                full_evs.at[orig_idx, "numInGroupChosen"] = row["numInGroupChosen"]
-
-            if pd.notna(row.get("store_point_type")):
-                full_evs.at[orig_idx, "store_point_type"] = row["store_point_type"]
-
-        full_evs.to_records(index=False)
-        return events
+        return full_evs.to_dict(orient="records")
 
 
 
@@ -508,3 +531,36 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             print("✅ Found SESSION_START and BREAK_END events")
 
         return events
+
+    def modify_after_final_compensation(self, events):
+        # Convert to DataFrame
+        full_evs = pd.DataFrame.from_records(events)
+        print(full_evs.head())
+
+        # Ensure the necessary columns exist
+        required_cols = ["multiplier", "compensation"]
+        for col in required_cols:
+            if col not in full_evs.columns:
+                full_evs[col] = None
+
+        # Check for FINAL_COMPENSATION
+        if "FINAL_COMPENSATION" not in full_evs["type"].unique():
+            print("No FINAL_COMPENSATION event found; skipping modification.")
+            return events
+
+        # Get index of the last FINAL_COMPENSATION
+        final_idx = full_evs[full_evs["type"] == "FINAL_COMPENSATION"].index.max()
+        print(f"Applying updates after FINAL_COMPENSATION at index {final_idx}")
+
+        # Identify relevant events *after* the final compensation
+        target_mask = (full_evs.index > final_idx) & (
+            full_evs["type"].isin(["WORD", "REC_WORD", "VALUE_RECALL"])
+        )
+
+        # Update those events — here we just preserve or overwrite with existing logic
+        full_evs.loc[target_mask, "multiplier"] = full_evs.loc[target_mask, "multiplier"]
+        full_evs.loc[target_mask, "compensation"] = full_evs.loc[target_mask, "compensation"]
+
+        print(f"Modified {target_mask.sum()} events after FINAL_COMPENSATION.")
+        return full_evs.to_dict(orient="records")
+
