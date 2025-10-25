@@ -305,17 +305,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         # WORD + REC_WORD <- VALUE_RECALL
         # ===============================
         recall_cols = [
-            c for c in ["trial", "item_name", "value_recall", "actual_value"]
+            c for c in ["trial", "value_recall", "actual_value"]
             if c in recalls.columns
         ]
-        recalls_sub = recalls[recall_cols].dropna(subset=["trial", "item_name"], how="any")
+        recalls_sub = recalls[recall_cols].dropna(subset=["trial"], how="any")
 
         for event_type in ["WORD", "REC_WORD"]:
             subset = full_evs[full_evs.type == event_type].reset_index()
             if subset.empty:
                 continue
             merged = subset.merge(
-                recalls_sub, on=["trial", "item_name"], how="left", suffixes=("", "_rec")
+                recalls_sub, on=["trial"], how="left", suffixes=("", "_rec")
             )
 
             for _, row in merged.iterrows():
@@ -329,14 +329,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         # =========================================
         word_cols = [
             c
-            for c in ["trial", "item_name", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
+            for c in ["trial", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
             if c in words.columns
         ]
-        words_sub = words[word_cols].dropna(subset=["trial", "item_name"], how="any")
+        words_sub = words[word_cols].dropna(subset=["trial"], how="any")
 
         recalls_reset = recalls.reset_index()
         merged_to_recalls = recalls_reset.merge(
-            words_sub, on=["trial", "item_name"], how="left", suffixes=("", "_word")
+            words_sub, on=["trial"], how="left", suffixes=("", "_word")
         )
 
         for _, row in merged_to_recalls.iterrows():
@@ -583,7 +583,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         print(f"Applying updates after FINAL_COMPENSATION at index {final_idx}")
 
         # Identify relevant events *after* the final compensation
-        target_mask = (full_evs.index > final_idx) & (
+        target_mask = (full_evs.index < final_idx) & (
             full_evs["type"].isin(["WORD", "REC_WORD", "VALUE_RECALL"])
         )
 
