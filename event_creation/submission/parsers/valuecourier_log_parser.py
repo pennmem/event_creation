@@ -44,6 +44,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
+              final_compensation=self.modify_after_final_compensation,
+           start_recall=self.modify_rec_start,
         )
 
     ####################
