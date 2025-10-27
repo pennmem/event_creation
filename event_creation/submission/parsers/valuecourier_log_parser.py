@@ -44,8 +44,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
-              final_compensation=self.modify_after_final_compensation,
-           start_recall=self.modify_rec_start,
         )
 
     ####################
@@ -542,33 +540,38 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     #     return events
 
-    # def parse(self):
-    #     events = super(ValueCourierSessionLogParser, self).parse()
+    def parse(self):
+        events = super(ValueCourierSessionLogParser, self).parse()
 
-    #     print("\n--- EVENT TYPES FOUND ---")
-    #     print(pd.Series(events["type"]).value_counts())
-    #     print("--------------------------\n")
+        print("\n--- EVENT TYPES FOUND ---")
+        print(pd.Series(events["type"]).value_counts())
+        print("--------------------------\n")
 
-    #     # --- Diagnostic check for required event types ---
-    #     event_types = set(events["type"])
-    #     missing = []
-    #     if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
-    #         missing.append("SESSION_START")
-    #     if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
-    #         missing.append("BREAK_END")
+        # --- Diagnostic check for required event types ---
+        event_types = set(events["type"])
+        missing = []
+        if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
+            missing.append("SESSION_START")
+        if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
+            missing.append("BREAK_END")
 
-    #     if missing:
-    #         print(f"⚠️ Warning: Missing expected event(s): {missing}")
-    #     else:
-    #         print("✅ Found SESSION_START and BREAK_END events")
+        if missing:
+            print(f"⚠️ Warning: Missing expected event(s): {missing}")
+        else:
+            print("✅ Found SESSION_START and BREAK_END events")
 
-    #     return events
+        return events
 
     def modify_after_final_compensation(self, events):
         # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
         print(full_evs.head())
 
+        # Ensure the necessary columns exist
+        required_cols = ["multiplier", "compensation"]
+        for col in required_cols:
+            if col not in full_evs.columns:
+                full_evs[col] = None
 
         # Check for FINAL_COMPENSATION
         if "FINAL_COMPENSATION" not in full_evs["type"].unique():
