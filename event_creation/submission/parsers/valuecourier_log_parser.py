@@ -181,7 +181,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     def add_value_recall(self, evdata):
         event = self.event_default(evdata)
-        event.type = 'VALUE_RECALL'
+        event.type = "VALUE_RECALL" if not self.practice else "PRACTICE_VALUE_RECALL"
         event.trial = evdata['data']['trial number']
         value_recall = self.stringify_list(evdata['data']['typed response'])
         event.value_recall = int(value_recall)
@@ -243,7 +243,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         event.intruded = 0
         event.recalled = 0
-        event.value = evdata['data']['store value']
 
         # Convert store position to string
         store_pos_str = self.stringify_list(evdata['data']['store position'])
@@ -261,19 +260,20 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             player_rot_str = self.stringify_list(evdata['data']['player orientation'])
             player_orientation = [float(o) for o in player_rot_str.strip('()').replace(' ', '').split(',')]
 
-            event.playerRotY = player_orientation[1] if len(player_orientation) > 1 else None
-            event.playerRotX = player_orientation[0] if len(player_orientation) > 0 else None
-            event.playerRotZ = player_orientation[2] if len(player_orientation) > 2 else None
+            event.playerrotY = player_orientation[1] if len(player_orientation) > 1 else None
+            event.playerrotX = player_orientation[0] if len(player_orientation) > 0 else None
+            event.playerrotZ = player_orientation[2] if len(player_orientation) > 2 else None
         
-        event.primacyBuf = evdata['data']['primacy buffer']
-        event.recencyBuf = evdata['data']['recency buffer']
+        event.primacybuf = evdata['data']['primacy buffer']
+        event.recencybuf = evdata['data']['recency buffer']
+        event.itemvalue = evdata['data']['store value']
 
-        event.numInGroupChosen = evdata['data']['number of in group chosen']
+        event.numingroupchosen = evdata['data']['number of in group chosen']
 
         item_name = self.stringify_list(evdata['data']['item name'])
         event["item"] = item_name.upper().rstrip('.1')
         if 'store point type' in evdata['data']:
-            event.store_point_type = self.stringify_list(evdata['data']['store point type'])
+            event.storepointtype = self.stringify_list(evdata['data']['store point type'])
 
         return event
 

@@ -340,12 +340,16 @@ ps_state_fields = (
 )
 
 vc_fields = (
-    ('primacyBuf', -999, 'int16'),
-    ('recencyBuf', -999, 'int16'),
-    ('numInGroupChosen', -999, 'int16'),
-    ('value_recall', -999, 'int16'),
-    ('actual_value', -999, 'float32'),
+    ('primacybuf', -999, 'int16'),
+    ('recencybuf', -999, 'int16'),
+    ('numingroupchosen', -999, 'int16'),
+    ('valuerecall', -999, 'int16'),
+    ('actualvalue', -999, 'float32'),
     ('compensation', -999, 'float32'),
     ('multiplier', -999, 'float32'),
-    ('store_point_type', '', 'U64')
+    ('storepointtype', '', 'U64'),
+    ('itemvalue', -999, 'int16'),
+    ('playerrotY', -999, 'float32'),
+    ('playerrotX', -999, 'float32'),
+    ('playerrotZ', -999, 'float32'
 )
