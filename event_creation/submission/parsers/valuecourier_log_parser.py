@@ -402,17 +402,38 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
 
-        # WORD --> storepointtype --> VALUE_RECALL, REC_WORD, REC_WORD_VV
-        # VALUE_RECALL --> actualvalue, valuerecall --> WORD, `REC_WORD`, REC_WORD_VV
-
         # merge on trials to hand over value recall, actual value and storepointtype
-        # recalls = full_evs[full_evs.type == "VALUE_RECALL"] 
-        # words = full_evs[full_evs.type == "WORD"]
-        # rec_words = full_evs[full_evs.type == "REC_WORD"]
-        # rec_vv_words = full_evs[full_evs.type == "REC_WORD_VV"]
+        value_recalls = full_evs[full_evs.type == "VALUE_RECALL"] 
+        words = full_evs[full_evs.type == "WORD"]
+        rec_words = full_evs[full_evs.type == "REC_WORD"]
+        rec_vv_words = full_evs[full_evs.type == "REC_WORD_VV"]
 
+        # WORD --> storepointtype --> VALUE_RECALL, REC_WORD, REC_WORD_VV
+        word_trial_to_storepointtype = words.set_index("trial")["storepointtype"].to_dict()
+        for event_type in ["VALUE_RECALL", "REC_WORD", "REC_WORD_VV"]:
+            subset = full_evs[full_evs.type == event_type]
+            for idx, row in subset.iterrows():
+                trial = row["trial"]
+                if trial in word_trial_to_storepointtype:
+                    full_evs.at[idx, "storepointtype"] = word_trial_to_storepointtype[trial]
 
+        # VALUE_RECALL --> actualvalue, valuerecall --> WORD, `REC_WORD`, REC_WORD_VV
+        valuerecall_trial_to_actualvalue = value_recalls.set_index("trial")["actualvalue"].to_dict()
+        valuerecall_trial_to_valuerecall = value_recalls.set_index("trial")["valuerecall"].to_dict()
 
+        # --- Apply to multi-row event types ---
+        for event_type in ["WORD", "REC_WORD", "REC_WORD_VV"]:
+            subset = full_evs[full_evs.type == event_type]
+            for idx, row in subset.iterrows():
+                trial = row["trial"]
+
+                # actualvalue
+                if trial in valuerecall_trial_to_actualvalue:
+                    full_evs.at[idx, "actualvalue"] = valuerecall_trial_to_actualvalue[trial]
+
+                # valuerecall
+                if trial in valuerecall_trial_to_valuerecall:
+                    full_evs.at[idx, "valuerecall"] = valuerecall_trial_to_valuerecall[trial]
 
 
         # copy over universal values
