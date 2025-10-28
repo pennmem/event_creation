@@ -44,7 +44,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
-              final_compensation=self.modify_after_final_compensation,
+            #   final_compensation=self.modify_after_final_compensation,
         )
 
     ####################
@@ -423,7 +423,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         full_evs["compensation"] = compensation
 
         print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
-        return full_evs
+        return full_evs.to_dict(orient="records")
 
     #overwrite
     def add_pointing_finished(self, evdata):
