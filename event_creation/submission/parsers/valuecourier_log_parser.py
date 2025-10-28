@@ -262,8 +262,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             player_orientation = [float(o) for o in player_rot_str.strip('()').replace(' ', '').split(',')]
 
             event.playerrotY = player_orientation[1] if len(player_orientation) > 1 else None
-            event.playerrotX = player_orientation[0] if len(player_orientation) > 0 else None
-            event.playerrotZ = player_orientation[2] if len(player_orientation) > 2 else None
+            # event.playerrotX = player_orientation[0] if len(player_orientation) > 0 else None
+            # event.playerrotZ = player_orientation[2] if len(player_orientation) > 2 else None
         
         event.primacybuf = evdata['data']['primacy buffer']
         event.recencybuf = evdata['data']['recency buffer']
@@ -328,25 +328,26 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         # =========================================
         # VALUE_RECALL <- WORD: contextual features
         # =========================================
-        word_cols = [
-            c
-            for c in ["trial", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
-            if c in words.columns
-        ]
-        words_sub = words[word_cols].dropna(subset=["trial"], how="any")
+        # word_cols = [
+        #     c
+        #     for c in ["trial", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
+        #     if c in words.columns
+        # ]
+        # words_sub = words[word_cols].dropna(subset=["trial"], how="any")
 
-        recalls_reset = recalls.reset_index()
-        merged_to_recalls = recalls_reset.merge(
-            words_sub, on=["trial"], how="left", suffixes=("", "_word")
-        )
+        # recalls_reset = recalls.reset_index()
+        # merged_to_recalls = recalls_reset.merge(
+        #     words_sub, on=["trial"], how="left", suffixes=("", "_word")
+        # )
 
-        for _, row in merged_to_recalls.iterrows():
-            orig_idx = int(row["index"])
-            for col in ["numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]:
-                if pd.notna(row.get(col)):
-                    full_evs.at[orig_idx, col] = row[col]
+        # for _, row in merged_to_recalls.iterrows():
+        #     orig_idx = int(row["index"])
+        #     for col in ["numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]:
+        #         if pd.notna(row.get(col)):
+        #             full_evs.at[orig_idx, col] = row[col]
 
-        return full_evs.to_dict(orient="records")
+        return full_evs.to_records(index=False,
+                column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
 
 
@@ -396,17 +397,28 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return clipped_evs.to_records(index=False,
                 column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
+    # copies over every contextual value to all events after final compensation
     def modify_after_final_compensation(self, events):
     # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
         final_comp_ev = full_evs[full_evs.type == "FINAL_COMPENSATION"]
         mult = final_comp_ev["multiplier"].values
         comp = final_comp_ev["compensation"].values
+
         # Apply to all rows
         full_evs["multiplier"] = mult[0]
         full_evs["compensation"] = comp[0]
 
-        print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
+        word_ev = full_evs[full_evs.type == "WORD"]
+        pbuf = word_ev["primacybuf"].values
+        rbuf = word_ev["recencybuf"].values
+        numingroup = word_ev["numingroupchosen"].values
+        
+        full_evs["primacybuf"] = pbuf[0]
+        full_evs["recencybuf"] = rbuf[0]
+        full_evs["numingroupchosen"] = numingroup[0]
+
+        print(f"Applied universal values to all {len(full_evs)} events.")
         return full_evs.to_records(index=False,
                 column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 

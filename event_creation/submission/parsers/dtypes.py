@@ -350,6 +350,6 @@ vc_fields = (
     ('storepointtype', '', 'U64'),
     ('itemvalue', -999, 'int16'),
     ('playerrotY', -999, 'float32'),
-    ('playerrotX', -999, 'float32'),
-    ('playerrotZ', -999, 'float32')
+    # ('playerrotX', -999, 'float32'),
+    # ('playerrotZ', -999, 'float32')
 )
