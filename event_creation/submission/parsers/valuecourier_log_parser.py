@@ -42,7 +42,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         )
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
-            #   value_recall=self.modify_word_with_value_recall,
               final_compensation=self.modify_after_final_compensation,
         )
 
@@ -239,79 +238,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         return event
 
-
-    def modify_word_with_value_recall(self, events):
-        # Convert to DataFrame
-        full_evs = pd.DataFrame.from_records(events)
-        # print(full_evs.head())
-
-        # Separate key event types
-        words = full_evs[full_evs.type == "WORD"]
-        rec_words = full_evs[full_evs.type == "REC_WORD"]
-        recalls = full_evs[full_evs.type == "VALUE_RECALL"]
-
-        # print(words.head())
-        # print(rec_words.head())
-        # print(recalls.head())
-
-        if (words.empty and rec_words.empty) or recalls.empty:
-            # print("No WORD/REC_WORD or VALUE_RECALL events found; skipping modification.")
-            return events
-
-        # Verify both event types contain item_name
-        if "item_name" not in full_evs.columns:
-            # print("Missing 'item_name' column; cannot merge by item.")
-            return events
-
-        # ===============================
-        # WORD + REC_WORD <- VALUE_RECALL
-        # ===============================
-        recall_cols = [
-            c for c in ["trial", "value_recall", "actual_value"]
-            if c in recalls.columns
-        ]
-        recalls_sub = recalls[recall_cols].dropna(subset=["trial"], how="any")
-
-        for event_type in ["WORD", "REC_WORD"]:
-            subset = full_evs[full_evs.type == event_type].reset_index()
-            if subset.empty:
-                continue
-            merged = subset.merge(
-                recalls_sub, on=["trial"], how="left", suffixes=("", "_rec")
-            )
-
-            for _, row in merged.iterrows():
-                orig_idx = int(row["index"])
-                for col in ["value_recall", "actual_value"]:
-                    if pd.notna(row.get(col)):
-                        full_evs.at[orig_idx, col] = row[col]
-
-        # =========================================
-        # VALUE_RECALL <- WORD: contextual features
-        # =========================================
-        # word_cols = [
-        #     c
-        #     for c in ["trial", "numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]
-        #     if c in words.columns
-        # ]
-        # words_sub = words[word_cols].dropna(subset=["trial"], how="any")
-
-        # recalls_reset = recalls.reset_index()
-        # merged_to_recalls = recalls_reset.merge(
-        #     words_sub, on=["trial"], how="left", suffixes=("", "_word")
-        # )
-
-        # for _, row in merged_to_recalls.iterrows():
-        #     orig_idx = int(row["index"])
-        #     for col in ["numInGroupChosen", "primacyBuf", "recencyBuf", "store_point_type"]:
-        #         if pd.notna(row.get(col)):
-        #             full_evs.at[orig_idx, col] = row[col]
-
-        return full_evs.to_records(index=False,
-                column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
-
-
-
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events): 
         return evdata
@@ -424,28 +350,4 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     def event_classifier_result(self, evdata):
         return evdata
-
-    # def parse(self):
-    #     events = super(ValueCourierSessionLogParser, self).parse()
-
-    #     print("\n--- EVENT TYPES FOUND ---")
-    #     print(pd.Series(events["type"]).value_counts())
-    #     print("--------------------------\n")
-
-    #     # --- Diagnostic check for required event types ---
-    #     event_types = set(events["type"])
-    #     missing = []
-    #     if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
-    #         missing.append("SESSION_START")
-    #     if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
-    #         missing.append("BREAK_END")
-
-    #     if missing:
-    #         print(f"⚠️ Warning: Missing expected event(s): {missing}")
-    #     else:
-    #         print("✅ Found SESSION_START and BREAK_END events")
-
-    #     return events
-
-
 
