@@ -396,6 +396,35 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return clipped_evs.to_records(index=False,
                 column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
+    def modify_after_final_compensation(self, events):
+    # Convert to DataFrame
+        full_evs = pd.DataFrame.from_records(events)
+        print(full_evs.head())
+
+        # Ensure columns exist
+        for col in ["multiplier", "compensation", "type"]:
+            if col not in full_evs.columns:
+                full_evs[col] = None
+
+        # Locate FINAL_COMPENSATION event
+        final_mask = full_evs["type"] == "FINAL_COMPENSATION"
+        if not final_mask.any():
+            print("No FINAL_COMPENSATION event found; skipping modification.")
+            return events
+
+        # Get the last FINAL_COMPENSATION (in case there are multiple)
+        final_row = full_evs.loc[final_mask].iloc[-1]
+        multiplier = final_row["multiplier"]
+        compensation = final_row["compensation"]
+        print(f"Found FINAL_COMPENSATION: multiplier={multiplier}, compensation={compensation}")
+
+        # Apply to all rows
+        full_evs["multiplier"] = multiplier
+        full_evs["compensation"] = compensation
+
+        print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
+        return full_evs.to_dict(orient="records")
+
     #overwrite
     def add_pointing_finished(self, evdata):
         print("add_pointing_finished called")
@@ -541,56 +570,27 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     #     return events
 
-    def parse(self):
-        events = super(ValueCourierSessionLogParser, self).parse()
+    # def parse(self):
+    #     events = super(ValueCourierSessionLogParser, self).parse()
 
-        print("\n--- EVENT TYPES FOUND ---")
-        print(pd.Series(events["type"]).value_counts())
-        print("--------------------------\n")
+    #     print("\n--- EVENT TYPES FOUND ---")
+    #     print(pd.Series(events["type"]).value_counts())
+    #     print("--------------------------\n")
 
-        # --- Diagnostic check for required event types ---
-        event_types = set(events["type"])
-        missing = []
-        if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
-            missing.append("SESSION_START")
-        if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
-            missing.append("BREAK_END")
+    #     # --- Diagnostic check for required event types ---
+    #     event_types = set(events["type"])
+    #     missing = []
+    #     if not any("SESSION_START" in e or "SESS_START" in e for e in event_types):
+    #         missing.append("SESSION_START")
+    #     if not any("BREAK_STOP" in e or "BREAK_END" in e for e in event_types):
+    #         missing.append("BREAK_END")
 
-        if missing:
-            print(f"⚠️ Warning: Missing expected event(s): {missing}")
-        else:
-            print("✅ Found SESSION_START and BREAK_END events")
+    #     if missing:
+    #         print(f"⚠️ Warning: Missing expected event(s): {missing}")
+    #     else:
+    #         print("✅ Found SESSION_START and BREAK_END events")
 
-        return events
-
-    def modify_after_final_compensation(self, events):
-    # Convert to DataFrame
-        full_evs = pd.DataFrame.from_records(events)
-        print(full_evs.head())
-
-        # Ensure columns exist
-        for col in ["multiplier", "compensation", "type"]:
-            if col not in full_evs.columns:
-                full_evs[col] = None
-
-        # Locate FINAL_COMPENSATION event
-        final_mask = full_evs["type"] == "FINAL_COMPENSATION"
-        if not final_mask.any():
-            print("No FINAL_COMPENSATION event found; skipping modification.")
-            return events
-
-        # Get the last FINAL_COMPENSATION (in case there are multiple)
-        final_row = full_evs.loc[final_mask].iloc[-1]
-        multiplier = final_row["multiplier"]
-        compensation = final_row["compensation"]
-        print(f"Found FINAL_COMPENSATION: multiplier={multiplier}, compensation={compensation}")
-
-        # Apply to all rows
-        full_evs["multiplier"] = multiplier
-        full_evs["compensation"] = compensation
-
-        print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
-        return full_evs.to_dict(orient="records")
+    #     return events
 
 
 
