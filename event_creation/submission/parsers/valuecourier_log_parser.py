@@ -44,6 +44,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
+              final_compensation=self.modify_after_final_compensation,
         )
 
     ####################
@@ -563,34 +564,33 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return events
 
     def modify_after_final_compensation(self, events):
-        # Convert to DataFrame
+    # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
         print(full_evs.head())
 
-        # Ensure the necessary columns exist
-        required_cols = ["multiplier", "compensation"]
-        for col in required_cols:
+        # Ensure columns exist
+        for col in ["multiplier", "compensation", "type"]:
             if col not in full_evs.columns:
                 full_evs[col] = None
 
-        # Check for FINAL_COMPENSATION
-        if "FINAL_COMPENSATION" not in full_evs["type"].unique():
+        # Locate FINAL_COMPENSATION event
+        final_mask = full_evs["type"] == "FINAL_COMPENSATION"
+        if not final_mask.any():
             print("No FINAL_COMPENSATION event found; skipping modification.")
             return events
 
-        # Get index of the last FINAL_COMPENSATION
-        final_idx = full_evs[full_evs["type"] == "FINAL_COMPENSATION"].index.max()
-        print(f"Applying updates after FINAL_COMPENSATION at index {final_idx}")
+        # Get the last FINAL_COMPENSATION (in case there are multiple)
+        final_row = full_evs.loc[final_mask].iloc[-1]
+        multiplier = final_row["multiplier"]
+        compensation = final_row["compensation"]
+        print(f"Found FINAL_COMPENSATION: multiplier={multiplier}, compensation={compensation}")
 
-        # Identify relevant events *after* the final compensation
-        target_mask = (full_evs.index < final_idx) & (
-            full_evs["type"].isin(["WORD", "REC_WORD", "VALUE_RECALL"])
-        )
+        # Apply to all rows
+        full_evs["multiplier"] = multiplier
+        full_evs["compensation"] = compensation
 
-        # Update those events — here we just preserve or overwrite with existing logic
-        full_evs.loc[target_mask, "multiplier"] = full_evs.loc[target_mask, "multiplier"]
-        full_evs.loc[target_mask, "compensation"] = full_evs.loc[target_mask, "compensation"]
-
-        print(f"Modified {target_mask.sum()} events after FINAL_COMPENSATION.")
+        print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
         return full_evs.to_dict(orient="records")
+
+
 
