@@ -31,7 +31,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            start_practice_deliveries=self.event_practice_start,
            stop_practice_deliveries=self.event_practice_end,
            keypress=self.event_efr_mark,
-        #    Object_Reinstatement = self.object_reinstatement,
             value_recall = self.add_value_recall,
            continuous_pointer=self.event_pointer_on,
            start_required_break=self.event_break_start,
@@ -43,7 +42,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         )
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
-              value_recall=self.modify_word_with_value_recall,
+            #   value_recall=self.modify_word_with_value_recall,
               final_compensation=self.modify_after_final_compensation,
         )
 
@@ -52,7 +51,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     ####################
     def event_break_start(self, evdata):
         event = self.event_default(evdata)
-        # print( "event_break_start called")
         event.type = 'BREAK_START'
         return event
 
@@ -63,7 +61,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     def event_break_stop(self, evdata):
         event = self.event_default(evdata)
-        # print( "event_break_stop called")
         event.type = 'BREAK_END'
         return event
 
@@ -92,15 +89,9 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_music_videos_start(self, evdata):
-        # self.phase = 'video'
-        # event = self.event_default(evdata)
-        # event.type = 'MUSIC_VIDEOS_START'
         return evdata
 
     def event_music_videos_stop(self, evdata):
-        # self.phase = '2'
-        # event = self.event_default(evdata)
-        # event.type = 'MUSIC_VIDEOS_STOP'
         return evdata
 
 
@@ -117,16 +108,10 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         return event
 
     def event_start_music_videos_recall(self, evdata):
-        # self.phase = 'video'
-        # event = self.event_default(evdata)
-        # event.type = 'MUSIC_VIDEOS_REC_START'
         return evdata
 
 
     def event_stop_music_videos_recall(self, evdata):
-        # self.phase = '2'
-        # event = self.event_default(evdata)
-        # event.type = 'MUSIC_VIDEOS_REC_STOP'
         return evdata
 
     def event_video_rec_start(self, evdata):
@@ -164,33 +149,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = 'PRACTICE_DELIVERY_END'
         return event
 
-    # def object_reinstatement(self, evdata):
-    #     self._trial = evdata['data']['trial number']
-    #     self._reinstated_item = evdata['data']['previously delivered item seen']
-    #     self._angle_difference = evdata['data']['Angle of Approach']
-    #     self.presX = evdata['data']['positionX']
-    #     self.presZ = evdata['data']['positionZ']
-    #     event = self.event_default(evdata)
-    #     event.type = "REINSTATEMENT"
-    #     event["item"] = evdata['data']['previously delivered item seen'].upper().rstrip('.1')
-
-    #     event.intruded = 0
-    #     event.recalled = 0
-    #     # event.finalrecalled = 0
-
-    #     return event
-
     def add_value_recall(self, evdata):
         event = self.event_default(evdata)
         event.type = "VALUE_RECALL" if not self.practice else "PRACTICE_VALUE_RECALL"
         event.trial = evdata['data']['trial number']
         value_recall = self.stringify_list(evdata['data']['typed response'])
         event.valuerecall = int(value_recall)
-        # print(value_recall)
         if 'actual value' in evdata['data']:
-            # print(evdata['data']['actual value'])
             event.actualvalue = evdata['data']['actual value']
-            # event.actual_value = -1
         else:
             event.actualvalue = -1
             print(
@@ -215,8 +181,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = 'FINAL_COMPENSATION'
         event.compensation = evdata['data']['compensation']
         event.multiplier = evdata['data']['multiplier']
-        # print("Compensation event added:")
-        # print(event)
         return event
 
     def stringify_list(self, input_val):
@@ -233,7 +197,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     # overwrite normal courier object presentation to add fields
     def add_object_presentation_begins(self, evdata):
-        # print("add_object_presentation_begins called")
         self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
@@ -262,8 +225,6 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
             player_orientation = [float(o) for o in player_rot_str.strip('()').replace(' ', '').split(',')]
 
             event.playerrotY = player_orientation[1] if len(player_orientation) > 1 else None
-            # event.playerrotX = player_orientation[0] if len(player_orientation) > 0 else None
-            # event.playerrotZ = player_orientation[2] if len(player_orientation) > 2 else None
         
         event.primacybuf = evdata['data']['primacy buffer']
         event.recencybuf = evdata['data']['recency buffer']
@@ -352,13 +313,11 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 
 # Overwrite normal Courier FFR and store recall
-    def modify_store_recall(self, events):
-        # print("modify_store_recall called") 
+    def modify_store_recall(self, events): 
         return evdata
 
     # overwrite
     def modify_free_recall(self, events):
-        # print("modify_free_recall called")
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         try:
@@ -453,22 +412,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         full_evs["primacybuf"] = pbuf[0]
         full_evs["recencybuf"] = rbuf[0]
         full_evs["numingroupchosen"] = numingroup[0]
-
-        print(f"Applied universal values to all {len(full_evs)} events.")
         return full_evs.to_records(index=False,
                 column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
     #overwrite
     def add_pointing_finished(self, evdata):
-        # print("add_pointing_finished called")
         return evdata
 
     def event_classifier_wait(self, evdata):
-        # print("event_classifier_wait called")
         return evdata
 
     def event_classifier_result(self, evdata):
-        # print("event_classifier_result called")
         return evdata
 
     # def parse(self):
