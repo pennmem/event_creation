@@ -44,7 +44,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         self._add_type_to_modify_events(
            stop_deliveries=self.modify_pointer_on,
               value_recall=self.modify_word_with_value_recall,
-            #   final_compensation=self.modify_after_final_compensation,
+              final_compensation=self.modify_after_final_compensation,
         )
 
     ####################
@@ -186,7 +186,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.trial = evdata['data']['trial number']
         value_recall = self.stringify_list(evdata['data']['typed response'])
         event.value_recall = int(value_recall)
-        print(value_recall)
+        # print(value_recall)
         if 'actual value' in evdata['data']:
             # print(evdata['data']['actual value'])
             event.actual_value = evdata['data']['actual value']
