@@ -399,31 +399,16 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     def modify_after_final_compensation(self, events):
     # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
-        print(full_evs.head())
-
-        # Ensure columns exist
-        for col in ["multiplier", "compensation", "type"]:
-            if col not in full_evs.columns:
-                full_evs[col] = None
-
-        # Locate FINAL_COMPENSATION event
-        final_mask = full_evs["type"] == "FINAL_COMPENSATION"
-        if not final_mask.any():
-            print("No FINAL_COMPENSATION event found; skipping modification.")
-            return events
-
-        # Get the last FINAL_COMPENSATION (in case there are multiple)
-        final_row = full_evs.loc[final_mask].iloc[-1]
-        multiplier = final_row["multiplier"]
-        compensation = final_row["compensation"]
-        print(f"Found FINAL_COMPENSATION: multiplier={multiplier}, compensation={compensation}")
-
+        final_comp_ev = full_evs[full_evs.type == "FINAL_COMPENSATION"]
+        mult = final_comp_ev["multiplier"].values
+        comp = final_comp_ev["compensation"].values
         # Apply to all rows
-        full_evs["multiplier"] = multiplier
-        full_evs["compensation"] = compensation
+        full_evs["multiplier"] = mult[0]
+        full_evs["compensation"] = comp[0]
 
         print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
-        return full_evs.to_dict(orient="records")
+        return full_evs.to_records(index=False,
+                column_dtypes={x:str(y[0]) for x,y in events.dtype.fields.items()})
 
     #overwrite
     def add_pointing_finished(self, evdata):
