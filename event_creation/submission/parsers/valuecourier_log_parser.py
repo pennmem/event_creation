@@ -52,7 +52,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     ####################
     def event_break_start(self, evdata):
         event = self.event_default(evdata)
-        print( "event_break_start called")
+        # print( "event_break_start called")
         event.type = 'BREAK_START'
         return event
 
@@ -63,7 +63,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     def event_break_stop(self, evdata):
         event = self.event_default(evdata)
-        print( "event_break_stop called")
+        # print( "event_break_stop called")
         event.type = 'BREAK_END'
         return event
 
@@ -188,7 +188,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.value_recall = int(value_recall)
         print(value_recall)
         if 'actual value' in evdata['data']:
-            print(evdata['data']['actual value'])
+            # print(evdata['data']['actual value'])
             event.actual_value = evdata['data']['actual value']
             # event.actual_value = -1
         else:
@@ -215,8 +215,8 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         event.type = 'FINAL_COMPENSATION'
         event.compensation = evdata['data']['compensation']
         event.multiplier = evdata['data']['multiplier']
-        print("Compensation event added:")
-        print(event)
+        # print("Compensation event added:")
+        # print(event)
         return event
 
     def stringify_list(self, input_val):
@@ -233,7 +233,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
     # overwrite normal courier object presentation to add fields
     def add_object_presentation_begins(self, evdata):
-        print("add_object_presentation_begins called")
+        # print("add_object_presentation_begins called")
         self._trial = evdata['data']['trial number']
         event = self.event_default(evdata)
         event.type = "WORD" if not self.practice else "PRACTICE_WORD"
@@ -282,24 +282,24 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
     def modify_word_with_value_recall(self, events):
         # Convert to DataFrame
         full_evs = pd.DataFrame.from_records(events)
-        print(full_evs.head())
+        # print(full_evs.head())
 
         # Separate key event types
         words = full_evs[full_evs.type == "WORD"]
         rec_words = full_evs[full_evs.type == "REC_WORD"]
         recalls = full_evs[full_evs.type == "VALUE_RECALL"]
 
-        print(words.head())
-        print(rec_words.head())
-        print(recalls.head())
+        # print(words.head())
+        # print(rec_words.head())
+        # print(recalls.head())
 
         if (words.empty and rec_words.empty) or recalls.empty:
-            print("No WORD/REC_WORD or VALUE_RECALL events found; skipping modification.")
+            # print("No WORD/REC_WORD or VALUE_RECALL events found; skipping modification.")
             return events
 
         # Verify both event types contain item_name
         if "item_name" not in full_evs.columns:
-            print("Missing 'item_name' column; cannot merge by item.")
+            # print("Missing 'item_name' column; cannot merge by item.")
             return events
 
         # ===============================
@@ -352,12 +352,12 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events):
-        print("modify_store_recall called") 
+        # print("modify_store_recall called") 
         return evdata
 
     # overwrite
     def modify_free_recall(self, events):
-        print("modify_free_recall called")
+        # print("modify_free_recall called")
         rec_start_event = events[-1]
         rec_start_time = rec_start_event.mstime
         try:
@@ -423,25 +423,25 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         full_evs["compensation"] = compensation
 
         print(f"Applied FINAL_COMPENSATION values to all {len(full_evs)} events.")
-        return full_evs.to_dict(orient="records")
+        return full_evs
 
     #overwrite
     def add_pointing_finished(self, evdata):
-        print("add_pointing_finished called")
+        # print("add_pointing_finished called")
         return evdata
 
     def event_classifier_wait(self, evdata):
-        print("event_classifier_wait called")
+        # print("event_classifier_wait called")
         return evdata
 
     def event_classifier_result(self, evdata):
-        print("event_classifier_result called")
+        # print("event_classifier_result called")
         return evdata
 
     #overwrite
     def modify_rec_start(self, events):
 
-        print("modify_rec_start called")
+        # print("modify_rec_start called")
 
         # Get the REC_START event (last one in the list)
         rec_start_event = events[-1]
@@ -449,14 +449,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
         # Skip practice trials
         if self.practice:
-            print("Skipping modification (practice trial).")
+            # print("Skipping modification (practice trial).")
             return events
 
         # Load annotation file for this recall phase
         try:
             ann_outputs = self._parse_ann_file(str(self._trial))
         except Exception as e:
-            print(f"⚠️ Missing or unreadable annotation file for trial {self._trial}: {e}")
+            # print(f"⚠️ Missing or unreadable annotation file for trial {self._trial}: {e}")
             return events
 
         # Loop through each recall annotation
