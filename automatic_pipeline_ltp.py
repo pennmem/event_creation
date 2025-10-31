@@ -7,7 +7,7 @@ import os
 import random
 from event_creation.submission.tasks import IndexAggregatorTask
 
-from .log import logger
+from log import logger
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(script_dir)
