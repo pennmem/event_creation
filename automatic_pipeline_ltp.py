@@ -7,7 +7,7 @@ import os
 import random
 from event_creation.submission.tasks import IndexAggregatorTask
 
-from log import logger
+# from log import logger
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(script_dir)
@@ -38,15 +38,15 @@ def automatic_event_creator(check_index=True):
                 if db_index != {}:
                     db_index = db_index['protocols']['ltp']['subjects']
 
-                logger.debug(f'Loaded index for LTP database with {len(db_index)} subjects')
-                logger.debug(f"db_index keys: {db_index.keys()} db_keys values: {db_index.values()}")
+                print(f'Loaded index for LTP database with {len(db_index)} subjects')
+                print(f"db_index keys: {db_index.keys()} db_keys values: {db_index.values()}")
         except IOError:
             print('Unable to load necessary session information for experiment: ', exp)
             print('Skipping...')
             continue
         
         # Create an input structure for each new session that has not been processed
-        logger.debug(f'{"Checking index for" if check_index else "Processing"} {exp} sessions: {new_sess}')
+        print(f'{"Checking index for" if check_index else "Processing"} {exp} sessions: {new_sess}')
         for subject in new_sess:
             for session in new_sess[subject]:
                 if check_index:
