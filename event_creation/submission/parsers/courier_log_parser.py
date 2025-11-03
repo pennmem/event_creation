@@ -261,8 +261,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
         self.storeX = event.storeX
         self.storeZ = event.storeZ
 
-        event.presX = self.presX
-        event.presZ = self.presZ
+        event.presX = evdata['data']['player position'][0]
+        event.presZ = evdata['data']['player position'][2]
 
         event.type = 'CUED_REC_CUE'
         event["item"] = evdata['data']['item'].rstrip('.1').upper()

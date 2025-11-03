@@ -39,7 +39,7 @@ def automatic_event_creator(check_index=True):
                     db_index = db_index['protocols']['ltp']['subjects']
 
                 print(f'Loaded index for LTP database with {len(db_index)} subjects')
-                print(f"db_index keys: {db_index.keys()} db_keys values: {db_index.values()}")
+                # print(f"db_index keys: {db_index.keys()} db_keys values: {db_index.values()}")
         except IOError:
             print('Unable to load necessary session information for experiment: ', exp)
             print('Skipping...')
