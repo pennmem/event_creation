@@ -219,7 +219,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         player_pos_str = self.stringify_list(evdata['data']['player position'])
         player_position = [float(p) for p in player_pos_str.strip('()').replace(' ', '').split(',')]
         event.presX = player_position[0] if len(player_position) > 0 else None
-        event.presZ = player_position[1] if len(player_position) > 2 else None
+        event.presZ = player_position[2] if len(player_position) > 2 else None
 
         if 'player orientation' in evdata['data']:
             player_rot_str = self.stringify_list(evdata['data']['player orientation'])
