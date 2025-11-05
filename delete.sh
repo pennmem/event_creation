@@ -127,7 +127,7 @@ fix_owner_with_copy() {
     mv -f /protocols/ltp1.json /protocols/ltp.json
     chmod g+rw /protocols/ltp.json
   '
-  echo "Ownership: set to RAM_main"
+  echo "Ownership: set to RAM_maint"
   log "OWNER-FIX DONE: $(ls -l "$json" 2>/dev/null || true)"
 }
 
