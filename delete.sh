@@ -109,27 +109,30 @@ confirm_all() {
 # --- Owner fix via RAM_maint: cp→rm→mv + chmod g+rw ---
 fix_owner_with_copy() {
   local json="${JSON:-/protocols/ltp.json}"
+
+  # Dry run
   if (( DRY_RUN )); then
-    echo "Ownership: planned (RAM_maint)"
-    log "OWNER-FIX PLAN: cp -p $json /protocols/ltp1.json; rm -f $json; mv -f /protocols/ltp1.json $json; chmod g+rw $json"
+    echo "Ownership: planned (chmod a+rwx)"
+    log "OWNER-FIX PLAN: chmod a+rwx \"$json\""
     return 0
   fi
-  if ! command -v sudo >/dev/null 2>&1; then
-    echo "Ownership: skipped (no sudo) ⚠️"
-    log "OWNER-FIX SKIPPED: sudo not available."
+
+  if [[ ! -f "$json" ]]; then
+    echo "Ownership: skipped (file not found) ⚠️"
+    log "OWNER-FIX SKIPPED: file not found at $json"
     return 0
   fi
-  sudo -u RAM_maint bash -c '
-    set -euo pipefail
-    umask 007
-    cp -p /protocols/ltp.json /protocols/ltp1.json
-    rm -f /protocols/ltp.json
-    mv -f /protocols/ltp1.json /protocols/ltp.json
-    chmod g+rw /protocols/ltp.json
-  '
-  echo "Ownership: set to RAM_maint"
-  log "OWNER-FIX DONE: $(ls -l "$json" 2>/dev/null || true)"
+
+  # Apply broad write permission
+  if chmod a+rwx "$json"; then
+    echo "Ownership: permissions set (a+rwx)"
+    log "OWNER-FIX DONE: $(ls -l "$json" 2>/dev/null || true)"
+  else
+    echo "Ownership: chmod failed ⚠️"
+    log "OWNER-FIX ERROR: could not chmod $json"
+  fi
 }
+
 
 # ---------- Python helpers (schema-aware, no jq) ----------
 py_show_single() {
