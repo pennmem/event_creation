@@ -112,8 +112,8 @@ fix_owner_with_copy() {
 
   # Dry run
   if (( DRY_RUN )); then
-    echo "Ownership: planned (chmod a+rwx)"
-    log "OWNER-FIX PLAN: chmod a+rwx \"$json\""
+    echo "Ownership: planned (maint:RAM_maint, chmod 644)"
+    log "OWNER-FIX PLAN: chown maint:RAM_maint \"$json\" && chmod 644 \"$json\""
     return 0
   fi
 
@@ -123,15 +123,16 @@ fix_owner_with_copy() {
     return 0
   fi
 
-  # Apply broad write permission
-  if chmod a+rwx "$json"; then
-    echo "Ownership: permissions set (a+rwx)"
+  # Apply ownership and permissions
+  if chown maint:RAM_maint "$json" && chmod 644 "$json"; then
+    echo "Ownership: set to maint:RAM_maint (rw-r--r--)"
     log "OWNER-FIX DONE: $(ls -l "$json" 2>/dev/null || true)"
   else
-    echo "Ownership: chmod failed ⚠️"
-    log "OWNER-FIX ERROR: could not chmod $json"
+    echo "Ownership: chown/chmod failed ⚠️"
+    log "OWNER-FIX ERROR: could not set ownership or permissions for $json"
   fi
 }
+
 
 
 # ---------- Python helpers (schema-aware, no jq) ----------
