@@ -148,7 +148,9 @@ class SplitEEGTask(PipelineTask):
 
             for raw_eeg, jacksheet_file in zip(raw_eeg_groups, jacksheet_files):
                 try:
+                    logger.info("Get Reader")
                     reader = get_eeg_reader(raw_eeg, jacksheet_file, channel_map_filename=channel_map)
+                    logger.info(f"Reader: {reader}")
                 except KeyError as k:
                     traceback.print_exc()
                     logger.warn('Cannot split file with extension {}'.format(k))
