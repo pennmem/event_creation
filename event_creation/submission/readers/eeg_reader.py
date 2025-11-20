@@ -760,16 +760,21 @@ class EDF_reader(EEG_reader):
                  channel_map_filename=None):
         logger.info(f"EDF init")
         self.raw_filename = edf_filename
+        logger.info(f"EDF init 2")
         if jacksheet_filename:
+            logger.info(f"jacksheet try")
             self.jacksheet = {v:k for k,v in list(read_jacksheet(jacksheet_filename).items())}
         else:
+            logger.info(f"jacksheet except")
             self.jacksheet = None
 
         try:
+            logger.info(f"load rreader before")
             self.reader = pyedflib.EdfReader(edf_filename)
             logger.info(f"try Load reader: {self.reader}")
         except IOError:
             # Try again with 30k fixes
+            logger.info(f"load reader 3k before")
             EDF_reader._fix_30k_edf(edf_filename)
             self.reader = pyedflib.EdfReader(edf_filename)
             logger.info(f"except Load reader: {self.reader}")
