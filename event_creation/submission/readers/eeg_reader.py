@@ -771,13 +771,13 @@ class EDF_reader(EEG_reader):
             EDF_reader._fix_30k_edf(edf_filename)
             self.reader = pyedflib.EdfReader(edf_filename)
 
-        # If 30k data, downsample to 1k and load that
-        if (self.reader.getSampleFrequency(0) == 30000):
+        # If >10k data, downsample to 1k and load that
+        if (self.reader.getSampleFrequency(0) >= 10000):
             self.reader.close()
-
+            print(f"Sample rate too high ({self.reader.getSampleFrequency(0) / 1000}kHz). Downsampling to 1kHz...")
             # Rename edf file to 30k
             dir_name, file_name = os.path.split(edf_filename)
-            old_edf_filename = os.path.join(dir_name, "30kHz_" + file_name)
+            old_edf_filename = os.path.join(dir_name, f"{self.reader.getSampleFrequency(0) / 1000}kHz_" + file_name)
             os.rename(edf_filename, old_edf_filename)
 
             # Downsample to 1k
