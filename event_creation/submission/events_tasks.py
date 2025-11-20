@@ -145,12 +145,14 @@ class SplitEEGTask(PipelineTask):
                 raise KeyError("Cannot find jacksheet mapping! No 'contacts' or 'jacksheet'!")
 
             channel_map = files.get('channel_map')
-
+            print("BEFORE for loop")
+            logger.warn("BEFORE for loop")
             for raw_eeg, jacksheet_file in zip(raw_eeg_groups, jacksheet_files):
                 try:
-                    logger.info("Get Reader")
+                    print("Get Reader")
+                    logger.warn("Get Reader")
                     reader = get_eeg_reader(raw_eeg, jacksheet_file, channel_map_filename=channel_map)
-                    logger.info(f"Reader: {reader}")
+                    logger.warn(f"Reader: {reader}")
                 except KeyError as k:
                     traceback.print_exc()
                     logger.warn('Cannot split file with extension {}'.format(k))

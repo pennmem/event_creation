@@ -758,6 +758,7 @@ class EDF_reader(EEG_reader):
 
     def __init__(self, edf_filename, jacksheet_filename=None, substitute_raw_file_for_header=None,
                  channel_map_filename=None):
+        logger.info(f"EDF init")
         self.raw_filename = edf_filename
         if jacksheet_filename:
             self.jacksheet = {v:k for k,v in list(read_jacksheet(jacksheet_filename).items())}
@@ -770,7 +771,7 @@ class EDF_reader(EEG_reader):
             # Try again with 30k fixes
             EDF_reader._fix_30k_edf(edf_filename)
             self.reader = pyedflib.EdfReader(edf_filename)
-
+        
         # If >10k data, downsample to 1k and load that
         if (self.reader.getSampleFrequency(0) >= 10000):
             self.reader.close()
