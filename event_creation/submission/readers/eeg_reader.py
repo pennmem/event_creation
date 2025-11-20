@@ -767,11 +767,13 @@ class EDF_reader(EEG_reader):
 
         try:
             self.reader = pyedflib.EdfReader(edf_filename)
+            logger.info(f"try Load reader: {self.reader}")
         except IOError:
             # Try again with 30k fixes
             EDF_reader._fix_30k_edf(edf_filename)
             self.reader = pyedflib.EdfReader(edf_filename)
-        
+            logger.info(f"except Load reader: {self.reader}")
+        logger.info(f"Sample rate: {self.reader.getSampleFrequency(0)}")
         # If >10k data, downsample to 1k and load that
         if (self.reader.getSampleFrequency(0) >= 10000):
             self.reader.close()
@@ -789,7 +791,7 @@ class EDF_reader(EEG_reader):
 
             # Open the new downsampled edf
             self.reader = pyedflib.EdfReader(edf_filename)
-
+        logger.info(f"after downsampling")
         self.headers = self.get_channel_info(substitute_raw_file_for_header)
 
         if channel_map_filename:
