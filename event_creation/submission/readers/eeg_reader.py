@@ -1128,7 +1128,9 @@ class ScalpReader(EEG_reader):
             return True
 
         except Exception as e:
-            logger.warn(f'Unable to parse EEG data file!: {e}')
+            # logger.warn(f'Unable to parse EEG data file!: {e}')
+                    # except Exception as e:
+            logger.exception(f'Unable to parse EEG data file {self.raw_filename}!')
             return False
 
     def process_eeg(self, location):
