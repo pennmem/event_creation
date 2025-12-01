@@ -13,7 +13,7 @@ import numpy as np
 from shutil import copy
 from functools import partial
 from multiprocessing import Pool
-
+import traceback
 try:
     import pyedflib
 except ImportError:
@@ -1130,7 +1130,10 @@ class ScalpReader(EEG_reader):
         except Exception as e:
             # logger.warn(f'Unable to parse EEG data file!: {e}')
                     # except Exception as e:
-            logger.exception(f'Unable to parse EEG data file {self.raw_filename}!')
+            tb = traceback.format_exc()
+            logger.warn(
+                f'Unable to parse EEG data file {self.raw_filename}! {e}\n{tb}'
+            )
             return False
 
     def process_eeg(self, location):
