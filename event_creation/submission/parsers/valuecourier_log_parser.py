@@ -242,7 +242,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
 
 # Overwrite normal Courier FFR and store recall
     def modify_store_recall(self, events): 
-        return evdata
+        return events
 
     # overwrite
     def modify_free_recall(self, events):
@@ -295,14 +295,17 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         rec_words = full_evs[full_evs.type == "REC_WORD"]
         rec_vv_words = full_evs[full_evs.type == "REC_WORD_VV"]
 
-        # WORD --> storepointtype --> VALUE_RECALL, REC_WORD, REC_WORD_VV
+        # WORD --> storepointtype, recalled--> VALUE_RECALL, REC_WORD, REC_WORD_VV
         word_trial_to_storepointtype = words.set_index("trial")["storepointtype"].to_dict()
+        word_trial_to_recalled = words.set_index("trial")["recalled"].to_dict()
         for event_type in ["VALUE_RECALL", "REC_WORD", "REC_WORD_VV"]:
             subset = full_evs[full_evs.type == event_type]
             for idx, row in subset.iterrows():
                 trial = row["trial"]
                 if trial in word_trial_to_storepointtype:
                     full_evs.at[idx, "storepointtype"] = word_trial_to_storepointtype[trial]
+                if trial in word_trial_to_recalled:
+                    full_evs.at[idx, "recalled"] = word_trial_to_recalled[trial]
 
         # VALUE_RECALL --> actualvalue, valuerecall --> WORD, `REC_WORD`, REC_WORD_VV
         valuerecall_trial_to_actualvalue = value_recalls.set_index("trial")["actualvalue"].to_dict()
