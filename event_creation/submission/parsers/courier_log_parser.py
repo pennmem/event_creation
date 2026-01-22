@@ -261,8 +261,13 @@ class CourierSessionLogParser(BaseUnityLogParser):
         self.storeX = event.storeX
         self.storeZ = event.storeZ
 
-        event.presX = evdata['data']['player position'][0]
-        event.presZ = evdata['data']['player position'][2]
+        try:
+            event.presX = evdata['data']['player position'][0]
+            event.presZ = evdata['data']['player position'][2]
+        except:
+            print("player position not in event data, using class field")
+            event.presX = self.presX
+            event.presZ = self.presZ
 
         event.type = 'CUED_REC_CUE'
         event["item"] = evdata['data']['item'].rstrip('.1').upper()
