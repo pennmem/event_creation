@@ -265,7 +265,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
             event.presX = evdata['data']['player position'][0]
             event.presZ = evdata['data']['player position'][2]
         except:
-            print("player position not in event data, using class field")
+            # print("player position not in event data, using class field")
             event.presX = self.presX
             event.presZ = self.presZ
 
