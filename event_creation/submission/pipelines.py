@@ -47,7 +47,8 @@ GROUPS = {
     'EFRCourierReadOnly': ('verbal', 'unity', 'courier'),
     'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim'),
     'ltpDelayRepFRReadOnly': ('verbal', 'unity'),
-    'ValueCourier': ('verbal', 'unity', 'courier')
+    'ValueCourier': ('verbal', 'unity', 'courier'),
+    'VCBehOnly': ('verbal', 'unity', 'courier'),
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'

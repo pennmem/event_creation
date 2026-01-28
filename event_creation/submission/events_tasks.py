@@ -302,6 +302,7 @@ class EventCreationTask(PipelineTask):
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
                     'CourierReinstate1': CourierReinstate1SessionLogParser,
                     'ValueCourier': ValueCourierSessionLogParser,
+                    'VCBehOnly': ValueCourierSessionLogParser,
                   }
 
     @property
@@ -360,6 +361,8 @@ class EventCreationTask(PipelineTask):
         unaligned_events = parser.parse()
         #logger.debug("unaligned events = {}".format(unaligned_events))
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
+        
+        ### if experiment is in beh_only_experiments list, skip alignment step
         if self.protocol == 'ltp':
             sync_log = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
