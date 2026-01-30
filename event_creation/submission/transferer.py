@@ -129,12 +129,30 @@ class Transferer(object):
 
         logger.info('Transferring into {}'.format(self.destination_root))
 
-        if len(self.transfer_config.located_files()) == 0:
+        files_to_transfer = self.transfer_config.located_files()
+        # Behavioral-only logic: skip eeg/ephys/raw files
+        experiment = self.kwargs.get('experiment')
+        # Load behavioral_only_experiments from config.yml
+        import yaml, os
+        def yml_join(loader, node):
+            return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
+        yaml.add_constructor('!join', yml_join)
+        config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+        with open(config_path, 'r') as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        behavioral_only_experiments = set(e.strip().lower() for e in config.get('behavioral_only_experiments', []))
+        if experiment and experiment.strip().lower() in behavioral_only_experiments:
+            logger.info(f"Behavioral-only experiment: {experiment}. Skipping EEG/ephys/raw transfers.")
+            files_to_transfer = [file for file in files_to_transfer if not any(
+                key in file.name.lower() or key in getattr(file, 'destination', '').lower()
+                for key in ['eeg', 'ephys', 'raw'])]
+
+        if len(files_to_transfer) == 0:
             logger.info("No files to transfer.")
             self.transfer_aborted = True
             raise TransferError("No files to transfer")
 
-        for file in self.transfer_config.located_files():
+        for file in files_to_transfer:
             file.transfer(self.destination_labelled)
             self.transferred_files.append(file)
             self.transferred_filenames.update(file.transferred_filenames())
