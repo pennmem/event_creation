@@ -10,6 +10,8 @@ import shutil
 from collections import defaultdict
 
 from .configuration import paths
+import yaml
+import os
 from .log import logger
 from .exc import ConfigurationError
 
@@ -318,6 +320,13 @@ class TransferFile(object):
 
         self._valid = all(file.valid for file in list(self.files.values()))
 
+    # def _get_behavioral_only_experiments(self):
+    #     # Load config.yml and return the behavioral_only_experiments list
+    #     config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+    #     with open(config_path, 'r') as f:
+    #         config = yaml.safe_load(f)
+    #     return set(config.get('behavioral_only_experiments', []))
+
     def locate(self, root=''):
         logger.debug(f'multiple = {self.multiple}, _multiple = {self._multiple}')
         if self.name=='output_log':
@@ -358,16 +367,26 @@ class TransferFile(object):
                     new_destination_directories.append(os.path.join(os.path.basename(root),
                                                                     new_destination_directory))
 
-
         for path in new_origin_paths:
             for file in list(self.files.values()):
                 file.locate(path)
 
+        # --- VCBehOnly exception for raw_eeg ---
+        experiment = self._kwargs.get('experiment') if hasattr(self, '_kwargs') else None
+        if experiment is None and hasattr(self, 'experiment'):
+            experiment = self.experiment
+        config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        behavioral_only_experiments =  set(config.get('behavioral_only_experiments', []))
         if self.required and len(new_origin_paths) == 0:
-            raise ConfigurationError("File {} is required, but cannot be found. "
+            if self.name == 'raw_eeg' and experiment in behavioral_only_experiments:
+                logger.info(f"Skipping required raw_eeg for behavioral-only experiment: {experiment}")
+            else:
+                raise ConfigurationError("File {} is required, but cannot be found. "
                                           "(Location: {}/{})".format(self.name, containing_directory,
                                                                      self.formatted_origin_filenames))
-        
+
         if len(new_origin_paths) > 1 and not self.multiple:
             raise ConfigurationError("Multiple files matching {} found in {}/{} "
                                           "but multiple==False".format(self.name, self.formatted_origin_filenames,

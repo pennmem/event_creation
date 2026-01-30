@@ -56,6 +56,7 @@ from .quality.util import get_time_field
 from .viewers.recarray import to_json, from_json
 from .log import logger
 from .exc import NoEventsError, ProcessingError
+import yaml
 
 
 class SplitEEGTask(PipelineTask):
@@ -361,9 +362,12 @@ class EventCreationTask(PipelineTask):
         unaligned_events = parser.parse()
         #logger.debug("unaligned events = {}".format(unaligned_events))
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
-        
+        config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        behavioral_only_experiments =  set(config.get('behavioral_only_experiments', []))
         ### if experiment is in beh_only_experiments list, skip alignment step
-        if self.protocol == 'ltp':
+        if self.protocol == 'ltp' and self.experiment not in behavioral_only_experiments:
             sync_log = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
             # Align scalp EEG data with events

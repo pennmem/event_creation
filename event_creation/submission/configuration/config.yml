@@ -27,6 +27,9 @@ build_db_options: &DB_OPTIONS
   experiment:
 
 
+behavioral_only_experiments:
+  - VCBehOnly
+
 options:
   - dest: log_debug
     arg: debug
