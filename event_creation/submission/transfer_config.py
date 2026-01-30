@@ -401,8 +401,12 @@ class TransferFile(object):
             config = yaml.load(f, Loader=yaml.FullLoader)
         behavioral_only_experiments = set(config.get('behavioral_only_experiments', []))
         print(f"behavioral_only_experiments = {behavioral_only_experiments}")
+        print(f"experiment value for skip check: '{experiment}' (type: {type(experiment)})")
+        # Normalize experiment and set values for robust comparison
+        normalized_experiment = str(experiment).strip().lower() if experiment is not None else None
+        normalized_behav_set = set(e.strip().lower() for e in behavioral_only_experiments)
         if self.required and len(new_origin_paths) == 0:
-            if self.name == 'raw_eeg' and experiment is not None and experiment in behavioral_only_experiments:
+            if self.name == 'raw_eeg' and normalized_experiment is not None and normalized_experiment in normalized_behav_set:
                 logger.info(f"Skipping required raw_eeg for behavioral-only experiment: {experiment}")
             else:
                 raise ConfigurationError("File {} is required, but cannot be found. "
