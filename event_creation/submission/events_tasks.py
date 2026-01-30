@@ -363,9 +363,13 @@ class EventCreationTask(PipelineTask):
         #logger.debug("unaligned events = {}".format(unaligned_events))
         # SCALP LAB SPECIFIC PROCESSING - Alignment, blink detection, and data cleaning
         config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+        # Register !join constructor for YAML
+        def yml_join(loader, node):
+            return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
+        yaml.add_constructor('!join', yml_join)
         with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        behavioral_only_experiments =  set(config.get('behavioral_only_experiments', []))
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        behavioral_only_experiments = set(config.get('behavioral_only_experiments', []))
         ### if experiment is in beh_only_experiments list, skip alignment step
         if self.protocol == 'ltp' and self.experiment not in behavioral_only_experiments:
             sync_log = files['eeg_log'] if 'eeg_log' in files else []

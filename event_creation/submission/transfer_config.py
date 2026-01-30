@@ -376,9 +376,13 @@ class TransferFile(object):
         if experiment is None and hasattr(self, 'experiment'):
             experiment = self.experiment
         config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
+        # Register !join constructor for YAML
+        def yml_join(loader, node):
+            return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
+        yaml.add_constructor('!join', yml_join)
         with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-        behavioral_only_experiments =  set(config.get('behavioral_only_experiments', []))
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        behavioral_only_experiments = set(config.get('behavioral_only_experiments', []))
         if self.required and len(new_origin_paths) == 0:
             if self.name == 'raw_eeg' and experiment in behavioral_only_experiments:
                 logger.info(f"Skipping required raw_eeg for behavioral-only experiment: {experiment}")
