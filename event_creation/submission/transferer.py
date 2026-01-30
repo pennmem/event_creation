@@ -133,7 +133,7 @@ class Transferer(object):
         # Behavioral-only logic: skip eeg/ephys/raw files
         experiment = self.kwargs.get('experiment')
         # Load behavioral_only_experiments from config.yml
-        import yaml, os
+        # import yaml
         def yml_join(loader, node):
             return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
         yaml.add_constructor('!join', yml_join)
