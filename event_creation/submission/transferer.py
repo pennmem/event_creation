@@ -130,10 +130,9 @@ class Transferer(object):
         logger.info('Transferring into {}'.format(self.destination_root))
 
         files_to_transfer = self.transfer_config.located_files()
-        # Behavioral-only logic: skip eeg/ephys/raw files
+        # Behavioral-only logic: skip all EEG-related files for behavioral-only experiments
         experiment = self.kwargs.get('experiment')
         # Load behavioral_only_experiments from config.yml
-        # import yaml
         def yml_join(loader, node):
             return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
         yaml.add_constructor('!join', yml_join)
@@ -141,11 +140,24 @@ class Transferer(object):
         with open(config_path, 'r') as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
         behavioral_only_experiments = set(e.strip().lower() for e in config.get('behavioral_only_experiments', []))
+
+        # Extract EEG-related file names from ephys_inputs.yml
+        ephys_yml_path = os.path.join(os.path.dirname(__file__), 'transfer_inputs', 'ephys_inputs.yml')
+        with open(ephys_yml_path, 'r') as f:
+            ephys_data = yaml.load(f, Loader=yaml.FullLoader)
+        eeg_file_names = set()
+        def recurse_files(files):
+            for entry in files:
+                name = entry.get('name')
+                if name:
+                    eeg_file_names.add(name)
+                if 'files' in entry:
+                    recurse_files(entry['files'])
+        recurse_files(ephys_data.get('files', []))
+
         if experiment and experiment.strip().lower() in behavioral_only_experiments:
             logger.info(f"Behavioral-only experiment: {experiment}. Skipping EEG/ephys/raw transfers.")
-            files_to_transfer = [file for file in files_to_transfer if not any(
-                key in file.name.lower() or key in getattr(file, 'destination', '').lower()
-                for key in ['eeg', 'ephys', 'raw'])]
+            files_to_transfer = [file for file in files_to_transfer if file.name not in eeg_file_names]
 
         if len(files_to_transfer) == 0:
             logger.info("No files to transfer.")
