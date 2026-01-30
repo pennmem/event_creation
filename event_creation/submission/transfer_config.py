@@ -35,9 +35,9 @@ def build_group_index(input, groups, experiment=None):
             continue
 
         file_kwargs = dict(file)
-        if experiment is not None:
-            file_kwargs['experiment'] = experiment
         transfer_file = TransferFile(**file_kwargs)
+        if experiment is not None:
+            setattr(transfer_file, 'experiment', experiment)
         logger.debug(f'transfer_file = {transfer_file.__dict__}')
         transfer_file.expand_files(groups)
         transfer_files[transfer_file.name] = transfer_file
