@@ -16,17 +16,9 @@ from .log import logger
 from .exc import ConfigurationError
 
 
-def build_group_index(input, groups):
+def build_group_index(input, groups, experiment=None):
     transfer_files = dict()
-    logger.debug(f'groups arg = {groups}')                  # add debug logging
-    experiment = None
-    # Try to get experiment from groups or input
-    for file in input:
-        if 'experiment' in file:
-            experiment = file['experiment']
-            break
-    # If not found, try to get from global kwargs if available
-    # (This is a fallback, you may want to pass experiment explicitly from TransferConfig)
+    logger.debug(f'groups arg = {groups}')
     for file in input:
         do_process = True
         for group in file['groups']:
@@ -64,7 +56,8 @@ class TransferConfig(object):
         
         
         self._raw_config = yaml.load(open(filename), Loader=yaml.FullLoader)
-        self._files = build_group_index(self._raw_config['files'], groups)
+        experiment = kwargs.get('experiment')
+        self._files = build_group_index(self._raw_config['files'], groups, experiment=experiment)
 
         for file_ in list(self._files.values()):
             file_.format(**kwargs)
