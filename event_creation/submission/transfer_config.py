@@ -19,6 +19,14 @@ from .exc import ConfigurationError
 def build_group_index(input, groups):
     transfer_files = dict()
     logger.debug(f'groups arg = {groups}')                  # add debug logging
+    experiment = None
+    # Try to get experiment from groups or input
+    for file in input:
+        if 'experiment' in file:
+            experiment = file['experiment']
+            break
+    # If not found, try to get from global kwargs if available
+    # (This is a fallback, you may want to pass experiment explicitly from TransferConfig)
     for file in input:
         do_process = True
         for group in file['groups']:
@@ -34,7 +42,10 @@ def build_group_index(input, groups):
         if not do_process:
             continue
 
-        transfer_file = TransferFile(**file)
+        file_kwargs = dict(file)
+        if experiment is not None:
+            file_kwargs['experiment'] = experiment
+        transfer_file = TransferFile(**file_kwargs)
         logger.debug(f'transfer_file = {transfer_file.__dict__}')
         transfer_file.expand_files(groups)
         transfer_files[transfer_file.name] = transfer_file
