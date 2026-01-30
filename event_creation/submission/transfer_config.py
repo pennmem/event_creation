@@ -372,11 +372,17 @@ class TransferFile(object):
                 file.locate(path)
 
         # --- VCBehOnly exception for raw_eeg ---
-        experiment = self._kwargs.get('experiment') if hasattr(self, '_kwargs') else None
-        if experiment is None and hasattr(self, 'experiment'):
+        # Try to get experiment from multiple sources for robustness
+        experiment = None
+        if hasattr(self, '_kwargs') and 'experiment' in self._kwargs:
+            experiment = self._kwargs['experiment']
+        elif hasattr(self, 'experiment'):
             experiment = self.experiment
+        # Try to get from parent TransferConfig if still None
+        if experiment is None and hasattr(self, 'parent') and hasattr(self.parent, 'experiment'):
+            experiment = self.parent.experiment
+        logger.debug(f"TransferFile.locate: experiment={experiment}, name={self.name}")
         config_path = os.path.join(os.path.dirname(__file__), 'configuration', 'config.yml')
-        # Register !join constructor for YAML
         def yml_join(loader, node):
             return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
         yaml.add_constructor('!join', yml_join)
@@ -384,7 +390,7 @@ class TransferFile(object):
             config = yaml.load(f, Loader=yaml.FullLoader)
         behavioral_only_experiments = set(config.get('behavioral_only_experiments', []))
         if self.required and len(new_origin_paths) == 0:
-            if self.name == 'raw_eeg' and experiment in behavioral_only_experiments:
+            if self.name == 'raw_eeg' and experiment is not None and experiment in behavioral_only_experiments:
                 logger.info(f"Skipping required raw_eeg for behavioral-only experiment: {experiment}")
             else:
                 raise ConfigurationError("File {} is required, but cannot be found. "
