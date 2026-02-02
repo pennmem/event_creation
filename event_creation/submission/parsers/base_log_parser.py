@@ -621,7 +621,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
             return super(BaseUnityLTPLogParser, self).parse()
         except Exception as e:
             # logs message + traceback
-            logger.exception("Encountered error in parsing %s session %s", self._subject, self._session)
+            logger.error("Encountered error in parsing %s session %s", self._subject, self._session)
             raise e
         # except Exception as exc:
         #     # traceback.print_exc(exc)
