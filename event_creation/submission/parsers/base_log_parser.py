@@ -619,22 +619,26 @@ class BaseUnityLTPLogParser(BaseLogParser):
     def parse(self):
         try:
             return super(BaseUnityLTPLogParser, self).parse()
-        except Exception as exc:
-            # traceback.print_exc(exc)
-            traceback.print_exc()
+        except Exception as e:
+            # logs message + traceback
+            logger.exception("Encountered error in parsing %s session %s", self._subject, self._session)
+            raise e
+        # except Exception as exc:
+        #     # traceback.print_exc(exc)
+        #     traceback.print_exc()
 
-            logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
-                                                                                   str(type(exc)), exc.message))
+        #     logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
+        #                                                                            str(type(exc)), exc.message))
 
-            # logger.warn(
-            #     "Encountered error in parsing %s session %s:\n%s: %s",
-            #     self._subject,
-            #     self._session,
-            #     type(exc).__name__,
-            #     str(exc),
-            # )
+        #     # logger.warn(
+        #     #     "Encountered error in parsing %s session %s:\n%s: %s",
+        #     #     self._subject,
+        #     #     self._session,
+        #     #     type(exc).__name__,
+        #     #     str(exc),
+        #     # )
 
-            raise exc
+        #     raise exc
 
     def _read_unityepl_log(self, filename):
         """
