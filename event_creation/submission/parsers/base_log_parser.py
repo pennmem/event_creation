@@ -622,7 +622,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
         except Exception as e:
             # logs message + traceback
             # logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
-                                                                                    str(type(exc)), e))
+                                                                                    # str(type(exc)), e))
             raise e
         # except Exception as exc:
         #     # traceback.print_exc(exc)
