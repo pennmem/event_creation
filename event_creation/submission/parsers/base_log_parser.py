@@ -626,7 +626,7 @@ class BaseUnityLTPLogParser(BaseLogParser):
             # logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
             #                                                                        str(type(exc)), exc.message))
 
-            logger.warning(
+            logger.warn(
                 "Encountered error in parsing %s session %s:\n%s: %s",
                 self._subject,
                 self._session,
