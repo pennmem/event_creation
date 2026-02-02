@@ -302,6 +302,7 @@ class EventCreationTask(PipelineTask):
                     'ltpDelayRepFRReadOnly': DelayRepFRSessionLogParser,
                     'CourierReinstate1': CourierReinstate1SessionLogParser,
                     'ValueCourier': ValueCourierSessionLogParser,
+                    'VCBehOnly': ValueCourierSessionLogParser,
                   }
 
     @property
