@@ -106,6 +106,7 @@ class CourierSessionLogParser(BaseUnityLogParser):
         word_event = words[(words['item'] == new_event["item"])]
 
         if len(word_event) > 1:
+            print(word_event.columns)
             print(word_event)
             raise Exception("Repeat items not supported or expected. Please check your data.")
 
