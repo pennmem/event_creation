@@ -107,8 +107,8 @@ class CourierSessionLogParser(BaseUnityLogParser):
 
         if len(word_event) > 1:
             print(word_event)
-            print("Repeat Item")
-            # raise Exception("Repeat items not supported or expected. Please check your data.")
+            # print("Repeat Item")
+            raise Exception("Repeat items not supported or expected. Please check your data.")
 
         elif len(word_event) == 0: #ELI
             new_event.intrusion  = -1
