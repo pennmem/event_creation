@@ -49,6 +49,13 @@ def automatic_event_creator(check_index=True):
         print(f'{"Checking index for" if check_index else "Processing"} {exp} sessions: {new_sess}')
         for subject in new_sess:
             for session in new_sess[subject]:
+                # Only process sessions whose annotations have been corrected
+                session_dir = f'/data/eeg/scalp/ltp/{exp}/{subject}/session_{session}'
+                if os.path.exists(os.path.join(session_dir, 'AUTOMATED_ANNOT')):
+                    print(f'Skipping {exp} {subject} session {session}: uncorrected automatic annotations')
+                    continue
+                if os.path.exists(os.path.join(session_dir, 'CORRECTED_ANNOT')):
+                    print(f'Running {exp} {subject} session {session}: corrected automatic annotations')
                 if check_index:
                     if (db_index == {}) or (subject not in db_index) or (exp not in db_index[subject]['experiments']) or (str(session) not in db_index[subject]['experiments'][exp]['sessions']):
                         inputs.append(f'{exp}:{subject}:{session}')
