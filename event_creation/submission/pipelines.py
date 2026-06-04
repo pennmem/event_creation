@@ -49,6 +49,7 @@ GROUPS = {
     'ltpDelayRepFRReadOnly': ('verbal', 'unity'),
     'ValueCourier': ('verbal', 'unity', 'courier'),
     'VCBehOnly': ('verbal', 'unity', 'courier'),
+    'VCFROP': ('verbal', 'unity', 'courier'),
 }
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'

@@ -1,3 +1,6 @@
 [submodule "neurorad"]
 	path = event_creation/neurorad
 	url = https://github.com/pennmem/neurorad_pipeline.git
+[submodule "event_creation/heartbeat_correction"]
+	path = event_creation/heartbeat_correction
+	url = git@github.com:pennmem/heartbeat-correction.git
