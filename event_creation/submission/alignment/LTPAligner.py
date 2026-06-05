@@ -34,6 +34,7 @@ class LTPAligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         """
+        print(">>> TRACE event_creation: LTPAligner.LTPAligner.__init__ (def L16)")  # TRACE_AUTO_INSERTED
         self.behav_files = eeg_log  # Get list of the behavioral computer's sync pulse logs
         if not isinstance(self.behav_files, list):
             self.behav_files = [self.behav_files]
@@ -77,6 +78,7 @@ class LTPAligner:
 
         :return: The updated events structure, now filled with eegfile and eegoffset information.
         """
+        print(">>> TRACE event_creation: LTPAligner.LTPAligner.align (def L68)")  # TRACE_AUTO_INSERTED
         # Skip alignment if there are no events or no sync pulse logs
         if self.events.shape == () or len(self.eeg_files) == 0:
             logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
@@ -165,6 +167,7 @@ class LTPAligner:
         Then set the eeg log file for alignment to be the eeg.eeglog.up file. Also gets the mstimes of the behavioral
         sync pulses.
         """
+        print(">>> TRACE event_creation: LTPAligner.LTPAligner.get_behav_sync (def L162)")  # TRACE_AUTO_INSERTED
         logger.debug('Acquiring behavioral sync pulse times...')
         for f in self.behav_files:
             if f.endswith('.up'):
@@ -184,6 +187,7 @@ class LTPAligner:
         :param eeg_log: The filepath for the eeg.eeglog file.
         :return: Numpy array containing the mstimes for the up pulses
         """
+        print(">>> TRACE event_creation: LTPAligner.LTPAligner.extract_up_pulses (def L181)")  # TRACE_AUTO_INSERTED
         # Load data from the eeg.eeglog file and get all rows for up pulses
         try:
             data = np.loadtxt(eeg_log, dtype=str, skiprows=1, usecols=(0, 1, 2), ndmin=2)
@@ -203,6 +207,7 @@ class LTPAligner:
         :param logfile: The filepath for the session log .jsonl file
         :return: 1-D numpy array containing the mstimes for all sync pulses
         """
+        print(">>> TRACE event_creation: LTPAligner.LTPAligner.extract_pulses_unity (def L199)")  # TRACE_AUTO_INSERTED
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the times when all sync pulses were sent
@@ -219,6 +224,7 @@ class LTPAligner:
 
 
 def diagnose_alignment_issue(behav_ms, ephys_ms, window, thresh_ms):
+  print(">>> TRACE event_creation: LTPAligner.module.diagnose_alignment_issue (def L221)")  # TRACE_AUTO_INSERTED
   report = []
   if '_align_min_diff' in globals():
     min_diff = globals()['_align_min_diff']
@@ -281,6 +287,7 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, samplerate, window=50, thresh_ms
     :return s_ind: The index of the EEG sample that matches the beginning of the behavioral pulse syncs.
     :return e_ind: The index of the EEG sample that matches the end of the behavioral pulse syncs.
     """
+    print(">>> TRACE event_creation: LTPAligner.module.times_to_offsets (def L259)")  # TRACE_AUTO_INSERTED
     s_ind = None
     e_ind = None
 
@@ -334,6 +341,7 @@ def match_sequence(needle, haystack, maxdiff):
     """
     Look for a matching subsequence in a long sequence.
     """
+    print(">>> TRACE event_creation: LTPAligner.module.match_sequence (def L333)")  # TRACE_AUTO_INSERTED
     nlen = len(needle)
     found = False
     for i in range(len(haystack)-nlen):

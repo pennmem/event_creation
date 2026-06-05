@@ -23,6 +23,7 @@ def System2Aligner(events, files, plot_save_dir=None):
     :param plot_save_dir: Where to save plots describing fits
     :return: instance of aligner object
     """
+    print(">>> TRACE event_creation: system2.module.System2Aligner (def L17)")  # TRACE_AUTO_INSERTED
     if 'session_log' in files:
         return System2TaskAligner(events, files, plot_save_dir)
     else:
@@ -49,6 +50,7 @@ class System2TaskAligner(object):
                       optionally 'jacksheet'
         :param plot_save_dir:
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.__init__ (def L44)")  # TRACE_AUTO_INSERTED
         self.files = files
 
         # There can be multiple host logs, so always place in list
@@ -98,6 +100,7 @@ class System2TaskAligner(object):
                                   which should persist into a stim event. E.g., 'list' should be maintained.
         :return: events with stim merged in
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.add_stim_events (def L93)")  # TRACE_AUTO_INSERTED
 
         # Merge in the stim events
         s2lp = System2LogParser(self.host_log_files, self.jacksheet)
@@ -115,6 +118,7 @@ class System2TaskAligner(object):
         :param start_type: Don't care about events that occur before this event. Typically SESS_START.
         :return: events with updated eegoffset and eegfile fields
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.align (def L112)")  # TRACE_AUTO_INSERTED
 
         aligned_events = deepcopy(self.merged_events)
 
@@ -147,6 +151,7 @@ class System2TaskAligner(object):
         :param host_times: Entry corresponding to each event which give the time on the host PC
         :return: None
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.apply_eeg_file (def L143)")  # TRACE_AUTO_INSERTED
         # Get the nsx files which were used in the session
         nsx_infos = self.get_used_nsx_files()
         full_mask = np.zeros(events[self.EEG_FILE_FIELD].shape)
@@ -163,6 +168,7 @@ class System2TaskAligner(object):
         Gets the nsx files, in order, that were useds in this session
         :return: A list of the nsx files that were used
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.get_used_nsx_files (def L161)")  # TRACE_AUTO_INSERTED
 
         # The difference in time between starts of recordings as seen by the host PC
         diff_np_starts = np.diff(self.host_time_np_starts)
@@ -219,6 +225,7 @@ class System2TaskAligner(object):
         :param args: to be passed through to coefficient_fn
         :return: coefficients, times at which coefficients start to apply, times at which coefficients stop applying
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.get_coefficients_from_host_log (def L215)")  # TRACE_AUTO_INSERTED
         coefficients = []
         beginnings = []
         endings = []
@@ -245,6 +252,7 @@ class System2TaskAligner(object):
         :param stim_event: The stim event - must contains the field 'hosttime'
         :return: the mstime at which the event occurred
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.stim_event_to_mstime (def L241)")  # TRACE_AUTO_INSERTED
         earlier_resets = np.array(self.host_time_task_starts) < stim_event['hosttime'][0]
         if earlier_resets.any():
             good_coef_index = earlier_resets.nonzero()[0][-1]
@@ -264,6 +272,7 @@ class System2TaskAligner(object):
         :param okay_no_align_up_to: Up to n=this event, it is okay if alignment doesn't occur
         :return: times aligned to destination
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.align_source_to_dest (def L257)")  # TRACE_AUTO_INSERTED
         time_dest = np.full(len(time_source), np.nan)
         time_dest[time_source == -1] = -1
         for (task_start, task_end, coefficient) in zip(starts[:-1], starts[1:], coefficients):
@@ -289,6 +298,7 @@ class System2TaskAligner(object):
         :param coefficients: coefficients to be applied to destination times
         :return: "source" times
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.apply_coefficients_backwards (def L285)")  # TRACE_AUTO_INSERTED
         return (dest - coefficients[1]) / coefficients[0]
 
     @staticmethod
@@ -299,6 +309,7 @@ class System2TaskAligner(object):
         :param coefficients: (slope, intercept)
         :return: converted times
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.apply_coefficients (def L295)")  # TRACE_AUTO_INSERTED
         return coefficients[0] * np.array(source) + coefficients[1]
 
     @classmethod
@@ -311,6 +322,7 @@ class System2TaskAligner(object):
         :param plot_save_dir: Directory in which to save plots
         :return: list of coefficients, list of recording starts (host time), list of recording ends (host time)
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.get_host_np_coefficient (def L305)")  # TRACE_AUTO_INSERTED
         # Get NEUROPORT-TIMEs from host file
         [host_times, np_tics] = System2LogParser.get_columns_by_type(host_log_file, 'NEUROPORT-TIME', [0, 2], int)
         if (not host_times and not np_tics):
@@ -347,6 +359,7 @@ class System2TaskAligner(object):
         :param np_times: List of all neuroport times
         :return: (host times split by neuroport resets, neuroport times split by neuroport resets)
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.split_np_times (def L343)")  # TRACE_AUTO_INSERTED
         # Get the times at which the neuroport recording restarted
         resets = np.concatenate([[0], np.where(np.diff(np_times) < 0)[0] + 1])
         split_host = []
@@ -370,6 +383,7 @@ class System2TaskAligner(object):
         :param nsx_file: path to nsx file (extension used to determine sample rate)
         :return: Array of samples
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.tics_to_samples (def L366)")  # TRACE_AUTO_INSERTED
         if nsx_file == 'N/A':
             logger.error("Guessing at sample rate of 1000")
             sample_rate = 1000
@@ -385,6 +399,7 @@ class System2TaskAligner(object):
         :param plot_save_dir: Directory in which to save the plots of the fits
         :return: [coefficients], [starts], [ends] (wrapped in lists to be consistent with host_np_coefficient function
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.get_task_host_coefficient (def L381)")  # TRACE_AUTO_INSERTED
         # Get the 'OFFSET's from the host log file
         host_times, offsets = System2LogParser.get_columns_by_type(host_log_file, 'OFFSET', [0, 2], int)
         # Return just empty lists if nothing was found
@@ -414,6 +429,7 @@ class System2TaskAligner(object):
         :param y:
         :return: slope, intercept
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.get_fit (def L410)")  # TRACE_AUTO_INSERTED
         coefficients = scipy.stats.linregress(x, y)
         return coefficients[:2]
 
@@ -428,6 +444,7 @@ class System2TaskAligner(object):
         :param plot_save_label: What to name the saved plot
         :return: None
         """
+        print(">>> TRACE event_creation: system2.System2TaskAligner.plot_fit (def L421)")  # TRACE_AUTO_INSERTED
         fit = coefficients[0] * np.array(x) + coefficients[1]
         if plot_save_dir:
             plt.clf()
@@ -457,6 +474,7 @@ class System2HostAligner(System2TaskAligner):
         :param files: File dict, output of Transferer
         :param plot_save_dir: Where to save plots
         """
+        print(">>> TRACE event_creation: system2.System2HostAligner.__init__ (def L453)")  # TRACE_AUTO_INSERTED
         # Host offset allows us to convert host times to epoch time. We can calculate it up front to reduce
         # alignment time
         self.host_offset = self.get_host_offset(files)
@@ -468,6 +486,7 @@ class System2HostAligner(System2TaskAligner):
         :param files: output of transferer
         :return: a single offset that will turn host time into epoch time
         """
+        print(">>> TRACE event_creation: system2.System2HostAligner.get_host_offset (def L465)")  # TRACE_AUTO_INSERTED
         host_log_files = files['host_logs']
 
         # Get the times listed in the host log file
@@ -508,6 +527,7 @@ class System2HostAligner(System2TaskAligner):
         :param plot_save_dir:
         :return: coefficients to align host to epoch
         """
+        print(">>> TRACE event_creation: system2.System2HostAligner.get_task_host_coefficient (def L504)")  # TRACE_AUTO_INSERTED
         split_lines = [line.split('~') for line in open(host_log_file)]
         return [[1, self.host_offset]], [int(split_lines[0][0])], [int(split_lines[-1][0])]
 
@@ -517,4 +537,5 @@ class System2HostAligner(System2TaskAligner):
         :param stim_event: used to get host time
         :return: epoch time of stim event
         """
+        print(">>> TRACE event_creation: system2.System2HostAligner.stim_event_to_mstime (def L514)")  # TRACE_AUTO_INSERTED
         return stim_event[0]['hosttime'] - self.host_offset

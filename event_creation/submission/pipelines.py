@@ -59,6 +59,7 @@ N_PS4_SESSIONS = 10
 
 
 def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_file, *args, **kwargs):
+    print(">>> TRACE event_creation: pipelines.module.determine_groups (def L61)")  # TRACE_AUTO_INSERTED
     groups = (protocol,)
     recog = False                # toggle to bypass 'recog' group
     if '_' in full_experiment:
@@ -151,6 +152,7 @@ def r1_system_match(experiment, transfer_cfg, sys):
     :param sys:
     :return:
     """
+    print(">>> TRACE event_creation: pipelines.module.r1_system_match (def L145)")  # TRACE_AUTO_INSERTED
 
     session_log = transfer_cfg.get_file('session_log')
     eeg_log = transfer_cfg.get_file('eeg_log')
@@ -192,6 +194,7 @@ class TransferPipeline(object):
     INDEX_FILE = 'index.json'
 
     def __init__(self, transferer, *pipeline_tasks, **info):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.__init__ (def L194)")  # TRACE_AUTO_INSERTED
         self.importer = None
         self.transferer = transferer
         self.pipeline_tasks = pipeline_tasks
@@ -212,36 +215,46 @@ class TransferPipeline(object):
         self.on_failure = lambda: CleanLeafTask(False).run([], self.destination)
 
     def previous_transfer_type(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.previous_transfer_type (def L214)")  # TRACE_AUTO_INSERTED
         return self.transferer.previous_transfer_type()
 
     def current_transfer_type(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.current_transfer_type (def L217)")  # TRACE_AUTO_INSERTED
         return self.transferer.transfer_type
 
     def register_output(self, filename, label):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.register_output (def L220)")  # TRACE_AUTO_INSERTED
         self.output_files[label] = os.path.join(self.current_dir, filename)
 
     def register_info(self, info_key, info_value):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.register_info (def L223)")  # TRACE_AUTO_INSERTED
         self.output_info[info_key] = info_value
 
     def store_object(self, name, item):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.store_object (def L226)")  # TRACE_AUTO_INSERTED
         self.stored_objects[name] = item
 
     def retrieve_object(self, name):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.retrieve_object (def L229)")  # TRACE_AUTO_INSERTED
         return self.stored_objects[name]
 
     @property
     def source_dir(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.source_dir (def L233)")  # TRACE_AUTO_INSERTED
         return self.transferer.destination_labelled
 
     @property
     def source_label(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.source_label (def L237)")  # TRACE_AUTO_INSERTED
         return self.transferer.get_label()
 
     @property
     def processed_label(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.processed_label (def L241)")  # TRACE_AUTO_INSERTED
         return '{}_processed'.format(self.transferer.label)
 
     def create_index(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.create_index (def L244)")  # TRACE_AUTO_INSERTED
         index = {}
         if len(self.output_files) > 0:
             index['files'] = {}
@@ -254,6 +267,7 @@ class TransferPipeline(object):
                 json.dump(index, f, indent=2, sort_keys=True)
 
     def _initialize(self, force=False):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline._initialize (def L256)")  # TRACE_AUTO_INSERTED
         if not os.path.exists(self.destination):
             fileutil.makedirs(self.destination)
         logger.set_label('{} Transfer initialization'.format(self.current_transfer_type()))
@@ -286,6 +300,7 @@ class TransferPipeline(object):
         return True
 
     def _execute_tasks(self):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline._execute_tasks (def L288)")  # TRACE_AUTO_INSERTED
         logger.set_label('Transfer in progress')
         transferred_files = self.transferer.transfer_with_rollback()
         pipeline_task = None
@@ -318,6 +333,7 @@ class TransferPipeline(object):
             raise
 
     def run(self, force=False):
+        print(">>> TRACE event_creation: pipelines.TransferPipeline.run (def L320)")  # TRACE_AUTO_INSERTED
         try:
             if not self._initialize(force):
                 self.on_failure()
@@ -332,6 +348,7 @@ class TransferPipeline(object):
 
 def build_split_pipeline(subject, montage, experiment, session, protocol='r1', groups=tuple(), code=None,
                          original_session=None, new_experiment=None, **kwargs):
+    print(">>> TRACE event_creation: pipelines.module.build_split_pipeline (def L333)")  # TRACE_AUTO_INSERTED
     logger.set_label("Building EEG Splitter")
     # for scalp and intracranial subjects, enforce logging to subject-level log.txt
     if protocol == 'ltp' or protocol == 'r1':
@@ -353,6 +370,7 @@ def build_split_pipeline(subject, montage, experiment, session, protocol='r1', g
 
 def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='r1', code=None,
                                original_session=None, new_experiment=None, **kwargs):
+    print(">>> TRACE event_creation: pipelines.module.build_convert_eeg_pipeline (def L354)")  # TRACE_AUTO_INSERTED
     logger.set_label("Building EEG Converter")
     new_experiment = new_experiment if new_experiment is not None else experiment
     if experiment[:-1] == 'catFR':
@@ -372,6 +390,7 @@ def build_convert_eeg_pipeline(subject, montage, experiment, session, protocol='
 def build_events_pipeline(subject, montage, experiment, session, do_math=False, protocol='r1', code=None,
                           groups=tuple(), do_compare=False, **kwargs):
 
+    print(">>> TRACE event_creation: pipelines.module.build_events_pipeline (def L372)")  # TRACE_AUTO_INSERTED
     logger.set_label("Building Event Creator")
     logger.debug("argument groups = {}; default is empty tuple".format(groups))           # check what is input as groups argument
     original_session = kwargs['original_session'] if 'original_session' in kwargs else session
@@ -472,6 +491,7 @@ def build_events_pipeline(subject, montage, experiment, session, do_math=False, 
 def build_convert_events_pipeline(subject, montage, experiment, session, do_math=True, protocol='r1', code=None,
                                   original_session=None, new_experiment=None, **kwargs):
 
+    print(">>> TRACE event_creation: pipelines.module.build_convert_events_pipeline (def L472)")  # TRACE_AUTO_INSERTED
     logger.set_label("Building Event Converter")
 
     if experiment[:-1] == 'catFR':
@@ -534,6 +554,7 @@ def build_convert_events_pipeline(subject, montage, experiment, session, do_math
 
 def build_import_localization_pipeline(subject, protocol, localization, code, is_new, force_dykstra=False):
 
+    print(">>> TRACE event_creation: pipelines.module.build_import_localization_pipeline (def L535)")  # TRACE_AUTO_INSERTED
     logger.set_label("Building Localization Creator")
 
     transferer = generate_localization_transferer(subject, protocol, localization, code, is_new)
@@ -556,6 +577,7 @@ def build_import_localization_pipeline(subject, protocol, localization, code, is
 
 
 def build_import_montage_pipeline(subject, montage, protocol, code, **kwargs):
+    print(">>> TRACE event_creation: pipelines.module.build_import_montage_pipeline (def L558)")  # TRACE_AUTO_INSERTED
     transferer = generate_import_montage_transferer(subject, montage, protocol, code)
 
     tasks = [ImportJsonMontageTask(subject, montage)]
@@ -564,6 +586,7 @@ def build_import_montage_pipeline(subject, montage, protocol, code, **kwargs):
 
 def build_create_montage_pipeline(subject, montage, protocol, code, reference_scheme='monopolar'):
 
+    print(">>> TRACE event_creation: pipelines.module.build_create_montage_pipeline (def L565)")  # TRACE_AUTO_INSERTED
     localization = int(montage.split('.')[0])
     transferer = generate_create_montage_transferer(subject, montage, protocol, code)
     task = CreateMontageTask(subject, localization, montage, reference_scheme=reference_scheme)
@@ -572,11 +595,13 @@ def build_create_montage_pipeline(subject, montage, protocol, code, reference_sc
 
 if __name__ == '__main__':
     def test_split_sys3():
+        print(">>> TRACE event_creation: pipelines.module.test_split_sys3 (def L574)")  # TRACE_AUTO_INSERTED
         pipeline = build_split_pipeline('R9999X', 0.0, 'FR1', 1, groups=('r1', 'transfer', 'system_3'), localization=0,
                                         montage_num=0)
         pipeline.run()
 
     def test_create_sys3_events():
+        print(">>> TRACE event_creation: pipelines.module.test_create_sys3_events (def L579)")  # TRACE_AUTO_INSERTED
         pipeline = build_events_pipeline('R9999X', '0.0', 'FR1', 1, True, 'r1',
                                          new_experiment='FR1',
                                          localization=0, montage_num=0,
