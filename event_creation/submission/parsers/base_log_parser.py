@@ -523,9 +523,9 @@ class BaseSys3_1LogParser(BaseSessionLogParser):
         try:
             return super(BaseSys3_1LogParser, self).parse()
         except Exception as exc:
-            logger.warn('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), str(exc)))
+            logger.error('Encountered error in parsing session.sqlite: \n %s: %s' % (str(type(exc)), str(exc)))
             if self._files.get('session_log_txt'):
-                logger.warn('Parsing session.log instead')
+                logger.error('Parsing session.log instead')
 
                 self._contents = self._read_session_log(self._files['session_log_txt'])
                 return super(BaseSys3_1LogParser, self).parse()
@@ -864,7 +864,7 @@ class StimComparator(object):
                 _ = self.get_subfield(self.events2[0], field_name2)
                 self.fields_to_compare[field_name1] = field_name2
             except ValueError:
-                logger.warn('Could not access fields {}/{} for comparison'.format(field_name1, field_name2))
+                logger.error('Could not access fields {}/{} for comparison'.format(field_name1, field_name2))
 
         self.exceptions = exceptions
 

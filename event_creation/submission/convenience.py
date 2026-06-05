@@ -63,7 +63,7 @@ def determine_montage_from_code(code, protocol='r1', allow_new=False, allow_skip
                 ref_montage, code))
         elif round((new_montage_num % 1) * 10) < montage_code:
             if allow_skip:
-                logger.warn('Skipping montages for {} from {} to {}'.format(code, new_montage_num, montage_code))
+                logger.error('Skipping montages for {} from {} to {}'.format(code, new_montage_num, montage_code))
                 return '%d.%d' % (int(new_montage_num), montage_code)
             else:
                 raise Exception('Montage creation error: montages {} to {} do not exist'.format((new_montage_num % 1)*10,
@@ -276,7 +276,7 @@ def attempt_importers(importers, force):
             logger.info("{} succeded".format(importer.label))
             success = True
             break
-        logger.warn("{} failed".format(importer.label))
+        logger.error("{} failed".format(importer.label))
     if not success:
         descriptions = [importer.describe_errors() for importer in importers]
         logger.critical("All importers failed. Errors: \n{}".format(', '.join(descriptions)))

@@ -69,7 +69,7 @@ class FreiburgAligner:
         if n_out_of_range == self.events.size:
             raise AlignmentError('Could not align any events.')
         elif n_out_of_range:
-            logger.warn('{} events out of range of eeg'.format(n_out_of_range))
+            logger.error('{} events out of range of eeg'.format(n_out_of_range))
         
         # For files that are out of range, mark them as having no eegfile
         self.events[self.EEG_FILE_FIELD][out_of_range] = ''

@@ -33,7 +33,7 @@ class ArtifactDetector:
         :return: The events structure updated with artifact and blink information.
         """
         if self.events.shape == () or len(self.eeg) == 0 or np.sum(self.events.type == 'WORD') == 0:
-            logger.warn('Skipping artifact detection due to there being no word presentation events or no EEG data!')
+            logger.error('Skipping artifact detection due to there being no word presentation events or no EEG data!')
         else:
             for self.eegfile in self.eeg:
 
@@ -47,7 +47,7 @@ class ArtifactDetector:
                     self.left_eog = ['E25', 'E127']
                     self.right_eog = ['E8', 'E126']
                 else:
-                    logger.warn('Unidentifiable EEG system detected in file %s' % self.eegfile)
+                    logger.error('Unidentifiable EEG system detected in file %s' % self.eegfile)
                     continue
 
                 # Pick only the EOG channels - need to be labeled as EEG

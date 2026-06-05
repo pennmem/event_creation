@@ -272,7 +272,7 @@ class CreateMontageTask(PipelineTask):
                     try:
                         atlas_dict[pairs_name]['region'] = self.localization.get_pair_label(loc_name,pair[['label1','label2']].values)
                     except InvalidContactException as e:
-                        logger.warn('Could not find %s for pair %s-%s'%(pairs_name,pair['label1'],pair['label2']))
+                        logger.error('Could not find %s for pair %s-%s'%(pairs_name,pair['label1'],pair['label2']))
                         atlas_dict[pairs_name]['region'] = None
 
                 contact_dict = {

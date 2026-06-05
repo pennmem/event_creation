@@ -261,7 +261,7 @@ class TransferPipeline(object):
         logger.info('Transfer pipeline to {} started'.format(self.destination_root))
         missing_files = self.transferer.missing_files()
         if missing_files:
-            logger.warn("Missing files {}. "
+            logger.error("Missing files {}. "
                         "Deleting processed folder {}".format([f.name for f in missing_files], self.destination))
             shutil.rmtree(self.destination)
             raise TransferError('Missing file {}: expected in {}'.format(missing_files[0].name,

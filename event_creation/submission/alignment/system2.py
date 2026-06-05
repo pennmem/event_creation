@@ -274,7 +274,7 @@ class System2TaskAligner(object):
         still_nans = np.where(np.isnan(time_dest))[0]
         if len(still_nans) > 0:
             if (np.array(still_nans) <= okay_no_align_up_to).all():
-                logger.warn('Warning: Could not align events %s' % still_nans)
+                logger.error('Warning: Could not align events %s' % still_nans)
                 time_dest[np.isnan(time_dest)] = -1
             else:
                 logger.error("Events {} could not be aligned! Session starts at event {}".format(still_nans, okay_no_align_up_to))
@@ -371,7 +371,7 @@ class System2TaskAligner(object):
         :return: Array of samples
         """
         if nsx_file == 'N/A':
-            logger.warn("Guessing at sample rate of 1000")
+            logger.error("Guessing at sample rate of 1000")
             sample_rate = 1000
         else:
             ext = os.path.splitext(nsx_file)[1]

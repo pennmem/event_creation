@@ -79,7 +79,7 @@ class LTPAligner:
         """
         # Skip alignment if there are no events or no sync pulse logs
         if self.events.shape == () or len(self.eeg_files) == 0:
-            logger.warn('Skipping alignment due to there being no events or no EEG parameter info.')
+            logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events
 
         logger.debug('Aligning...')
@@ -87,11 +87,11 @@ class LTPAligner:
         if len(self.behav_files) > 0:
             self.get_behav_sync()
         else:
-            logger.warn('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
+            logger.error('No eeg pulse log could be found. Unable to align behavioral and EEG data.')
             return self.events
 
         if not isinstance(self.behav_ms, np.ndarray) or len(self.behav_ms) < 2:
-            logger.warn('No sync pulses were found in the sync pulse log. Unable to align behavioral and EEG data.')
+            logger.error('No sync pulses were found in the sync pulse log. Unable to align behavioral and EEG data.')
             return self.events
 
         # Align each EEG file
@@ -123,7 +123,7 @@ class LTPAligner:
             # Skip alignment for any EEG files with no sync pulses
             logger.debug('%d sync pulses were detected.' % len(self.pulses))
             if len(self.pulses) == 0:
-                logger.warn('No sync pulses were detected in %s. Unable to align behavioral and EEG data.' % basename)
+                logger.error('No sync pulses were detected in %s. Unable to align behavioral and EEG data.' % basename)
                 continue
 
             # Convert the sample numbers of all sync pulses to the number of ms since start of recording
@@ -152,10 +152,10 @@ class LTPAligner:
                 logger.debug('Done.')
 
                 if oob > 0:
-                    logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+                    logger.error(str(oob) + ' events are out of bounds of the EEG files.')
 
             except ValueError as e:
-                logger.warn('Unable to align events with EEG data!  ' + str(e))
+                logger.error('Unable to align events with EEG data!  ' + str(e))
 
         return self.events
 
@@ -174,7 +174,7 @@ class LTPAligner:
             elif f.endswith('.jsonl'):
                 self.behav_ms = self.extract_pulses_unity(f)
             else:
-                logger.warn('File type of sync pulse log %s not recognized! Skipping...' % f)
+                logger.error('File type of sync pulse log %s not recognized! Skipping...' % f)
         logger.debug('Done.')
 
     @staticmethod

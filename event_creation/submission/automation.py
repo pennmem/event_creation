@@ -138,7 +138,7 @@ class Importer(object):
             self.transferer = self.pipeline.transferer
             self.initialized = True
         except Exception as e:
-            logger.warn("Encountered exception \"{}\" while initializing: {}".format(e, traceback.format_exc()))
+            logger.error("Encountered exception \"{}\" while initializing: {}".format(e, traceback.format_exc()))
             self.set_error('init', e)
             self.pipeline = None
             self.transferer = None

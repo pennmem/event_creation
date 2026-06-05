@@ -214,7 +214,7 @@ class System3Aligner(object):
         still_nans = np.where(np.isnan(dest))[0]
         if len(still_nans) > 0:
             if (np.array(still_nans) <= align_start_index).all():
-                logger.warn('Warning: Could not align events %s' % still_nans)
+                logger.error('Warning: Could not align events %s' % still_nans)
                 dest[np.isnan(dest)] = -1
             else:
                 logger.error("Events {} could not be aligned! Session starts at event {}".format(still_nans, align_start_index))

@@ -181,7 +181,7 @@ class TransferFile(object):
     @property
     def origin_paths(self):
         if not self._located:
-            logger.warn("Attempt to access origin paths of {} before locating".format(self.name))
+            logger.error("Attempt to access origin paths of {} before locating".format(self.name))
             return []
         return self._origin_paths
 

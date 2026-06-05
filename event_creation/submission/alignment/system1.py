@@ -45,7 +45,7 @@ class System1Aligner:
         try:
             self.unity_log_file = files['session_log']
         except:
-            logger.warn("Missing unity log")
+            logger.error("Missing unity log")
 
 
         self.eeg_pulse_file = files['sync_pulses']
@@ -80,7 +80,7 @@ class System1Aligner:
         if n_out_of_range == self.events.size:
             raise AlignmentError('Could not align any events.')
         elif n_out_of_range:
-            logger.warn('{} events out of range of eeg'.format(n_out_of_range))
+            logger.error('{} events out of range of eeg'.format(n_out_of_range))
 
         # For files that are out of range, mark them as having no eegfile
         self.events[self.EEG_FILE_FIELD][out_of_range] = ''

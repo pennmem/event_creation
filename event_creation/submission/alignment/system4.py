@@ -37,7 +37,7 @@ class System4Offset:
     def align(self):
         # Skip alignment if there are no events or no sync pulse logs
         if self.events.shape == ():
-            logger.warn('Skipping alignment due to there being no events')
+            logger.error('Skipping alignment due to there being no events')
             return self.events
 
         logger.debug('Aligning...')
@@ -69,10 +69,10 @@ class System4Offset:
             logger.debug('Done.')
 
             if oob > 0:
-                logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+                logger.error(str(oob) + ' events are out of bounds of the EEG files.')
 
         except ValueError:
-            logger.warn('Unable to align events with EEG data!')
+            logger.error('Unable to align events with EEG data!')
 
         return self.events
 
@@ -144,7 +144,7 @@ class System4Aligner:
         """
         # Skip alignment if there are no events or no sync pulse logs
         if self.events.shape == () or len(self.eeg_files) == 0:
-            logger.warn('Skipping alignment due to there being no events or no EEG parameter info.')
+            logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events
 
         logger.debug('Aligning...')
@@ -153,11 +153,11 @@ class System4Aligner:
         if self.is_unity:
             self.behav_ms = self.extract_heartbeats_unity(self.behav_log)
         else:
-            logger.warn('No session.jsonl logfile could be found. Unable to align behavioral and EEG data.')
+            logger.error('No session.jsonl logfile could be found. Unable to align behavioral and EEG data.')
             return self.events
 
         if not isinstance(self.behav_ms, np.ndarray) or len(self.behav_ms) < 2:
-            logger.warn('No heartbeats were found in the session log. Unable to align behavioral and EEG data.')
+            logger.error('No heartbeats were found in the session log. Unable to align behavioral and EEG data.')
             return self.events
 
         # Align each EEG file
@@ -173,7 +173,7 @@ class System4Aligner:
 
             self.ephys_ms = self.extract_heartbeats_eventlog(self.eeg_log)
             if not isinstance(self.ephys_ms, np.ndarray) or len(self.ephys_ms) < 2:
-                logger.warn('No heartbeats were found in the event.log file. Unable to align behavioral and EEG data.')
+                logger.error('No heartbeats were found in the event.log file. Unable to align behavioral and EEG data.')
                 return self.events
 
             # Calculate the eeg offset for each event
@@ -199,10 +199,10 @@ class System4Aligner:
                 logger.debug('Done.')
 
                 if oob > 0:
-                    logger.warn(str(oob) + ' events are out of bounds of the EEG files.')
+                    logger.error(str(oob) + ' events are out of bounds of the EEG files.')
 
             except ValueError:
-                logger.warn('Unable to align events with EEG data!')
+                logger.error('Unable to align events with EEG data!')
 
         return self.events
 

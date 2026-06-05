@@ -81,7 +81,7 @@ class System3LogParser(object):
         if stim_events.shape:
             logger.info("Found {} stim events".format(stim_events.shape))
         else:
-            logger.warn("Found no stim events")
+            logger.error("Found no stim events")
 
     @property
     def stim_events(self):

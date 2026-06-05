@@ -545,7 +545,7 @@ class NK_reader(EEG_reader):
             data = np.fromfile(f, 'int16', int((num_channels + 1) * num_samples))
             if len(data) / (num_channels + 1) != num_samples:
                 num_samples = len(data) / (num_channels + 1)
-                logger.warn(
+                logger.error(
                     'Number of samples specified in file is wrong. Specified: {}, actual: {}'.format(self.num_samples,
                                                                                                      num_samples))
                 self.num_samples = num_samples
@@ -1047,7 +1047,7 @@ class ScalpReader(EEG_reader):
         """
         # Make sure we don't try to run this code on a non-BDF file
         if self.filetype != '.bdf':
-            logger.warn('Cannot run BDF header repair on EGI files! Skipping...')
+            logger.error('Cannot run BDF header repair on EGI files! Skipping...')
             return
 
         # Read header info to determine whether the number of records in the recording is missing.
@@ -1131,7 +1131,7 @@ class ScalpReader(EEG_reader):
             # logger.warn(f'Unable to parse EEG data file!: {e}')
                     # except Exception as e:
             tb = traceback.format_exc()
-            logger.warn(
+            logger.error(
                 f'Unable to parse EEG data file {self.raw_filename}! {e}\n{tb}'
             )
             return False
