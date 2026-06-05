@@ -28,7 +28,6 @@ class System3Aligner(object):
 
     def __init__(self, events, files, plot_save_dir=None):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.__init__ (def L29)")  # TRACE_AUTO_INSERTED
         self.files = files
 
         self.events_logs = files['event_log']
@@ -72,7 +71,6 @@ class System3Aligner(object):
 
     def stim_event_to_mstime(self, event):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.stim_event_to_mstime (def L72)")  # TRACE_AUTO_INSERTED
         if event['host_time'].shape:
             host_time = event['host_time'][0]
         else:
@@ -95,7 +93,6 @@ class System3Aligner(object):
     def add_stim_events(self, event_template, persistent_fields=lambda *_: tuple()):
         # Merge in the stim events
 
-        print(">>> TRACE event_creation: system3.System3Aligner.add_stim_events (def L93)")  # TRACE_AUTO_INSERTED
         logger.debug("Generating system 3 log parser")
         s3lp = System3LogParser(self.events_logs, self.electrode_config)
         logger.debug("Merging events")
@@ -109,7 +106,6 @@ class System3Aligner(object):
 
     def get_coefficients_from_event_log(self, from_label, to_label, rate,exclude=(None,)):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.get_coefficients_from_event_log (def L107)")  # TRACE_AUTO_INSERTED
         ends = []
         coefs = []
 
@@ -153,7 +149,6 @@ class System3Aligner(object):
 
     def align(self, start_type=None):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.align (def L150)")  # TRACE_AUTO_INSERTED
         new_events = deepcopy(self.merged_events)
         unaligned_events = new_events[new_events['eegoffset'] == -1]
 
@@ -184,7 +179,6 @@ class System3Aligner(object):
 
     def apply_eeg_file(self, events):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.apply_eeg_file (def L180)")  # TRACE_AUTO_INSERTED
         eeg_info = sorted(list(self.eeg_info.items()), key= lambda info:info[1]['start_time_ms'])
 
         
@@ -204,7 +198,6 @@ class System3Aligner(object):
     @classmethod
     def align_source_to_dest(cls, source, coefs, ends, align_start_index=0,backwards=False):
 
-        print(">>> TRACE event_creation: system3.System3Aligner.align_source_to_dest (def L199)")  # TRACE_AUTO_INSERTED
         dest = np.full(len(source), np.nan)
         dest[source == -1] = -1
 
@@ -238,7 +231,6 @@ class System3Aligner(object):
         :param coefficients: coefficients to be applied to destination times
         :return: "source" times
         """
-        print(">>> TRACE event_creation: system3.System3Aligner.apply_coefficients_backwards (def L227)")  # TRACE_AUTO_INSERTED
         return (dest - coefficients[1]) / coefficients[0]
 
     @staticmethod
@@ -249,12 +241,10 @@ class System3Aligner(object):
         :param coefficients: (slope, intercept)
         :return: converted times
         """
-        print(">>> TRACE event_creation: system3.System3Aligner.apply_coefficients (def L237)")  # TRACE_AUTO_INSERTED
         return coefficients[0] * np.array(source) + coefficients[1]
 
     @classmethod
     def check_fit(cls, x, y, coefficients):
-        print(">>> TRACE event_creation: system3.System3Aligner.check_fit (def L247)")  # TRACE_AUTO_INSERTED
         fit = coefficients[0] * np.array(x) + coefficients[1]
         residuals = np.array(y) - fit
         if abs(1 - coefficients[0]) > .05:
@@ -274,7 +264,6 @@ class System3Aligner(object):
         :param plot_save_label: What to name the saved plot
         :return: None
         """
-        print(">>> TRACE event_creation: system3.System3Aligner.plot_fit (def L257)")  # TRACE_AUTO_INSERTED
         fit = coefficients[0] * np.array(x) + coefficients[1]
         plt.figure(figsize=(20,10))
         plt.subplot(121)
@@ -307,13 +296,11 @@ class System3FourAligner(System3Aligner):
     """
 
     def __init__(self, events, files, plot_save_dir=None):
-        print(">>> TRACE event_creation: system3.System3FourAligner.__init__ (def L298)")  # TRACE_AUTO_INSERTED
         super(System3FourAligner, self).__init__(events,files, plot_save_dir)
         self.task_to_ens_coefs = self.host_to_ens_coefs
         self.task_ends = self.host_ends
         
     def apply_eeg_file(self, events):
-        print(">>> TRACE event_creation: system3.System3FourAligner.apply_eeg_file (def L303)")  # TRACE_AUTO_INSERTED
         eeg_info = list(self.eeg_info.items())
         if len(eeg_info) == 1:
             mask = events['eegoffset'] >= 0

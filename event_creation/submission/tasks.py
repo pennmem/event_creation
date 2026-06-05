@@ -25,7 +25,6 @@ class PipelineTask(object):
 
     """
     def __init__(self, critical=True):
-        print(">>> TRACE event_creation: tasks.PipelineTask.__init__ (def L27)")  # TRACE_AUTO_INSERTED
         self.critical = critical
         self.name = str(self)
         self.pipeline = None
@@ -33,18 +32,15 @@ class PipelineTask(object):
         self.error = None
 
     def set_pipeline(self, pipeline):
-        print(">>> TRACE event_creation: tasks.PipelineTask.set_pipeline (def L34)")  # TRACE_AUTO_INSERTED
         self.pipeline = pipeline
 
     def create_file(self, filename, contents, label, index_file=True):
-        print(">>> TRACE event_creation: tasks.PipelineTask.create_file (def L37)")  # TRACE_AUTO_INSERTED
         with fileutil.open_with_perms(os.path.join(self.destination, filename), 'w') as f:
             f.write(contents)
         if index_file:
             self.pipeline.register_output(filename, label)
 
     def run(self, files, db_folder):
-        print(">>> TRACE event_creation: tasks.PipelineTask.run (def L43)")  # TRACE_AUTO_INSERTED
         self.destination = db_folder
         try:
             self._run(files, db_folder)
@@ -56,7 +52,6 @@ class PipelineTask(object):
                 self.error = e
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: tasks.PipelineTask._run (def L54)")  # TRACE_AUTO_INSERTED
         raise NotImplementedError()
 
 
@@ -65,12 +60,10 @@ class ImportJsonMontageTask(PipelineTask):
 
     """
     def __init__(self, subject, montage, critical=True):
-        print(">>> TRACE event_creation: tasks.ImportJsonMontageTask.__init__ (def L62)")  # TRACE_AUTO_INSERTED
         super(ImportJsonMontageTask, self).__init__(critical)
         self.name = 'Importing {subj} montage {montage}'.format(subj=subject, montage=montage)
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: tasks.ImportJsonMontageTask._run (def L66)")  # TRACE_AUTO_INSERTED
         for file in ('contacts', 'pairs'):
             with open(files[file]) as f:
                 filename = '{}.json'.format(file)
@@ -88,7 +81,6 @@ class CleanDbTask(PipelineTask):
     @classmethod
     def run(cls, files=None, db_folder=None):
 
-        print(">>> TRACE event_creation: tasks.CleanDbTask.run (def L82)")  # TRACE_AUTO_INSERTED
         for root, dirs, files in os.walk(os.path.join(paths.db_root, 'protocols'), False):
             if len(dirs) == 0 and len(files) == 1 and 'log.txt' in files:
                 os.remove(os.path.join(root, 'log.txt'))
@@ -123,13 +115,11 @@ class CleanLeafTask(PipelineTask):
     PROCESSED_REGEX = '^\d{8}\.\d{6}_processed$'
 
     def __init__(self, critical=False):
-        print(">>> TRACE event_creation: tasks.CleanLeafTask.__init__ (def L117)")  # TRACE_AUTO_INSERTED
         super(CleanLeafTask, self).__init__(critical)
         self.name = 'Clean leaf of database'
 
     @classmethod
     def _run(cls, files, db_folder):
-        print(">>> TRACE event_creation: tasks.CleanLeafTask._run (def L122)")  # TRACE_AUTO_INSERTED
         abs_path = os.path.abspath(db_folder)
 
         if not os.path.exists(abs_path):
@@ -171,7 +161,6 @@ class IndexAggregatorTask(PipelineTask):
 
     @classmethod
     def build_index(cls, protocol):
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.build_index (def L163)")  # TRACE_AUTO_INSERTED
         index_files = cls.find_index_files(os.path.join(cls.PROTOCOLS_DIR, protocol))
         d = {}
         for index_file in tqdm.tqdm(index_files):
@@ -180,7 +169,6 @@ class IndexAggregatorTask(PipelineTask):
 
     @classmethod
     def find_index_files(cls, root_dir):
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.find_index_files (def L171)")  # TRACE_AUTO_INSERTED
         result = []
         for root, dirs, files in os.walk(root_dir):
             if cls.PROCESSED_DIRNAME in dirs and \
@@ -196,7 +184,6 @@ class IndexAggregatorTask(PipelineTask):
         :param d: dictionary to be appended to
         :return:
         """
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.build_single_file_index (def L180)")  # TRACE_AUTO_INSERTED
         index = json.load(open(index_path))
         info_list = cls.list_from_index_path(index_path)
 
@@ -223,7 +210,6 @@ class IndexAggregatorTask(PipelineTask):
         :param path:
         :return:
         """
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.list_from_index_path (def L207)")  # TRACE_AUTO_INSERTED
         processed_dir = os.path.dirname(index_path)
         type_dir = os.path.dirname(processed_dir)
 
@@ -241,7 +227,6 @@ class IndexAggregatorTask(PipelineTask):
 
         # Protocols can be input as a string for a single protocol, or an iterable of protocols. Otherwise, use the
         # default protocols defined in self.PROTOCOLS.
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.run (def L226)")  # TRACE_AUTO_INSERTED
         if isinstance(protocols, str):
             protocols = [protocols]
         elif not hasattr(protocols, '__iter__'):
@@ -257,7 +242,6 @@ class IndexAggregatorTask(PipelineTask):
                 logger.error('Unable to open file ' + os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)) + ' with write permissions.')
 
     def run_single_subject(self, subject, protocol):
-        print(">>> TRACE event_creation: tasks.IndexAggregatorTask.run_single_subject (def L244)")  # TRACE_AUTO_INSERTED
         try:
             index_file = open(os.path.join(self.PROTOCOLS_DIR, '{}.json'.format(protocol)), 'r')
             index = json.load(index_file)
@@ -279,7 +263,6 @@ def change_current(source_folder, *args):
     :param args:
     :return:
     """
-    print(">>> TRACE event_creation: tasks.module.change_current (def L259)")  # TRACE_AUTO_INSERTED
     destination_directory = os.path.join(paths.db_root, *args)
     destination_source = os.path.join(destination_directory, source_folder)
     destination_processed = os.path.join(destination_directory, '{}_processed'.format(source_folder))

@@ -825,6 +825,10 @@ def montage_exists(protocol, subject, montage):
 
 
 def main():
+    if os.environ.get('EC_TRACE'):
+        from event_creation import _tracer
+        _tracer.on()
+
     if config.log_debug:
         logger.set_stdout_level(0)
 

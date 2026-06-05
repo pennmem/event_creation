@@ -33,7 +33,6 @@ class System1Aligner:
         :param files:  The output of a Transferer -- a dictionary mapping file name to file location.
                        the files 'eeg_log', 'sync_pulses', and 'eeg_source' must be defined
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.__init__ (def L29)")  # TRACE_AUTO_INSERTED
 
         self.eeg_log_file = None
         self.unity_log_file = None
@@ -66,7 +65,6 @@ class System1Aligner:
         Performs the actual alignment, using task and eeg pulse times to set eegoffset in events structure
         :return: events that have been aligned
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.align (def L63)")  # TRACE_AUTO_INSERTED
         task_times, eeg_times = self.get_task_pulses(), self.get_eeg_pulses()
         # Get the coefficients mapping the task times to the eeg times
         slope, intercept = self.get_coefficient(task_times, eeg_times)
@@ -94,7 +92,6 @@ class System1Aligner:
         Gets the lines from eeg.eeglog that mark that a sync pulse has been sent
         :return: list of the mstimes at which the sync pulses were sent.
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_task_pulses (def L90)")  # TRACE_AUTO_INSERTED
         if self.eeg_log_file:
             # JR: following line for some reason had an undefined self.task_pulse_file 
             split_lines = [line.split() for line in open(self.eeg_log_file).readlines()]
@@ -116,7 +113,6 @@ class System1Aligner:
         Removes pulses that occur too close together (less than 100 samples)
         :return:
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_eeg_pulses (def L110)")  # TRACE_AUTO_INSERTED
         times = np.array([float(line) for line in open(self.eeg_pulse_file).readlines()])
         dp = np.diff(times)
         times = times[:-1][dp > 100]
@@ -130,7 +126,6 @@ class System1Aligner:
         :param eeg_pulse_ms:  the times at which sync pulses werew received in samples
         :return: slope, intercept
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_coefficient (def L122)")  # TRACE_AUTO_INSERTED
         task_pulse_ms = np.array(task_pulse_ms)
         eeg_pulse_ms = np.array(eeg_pulse_ms)
         matching_task_times, matching_eeg_times, max_residual= \
@@ -152,7 +147,6 @@ class System1Aligner:
         :param eeg_pulse_ms:  Samples at which pulses were received on eeg system
         :return: matching task pulses, matching eeg pulses, max residual from fit
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_matching_pulses (def L142)")  # TRACE_AUTO_INSERTED
 
         # Going to find differences between pulse times that match between task and eeg
         task_diff = np.diff(task_pulse_ms)
@@ -204,7 +198,6 @@ class System1Aligner:
         :param y:
         :return: slope, intercept
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_fit (def L194)")  # TRACE_AUTO_INSERTED
         return scipy.stats.linregress(x, y)
 
     @classmethod
@@ -218,7 +211,6 @@ class System1Aligner:
         :param alignment_window: How much of a window to attempt to align
         :return: (task start index, task end index), (eeg start index, eeg end index)
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.find_matching_window (def L204)")  # TRACE_AUTO_INSERTED
         if alignment_window is None:
             alignment_window = cls.STARTING_ALIGNMENT_WINDOW
 
@@ -262,7 +254,6 @@ class System1Aligner:
         :param delta: threshold under which is considered a match for differences in times
         :return:  the offset of eeg_diff at which it begins matching with task_diff
         """
-        print(">>> TRACE event_creation: system1.System1Aligner.get_best_offset (def L249)")  # TRACE_AUTO_INSERTED
 
         # Find any differences that match
         ind = np.where(abs(task_diff - eeg_diff[0]) < delta)

@@ -64,7 +64,6 @@ class SplitEEGTask(PipelineTask):
     SPLIT_FILENAME = '{subject}_{experiment}_{session}_{time}'
 
     def __init__(self, subject, montage, experiment, session, protocol, critical=True, **kwargs):
-        print(">>> TRACE event_creation: events_tasks.SplitEEGTask.__init__ (def L66)")  # TRACE_AUTO_INSERTED
         super(SplitEEGTask, self).__init__(critical)
         self.name = 'Splitting {exp}_{sess}'.format(exp=experiment, sess=session)
         self.subject = subject
@@ -75,7 +74,6 @@ class SplitEEGTask(PipelineTask):
 
     @staticmethod
     def group_ns2_files(raw_eegs):
-        print(">>> TRACE event_creation: events_tasks.SplitEEGTask.group_ns2_files (def L76)")  # TRACE_AUTO_INSERTED
         raw_eeg_groups = []
         for raw_eeg in raw_eegs:
             for group in raw_eeg_groups:
@@ -88,7 +86,6 @@ class SplitEEGTask(PipelineTask):
         return raw_eeg_groups
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.SplitEEGTask._run (def L88)")  # TRACE_AUTO_INSERTED
         logger.set_label(self.name)
         raw_eegs = files['raw_eeg']
         if not isinstance(raw_eegs, list):
@@ -186,7 +183,6 @@ class SplitEEGTask(PipelineTask):
 class MatlabEEGConversionTask(PipelineTask):
 
     def __init__(self, subject, experiment, original_session, critical=True, **kwargs):
-        print(">>> TRACE event_creation: events_tasks.MatlabEEGConversionTask.__init__ (def L185)")  # TRACE_AUTO_INSERTED
         super(MatlabEEGConversionTask, self).__init__(critical)
         self.name = 'matlab EEG extraction {exp}_{sess}'.format(exp=experiment,
                                                                 sess=original_session)
@@ -194,7 +190,6 @@ class MatlabEEGConversionTask(PipelineTask):
         self.kwargs = kwargs
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.MatlabEEGConversionTask._run (def L192)")  # TRACE_AUTO_INSERTED
         logger.set_label(self.name)
         extractor = MatlabEEGExtractor(self.original_session, files)
         extractor.copy_ephys(db_folder)
@@ -204,7 +199,6 @@ class EventCreationTask(PipelineTask):
 
     @classmethod
     def R1_PARSERS(cls, sys_num):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask.R1_PARSERS (def L201)")  # TRACE_AUTO_INSERTED
         if sys_num <= 3.0:
             return {
 
@@ -314,14 +308,12 @@ class EventCreationTask(PipelineTask):
 
     @property
     def r1_sys_num(self):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask.r1_sys_num (def L310)")  # TRACE_AUTO_INSERTED
         if not self._r1_sys_num:
             return 0.0
         return float(self._r1_sys_num.replace('_', '.'))
 
     @property
     def parser_type(self):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask.parser_type (def L316)")  # TRACE_AUTO_INSERTED
         if self._parser_type is None:
             if self.protocol == 'r1':
                 if self.event_label == 'math':
@@ -339,7 +331,6 @@ class EventCreationTask(PipelineTask):
 
     def __init__(self, protocol, subject, montage, experiment, session, r1_sys_num='', event_label='task',
                  parser_type=None, critical=True, **kwargs):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask.__init__ (def L332)")  # TRACE_AUTO_INSERTED
         super(EventCreationTask, self).__init__(critical)
         experiment = kwargs.get('new_experiment') or experiment
         self.name = '{label} Event Creation for {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
@@ -356,11 +347,9 @@ class EventCreationTask(PipelineTask):
         self._parser_type = parser_type
 
     def set_pipeline(self, pipeline):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask.set_pipeline (def L349)")  # TRACE_AUTO_INSERTED
         self.pipeline = pipeline
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.EventCreationTask._run (def L352)")  # TRACE_AUTO_INSERTED
         logger.set_label(self.name)
         logger.debug('self._parser_type is %s' % (None if not self._parser_type else str(self._parser_type)))
         if 3 <= self.r1_sys_num < 4:
@@ -438,12 +427,10 @@ class EventCreationTask(PipelineTask):
 
 class PruneEventsTask(PipelineTask):
     def __init__(self, cond):
-        print(">>> TRACE event_creation: events_tasks.PruneEventsTask.__init__ (def L429)")  # TRACE_AUTO_INSERTED
         super(PruneEventsTask, self).__init__()
         self.filter = cond
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.PruneEventsTask._run (def L433)")  # TRACE_AUTO_INSERTED
         event_files = glob.glob(os.path.join(db_folder, '*_events.json'))
         for fid in event_files:
             events = from_json(fid)
@@ -457,7 +444,6 @@ class PruneEventsTask(PipelineTask):
 
 class RecognitionFlagTask(PipelineTask):
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.RecognitionFlagTask._run (def L446)")  # TRACE_AUTO_INSERTED
         event_file = os.path.join(db_folder, 'task_events.json')
         events = from_json(event_file)
         self.pipeline.register_info('Recognition', any(['RECOG' in tipe for tipe in np.unique(events.type)]))
@@ -466,14 +452,12 @@ class RecognitionFlagTask(PipelineTask):
 class ReportLaunchTask(PipelineTask):
 
     def __init__(self, subject, experiment, session):
-        print(">>> TRACE event_creation: events_tasks.ReportLaunchTask.__init__ (def L454)")  # TRACE_AUTO_INSERTED
         super(ReportLaunchTask, self).__init__(critical=False)
         self.subject = subject
         self.experiment = experiment
         self.session = session
 
     def request(self):
-        print(">>> TRACE event_creation: events_tasks.ReportLaunchTask.request (def L460)")  # TRACE_AUTO_INSERTED
         from .configuration import paths
         api_url = paths.report_url
         parameters = {
@@ -502,7 +486,6 @@ class ReportLaunchTask(PipelineTask):
                 logger.error('Request failed with message %s' % str(error))
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.ReportLaunchTask._run (def L488)")  # TRACE_AUTO_INSERTED
         self.request()
 
 
@@ -511,7 +494,6 @@ class EventCombinationTask(PipelineTask):
     COMBINED_LABEL = 'all'
 
     def __init__(self, event_labels, sort_field=None, critical=True):
-        print(">>> TRACE event_creation: events_tasks.EventCombinationTask.__init__ (def L496)")  # TRACE_AUTO_INSERTED
         logger.info(event_labels)
         super(EventCombinationTask, self).__init__(critical)
         self.name = 'Event combination: {}'.format(event_labels)
@@ -519,7 +501,6 @@ class EventCombinationTask(PipelineTask):
         self.sort_field = sort_field
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.EventCombinationTask._run (def L503)")  # TRACE_AUTO_INSERTED
         if self.sort_field is None:
             sort_field = get_time_field(files)
         else:
@@ -551,7 +532,6 @@ class MontageLinkerTask(PipelineTask):
              'contacts': 'contacts.json'}
 
     def __init__(self, protocol, subject, montage, critical=True):
-        print(">>> TRACE event_creation: events_tasks.MontageLinkerTask.__init__ (def L534)")  # TRACE_AUTO_INSERTED
         super(MontageLinkerTask, self).__init__(critical)
         self.name = 'Montage linker'
         self.protocol = protocol
@@ -561,7 +541,6 @@ class MontageLinkerTask(PipelineTask):
         self.montage_num = montage.split('.')[1]
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.MontageLinkerTask._run (def L543)")  # TRACE_AUTO_INSERTED
         montage_path = self.MONTAGE_PATH.format(protocol=self.protocol,
                                                 subject=self.subject,
                                                 localization=self.localization,
@@ -589,7 +568,6 @@ class MatlabEventConversionTask(PipelineTask):
 
     def __init__(self, protocol, subject, montage, experiment, session,
                  event_label='task', converter_type=None, original_session=None, critical=True, **kwargs):
-        print(">>> TRACE event_creation: events_tasks.MatlabEventConversionTask.__init__ (def L569)")  # TRACE_AUTO_INSERTED
         super(MatlabEventConversionTask, self).__init__(critical)
         self.name = '{label} Event Creation: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'[^A-Za-z]', '', experiment)]
@@ -605,7 +583,6 @@ class MatlabEventConversionTask(PipelineTask):
         self.pipeline = None
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.MatlabEventConversionTask._run (def L585)")  # TRACE_AUTO_INSERTED
         logger.set_label(self.name)
         converter = self.converter_type(self.protocol, self.subject, self.montage, self.experiment, self.session,
                                         self.original_session, files)
@@ -633,7 +610,6 @@ class ImportEventsTask(PipelineTask):
 
     def __init__(self, protocol, subject, montage, experiment, session, is_sys2, event_label='task',
                  converter_type=None, parser_type=None, original_session=None, critical=True, **kwargs):
-        print(">>> TRACE event_creation: events_tasks.ImportEventsTask.__init__ (def L611)")  # TRACE_AUTO_INSERTED
         super(ImportEventsTask, self).__init__(critical)
         self.name = '{label} Event Import: {exp}_{sess}'.format(label=event_label, exp=experiment, sess=session)
         self.converter_type = converter_type or self.CONVERTERS[re.sub(r'[^A-Za-z]', '', experiment)]
@@ -651,7 +627,6 @@ class ImportEventsTask(PipelineTask):
         self.pipeline = None
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.ImportEventsTask._run (def L629)")  # TRACE_AUTO_INSERTED
         try:
             EventCreationTask.run(self, files, db_folder)
         except Exception as e:
@@ -662,7 +637,6 @@ class ImportEventsTask(PipelineTask):
 class CompareEventsTask(PipelineTask):
     def __init__(self, subject, montage, experiment, session, protocol='r1', code=None, original_session=None,
                  match_field=None, critical=True):
-        print(">>> TRACE event_creation: events_tasks.CompareEventsTask.__init__ (def L638)")  # TRACE_AUTO_INSERTED
         super(CompareEventsTask, self).__init__(critical)
         self.name = 'Comparator {}_{}'.format(experiment, session)
         self.subject = subject
@@ -675,7 +649,6 @@ class CompareEventsTask(PipelineTask):
         self.match_field = match_field if match_field else 'mstime'
 
     def get_matlab_event_file(self):
-        print(">>> TRACE event_creation: events_tasks.CompareEventsTask.get_matlab_event_file (def L651)")  # TRACE_AUTO_INSERTED
         if self.protocol == 'r1':
             ram_exp = 'RAM_{}'.format(self.experiment[0].upper() + self.experiment[1:])
             event_directory = os.path.join(paths.rhino_root, 'data', 'events', ram_exp,
@@ -689,7 +662,6 @@ class CompareEventsTask(PipelineTask):
         return os.path.join(event_directory)
 
     def _run(self, files, db_folder):
-        print(">>> TRACE event_creation: events_tasks.CompareEventsTask._run (def L664)")  # TRACE_AUTO_INSERTED
         logger.set_label(self.name)
 
         mat_file = self.get_matlab_event_file()

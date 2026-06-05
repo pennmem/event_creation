@@ -16,7 +16,6 @@ from .transfer_inputs import TRANSFER_INPUTS
 
 
 def yml_join(loader, node):
-    print(">>> TRACE event_creation: transferer.module.yml_join (def L18)")  # TRACE_AUTO_INSERTED
     return os.path.join(*[str(i) for i in loader.construct_sequence(node)])
 
 yaml.add_constructor('!join', yml_join)
@@ -32,7 +31,6 @@ class Transferer(object):
     JSON_FILES = {}
 
     def __init__(self, config_filename, groups, destination, **kwargs):
-        print(">>> TRACE event_creation: transferer.Transferer.__init__ (def L33)")  # TRACE_AUTO_INSERTED
         self.groups = groups
         self.destination_root = os.path.abspath(destination)
         self.destination_current = os.path.join(self.destination_root, self.CURRENT_NAME)
@@ -57,31 +55,26 @@ class Transferer(object):
 
     @property
     def label(self):
-        print(">>> TRACE event_creation: transferer.Transferer.label (def L57)")  # TRACE_AUTO_INSERTED
         if self.transfer_aborted:
             return self.previous_label
         else:
             return self._label
 
     def missing_files(self):
-        print(">>> TRACE event_creation: transferer.Transferer.missing_files (def L63)")  # TRACE_AUTO_INSERTED
         logger.debug("Searching for missing files")
         self.transfer_config.locate_origin_files()
         return self.transfer_config.missing_files()
 
     def set_transfer_type(self, transfer_type):
-        print(">>> TRACE event_creation: transferer.Transferer.set_transfer_type (def L68)")  # TRACE_AUTO_INSERTED
         self.transfer_type = transfer_type
 
     def transferred_index(self):
-        print(">>> TRACE event_creation: transferer.Transferer.transferred_index (def L71)")  # TRACE_AUTO_INSERTED
         index = {}
         for file in self.transferred_files:
             index.update(file.transferred_index())
         return index
 
     def get_current_target(self):
-        print(">>> TRACE event_creation: transferer.Transferer.get_current_target (def L77)")  # TRACE_AUTO_INSERTED
         current = os.path.join(self.destination_current)
         if not os.path.exists(current):
             return None
@@ -89,7 +82,6 @@ class Transferer(object):
             return os.path.basename(os.path.realpath(current))
 
     def load_previous_index(self):
-        print(">>> TRACE event_creation: transferer.Transferer.load_previous_index (def L84)")  # TRACE_AUTO_INSERTED
         old_index_filename = os.path.join(self.destination_current, self.INDEX_NAME)
         if not os.path.exists(old_index_filename):
             return {}
@@ -100,18 +92,15 @@ class Transferer(object):
             return old_index
 
     def write_transferred_index(self):
-        print(">>> TRACE event_creation: transferer.Transferer.write_transferred_index (def L94)")  # TRACE_AUTO_INSERTED
         index = self.transferred_index()
         with fileutil.open_with_perms(os.path.join(self.destination_current, self.INDEX_NAME), 'w') as index_file:
             json.dump(index, index_file, indent=2)
 
     def write_transfer_type(self):
-        print(">>> TRACE event_creation: transferer.Transferer.write_transfer_type (def L99)")  # TRACE_AUTO_INSERTED
         with fileutil.open_with_perms(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'w') as type_file:
             type_file.write(self.transfer_type)
 
     def previous_transfer_type(self):
-        print(">>> TRACE event_creation: transferer.Transferer.previous_transfer_type (def L103)")  # TRACE_AUTO_INSERTED
         try:
             with open(os.path.join(self.destination_current, self.TRANSFER_TYPE_NAME), 'r') as type_file:
                 return type_file.read()
@@ -120,7 +109,6 @@ class Transferer(object):
             return None
 
     def matches_existing_checksum(self):
-        print(">>> TRACE event_creation: transferer.Transferer.matches_existing_checksum (def L111)")  # TRACE_AUTO_INSERTED
         old_index = self.load_previous_index()
         self.transfer_config.locate_origin_files()
         for file in self.transfer_config.located_files():
@@ -136,7 +124,6 @@ class Transferer(object):
         return True
 
     def _transfer_files(self):
-        print(">>> TRACE event_creation: transferer.Transferer._transfer_files (def L126)")  # TRACE_AUTO_INSERTED
         if not os.path.exists(self.destination_root):
             fileutil.makedirs(self.destination_root)
 
@@ -164,7 +151,6 @@ class Transferer(object):
         return self.transferred_filenames
 
     def transfer_with_rollback(self):
-        print(">>> TRACE event_creation: transferer.Transferer.transfer_with_rollback (def L153)")  # TRACE_AUTO_INSERTED
         try:
             return self._transfer_files()
         except Exception as e:
@@ -175,7 +161,6 @@ class Transferer(object):
             raise
 
     def remove_transferred_files(self):
-        print(">>> TRACE event_creation: transferer.Transferer.remove_transferred_files (def L163)")  # TRACE_AUTO_INSERTED
         if os.path.islink(self.destination_current):
             logger.debug("Removing symlink: {}".format(self.destination_current))
             os.unlink(self.destination_current)
@@ -188,7 +173,6 @@ class Transferer(object):
 
     @classmethod
     def warn_and_delete(cls, path):
-        print(">>> TRACE event_creation: transferer.Transferer.warn_and_delete (def L175)")  # TRACE_AUTO_INSERTED
         try:
             for (subpath, subdirs, files) in os.walk(path, topdown=False):
                 for file in files:
@@ -209,7 +193,6 @@ class Transferer(object):
 
 def find_sync_file(subject, experiment, session):
 
-    print(">>> TRACE event_creation: transferer.module.find_sync_file (def L194)")  # TRACE_AUTO_INSERTED
     subject_dir = os.path.join(paths.data_root, subject)
     # Look in raw folder first
     raw_sess_dir = os.path.join(subject_dir, 'raw', '{exp}_{sess}'.format(exp=experiment, sess=session))
@@ -252,7 +235,6 @@ def find_sync_file(subject, experiment, session):
 
 def generate_wav_transferer(subject,experiment,session,protocol='r1',groups=('r1'),
                             original_session=None,new_experiment=None,**kwargs):
-    print(">>> TRACE event_creation: transferer.module.generate_wav_transferer (def L236)")  # TRACE_AUTO_INSERTED
     cfg_file = TRANSFER_INPUTS['wav']
     dest = os.path.join(paths.db_root,'protocols',protocol,'subjects',subject,'experiments',experiment,
                         'sessions',str(session),'behavioral')
@@ -266,7 +248,6 @@ def generate_wav_transferer(subject,experiment,session,protocol='r1',groups=('r1
 
 def generate_ephys_transferer(subject, experiment, session, protocol='r1', groups=tuple(),
                               code=None, original_session=None, new_experiment=None, **kwargs):
-    print(">>> TRACE event_creation: transferer.module.generate_ephys_transferer (def L249)")  # TRACE_AUTO_INSERTED
     cfg_file = TRANSFER_INPUTS['ephys']
     if new_experiment is None:
         new_experiment = experiment
@@ -288,7 +269,6 @@ def generate_ephys_transferer(subject, experiment, session, protocol='r1', group
 
 def generate_localization_transferer(subject, protocol, localization, code, is_new):
 
-    print(">>> TRACE event_creation: transferer.module.generate_localization_transferer (def L270)")  # TRACE_AUTO_INSERTED
     cfg_file = TRANSFER_INPUTS['localization']
 
     destination = os.path.join(paths.db_root,
@@ -312,7 +292,6 @@ def generate_localization_transferer(subject, protocol, localization, code, is_n
 
 def generate_import_montage_transferer(subject, montage, protocol, code=None, groups=tuple(), **kwargs):
 
-    print(">>> TRACE event_creation: transferer.module.generate_import_montage_transferer (def L293)")  # TRACE_AUTO_INSERTED
     groups = groups + ('r1', 'json_import',)
     cfg_file = TRANSFER_INPUTS['montage']
     code = code or subject
@@ -333,7 +312,6 @@ def generate_import_montage_transferer(subject, montage, protocol, code=None, gr
 
 
 def generate_create_montage_transferer(subject,montage,protocol,code=None,groups=tuple(),**kwargs):
-    print(">>> TRACE event_creation: transferer.module.generate_create_montage_transferer (def L314)")  # TRACE_AUTO_INSERTED
     groups += ('r1',)
     cfg_file = TRANSFER_INPUTS['montage']
     code = code or subject
@@ -357,7 +335,6 @@ def generate_create_montage_transferer(subject,montage,protocol,code=None,groups
 
 def generate_session_transferer(subject, experiment, session, protocol='r1', groups=tuple(), code=None,
                                 original_session=None, new_experiment=None, **kwargs):
-    print(">>> TRACE event_creation: transferer.module.generate_session_transferer (def L336)")  # TRACE_AUTO_INSERTED
     cfg_file = TRANSFER_INPUTS['behavioral']
 
     code = code or subject
@@ -395,7 +372,6 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 
 
 def test_load_groups():
-    print(">>> TRACE event_creation: transferer.module.test_load_groups (def L374)")  # TRACE_AUTO_INSERTED
     groups = ['r1', 'transfer', 'ltp', 'system_1', 'system_2', 'system_3']
 
     import itertools
@@ -417,7 +393,6 @@ def test_load_groups():
 
 
 def transfer_dict_match(a ,b):
-    print(">>> TRACE event_creation: transferer.module.transfer_dict_match (def L395)")  # TRACE_AUTO_INSERTED
     for k, v_a in list(a.items()):
         if k not in b:
             print('KEY MISSING: {}'.format(k))
@@ -435,7 +410,6 @@ def transfer_dict_match(a ,b):
 
 
 def xtest_transfer_files_sys2():
-    print(">>> TRACE event_creation: transferer.module.xtest_transfer_files_sys2 (def L412)")  # TRACE_AUTO_INSERTED
     transferer = Transferer('./behavioral_inputs.json', ('system_2', 'r1'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_data',
                             db_root=paths.db_root,
@@ -446,7 +420,6 @@ def xtest_transfer_files_sys2():
 
 
 def test_transfer_files_sys3():
-    print(">>> TRACE event_creation: transferer.module.test_transfer_files_sys3 (def L422)")  # TRACE_AUTO_INSERTED
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'PS'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_input',
                             db_root=paths.db_root,
@@ -469,7 +442,6 @@ def test_transfer_files_sys3():
         print('Checksum succeeded!')
 
 def xtest_transfer_files_sys3_2():
-    print(">>> TRACE event_creation: transferer.module.xtest_transfer_files_sys3_2 (def L444)")  # TRACE_AUTO_INSERTED
     transferer = Transferer('./transfer_inputs/behavioral_inputs.json', ('system_3', 'transfer', 'r1', 'FR'), '../tests/test_output/test_transfer',
                             data_root='../tests/test_input',
                             db_root=paths.db_root,

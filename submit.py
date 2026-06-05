@@ -6,6 +6,10 @@ import matplotlib
 matplotlib.use('agg')
 logger.set_stdout_level(0)
 
+if os.environ.get('EC_TRACE'):
+    from event_creation import _tracer
+    _tracer.on()
+
 def build_inputs(experiment, subject, session):
     inputs = dict(
         protocol='r1',

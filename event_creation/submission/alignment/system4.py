@@ -8,7 +8,6 @@ from ..log import logger
 
 class System4Offset:
     def __init__(self, events, files, eeg_dir):
-        print(">>> TRACE event_creation: system4.System4Offset.__init__ (def L10)")  # TRACE_AUTO_INSERTED
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
             raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
@@ -29,7 +28,6 @@ class System4Offset:
         :param logfile: The filepath for the event.log jsonl file
         :return: the mstime at which the eeg file began recording
         """
-        print(">>> TRACE event_creation: system4.System4Offset.extract_eegstart (def L24)")  # TRACE_AUTO_INSERTED
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the mstime of eeg start
@@ -38,7 +36,6 @@ class System4Offset:
     
     def align(self):
         # Skip alignment if there are no events or no sync pulse logs
-        print(">>> TRACE event_creation: system4.System4Offset.align (def L37)")  # TRACE_AUTO_INSERTED
         if self.events.shape == ():
             logger.error('Skipping alignment due to there being no events')
             return self.events
@@ -109,7 +106,6 @@ class System4Aligner:
         ev_ms: The mstimes of all task events.
         events: The events structure for the experimental session.
         """
-        print(">>> TRACE event_creation: system4.System4Aligner.__init__ (def L88)")  # TRACE_AUTO_INSERTED
         self.behav_log = files['session_log']
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
@@ -146,7 +142,6 @@ class System4Aligner:
 
         :return: The updated events structure, now filled with eegfile and eegoffset information.
         """
-        print(">>> TRACE event_creation: system4.System4Aligner.align (def L133)")  # TRACE_AUTO_INSERTED
         # Skip alignment if there are no events or no sync pulse logs
         if self.events.shape == () or len(self.eeg_files) == 0:
             logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
@@ -219,7 +214,6 @@ class System4Aligner:
         :param logfile: The filepath for the event.log jsonl file
         :return: 1-D numpy array containing the mstimes for all heartbeats
         """
-        print(">>> TRACE event_creation: system4.System4Aligner.extract_heartbeats_eventlog (def L210)")  # TRACE_AUTO_INSERTED
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the times when all heartbeats were sent
@@ -236,7 +230,6 @@ class System4Aligner:
         :param logfile: The filepath for the session log .jsonl file
         :return: 1-D numpy array containing the mstimes for all heartbeats
         """
-        print(">>> TRACE event_creation: system4.System4Aligner.extract_heartbeats_unity (def L226)")  # TRACE_AUTO_INSERTED
         strip_empty_lines(logfile) 
         # Read session log
         df = pd.read_json(logfile, lines=True)
@@ -262,7 +255,6 @@ class System4Aligner:
         :param logfile: The filepath for the event.log jsonl file
         :return: the mstime at which the eeg file began recording
         """
-        print(">>> TRACE event_creation: system4.System4Aligner.extract_eegstart (def L251)")  # TRACE_AUTO_INSERTED
         # Read session log
         df = pd.read_json(logfile, lines=True)
         # Get the mstime of eeg start
@@ -274,7 +266,6 @@ def strip_empty_lines(logfile):
     pandas read_json(line=True) fails if the file has empty lines. 
     This function checks for empty lines and removes them if they exist
     """
-    print(">>> TRACE event_creation: system4.module.strip_empty_lines (def L264)")  # TRACE_AUTO_INSERTED
     with open(logfile,'r') as file:
         lines = file.readlines()
     newlines = []
@@ -314,7 +305,6 @@ def times_to_offsets(behav_ms, ephys_ms, ev_ms, eeg_start_ms, samplerate, window
     :return s_ind: The index of the EEG sample that matches the beginning of the behavioral pulse syncs.
     :return e_ind: The index of the EEG sample that matches the end of the behavioral pulse syncs.
     """
-    print(">>> TRACE event_creation: system4.module.times_to_offsets (def L283)")  # TRACE_AUTO_INSERTED
     s_ind = None
     e_ind = None
 
@@ -359,7 +349,6 @@ def match_sequence(needle, haystack, maxdiff):
     """
     Look for a matching subsequence in a long sequence.
     """
-    print(">>> TRACE event_creation: system4.module.match_sequence (def L348)")  # TRACE_AUTO_INSERTED
     nlen = len(needle)
     found = False
     for i in range(len(haystack)-nlen):
