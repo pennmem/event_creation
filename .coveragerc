@@ -1,0 +1,28 @@
+[run]
+branch = False
+source =
+    event_creation/submission
+    heartbeat_correction
+omit =
+    # PyQt4 GUI — PyQt4 is not installed, module cannot be imported
+    event_creation/submission/readers/eeg_splitter.py
+    # Cluster/subprocess orchestration entrypoints (no unit-testable logic)
+    event_creation/submission/transfer_inputs/*
+    # Test code itself
+    event_creation/tests/*
+    */tests/*
+    */__pycache__/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    raise NotImplementedError
+    raise AssertionError
+    def __repr__
+    def __str__
+    if TYPE_CHECKING:
+    except ImportError
+    PyQt4
+show_missing = True
+skip_covered = False
