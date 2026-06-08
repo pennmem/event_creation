@@ -1,10 +1,52 @@
 import os
+import sys
 import mne
 import glob
 import numpy as np
 import pandas as pd
 import json
 from ..log import logger
+from ..exc import AlignmentError
+
+# Reuse the robust HEARTBEAT-correction fit logic and the non-heartbeat
+# message-matching helpers from the heartbeat_correction git submodule, which
+# lives at <repo root>/heartbeat_correction (3 dirs up from this file's
+# alignment/ directory). Added to sys.path so its flat modules are importable.
+_HB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'heartbeat_correction'))
+if _HB_DIR not in sys.path:
+    sys.path.insert(0, _HB_DIR)
+from fix_heartbeats_sys4 import prepare_merged_heartbeats, fit_correction, correct_event_times
+from check_nonheart import score_session
+
+# Per-experiment non-heartbeat alignment messages. One entry per experiment.
+# Each value is a LIST of (task_type, host_type) pairs; all listed types are
+# pooled into one correction fit so multiple message types can be used
+# together. Placeholders for now; the real types per experiment will be filled
+# in later, and this map will eventually be relocated for modularity.
+NONHB_EVENT_MAP = {
+    # FR family (free recall) — WORD is the primary (dense) anchor. Task laptop
+    # and Elemem host use the same string for every shared behavioral event, so
+    # all pairs are (X, X). Host-only control/stim events (START, CONFIGURE,
+    # CONNECTED, READY, EEGSTART, STIMMING, etc.) are excluded.
+    'IFR1':    [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'IFR6':    [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'ICatFR1': [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'ICatFR6': [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'catFR1':  [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('MATH', 'MATH')],
+    # RepFR family — recall state is named RECALL (not RETRIEVAL); inter-stim is
+    # ISI (not ORIENT).
+    'RepFR1':  [('WORD', 'WORD'), ('ISI', 'ISI'), ('RECALL', 'RECALL'), ('COUNTDOWN', 'COUNTDOWN'), ('TRIAL', 'TRIAL'), ('TRIALEND', 'TRIALEND'), ('SESSION', 'SESSION')],
+    'RepFR2':  [('WORD', 'WORD'), ('ISI', 'ISI'), ('RECALL', 'RECALL'), ('COUNTDOWN', 'COUNTDOWN'), ('TRIAL', 'TRIAL'), ('TRIALEND', 'TRIALEND'), ('SESSION', 'SESSION'), ('READY', 'READY')],
+    # EFRCourier (spatial delivery) — no WORD; OBJECT_PRESENTATION_BEGINS is the
+    # item-onset anchor.
+    'EFRCourierOpenLoop': [('OBJECT_PRESENTATION_BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('OBJECT_RECALL_RECORDING_START', 'OBJECT_RECALL_RECORDING_START'), ('CUED_RECALL_RECORDING_START', 'CUED_RECALL_RECORDING_START')],
+    'EFRCourierReadOnly': [('OBJECT_PRESENTATION_BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('OBJECT_RECALL_RECORDING_START', 'OBJECT_RECALL_RECORDING_START'), ('CUED_RECALL_RECORDING_START', 'CUED_RECALL_RECORDING_START')],
+    # CPS (closed-loop) — behavioral anchors present on both clocks.
+    'CPS':     [('ENCODING', 'ENCODING'), ('TRIAL', 'TRIAL'), ('WAITING', 'WAITING'), ('VOCALIZATION', 'VOCALIZATION')],
+    # OPS — stim-only parameter search; no task behavioral message stream, so no
+    # non-heartbeat anchors.
+    'OPS':     [],
+}
 
 class System4Offset:
     def __init__(self, events, files, eeg_dir):
@@ -260,6 +302,288 @@ class System4Aligner:
         # Get the mstime of eeg start
         eeg_start_ms = df[df.type == 'EEGSTART'].time.iloc[0]
         return eeg_start_ms
+
+class System4AlignerHB:
+    """
+    Aligns System 4 (Elemem) EEG data to behavioral task events using the
+    HEARTBEAT messages exchanged once per second between the task laptop and the
+    host PC (elemem). Unlike the legacy ``System4Aligner`` (sync-pulse pattern
+    matching), this reuses the robust correction pipeline from the
+    ``heartbeat_correction`` submodule: it fits ``time_host = slope*time_task +
+    offset`` with RANSAC (outlier rejection + network-latency adjustment + fit
+    validation). This is a *correction pass* over already-aligned events: it
+    rewrites both ``mstime`` (full slope+offset) and ``eegoffset`` (slope-only
+    drift) via the submodule's ``correct_event_times``, mirroring
+    ``fix_heartbeats_for_session``.
+    """
+
+    def __init__(self, events, files, eeg_dir):
+        """
+        :param events: The events structure to be aligned (np.recarray).
+        :param files: dict of pipeline file paths; uses 'session_log' (task
+            laptop session.jsonl), 'event_log' (host PC event.log), and
+            'eeg_sources'.
+        :param eeg_dir: The path to the session's eeg directory.
+        """
+        self.behav_log = files['session_log']
+        eeg_sources = json.load(open(files['eeg_sources']))
+        if len(eeg_sources) != 1:
+            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
+        self.eeg_file_stem = list(eeg_sources.keys())[0]
+        self.eeg_dir = eeg_dir
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
+        self.eeg_log = files['event_log'][0]
+        self.eeg = {}
+        for f in self.eeg_files:
+            basename = os.path.basename(f)
+            self.eeg[basename] = mne.io.read_raw_edf(f, preload=True)
+
+        self.num_samples = None
+        self.sample_rate = None
+        self.eeg_start_ms = None
+        self.ev_ms = events.view(np.recarray).mstime
+        self.events = events.view(np.recarray)
+
+    def align(self):
+        """
+        Fit the task->host clock correction from HEARTBEATs and apply it to the
+        events' ``mstime`` and ``eegoffset``.
+
+        :return: The corrected events structure.
+        """
+        # Skip alignment if there are no events or no EEG
+        if self.events.shape == () or len(self.eeg_files) == 0:
+            logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
+            return self.events
+
+        logger.debug('Aligning (heartbeats)...')
+
+        # Build the merged task/host heartbeat dataframe and fit the correction
+        try:
+            task_df = read_heartbeats_from_path(self.behav_log, load_host_pc=False)
+            host_df = read_heartbeats_from_path(self.eeg_log, load_host_pc=True)
+            merged = prepare_merged_heartbeats(pd.concat([task_df, host_df]))
+            res = fit_correction(merged, ignore_errors=True)
+            slope = res['slope']
+            offset = res['offset']
+        except Exception as e:
+            logger.error('Unable to compute heartbeat correction (%s: %s). '
+                         'Skipping alignment.' % (type(e).__name__, e))
+            return self.events
+
+        logger.debug('Heartbeat fit: slope=%s, offset=%s' % (slope, offset))
+
+        self.events = _correct_events(self.events, slope, offset)
+        return self.events
+
+
+class System4AlignerNonHB:
+    """
+    Aligns System 4 (Elemem) EEG data to behavioral task events using
+    *non-heartbeat* messages (e.g. WORD onsets) that appear in both the task
+    laptop log and the host PC event.log. The message type(s) to align on are
+    looked up per-experiment in ``NONHB_EVENT_MAP``. Matched task/host
+    timestamps are pooled across all configured message types and a single
+    RANSAC correction ``time_host = slope*time_task + offset`` is fit, then
+    applied to ``mstime`` and ``eegoffset`` exactly as in ``System4AlignerHB``.
+    """
+
+    MIN_MATCHES = 3      # minimum pooled (task, host) pairs needed to fit
+    RANSAC_INLIER_MS = 20.0   # residual threshold (ms); matches check_nonheart
+
+    def __init__(self, events, files, eeg_dir, message_types=None):
+        """
+        :param events: The events structure to be aligned (np.recarray).
+        :param files: dict of pipeline file paths (see System4AlignerHB).
+        :param eeg_dir: The path to the session's eeg directory.
+        :param message_types: Optional override; a list of (task_type,
+            host_type) pairs to use instead of the experiment's default entry
+            in NONHB_EVENT_MAP. Useful to restrict to a subset.
+        """
+        self.behav_log = files['session_log']
+        eeg_sources = json.load(open(files['eeg_sources']))
+        if len(eeg_sources) != 1:
+            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
+        self.eeg_file_stem = list(eeg_sources.keys())[0]
+        self.eeg_dir = eeg_dir
+        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
+        self.eeg_log = files['event_log'][0]
+        self.eeg = {}
+        for f in self.eeg_files:
+            basename = os.path.basename(f)
+            self.eeg[basename] = mne.io.read_raw_edf(f, preload=True)
+
+        self.num_samples = None
+        self.sample_rate = None
+        self.eeg_start_ms = None
+        self.ev_ms = events.view(np.recarray).mstime
+        self.events = events.view(np.recarray)
+
+        # Determine the experiment so we can look up the message types to match.
+        rec = events.view(np.recarray)
+        self.experiment = str(rec.experiment[0]) if 'experiment' in rec.dtype.names and rec.shape != () else None
+        self.message_types = message_types
+
+    def _resolve_message_types(self):
+        """Return the list of (task_type, host_type) pairs to align on."""
+        if self.message_types is not None:
+            return self.message_types
+        if self.experiment is None or self.experiment not in NONHB_EVENT_MAP:
+            raise AlignmentError(
+                'No non-heartbeat message types configured for experiment %r' % self.experiment)
+        return NONHB_EVENT_MAP[self.experiment]
+
+    def align(self):
+        """
+        Fit the task->host clock correction from non-heartbeat messages and
+        apply it to the events' ``mstime`` and ``eegoffset``.
+
+        :return: The corrected events structure.
+        """
+        if self.events.shape == () or len(self.eeg_files) == 0:
+            logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
+            return self.events
+
+        logger.debug('Aligning (non-heartbeat messages)...')
+
+        try:
+            pairs = self._resolve_message_types()
+            # score_session reads both file paths directly and strips heartbeats
+            _, _, _, task_by_type, host_by_type, _ = score_session(
+                self.behav_log, self.eeg_log, include_heartbeats=False)
+
+            # Pool matched task/host timestamps across all configured message types
+            task_pooled, host_pooled = [], []
+            for task_type, host_type in pairs:
+                t_times = sorted(task_by_type.get(task_type.upper(), []))
+                h_times = sorted(host_by_type.get(host_type.upper(), []))
+                n = min(len(t_times), len(h_times))
+                if n == 0:
+                    continue
+                task_pooled.extend(t_times[:n])
+                host_pooled.extend(h_times[:n])
+
+            if len(task_pooled) < self.MIN_MATCHES:
+                logger.error('Too few matched non-heartbeat messages (%d < %d) to align. '
+                             'Skipping alignment.' % (len(task_pooled), self.MIN_MATCHES))
+                return self.events
+
+            slope, offset = self._fit(np.array(task_pooled, dtype=float),
+                                      np.array(host_pooled, dtype=float))
+        except Exception as e:
+            logger.error('Unable to compute non-heartbeat correction (%s: %s). '
+                         'Skipping alignment.' % (type(e).__name__, e))
+            return self.events
+
+        logger.debug('Non-heartbeat fit: slope=%s, offset=%s' % (slope, offset))
+
+        self.events = _correct_events(self.events, slope, offset)
+        return self.events
+
+    def _fit(self, task_ms, host_ms):
+        """RANSAC-fit host_time = slope*task_time + offset on pooled points."""
+        from sklearn.linear_model import LinearRegression, RANSACRegressor
+        ransac = RANSACRegressor(estimator=LinearRegression(),
+                                 residual_threshold=self.RANSAC_INLIER_MS,
+                                 random_state=0)
+        ransac.fit(task_ms.reshape(-1, 1), host_ms)
+        slope = ransac.estimator_.coef_[0]
+        offset = ransac.estimator_.intercept_
+        return slope, offset
+
+
+def read_heartbeats_from_path(path, load_host_pc=False, drop_network_test=True):
+    """
+    Read HEARTBEAT/HEARTBEAT_OK records from a single log file and return a
+    DataFrame with the columns ``prepare_merged_heartbeats`` expects
+    (``count``, ``time``, ``latency``, ``session``, ``hardware_system``).
+
+    This mirrors the post-file-read parsing in the submodule's ``get_heart``
+    but reads from an explicit path (the task laptop ``session.jsonl`` when
+    ``load_host_pc`` is False, or the host PC ``event.log`` when True) rather
+    than relocating logs via the CMLReader data index.
+
+    :param path: Path to the log file.
+    :param load_host_pc: True for the host PC event.log, False for the task log.
+    :param drop_network_test: Drop the initial network-test heartbeats (count<=20).
+    """
+    log = []
+    with open(path, 'r') as fr:
+        for line in fr:
+            try:
+                log.append(json.loads(line))
+            except Exception:
+                continue
+    heart_beat = pd.DataFrame(log)
+    heart_beat['session'] = 0  # single-session: satisfies downstream assertions
+
+    if load_host_pc:
+        heart_beat = heart_beat[heart_beat.type.isin(['HEARTBEAT', 'HEARTBEAT_OK'])]
+        heart_beat['count'] = heart_beat.data.apply(lambda x: _hb_field(x, 'count'))
+    else:
+        heart_beat['message'] = heart_beat.data.apply(lambda x: _hb_field(x, 'message'))
+        heart_beat.dropna(subset=['message'], inplace=True)
+        heart_beat['type'] = heart_beat.message.apply(lambda x: _hb_field(x, 'type'))
+        heart_beat['data'] = heart_beat.message.apply(lambda x: _hb_field(x, 'data'))
+        heart_beat = heart_beat[heart_beat.type.isin(['HEARTBEAT', 'HEARTBEAT_OK'])]
+        heart_beat['count'] = heart_beat.data.apply(lambda x: _hb_field(x, 'count'))
+    if len(heart_beat) == 0:
+        raise ValueError('No HEARTBEAT / HEARTBEAT_OK events logged in %s!' % path)
+
+    if drop_network_test:
+        heart_beat = heart_beat[heart_beat['count'] > 20]
+
+    # Pair HEARTBEAT (sent) with HEARTBEAT_OK (acknowledged) on count to get latency
+    bpm_sent = heart_beat[heart_beat.type == 'HEARTBEAT'].set_index('count')
+    bpm_done = heart_beat[heart_beat.type == 'HEARTBEAT_OK'].set_index('count')
+    bpm_err = bpm_done.time.astype(float) - bpm_sent.time.astype(float)
+
+    hardware_system = 'host_pc' if load_host_pc else 'task_laptop'
+    heart_beat = heart_beat.query('type == "HEARTBEAT"')
+    if 'message' in heart_beat.columns:
+        heart_beat.drop('message', axis=1, inplace=True)
+    heart_beat.set_index('count', inplace=True, drop=False)
+    heart_beat.loc[:, ['latency']] = bpm_err
+    heart_beat.loc[:, ['hardware_system']] = hardware_system
+    return heart_beat
+
+
+def _hb_field(obj, key):
+    """obj[key] tolerant of obj being a JSON-encoded string or non-dict."""
+    if isinstance(obj, str):
+        try:
+            obj = json.loads(obj)
+        except (json.JSONDecodeError, ValueError):
+            return None
+    if isinstance(obj, dict):
+        return obj.get(key)
+    return None
+
+
+def _correct_events(events, slope, offset):
+    """
+    Apply a fitted ``time_host = slope*time_task + offset`` correction to both
+    time fields of an events recarray, mirroring the submodule's
+    ``fix_heartbeats_for_session``:
+
+    - ``mstime``   — an absolute task-laptop timestamp, so the full slope+offset
+      correction applies.
+    - ``eegoffset`` — a sample index whose origin is the EEG file start (already
+      in the host-PC reference), so only the slope (sample-rate drift) applies;
+      it is rounded back to its original integer dtype.
+
+    Reuses ``correct_event_times`` (which does ``events.copy()`` + column
+    assignment, working on the numpy recarray) and returns the corrected
+    recarray. Shared by System4AlignerHB and System4AlignerNonHB.
+    """
+    logger.debug('Applying clock correction to mstime and eegoffset...')
+    corrected = correct_event_times(events, offset, slope, time_col='mstime')
+    eegoffset_dtype = events['eegoffset'].dtype
+    corrected = correct_event_times(corrected, 0, slope, time_col='eegoffset')
+    corrected['eegoffset'] = np.round(corrected['eegoffset']).astype(eegoffset_dtype)
+    logger.debug('Done.')
+    return corrected.view(np.recarray)
+
 
 def strip_empty_lines(logfile):
     """
