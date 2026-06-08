@@ -15,7 +15,7 @@ from ..exc import AlignmentError
 _HB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'heartbeat_correction'))
 if _HB_DIR not in sys.path:
     sys.path.insert(0, _HB_DIR)
-from fix_heartbeats_sys4 import prepare_merged_heartbeats, fit_correction, correct_event_times
+from fix_heartbeats_sys4 import prepare_merged_heartbeats, correct_event_times
 from check_nonheart import score_session
 
 # Per-experiment non-heartbeat alignment messages. One entry per experiment.
@@ -303,28 +303,44 @@ class System4Aligner:
         eeg_start_ms = df[df.type == 'EEGSTART'].time.iloc[0]
         return eeg_start_ms
 
-class System4AlignerHB:
+class System4AlignerCorrection:
     """
-    Aligns System 4 (Elemem) EEG data to behavioral task events using the
-    HEARTBEAT messages exchanged once per second between the task laptop and the
-    host PC (elemem). Unlike the legacy ``System4Aligner`` (sync-pulse pattern
-    matching), this reuses the robust correction pipeline from the
-    ``heartbeat_correction`` submodule: it fits ``time_host = slope*time_task +
-    offset`` with RANSAC (outlier rejection + network-latency adjustment + fit
-    validation). This is a *correction pass* over already-aligned events: it
-    rewrites both ``mstime`` (full slope+offset) and ``eegoffset`` (slope-only
-    drift) via the submodule's ``correct_event_times``, mirroring
-    ``fix_heartbeats_for_session``.
+    Correction aligner for System 4 (Elemem) sessions. Fits the task->host clock
+    correction ``time_host = slope*time_task + offset`` (shared RANSAC ``_fit``)
+    and applies it as a *correction pass* over already-aligned events, rewriting
+    both ``mstime`` (full slope+offset) and ``eegoffset`` (slope-only drift) via
+    the submodule's ``correct_event_times``, mirroring ``fix_heartbeats_for_session``.
+
+    The paired (task_ms, host_ms) points fed to the fit come from one of two
+    message sources, selected by ``source``:
+
+    - ``'heartbeat'``    — the HEARTBEAT messages exchanged once per second
+      between the task laptop and the host PC (elemem), via the submodule's
+      ``prepare_merged_heartbeats``.
+    - ``'nonheartbeat'`` — non-heartbeat messages (e.g. WORD onsets) appearing in
+      both logs, with the message types looked up per-experiment in
+      ``NONHB_EVENT_MAP`` and accumulated up to ``TARGET_MATCHES``.
+    - ``'auto'`` (default) — try heartbeats first; if heartbeat extraction or the
+      fit fails, fall back to non-heartbeat messages. Explicit ``'heartbeat'`` /
+      ``'nonheartbeat'`` force a single source with no fallback.
     """
 
-    def __init__(self, events, files, eeg_dir):
+    TARGET_MATCHES = 20  # accumulate non-HB message types until we have at least this many events
+    VALID_SOURCES = ('auto', 'heartbeat', 'nonheartbeat')
+
+    def __init__(self, events, files, eeg_dir, source='auto'):
         """
         :param events: The events structure to be aligned (np.recarray).
         :param files: dict of pipeline file paths; uses 'session_log' (task
             laptop session.jsonl), 'event_log' (host PC event.log), and
             'eeg_sources'.
         :param eeg_dir: The path to the session's eeg directory.
+        :param source: 'auto' | 'heartbeat' | 'nonheartbeat' (see class docstring).
         """
+        if source not in self.VALID_SOURCES:
+            raise AlignmentError('Invalid source %r; expected one of %s'
+                                 % (source, self.VALID_SOURCES))
+        self.source = source
         self.behav_log = files['session_log']
         eeg_sources = json.load(open(files['eeg_sources']))
         if len(eeg_sources) != 1:
@@ -344,10 +360,75 @@ class System4AlignerHB:
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
 
+        # Determine the experiment so we can look up the non-HB message types.
+        rec = events.view(np.recarray)
+        self.experiment = str(rec.experiment[0]) if 'experiment' in rec.dtype.names and rec.shape != () else None
+
+    def _heartbeat_points(self):
+        """
+        Gather paired (task_ms, host_ms) timestamps from HEARTBEAT messages.
+
+        :return: (task_ms array, host_ms array, residual_threshold). Raises on
+            failure (e.g. no heartbeats logged).
+        """
+        task_df = read_heartbeats_from_path(self.behav_log, load_host_pc=False)
+        host_df = read_heartbeats_from_path(self.eeg_log, load_host_pc=True)
+        merged = prepare_merged_heartbeats(pd.concat([task_df, host_df]))
+        return (merged['time_task'].to_numpy(dtype=float),
+                merged['time_host'].to_numpy(dtype=float),
+                3.0)  # heartbeats hit a sub-ms network floor; tight RANSAC threshold
+
+    def _resolve_message_types(self):
+        """Return the experiment's list of (task_type, host_type) pairs from
+        NONHB_EVENT_MAP."""
+        if self.experiment is None or self.experiment not in NONHB_EVENT_MAP:
+            raise AlignmentError(
+                'No non-heartbeat message types configured for experiment %r' % self.experiment)
+        return NONHB_EVENT_MAP[self.experiment]
+
+    def _nonheartbeat_points(self):
+        """
+        Gather paired (task_ms, host_ms) timestamps from non-heartbeat messages,
+        walking the experiment's NONHB_EVENT_MAP pairs in order and accumulating
+        until at least TARGET_MATCHES events are collected.
+
+        :return: (task_ms array, host_ms array, residual_threshold). Raises
+            AlignmentError if fewer than 2 matched points are found.
+        """
+        pairs = self._resolve_message_types()
+        # score_session reads both file paths directly and strips heartbeats
+        _, _, _, task_by_type, host_by_type, _ = score_session(
+            self.behav_log, self.eeg_log, include_heartbeats=False)
+
+        task_pooled, host_pooled = [], []
+        for task_type, host_type in pairs:
+            t_times = sorted(task_by_type.get(task_type.upper(), []))
+            h_times = sorted(host_by_type.get(host_type.upper(), []))
+            n = min(len(t_times), len(h_times))
+            if n == 0:
+                continue
+            task_pooled.extend(t_times[:n])
+            host_pooled.extend(h_times[:n])
+            if len(task_pooled) >= self.TARGET_MATCHES:
+                break
+
+        if len(task_pooled) < self.TARGET_MATCHES:
+            logger.warning('Only %d matched non-heartbeat messages accumulated '
+                           '(target %d); fitting with what is available.'
+                           % (len(task_pooled), self.TARGET_MATCHES))
+        if len(task_pooled) < 2:
+            raise AlignmentError('Too few matched non-heartbeat messages (%d) to fit.'
+                                 % len(task_pooled))
+
+        return (np.array(task_pooled, dtype=float),
+                np.array(host_pooled, dtype=float),
+                20.0)  # non-HB messages are noisier (matches check_nonheart)
+
     def align(self):
         """
-        Fit the task->host clock correction from HEARTBEATs and apply it to the
-        events' ``mstime`` and ``eegoffset``.
+        Fit the task->host clock correction from the selected message source
+        (with fallback when source='auto') and apply it to the events' ``mstime``
+        and ``eegoffset``.
 
         :return: The corrected events structure.
         """
@@ -356,140 +437,57 @@ class System4AlignerHB:
             logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events
 
-        logger.debug('Aligning (heartbeats)...')
+        # Ordered list of (source name, point-gathering helper) to attempt.
+        gatherers = {
+            'heartbeat': self._heartbeat_points,
+            'nonheartbeat': self._nonheartbeat_points,
+        }
+        if self.source == 'auto':
+            attempts = ['heartbeat', 'nonheartbeat']
+        else:
+            attempts = [self.source]
 
-        # Build the merged task/host heartbeat dataframe and fit the correction
-        try:
-            task_df = read_heartbeats_from_path(self.behav_log, load_host_pc=False)
-            host_df = read_heartbeats_from_path(self.eeg_log, load_host_pc=True)
-            merged = prepare_merged_heartbeats(pd.concat([task_df, host_df]))
-            res = fit_correction(merged, ignore_errors=True)
-            slope = res['slope']
-            offset = res['offset']
-        except Exception as e:
-            logger.error('Unable to compute heartbeat correction (%s: %s). '
-                         'Skipping alignment.' % (type(e).__name__, e))
+        slope = offset = None
+        for name in attempts:
+            logger.debug('Aligning (%s)...' % name)
+            try:
+                task_ms, host_ms, threshold = gatherers[name]()
+                slope, offset = _fit(task_ms, host_ms, residual_threshold=threshold)
+            except Exception as e:
+                logger.warning('%s correction failed (%s: %s).%s'
+                               % (name, type(e).__name__, e,
+                                  ' Falling back to next source.' if name != attempts[-1] else ''))
+                continue
+            logger.debug('%s fit: slope=%s, offset=%s' % (name, slope, offset))
+            break
+
+        if slope is None:
+            logger.error('Unable to compute clock correction from any source. '
+                         'Skipping alignment.')
             return self.events
-
-        logger.debug('Heartbeat fit: slope=%s, offset=%s' % (slope, offset))
 
         self.events = _correct_events(self.events, slope, offset)
         return self.events
 
 
-class System4AlignerNonHB:
+def _fit(task_ms, host_ms, residual_threshold=20.0):
     """
-    Aligns System 4 (Elemem) EEG data to behavioral task events using
-    *non-heartbeat* messages (e.g. WORD onsets) that appear in both the task
-    laptop log and the host PC event.log. The message type(s) to align on are
-    looked up per-experiment in ``NONHB_EVENT_MAP``. Matched task/host
-    timestamps are pooled across all configured message types and a single
-    RANSAC correction ``time_host = slope*time_task + offset`` is fit, then
-    applied to ``mstime`` and ``eegoffset`` exactly as in ``System4AlignerHB``.
+    RANSAC-fit ``host_time = slope*task_time + offset`` on paired timestamp
+    arrays and return ``(slope, offset)``. Shared by System4AlignerHB and
+    System4AlignerNonHB.
+
+    :param residual_threshold: RANSAC inlier threshold in ms. Heartbeats hit a
+        sub-ms network floor so a tight threshold is appropriate; non-heartbeat
+        messages are noisier (default 20 ms, matching check_nonheart).
     """
-
-    MIN_MATCHES = 3      # minimum pooled (task, host) pairs needed to fit
-    RANSAC_INLIER_MS = 20.0   # residual threshold (ms); matches check_nonheart
-
-    def __init__(self, events, files, eeg_dir, message_types=None):
-        """
-        :param events: The events structure to be aligned (np.recarray).
-        :param files: dict of pipeline file paths (see System4AlignerHB).
-        :param eeg_dir: The path to the session's eeg directory.
-        :param message_types: Optional override; a list of (task_type,
-            host_type) pairs to use instead of the experiment's default entry
-            in NONHB_EVENT_MAP. Useful to restrict to a subset.
-        """
-        self.behav_log = files['session_log']
-        eeg_sources = json.load(open(files['eeg_sources']))
-        if len(eeg_sources) != 1:
-            raise AlignmentError('Cannot align EEG with %d sources' % len(eeg_sources))
-        self.eeg_file_stem = list(eeg_sources.keys())[0]
-        self.eeg_dir = eeg_dir
-        self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
-        self.eeg_log = files['event_log'][0]
-        self.eeg = {}
-        for f in self.eeg_files:
-            basename = os.path.basename(f)
-            self.eeg[basename] = mne.io.read_raw_edf(f, preload=True)
-
-        self.num_samples = None
-        self.sample_rate = None
-        self.eeg_start_ms = None
-        self.ev_ms = events.view(np.recarray).mstime
-        self.events = events.view(np.recarray)
-
-        # Determine the experiment so we can look up the message types to match.
-        rec = events.view(np.recarray)
-        self.experiment = str(rec.experiment[0]) if 'experiment' in rec.dtype.names and rec.shape != () else None
-        self.message_types = message_types
-
-    def _resolve_message_types(self):
-        """Return the list of (task_type, host_type) pairs to align on."""
-        if self.message_types is not None:
-            return self.message_types
-        if self.experiment is None or self.experiment not in NONHB_EVENT_MAP:
-            raise AlignmentError(
-                'No non-heartbeat message types configured for experiment %r' % self.experiment)
-        return NONHB_EVENT_MAP[self.experiment]
-
-    def align(self):
-        """
-        Fit the task->host clock correction from non-heartbeat messages and
-        apply it to the events' ``mstime`` and ``eegoffset``.
-
-        :return: The corrected events structure.
-        """
-        if self.events.shape == () or len(self.eeg_files) == 0:
-            logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
-            return self.events
-
-        logger.debug('Aligning (non-heartbeat messages)...')
-
-        try:
-            pairs = self._resolve_message_types()
-            # score_session reads both file paths directly and strips heartbeats
-            _, _, _, task_by_type, host_by_type, _ = score_session(
-                self.behav_log, self.eeg_log, include_heartbeats=False)
-
-            # Pool matched task/host timestamps across all configured message types
-            task_pooled, host_pooled = [], []
-            for task_type, host_type in pairs:
-                t_times = sorted(task_by_type.get(task_type.upper(), []))
-                h_times = sorted(host_by_type.get(host_type.upper(), []))
-                n = min(len(t_times), len(h_times))
-                if n == 0:
-                    continue
-                task_pooled.extend(t_times[:n])
-                host_pooled.extend(h_times[:n])
-
-            if len(task_pooled) < self.MIN_MATCHES:
-                logger.error('Too few matched non-heartbeat messages (%d < %d) to align. '
-                             'Skipping alignment.' % (len(task_pooled), self.MIN_MATCHES))
-                return self.events
-
-            slope, offset = self._fit(np.array(task_pooled, dtype=float),
-                                      np.array(host_pooled, dtype=float))
-        except Exception as e:
-            logger.error('Unable to compute non-heartbeat correction (%s: %s). '
-                         'Skipping alignment.' % (type(e).__name__, e))
-            return self.events
-
-        logger.debug('Non-heartbeat fit: slope=%s, offset=%s' % (slope, offset))
-
-        self.events = _correct_events(self.events, slope, offset)
-        return self.events
-
-    def _fit(self, task_ms, host_ms):
-        """RANSAC-fit host_time = slope*task_time + offset on pooled points."""
-        from sklearn.linear_model import LinearRegression, RANSACRegressor
-        ransac = RANSACRegressor(estimator=LinearRegression(),
-                                 residual_threshold=self.RANSAC_INLIER_MS,
-                                 random_state=0)
-        ransac.fit(task_ms.reshape(-1, 1), host_ms)
-        slope = ransac.estimator_.coef_[0]
-        offset = ransac.estimator_.intercept_
-        return slope, offset
+    from sklearn.linear_model import LinearRegression, RANSACRegressor
+    task_ms = np.asarray(task_ms, dtype=float)
+    host_ms = np.asarray(host_ms, dtype=float)
+    ransac = RANSACRegressor(estimator=LinearRegression(),
+                             residual_threshold=residual_threshold,
+                             random_state=0)
+    ransac.fit(task_ms.reshape(-1, 1), host_ms)
+    return ransac.estimator_.coef_[0], ransac.estimator_.intercept_
 
 
 def read_heartbeats_from_path(path, load_host_pc=False, drop_network_test=True):
