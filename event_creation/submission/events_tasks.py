@@ -15,7 +15,7 @@ from .alignment.system1 import System1Aligner
 from .alignment.system2 import System2Aligner
 from .alignment.FreiburgAligner import FreiburgAligner
 from .alignment.system3 import System3Aligner, System3FourAligner
-from .alignment.system4 import System4Offset
+from .alignment.system4 import System4Offset, System4AlignerCorrection
 from .configuration import paths
 from .cleaning.artifact_detection import ArtifactDetector
 from .cleaning.lcf import run_lcf
@@ -392,6 +392,10 @@ class EventCreationTask(PipelineTask):
                                             'ephys', 'current_source', 'elemem', f'{self.subject}*')
                     aligner = System4Offset(unaligned_events, files, ephys_dir)
                     events = aligner.align()
+                    # Refine the EEGSTART-anchored offsets with the robust clock
+                    # correction fit from HEARTBEAT / non-heartbeat messages.
+                    # corrector = System4AlignerCorrection(unaligned_events, files, ephys_dir, source='auto')
+                    # events = corrector.align()
                 else:
                     if self.r1_sys_num == 2.0:
                         aligner = System2Aligner(unaligned_events, files, db_folder)

@@ -5,6 +5,12 @@ from .valuecourier_log_parser import ValueCourierSessionLogParser
 
 
 class VCFROPSessionLogParser(ValueCourierSessionLogParser):
+
+    # VCFROP item-value recalls are spoken (audio) and transcribed as numeric tokens
+    # (0-9) in the recall annotation files. Extend the base word-only token set to also
+    # accept a run of digits in the recalled-item column. Scoped to VCFROP only.
+    MATCHING_ANN_REGEX = r'\d+(\.\d+)?\s+-?\d+\s+(([A-Z]+)|(<>)|(\[\?\?\?\])|(\d+))'
+
     def __init__(self, protocol, subject, montage, experiment, session, files):
         super().__init__(protocol, subject, montage, experiment, session, files)
 
@@ -18,9 +24,11 @@ class VCFROPSessionLogParser(ValueCourierSessionLogParser):
             ('avgvalueguess', -999, 'int16'),
         )
 
+        # Only the average value recall comes from the JSON log (it is typed). Item value
+        # recalls are spoken/audio and are derived from numeric annotation tokens instead
+        # (see _classify_recall and the recall-flow overrides below).
         self._add_type_to_new_event(
-            value_recall      = self.add_avg_value_recall,
-            item_value_recall = self.add_item_value_recall,
+            value_recall = self.add_avg_value_recall,
         )
 
     def _add_valuerecall_field(self):
@@ -56,18 +64,80 @@ class VCFROPSessionLogParser(ValueCourierSessionLogParser):
             )
         return event
 
-    def add_item_value_recall(self, evdata):
-        event = self.event_default(evdata)
-        event.type = "ITEM_VALUE_RECALL" if not self.practice else "PRACTICE_ITEM_VALUE_RECALL"
-        event.trial = evdata['data']['trial number']
-        event.itemvalueguess = int(self.stringify_list(evdata['data']['typed response']))
-        return event
+    def _classify_recall(self, new_event):
+        """
+        Strictly route a parsed annotation recall to exactly one population:
+
+        - a purely numeric token (a spoken item value) becomes ITEM_VALUE_RECALL and
+          populates itemvalueguess; it is never emitted as a word recall.
+        - any other (semantic/word) token becomes REC_WORD / REC_WORD_VV and never sets
+          itemvalueguess.
+
+        Returns (new_event, is_item_value). is_item_value lets callers skip intrusion
+        bookkeeping, which is meaningless for a number.
+        """
+        item = str(new_event["item"]).strip()
+        if item.isdigit():
+            new_event.type = "ITEM_VALUE_RECALL" if not self.practice else "PRACTICE_ITEM_VALUE_RECALL"
+            new_event.itemvalueguess = int(item)
+            return new_event, True
+
+        new_event.type = 'REC_WORD_VV' if "<>" in new_event["item"] else 'REC_WORD'
+        return new_event, False
+
+    # Override the inherited recall flows so numeric (audio) tokens route to
+    # ITEM_VALUE_RECALL while word tokens stay REC_WORD / REC_WORD_VV.
+    def modify_free_recall(self, events):
+        rec_start_event = events[-1]
+        try:
+            ann_outputs = self._parse_ann_file("final recall")
+        except:
+            ann_outputs = self._parse_ann_file("final free-0")
+            ann_outputs = ann_outputs + self._parse_ann_file("final free-1")
+
+        for recall in ann_outputs:
+            new_event = self._new_rec_event(recall, rec_start_event)
+            new_event, is_item_value = self._classify_recall(new_event)
+            if not is_item_value:
+                new_event = self._identify_intrusion(events, new_event)
+            new_event.trial = -999  # to match old events
+            events = np.append(events, new_event).view(np.recarray)
+
+        return events
+
+    def modify_rec_start(self, events):
+        rec_start_event = events[-1]
+
+        if self.practice:
+            # Practice parsing not implemented for Courier / NICLS
+            return events
+        ann_outputs = self._parse_ann_file(str(self._trial))
+
+        for recall in ann_outputs:
+            new_event = self._new_rec_event(recall, rec_start_event)
+            new_event, is_item_value = self._classify_recall(new_event)
+            if not is_item_value:
+                new_event = self._identify_intrusion(events, new_event)
+                if new_event.intrusion > 0:
+                    events.intruded[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+                elif new_event.intrusion == 0:
+                    events.recalled[(events["type"] == 'WORD') & (events["item"] == new_event["item"])] = 1
+            events = np.append(events, new_event).view(np.recarray)
+
+        return events
 
     def modify_after_final_compensation(self, events):
         full = pd.DataFrame.from_records(events)
 
+        # ITEM_VALUE_RECALL events are now derived from numeric audio annotations during the
+        # recall phase, so they all follow the WORD presentations in event order. Associate
+        # each one with its WORD by matching the annotation item number (itemno) rather than
+        # by event position.
         word_mask = full.type.isin(["WORD", "PRACTICE_WORD"])
-        word_positions = np.flatnonzero(word_mask.values)
+        word_by_itemno = {
+            full.at[idx, "itemno"]: idx
+            for idx in full.index[word_mask]
+        }
 
         ivr_mask = full.type.isin(["ITEM_VALUE_RECALL", "PRACTICE_ITEM_VALUE_RECALL"])
         ivr_rows = list(full.index[ivr_mask])
@@ -75,10 +145,9 @@ class VCFROPSessionLogParser(ValueCourierSessionLogParser):
         copy_cols = ["serialpos", "store", "storepointtype", "itemvaluecorrect", "itemno"]
         ivr_to_word = {}
         for ivr_idx in ivr_rows:
-            prior = word_positions[word_positions < ivr_idx]
-            if len(prior) == 0:
+            word_idx = word_by_itemno.get(full.at[ivr_idx, "itemno"])
+            if word_idx is None:
                 continue
-            word_idx = int(prior[-1])
             ivr_to_word[ivr_idx] = word_idx
             for col in copy_cols:
                 full.at[ivr_idx, col] = full.at[word_idx, col]
