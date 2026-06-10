@@ -52,6 +52,60 @@ NONHB_EVENT_MAP = {
     'OPS':     [],
 }
 
+# Control/handshake messages Elemem (host PC) emits every session regardless of
+# experiment. HEARTBEAT is intentionally absent — it is the alignment ground
+# truth (sent by the task laptop, logged by both clocks); only HEARTBEAT_OK is
+# host-originated.
+_COMMON_ELEMEM_ORIGINATED = {
+    'START', 'EXIT', 'ELEMEM', 'EEGSTART', 'READY', 'WAITING',
+    'CONNECTED', 'CONNECTED_OK', 'CONFIGURE', 'CONFIGURE_OK',
+    'HEARTBEAT_OK', 'NETWORK', 'VERSIONS', 'EXPERIMENTCONFIG',
+    'SYSTEMCONFIG', 'STIMNETMSG', 'STIMSELECT',
+}
+
+# Per-experiment Elemem-originated (host-only) event types: stim delivery,
+# closed-loop classifier decisions, and stim config. No task-laptop counterpart
+# exists, so these must never enter the clock-correction fit. Merged with
+# _COMMON_ELEMEM_ORIGINATED by _elemem_originated_for(). Keys mirror
+# NONHB_EVENT_MAP. Values verified against real event.log files.
+ELEMEM_ORIGINATED = {
+    'CPS': {
+        'STIM', 'STIMMING', 'SHAM', 'NORMALIZE', 'NORMALIZATION_STATS',
+        'ZEROED_ARTIFACT_CHANNELS', 'UPDATE', 'CONFIG_STIM', 'CCLSTARTSTIM',
+        'PS_METADATA',
+        'STIM_CLASSIFY', 'SHAM_CLASSIFY', 'NOSTIM_CLASSIFY',
+        'STIM_DECISION', 'SHAM_DECISION', 'NOSTIM_DECISION',
+        'CLASSIFY_STIM_CPS', 'CLASSIFY_SHAM_CPS', 'CLASSIFY_NOSTIM_CPS',
+    },
+    'EFRCourierOpenLoop': {'STIM', 'STIMMING'},
+    'EFRCourierReadOnly': set(),
+    'OPS': {'STIM', 'STIMMING', 'SHAM', 'CONFIG_STIM'},
+    # Non-stim FR-family experiments: no host-only stim stream.
+    'IFR1': set(), 'IFR6': set(), 'ICatFR1': set(), 'ICatFR6': set(),
+    'catFR1': set(), 'RepFR1': set(), 'RepFR2': set(),
+}
+
+
+def _elemem_originated_for(experiment):
+    """Set of Elemem-originated (host-only) type strings to exclude from the fit
+    for `experiment` = the always-present control/handshake base plus any
+    experiment-specific stim/closed-loop types. All upper-cased to match the
+    normalized type keys returned by score_session."""
+    types = set(_COMMON_ELEMEM_ORIGINATED) | set(ELEMEM_ORIGINATED.get(experiment, set()))
+    return {t.upper() for t in types}
+
+
+def _assert_no_elemem_pairs(experiment, pairs):
+    """Fail fast if any configured fit anchor is an Elemem-originated type."""
+    deny = _elemem_originated_for(experiment)
+    bad = {tt for tt, _ in pairs if tt.upper() in deny} | \
+          {ht for _, ht in pairs if ht.upper() in deny}
+    if bad:
+        raise AlignmentError(
+            'Elemem-originated type(s) %s configured as fit anchors for '
+            'experiment %r; remove them from NONHB_EVENT_MAP.'
+            % (sorted(bad), experiment))
+
 class System4Offset:
     def __init__(self, events, files, eeg_dir):
         eeg_sources = json.load(open(files['eeg_sources']))
@@ -377,10 +431,13 @@ class System4AlignerCorrection:
             raise AlignmentError(
                 'No non-heartbeat message types configured for experiment %r' % self.experiment)
         if self.source == 'heartbeat':
-            return list(HEARTBEAT_PAIRS)
-        if self.source == 'nonheartbeat':
-            return list(nonhb)
-        return list(HEARTBEAT_PAIRS) + list(nonhb)  # 'auto'
+            pairs = list(HEARTBEAT_PAIRS)
+        elif self.source == 'nonheartbeat':
+            pairs = list(nonhb)
+        else:  # 'auto'
+            pairs = list(HEARTBEAT_PAIRS) + list(nonhb)
+        _assert_no_elemem_pairs(self.experiment, pairs)
+        return pairs
 
     def _gather(self, pairs):
         """
@@ -393,8 +450,14 @@ class System4AlignerCorrection:
         _, _, _, task_by_type, host_by_type, _ = score_session(
             self.behav_log, self.eeg_log, include_heartbeats=True)
 
+        # Defense-in-depth: never pool Elemem-originated (host-only) types into
+        # the fit, even if one slips into the configured pair list.
+        deny = _elemem_originated_for(self.experiment)
+
         task_pooled, host_pooled = [], []
         for task_type, host_type in pairs:
+            if task_type.upper() in deny or host_type.upper() in deny:
+                continue
             t_times = sorted(task_by_type.get(task_type.upper(), []))
             h_times = sorted(host_by_type.get(host_type.upper(), []))
             n = min(len(t_times), len(h_times))

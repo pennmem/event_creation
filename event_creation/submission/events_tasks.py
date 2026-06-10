@@ -304,6 +304,7 @@ class EventCreationTask(PipelineTask):
                     'CourierReinstate1': CourierReinstate1SessionLogParser,
                     'ValueCourier': ValueCourierSessionLogParser,
                     'VCBehOnly': ValueCourierSessionLogParser,
+                    'VCFROP': VCFROPSessionLogParser,
                   }
 
     @property
