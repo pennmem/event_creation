@@ -16,7 +16,7 @@ _HB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '.
 if _HB_DIR not in sys.path:
     sys.path.insert(0, _HB_DIR)
 from fix_heartbeats_sys4 import correct_event_times
-from check_nonheart import score_session
+from check_nonheart import score_session, read_jsonl, task_type, task_time
 
 # HEARTBEAT is treated as just another message type for fitting; this is the
 # (task_type, host_type) pair the gather loop uses for heartbeat points.
@@ -469,6 +469,60 @@ class System4AlignerCorrection:
         return (np.array(task_pooled, dtype=float),
                 np.array(host_pooled, dtype=float))
 
+    def _fit_heartbeats_filtered(self):
+        """
+        Heartbeat-only step (filter then fit): keep only heartbeats whose
+        task-laptop one-way latency is < 1 ms, require >= TARGET_MATCHES of
+        them, then RANSAC-fit with a 1 ms residual threshold.
+
+        :return: (slope, offset) or None on failure (after warning).
+        """
+        task_ms, host_ms = _heartbeat_points_filtered(self.behav_log, self.eeg_log)
+        if len(task_ms) < self.TARGET_MATCHES:
+            logger.warning('Heartbeat step: only %d low-latency (<1 ms) heartbeats '
+                           'matched (target %d); failed to get enough messages in '
+                           'this step.' % (len(task_ms), self.TARGET_MATCHES))
+            return None
+
+        slope, offset, n_inliers = _ransac_fit(task_ms, host_ms, residual_threshold=1.0)
+        if n_inliers < self.TARGET_MATCHES:
+            logger.warning('Heartbeat step: 1 ms RANSAC produced only %d inliers '
+                           '(target %d); failed to get enough messages in this step.'
+                           % (n_inliers, self.TARGET_MATCHES))
+            return None
+
+        logger.debug('Heartbeat fit: slope=%s, offset=%s (%d inliers)'
+                     % (slope, offset, n_inliers))
+        return slope, offset
+
+    def _fit_sweep(self, pairs):
+        """
+        All-messages fallback: pool all matched points across ``pairs`` and
+        sweep the RANSAC residual threshold over 1..5 ms, accepting the first
+        threshold yielding >= TARGET_MATCHES inliers. Warns at each iteration
+        that falls short.
+
+        :return: (slope, offset) or None on failure.
+        """
+        task_ms, host_ms = self._gather(pairs)
+        if len(task_ms) < 2:
+            logger.warning('Sweep step: too few matched messages (%d) to fit; '
+                           'failed to get enough messages in this step.'
+                           % len(task_ms))
+            return None
+
+        for thresh in range(1, 6):
+            slope, offset, n_inliers = _ransac_fit(task_ms, host_ms,
+                                                   residual_threshold=float(thresh))
+            if n_inliers >= self.TARGET_MATCHES:
+                logger.debug('Sweep fit at threshold %d ms: slope=%s, offset=%s '
+                             '(%d inliers)' % (thresh, slope, offset, n_inliers))
+                return slope, offset
+            logger.warning('Sweep step: threshold %d ms produced only %d inliers '
+                           '(target %d); failed to get enough messages at threshold '
+                           '%d ms.' % (thresh, n_inliers, self.TARGET_MATCHES, thresh))
+        return None
+
     def align(self):
         """
         Fit the task->host clock correction from the selected message source and
@@ -476,39 +530,155 @@ class System4AlignerCorrection:
 
         :return: The corrected events structure.
         """
+        
         # Skip alignment if there are no events or no EEG
         if self.events.shape == () or len(self.eeg_files) == 0:
             logger.error('Skipping alignment due to there being no events or no EEG parameter info.')
             return self.events
 
         logger.debug('Aligning (source=%s)...' % self.source)
-        task_ms, host_ms = self._gather(self._resolve_pairs())
+         # get the sample rate and length of recording for the current file
+        self.num_samples = self.eeg.n_times
+        self.sample_rate = self.eeg.info['sfreq']
+        
+        # get eeg start time
+        self.eeg_start_ms = self.extract_eegstart(self.eeg_log)
 
-        if len(task_ms) < self.TARGET_MATCHES:
-            logger.warning('Only %d matched messages accumulated (target %d); '
-                           'fitting with what is available.'
-                           % (len(task_ms), self.TARGET_MATCHES))
-        if len(task_ms) < 2:
-            logger.error('Too few matched messages (%d) to fit. Skipping alignment.'
-                         % len(task_ms))
-            return self.events
+        fit = None
+        if self.source == 'heartbeat':
+            fit = self._fit_heartbeats_filtered()
+        elif self.source == 'nonheartbeat':
+            fit = self._fit_sweep(self._resolve_pairs())
+        else:  # 'auto'
+            fit = self._fit_heartbeats_filtered()
+            if fit is None:
+                logger.warning('Heartbeat-only fit failed; falling back to the '
+                               'all-messages RANSAC threshold sweep.')
+                fit = self._fit_sweep(self._resolve_pairs())
 
-        slope, offset = _fit(task_ms, host_ms)
+        if fit is None:
+            logger.error('All alignment correction steps failed for source=%s; '
+                         'unable to fit clock correction.' % self.source)
+            raise AlignmentError('System4AlignerCorrection failed to fit a clock '
+                                 'correction for source=%s' % self.source)
+
+        slope, offset = fit
         logger.debug('Fit: slope=%s, offset=%s' % (slope, offset))
 
-        self.events = _correct_events(self.events, slope, offset)
+        self.events = self._correct_events(self.events, slope, offset)
         return self.events
+    
+    def _correct_events(self, events, slope, offset):
+        """
+        Apply a fitted ``time_host = slope*time_task + offset`` correction to both
+        time fields of an events recarray, mirroring the submodule's
+        ``fix_heartbeats_for_session``:
+
+        - ``mstime``   — an absolute task-laptop timestamp, so the full slope+offset
+        correction applies.
+        - ``eegoffset`` — a sample index whose origin is the EEG file start (already
+        in the host-PC reference), so only the slope (sample-rate drift) applies;
+        it is rounded back to its original integer dtype.
+
+        Reuses ``correct_event_times`` (which does ``events.copy()`` + column
+        assignment, working on the numpy recarray) and returns the corrected
+        recarray.
+
+        Adds column for uncorrected offset and mstime
+        """
+        logger.debug('Applying clock correction to mstime and eegoffset...')
+        events["mstime_uncorrected"] = events["mstime"]
+        corrected = correct_event_times(events, offset, slope, time_col='mstime')
+        logger.debug('Correct mstime')
+
+        # add corr and uncorr eegoffset
+        corrected['eegoffset'] = self._calc_eegoffset(corrected["mstime"])
+        corrected['eegoffset_uncorrected'] = self._calc_eegoffset(corrected["mstime_uncorrected"])
+        return corrected.view(np.recarray)
+
+    def _calc_eegoffset(self, mstime):
+        return np.round((mstime - self.eeg_start_ms) * self.sample_rate / 1000.).astype(int)
 
 
-def _fit(task_ms, host_ms, residual_threshold=20.0):
+    @staticmethod
+    def extract_eegstart(logfile):
+        """
+        Extract timing of EEGSTART event from a session log for system 4.
+
+        :param logfile: The filepath for the event.log jsonl file
+        :return: the mstime at which the eeg file began recording
+        """
+        # Read session log
+        df = pd.read_json(logfile, lines=True)
+        # Get the mstime of eeg start
+        eeg_start_ms = df[df.type == 'EEGSTART'].time.iloc[0]
+        return eeg_start_ms
+
+
+
+def _get_field(d, key):
+    """Safely pull ``key`` from a dict-like log payload, else None."""
+    return d.get(key) if isinstance(d, dict) else None
+
+
+def _heartbeat_points_filtered(task_log, host_log, max_one_way_ms=1.0):
+    """
+    Gather matched task/host HEARTBEAT timestamps for the clock-correction fit,
+    keeping only heartbeats whose task-laptop round-trip is tight.
+
+    The task laptop logs both the HEARTBEAT it sends and the HEARTBEAT_OK reply
+    from the host; matched by ``count``, the one-way latency is
+    ``(time_HEARTBEAT_OK - time_HEARTBEAT) / 2``. Heartbeats with one-way
+    latency >= ``max_one_way_ms`` (default 1 ms) are dropped. The host PC's
+    event.log provides the corresponding host-clock HEARTBEAT time.
+
+    :return: (task_ms, host_ms) float arrays, matched by ``count`` and ordered
+        by count, for heartbeats passing the latency filter and present on both
+        clocks.
+    """
+    # Task laptop: collect inner HEARTBEAT / HEARTBEAT_OK times keyed by count.
+    task_hb, task_ok = {}, {}
+    for rec in read_jsonl(task_log):
+        t = task_type(rec)
+        if t not in ('HEARTBEAT', 'HEARTBEAT_OK'):
+            continue
+        msg = _get_field(rec.get('data'), 'message')
+        count = _get_field(_get_field(msg, 'data'), 'count')
+        ts = task_time(rec)
+        if count is None or ts is None:
+            continue
+        (task_hb if t == 'HEARTBEAT' else task_ok)[count] = float(ts)
+
+    # Host PC: collect HEARTBEAT times keyed by count (host clock).
+    host_hb = {}
+    for rec in read_jsonl(host_log):
+        if rec.get('type') != 'HEARTBEAT':
+            continue
+        count = _get_field(rec.get('data'), 'count')
+        ts = rec.get('time')
+        if count is None or ts is None:
+            continue
+        host_hb[count] = float(ts)
+
+    task_ms, host_ms = [], []
+    for count in sorted(set(task_hb) & set(task_ok) & set(host_hb)):
+        one_way = (task_ok[count] - task_hb[count]) / 2.0
+        if one_way >= max_one_way_ms:
+            continue
+        task_ms.append(task_hb[count])
+        host_ms.append(host_hb[count])
+
+    return np.array(task_ms, dtype=float), np.array(host_ms, dtype=float)
+
+
+def _ransac_fit(task_ms, host_ms, residual_threshold):
     """
     RANSAC-fit ``host_time = slope*task_time + offset`` on paired timestamp
-    arrays and return ``(slope, offset)``. Shared by System4AlignerHB and
-    System4AlignerNonHB.
+    arrays and return ``(slope, offset, n_inliers)``.
 
     :param residual_threshold: RANSAC inlier threshold in ms. Heartbeats hit a
-        sub-ms network floor so a tight threshold is appropriate; non-heartbeat
-        messages are noisier (default 20 ms, matching check_nonheart).
+        sub-ms network floor so a tight (1 ms) threshold is appropriate; the
+        all-messages fallback sweeps this from 1 to 5 ms.
     """
     from sklearn.linear_model import LinearRegression, RANSACRegressor
     task_ms = np.asarray(task_ms, dtype=float)
@@ -517,32 +687,8 @@ def _fit(task_ms, host_ms, residual_threshold=20.0):
                              residual_threshold=residual_threshold,
                              random_state=0)
     ransac.fit(task_ms.reshape(-1, 1), host_ms)
-    return ransac.estimator_.coef_[0], ransac.estimator_.intercept_
-
-
-def _correct_events(events, slope, offset):
-    """
-    Apply a fitted ``time_host = slope*time_task + offset`` correction to both
-    time fields of an events recarray, mirroring the submodule's
-    ``fix_heartbeats_for_session``:
-
-    - ``mstime``   — an absolute task-laptop timestamp, so the full slope+offset
-      correction applies.
-    - ``eegoffset`` — a sample index whose origin is the EEG file start (already
-      in the host-PC reference), so only the slope (sample-rate drift) applies;
-      it is rounded back to its original integer dtype.
-
-    Reuses ``correct_event_times`` (which does ``events.copy()`` + column
-    assignment, working on the numpy recarray) and returns the corrected
-    recarray.
-    """
-    logger.debug('Applying clock correction to mstime and eegoffset...')
-    corrected = correct_event_times(events, offset, slope, time_col='mstime')
-    eegoffset_dtype = events['eegoffset'].dtype
-    corrected = correct_event_times(corrected, 0, slope, time_col='eegoffset')
-    corrected['eegoffset'] = np.round(corrected['eegoffset']).astype(eegoffset_dtype)
-    logger.debug('Done.')
-    return corrected.view(np.recarray)
+    n_inliers = int(np.sum(ransac.inlier_mask_))
+    return ransac.estimator_.coef_[0], ransac.estimator_.intercept_, n_inliers
 
 
 def strip_empty_lines(logfile):
