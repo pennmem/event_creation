@@ -1099,7 +1099,8 @@ TH_STIM_COMPARISON = dict(
 )
 
 
-all_ignore = ('exp_version', 'expVersion', 'montage', 'stim_params', 'stimParams', 'session', 'experiment', 'protocol')
+all_ignore = ('exp_version', 'expVersion', 'montage', 'stim_params', 'stimParams', 'session', 'experiment', 'protocol',
+              'mstime_uncorrected', 'eegoffset_uncorrected')
 
 FR1_SYS2_COMPARATOR_INPUTS = dict(
     field_switch={'item_name': 'item', 'item_num': 'itemno', 'stim_list': 'stimList', 'is_stim': 'isStim'},

@@ -19,6 +19,8 @@ base_fields = (
     ('msoffset', -1, 'int16'),
     ('eegoffset', -1, 'int64'),
     ('eegfile', '', 'U256'),
+    ('mstime_uncorrected', -1, 'int64'),
+    ('eegoffset_uncorrected', -1, 'int64'),
     ('phase','','U16')
 )
 
