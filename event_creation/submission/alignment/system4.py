@@ -407,10 +407,12 @@ class System4AlignerCorrection:
         self.eeg_dir = eeg_dir
         self.eeg_files = glob.glob(os.path.join(eeg_dir, '*.edf'))
         self.eeg_log = files['event_log'][0]
-        self.eeg = {}
-        for f in self.eeg_files:
-            basename = os.path.basename(f)
-            self.eeg[basename] = mne.io.read_raw_edf(f, preload=True)
+        # Single source (eeg_sources asserted len==1 above); align() uses self.eeg as one
+        # MNE Raw (self.eeg.n_times / .info), mirroring System4Offset. Pick the most recent
+        # .edf. None when there is no EEG; align() returns early in that case.
+        self.eeg = (mne.io.read_raw_edf(
+            sorted(self.eeg_files, key=os.path.getmtime, reverse=True)[0], preload=True)
+            if self.eeg_files else None)
 
         self.num_samples = None
         self.sample_rate = None
