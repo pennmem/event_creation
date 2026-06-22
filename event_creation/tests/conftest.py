@@ -105,6 +105,62 @@ def discover_sessions(config, per_experiment=2):
     return cases
 
 
+def discover_system4_sessions(config):
+    """Return ALL System-4 (system_version == 4.0) session-case dicts (no per-experiment cap).
+
+    Used by the parallel smoke runner (smoke_system4.py). Same dict shape as
+    discover_sessions; returns [] if the index can't be read (off rhino).
+    """
+    try:
+        from ptsa.data.readers import JsonIndexReader
+        reader = JsonIndexReader(os.path.join(config.paths.rhino_root, 'protocols', 'r1.json'))
+        experiments = list(reader.experiments())
+    except Exception:
+        return []
+
+    cases = []
+    for experiment in sorted(experiments):
+        try:
+            subjects = list(reader.subjects(experiment=experiment))
+        except Exception:
+            continue
+        for subject in subjects:
+            try:
+                sessions = list(reader.sessions(subject=subject, experiment=experiment))
+            except Exception:
+                continue
+            for session in sessions:
+                try:
+                    versions = list(reader.aggregate_values(
+                        'system_version', subject=subject, experiment=experiment, session=session))
+                    version = float(versions[0]) if versions else None
+                except Exception:
+                    version = None
+                if version != 4.0:
+                    continue
+                try:
+                    montage = reader.get_value('montage', subject=subject,
+                                               experiment=experiment, session=session)
+                except Exception:
+                    montage = 0
+                try:
+                    original_session = int(reader.get_value(
+                        'original_session', subject=subject,
+                        experiment=experiment, session=session))
+                except Exception:
+                    original_session = int(session)
+                cases.append(dict(
+                    subject=subject,
+                    subject_code=_subject_code(subject, montage),
+                    experiment=experiment,
+                    session=int(session),
+                    original_session=original_session,
+                    montage=montage,
+                    system_version=4.0,
+                ))
+    return cases
+
+
 def _cached_sessions():
     """Discover once per pytest run (collection calls this repeatedly)."""
     global _DISCOVERY_CACHE

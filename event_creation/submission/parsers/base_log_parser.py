@@ -83,6 +83,10 @@ class BaseLogParser(object):
             self._jacksheet = read_jacksheet(files['contacts'])
         elif 'jacksheet' in files:
             self._jacksheet = read_jacksheet(files['jacksheet'])
+        elif 'electrode_config' in files:
+            ec = files['electrode_config']
+            # nested files under a multiple:true dir arrive as lists (cf. event_log)
+            self._jacksheet = read_jacksheet(ec[0] if isinstance(ec, (list, tuple)) else ec)
         else:
             self._jacksheet = None
 

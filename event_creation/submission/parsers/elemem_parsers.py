@@ -7,6 +7,7 @@ from . import dtypes
 import json
 import traceback
 import six
+from ..log import logger
 
 class BaseElememLogParser(BaseLogParser):
     """
@@ -47,11 +48,13 @@ class BaseElememLogParser(BaseLogParser):
         try:
             return super().parse()
         except Exception as exc:
-            print(exc)
-            traceback.print_exc(exc)
+            # NB: in py3 traceback.print_exc()'s first positional arg is `limit`,
+            # and exceptions have no `.message`; the old py2 idiom here masked the
+            # real error with a spurious "'>=' not supported ... 'int'" TypeError.
+            traceback.print_exc()
             logger.warn('Encountered error in parsing %s session %s: \n %s: %s' % (self._subject, self._session,
-                                                                                   str(type(exc)), exc.message))
-            raise exc
+                                                                                   type(exc).__name__, exc))
+            raise
 
     def _read_event_log(self, filename):
         """

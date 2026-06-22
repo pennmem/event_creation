@@ -28,23 +28,37 @@ HEARTBEAT_PAIRS = [('HEARTBEAT', 'HEARTBEAT')]
 # together. Placeholders for now; the real types per experiment will be filled
 # in later, and this map will eventually be relocated for modularity.
 NONHB_EVENT_MAP = {
-    # FR family (free recall) — WORD is the primary (dense) anchor. Task laptop
-    # and Elemem host use the same string for every shared behavioral event, so
-    # all pairs are (X, X). Host-only control/stim events (START, CONFIGURE,
-    # CONNECTED, READY, EEGSTART, STIMMING, etc.) are excluded.
-    'IFR1':    [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
-    'IFR6':    [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
-    'ICatFR1': [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
-    'ICatFR6': [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    # UnityEPL FR family (IFR/ICatFR) — the task laptop logs human-readable
+    # event names that DIFFER from the Elemem host's short names, so pairs are
+    # asymmetric (task_name, host_name). WORD STIMULUS is the dense anchor
+    # (~one per presented word, hundreds per session); the rest are per-trial.
+    # ENCODING/COUNTDOWN are omitted: on the task laptop they live inside STATE
+    # transitions (not decoded here) and never matched as standalone types.
+    # Host-only control/stim events (START, CONFIGURE, READY, STIMMING, …) are
+    # excluded by _elemem_originated_for(). NB: these sessions log NO heartbeats
+    # on the task laptop, so the non-heartbeat sweep is the only fit path.
+    'IFR1':    [('WORD STIMULUS', 'WORD'), ('ORIENTATION STIMULUS', 'ORIENT'), ('DISPLAY DISTRACTOR FIXATION CROSS', 'DISTRACT'), ('DISPLAY RECALL TEXT', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'IFR6':    [('WORD STIMULUS', 'WORD'), ('ORIENTATION STIMULUS', 'ORIENT'), ('DISPLAY DISTRACTOR FIXATION CROSS', 'DISTRACT'), ('DISPLAY RECALL TEXT', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'ICatFR1': [('WORD STIMULUS', 'WORD'), ('ORIENTATION STIMULUS', 'ORIENT'), ('DISPLAY DISTRACTOR FIXATION CROSS', 'DISTRACT'), ('DISPLAY RECALL TEXT', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    'ICatFR6': [('WORD STIMULUS', 'WORD'), ('ORIENTATION STIMULUS', 'ORIENT'), ('DISPLAY DISTRACTOR FIXATION CROSS', 'DISTRACT'), ('DISPLAY RECALL TEXT', 'RETRIEVAL'), ('TRIAL', 'TRIAL')],
+    # FR/catFR family — task laptop and Elemem host use the same string for every
+    # shared behavioral event, so all pairs are (X, X). Host-only control/stim
+    # events (START, CONFIGURE, CONNECTED, READY, EEGSTART, STIMMING, …) excluded.
     'catFR1':  [('WORD', 'WORD'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('COUNTDOWN', 'COUNTDOWN'), ('DISTRACT', 'DISTRACT'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('MATH', 'MATH')],
     # RepFR family — recall state is named RECALL (not RETRIEVAL); inter-stim is
     # ISI (not ORIENT).
     'RepFR1':  [('WORD', 'WORD'), ('ISI', 'ISI'), ('RECALL', 'RECALL'), ('COUNTDOWN', 'COUNTDOWN'), ('TRIAL', 'TRIAL'), ('TRIALEND', 'TRIALEND'), ('SESSION', 'SESSION')],
-    'RepFR2':  [('WORD', 'WORD'), ('ISI', 'ISI'), ('RECALL', 'RECALL'), ('COUNTDOWN', 'COUNTDOWN'), ('TRIAL', 'TRIAL'), ('TRIALEND', 'TRIALEND'), ('SESSION', 'SESSION'), ('READY', 'READY')],
-    # EFRCourier (spatial delivery) — no WORD; OBJECT_PRESENTATION_BEGINS is the
-    # item-onset anchor.
-    'EFRCourierOpenLoop': [('OBJECT_PRESENTATION_BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('OBJECT_RECALL_RECORDING_START', 'OBJECT_RECALL_RECORDING_START'), ('CUED_RECALL_RECORDING_START', 'CUED_RECALL_RECORDING_START')],
-    'EFRCourierReadOnly': [('OBJECT_PRESENTATION_BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('ORIENT', 'ORIENT'), ('ENCODING', 'ENCODING'), ('RETRIEVAL', 'RETRIEVAL'), ('TRIAL', 'TRIAL'), ('OBJECT_RECALL_RECORDING_START', 'OBJECT_RECALL_RECORDING_START'), ('CUED_RECALL_RECORDING_START', 'CUED_RECALL_RECORDING_START')],
+    'RepFR2':  [('WORD', 'WORD'), ('ISI', 'ISI'), ('RECALL', 'RECALL'), ('COUNTDOWN', 'COUNTDOWN'), ('TRIAL', 'TRIAL'), ('TRIALEND', 'TRIALEND'), ('SESSION', 'SESSION')],
+    # EFRCourier (spatial delivery, UnityEPL) — the task laptop logs human-readable
+    # SPACE-separated names while the Elemem host uses UNDERSCORE names, so pairs are
+    # asymmetric (task_name, host_name). The task laptop logs NO heartbeats, so the
+    # non-heartbeat sweep is the only fit path. Anchors are discrete one-shot events
+    # that match ~1 ms between clocks (verified); PLAYERTRANSFORM is deliberately
+    # excluded -- it streams with ~50 ms task/host jitter and is not a tight anchor.
+    # The host-only state names (ORIENT/ENCODING/RETRIEVAL/TRIAL) have no task-laptop
+    # counterpart and are dropped.
+    'EFRCourierOpenLoop': [('OBJECT PRESENTATION BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('OBJECT RECALL RECORDING START', 'OBJECT_RECALL_RECORDING_START'), ('POINTING BEGINS', 'POINTING_BEGINS'), ('POINTING FINISHED', 'POINTING_FINISHED'), ('POINTER MESSAGE CLEARED', 'POINTER_MESSAGE_CLEARED'), ('AUDIO PRESENTATION FINISHED', 'AUDIO_PRESENTATION_FINISHED')],
+    'EFRCourierReadOnly': [('OBJECT PRESENTATION BEGINS', 'OBJECT_PRESENTATION_BEGINS'), ('OBJECT RECALL RECORDING START', 'OBJECT_RECALL_RECORDING_START'), ('POINTING BEGINS', 'POINTING_BEGINS'), ('POINTING FINISHED', 'POINTING_FINISHED'), ('POINTER MESSAGE CLEARED', 'POINTER_MESSAGE_CLEARED'), ('AUDIO PRESENTATION FINISHED', 'AUDIO_PRESENTATION_FINISHED')],
     # CPS (closed-loop) — behavioral anchors present on both clocks.
     'CPS':     [('ENCODING', 'ENCODING'), ('TRIAL', 'TRIAL'), ('WAITING', 'WAITING'), ('VOCALIZATION', 'VOCALIZATION')],
     # OPS — stim-only parameter search; no task behavioral message stream, so no
@@ -80,9 +94,12 @@ ELEMEM_ORIGINATED = {
     'EFRCourierOpenLoop': {'STIM', 'STIMMING'},
     'EFRCourierReadOnly': set(),
     'OPS': {'STIM', 'STIMMING', 'SHAM', 'CONFIG_STIM'},
-    # Non-stim FR-family experiments: no host-only stim stream.
+    # FR-family: IFR/ICatFR/catFR1 are non-stim. RepFR can be stim-enabled
+    # (RepFR2 event.log emits STIM/STIMMING); these are host-only and must never
+    # be fit anchors.
     'IFR1': set(), 'IFR6': set(), 'ICatFR1': set(), 'ICatFR6': set(),
-    'catFR1': set(), 'RepFR1': set(), 'RepFR2': set(),
+    'catFR1': set(),
+    'RepFR1': {'STIM', 'STIMMING', 'SHAM'}, 'RepFR2': {'STIM', 'STIMMING', 'SHAM'},
 }
 
 
@@ -481,14 +498,16 @@ class System4AlignerCorrection:
         """
         task_ms, host_ms = _heartbeat_points_filtered(self.behav_log, self.eeg_log)
         if len(task_ms) < self.TARGET_MATCHES:
-            logger.warning('Heartbeat step: only %d low-latency (<1 ms) heartbeats '
+            logger.warn('Heartbeat step: only %d low-latency (<1 ms) heartbeats '
                            'matched (target %d); failed to get enough messages in '
                            'this step.' % (len(task_ms), self.TARGET_MATCHES))
             return None
 
-        slope, offset, n_inliers = _ransac_fit(task_ms, host_ms, residual_threshold=1.0)
+        # Fit task = slope*host + offset (host is X, the uncorrected event mstime), so the
+        # correction maps host-clock event times back to the task-laptop timeline.
+        slope, offset, n_inliers = _ransac_fit(host_ms, task_ms, residual_threshold=1.0)
         if n_inliers < self.TARGET_MATCHES:
-            logger.warning('Heartbeat step: 1 ms RANSAC produced only %d inliers '
+            logger.warn('Heartbeat step: 1 ms RANSAC produced only %d inliers '
                            '(target %d); failed to get enough messages in this step.'
                            % (n_inliers, self.TARGET_MATCHES))
             return None
@@ -508,19 +527,20 @@ class System4AlignerCorrection:
         """
         task_ms, host_ms = self._gather(pairs)
         if len(task_ms) < 2:
-            logger.warning('Sweep step: too few matched messages (%d) to fit; '
+            logger.warn('Sweep step: too few matched messages (%d) to fit; '
                            'failed to get enough messages in this step.'
                            % len(task_ms))
             return None
 
         for thresh in range(1, 6):
-            slope, offset, n_inliers = _ransac_fit(task_ms, host_ms,
+            # Fit task = slope*host + offset (host is X); see _fit_heartbeats_filtered.
+            slope, offset, n_inliers = _ransac_fit(host_ms, task_ms,
                                                    residual_threshold=float(thresh))
             if n_inliers >= self.TARGET_MATCHES:
                 logger.debug('Sweep fit at threshold %d ms: slope=%s, offset=%s '
                              '(%d inliers)' % (thresh, slope, offset, n_inliers))
                 return slope, offset
-            logger.warning('Sweep step: threshold %d ms produced only %d inliers '
+            logger.warn('Sweep step: threshold %d ms produced only %d inliers '
                            '(target %d); failed to get enough messages at threshold '
                            '%d ms.' % (thresh, n_inliers, self.TARGET_MATCHES, thresh))
         return None
@@ -554,7 +574,7 @@ class System4AlignerCorrection:
         else:  # 'auto'
             fit = self._fit_heartbeats_filtered()
             if fit is None:
-                logger.warning('Heartbeat-only fit failed; falling back to the '
+                logger.warn('Heartbeat-only fit failed; falling back to the '
                                'all-messages RANSAC threshold sweep.')
                 fit = self._fit_sweep(self._resolve_pairs())
 
@@ -593,10 +613,34 @@ class System4AlignerCorrection:
         corrected = correct_event_times(events, offset, slope, time_col='mstime')
         logger.debug('Correct mstime')
 
-        # add corr and uncorr eegoffset
-        corrected['eegoffset'] = self._calc_eegoffset(corrected["mstime"])
+        # STIM and Elemem-originated events are timestamped on the host (elemem) clock
+        # already and are accurate, so the host->task correction must NOT be applied to them.
+        # Restore their original mstime (eegoffset is likewise restored below).
+        locked = self._locked_mask(corrected)
+        if locked.any():
+            logger.debug('Leaving %d host-clock (STIM/Elemem-originated) events uncorrected'
+                         % int(locked.sum()))
+            corrected['mstime'][locked] = corrected['mstime_uncorrected'][locked]
+
+        # eegoffset indexes the host-recorded EEG, so it stays in the host/EEG-sample frame:
+        # only the slope (sample-rate drift) applies, computed from the uncorrected host
+        # mstime so the constant task<->host offset cancels (matches the submodule README's
+        # "eegoffset: slope only"). Locked (host-originated) rows are restored below.
+        corrected['eegoffset'] = np.round(
+            slope * (corrected['mstime_uncorrected'] - self.eeg_start_ms)
+            * self.sample_rate / 1000.).astype(int)
         corrected['eegoffset_uncorrected'] = self._calc_eegoffset(corrected["mstime_uncorrected"])
+        if locked.any():
+            corrected['eegoffset'][locked] = corrected['eegoffset_uncorrected'][locked]
         return corrected.view(np.recarray)
+
+    def _locked_mask(self, events):
+        """Boolean mask of events that must NOT be clock-corrected: STIM events and
+        Elemem-originated (host-clock) types for this experiment."""
+        deny = {t.upper() for t in _elemem_originated_for(self.experiment)}
+        deny |= {'STIM', 'STIM_ON', 'STIM_OFF', 'STIMMING'}
+        types_u = np.array([str(t).upper() for t in events['type']])
+        return np.isin(types_u, list(deny))
 
     def _calc_eegoffset(self, mstime):
         return np.round((mstime - self.eeg_start_ms) * self.sample_rate / 1000.).astype(int)

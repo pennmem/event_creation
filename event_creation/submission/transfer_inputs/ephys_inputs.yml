@@ -167,10 +167,11 @@ files:
         origin_directory: ''
         origin_file:
            - 'R1*_mono_*.csv'                    # only match on monopolar, will match bipolar in bipolar_electrode_config
-           #- 'R1*[!oi][!_]L0M0*.csv'             # allow matching on multiple files for older system 4 sessions, but don't double match
-           #- 'R1*L0M0_STIM.csv'
-           #- 'R1*[!oi][!_]L0M0STIM.csv'
-           
+           - 'FR*_mono_*.csv'                    # Freiburg subjects (e.g. FR490_merged_mono_config.csv)
+           - 'FBG*_mono_*.csv'                   # Freiburg subjects with FBG-prefixed config (e.g. FBG491_mono_config.csv)
+           - 'merged_mono_config.csv'            # Freiburg sessions with un-prefixed merged config (e.g. FBG490 session_2)
+           - 'R1*L0M0*STIM*.csv'                 # older System 4 sessions, montage encoded in code (e.g. R1204T_1_29SEP2021L0M0STIM.csv, R1587J_20211010_L0M0_STIM.csv)
+
         destination: electrode_config.csv
       - name: bipolar_electrode_config
         << : *FILE

@@ -93,3 +93,6 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# event_creation smoke-test scratch (temp EDF db_root leakage)
+_tmp_evcreate_smoke_*

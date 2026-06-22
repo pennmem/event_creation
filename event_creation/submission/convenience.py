@@ -594,6 +594,7 @@ def load_index(protocol):
         index_file = os.path.join(paths.db_root, 'protocols', '{}.json'.format(protocol))
         if not os.path.exists(index_file):
             print(index_file)
+            os.makedirs(os.path.dirname(index_file), exist_ok=True)
             with open(index_file, 'w') as f:
                 json.dump({}, f)
         LOADED_INDEXES[protocol] = JsonIndexReader(index_file)
@@ -642,7 +643,8 @@ def prompt_for_session_inputs(inputs, **opts):
                    'ltp' if subject.startswith('LTP') else \
                    'r1' if subject.startswith('R') else \
                    'r1' if subject.startswith('UT') else \
-                   'r1' if subject.startswith('FR') else None
+                   'r1' if subject.startswith('FR') else \
+                   'r1' if subject.startswith('FBG') else None  # Freiburg subjects -> r1
 
     groups = (protocol,)
 

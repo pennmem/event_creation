@@ -9,6 +9,8 @@ import mne
 import json
 import time
 import tables
+import tempfile
+import shutil
 import numpy as np
 from shutil import copy
 from functools import partial
@@ -788,11 +790,20 @@ class EDF_reader(EEG_reader):
             old_edf_filename = os.path.join(dir_name, f"{self.reader.getSampleFrequency(0) / 1000}kHz_" + file_name)
             os.rename(edf_filename, old_edf_filename)
 
-            # Downsample to 1k
+            # Downsample to 1k. Try the original scratch-folder name first; if it
+            # can't be created (e.g. it resolves to a CWD-relative path the running
+            # user can't write -- RAM_maint running from a repo owned by another
+            # user), fall back to a writable, unique dir on the output volume
+            # (inside dir_name, which is in the per-session db_root).
             temp_folder = dir_name.replace("/", "_") # Unique temp folder name
-            os.mkdir(temp_folder)
-            EDF_reader._downsample_data(old_edf_filename, 1000, edf_filename, temp_folder)
-            os.rmdir(temp_folder)
+            try:
+                os.mkdir(temp_folder)
+            except OSError:
+                temp_folder = tempfile.mkdtemp(prefix="downsample_", dir=dir_name)
+            try:
+                EDF_reader._downsample_data(old_edf_filename, 1000, edf_filename, temp_folder)
+            finally:
+                shutil.rmtree(temp_folder, ignore_errors=True)
 
             # Open the new downsampled edf
             self.reader = pyedflib.EdfReader(edf_filename)
@@ -999,8 +1010,18 @@ class EDF_reader(EEG_reader):
 
         # Resample/Split the channels
         resample_channel = partial(EDF_reader._resample_channel_and_split, in_path, temp_folder, out_freq)
-        with Pool(16) as pool:
-            pool.map(resample_channel, range(num_signals))
+        try:
+            with Pool(16) as pool:
+                pool.map(resample_channel, range(num_signals))
+        except AssertionError:
+            # Running inside a daemonic process (e.g. a dask worker) which cannot
+            # spawn child processes. A thread pool is not a valid fallback here:
+            # every task opens pyedflib.EdfReader(in_path) on the SAME file, and
+            # EDFlib refuses to open a file already open in the process ("file has
+            # already been opened"). Fall back to a serial loop -- correct,
+            # bounded memory (one channel at a time), no child processes.
+            for idx in range(num_signals):
+                resample_channel(idx)
 
         # Recombine the channels
         EDF_reader._recombine_channels(temp_folder, out_path, num_signals)

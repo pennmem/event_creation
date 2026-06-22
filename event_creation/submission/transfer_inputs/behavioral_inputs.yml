@@ -386,6 +386,18 @@ files:
 
   # System 4
 
+  - name: session_log
+    << : *FILE
+    # All System-4 verbal experiments (IFR/ICatFR/catFR/FR and the unity/courier
+    # EFRCourier tasks) store the task-laptop log as session.json or session.jsonl
+    # in the session dir. RepFR is excluded -- it has its own [RepFR] entry.
+    groups: [ r1, transfer, verbal, system_4, '!RepFR' ]
+    origin_directory: *BEH_SESS_DIR
+    origin_file:
+      - 'session.json'
+      - 'session.jsonl'
+    destination: logs/session.jsonl
+
   - name: elemem_files
     << : *DIR
     groups: [ r1, transfer, '!system_1','!system_2', '!system_3_0', '!system_3_1', '!system_3_3' ]
@@ -405,6 +417,18 @@ files:
         origin_directory: ''
         origin_file: 'experiment_config.json'
         destination: experiment_config.json
+
+      - name: electrode_config
+        << : *FILE
+        required: false          # non-stim sessions don't need labels; absent -> jacksheet stays None
+        origin_directory: ''
+        origin_file:
+           - 'R1*_mono_*.csv'
+           - 'FR*_mono_*.csv'
+           - 'FBG*_mono_*.csv'                   # Freiburg subjects with FBG-prefixed config (e.g. FBG491_mono_config.csv)
+           - 'merged_mono_config.csv'            # Freiburg sessions with un-prefixed merged config (e.g. FBG490 session_2)
+           - 'R1*L0M0*STIM*.csv'
+        destination: electrode_config.csv
 
   ### LTP (Scalp EEG)
 

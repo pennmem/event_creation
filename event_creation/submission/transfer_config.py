@@ -339,7 +339,12 @@ class TransferFile(object):
         for origin_filename in self.formatted_origin_filenames:
             origin_path = os.path.join(containing_directory, origin_filename)
             logger.debug('Looking for {}'.format(origin_path))
-            new_files = glob.glob(origin_path)
+            # de-dup against already-collected paths: a single physical file can
+            # match more than one origin_file pattern (e.g. a newer config named
+            # R1589T_..._mono_L0M0_STIM.csv matches both the mono and L0M0STIM
+            # globs). Count it once so it doesn't falsely trip the multiple==False
+            # guard below.
+            new_files = [f for f in glob.glob(origin_path) if f not in new_origin_paths]
 
             if len(new_files) == 0:
                 logger.debug("Could not find files at {}".format(os.path.abspath(origin_path)))

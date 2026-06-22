@@ -96,5 +96,7 @@ class Logger(object):
 try:
     logger = Logger()
 except Exception as e:
-    tb.print_exc(e)
+    # py3: print_exc()'s first positional arg is `limit`; passing the exception
+    # masked the real init failure (e.g. PermissionError on /protocols/log.txt).
+    tb.print_exc()
     logger = None
