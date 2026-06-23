@@ -155,7 +155,8 @@ def _assert_heartbeat_correction(db_root, case):
 
     A. task event ``mstime``/``eegoffset`` DO change (correction was applied);
     B. STIM and Elemem-originated events do NOT change (already on the host clock);
-    C. every clock-fit anchor point — incl. RANSAC outliers — lands <= 1 ms after correction.
+    C. every clock-fit anchor point — incl. RANSAC outliers — lands <= 1 ms after correction;
+    D. ``eegoffset`` is exactly its own ``mstime`` converted to EEG samples.
     """
     events = _load_task_events(db_root, case)
     if events is None or events.shape == () or len(events) == 0:
@@ -220,3 +221,21 @@ def _assert_heartbeat_correction(db_root, case):
                       'n>1ms=%d' % (len(anchor_resid), float(np.median(anchor_resid)),
                                     float(anchor_resid.max()),
                                     int((anchor_resid > 1.0).sum())))
+
+    # --- Check D: eegoffset is exactly mstime converted to EEG samples ----------
+    # The corrected and uncorrected (mstime, eegoffset) points share one affine map
+    # eegoffset = (mstime - eeg_start)*rate/1000. Recover it from all points and require
+    # every residual within 1 sample; a wrong-channel eegoffset (not derived from this
+    # mstime) falls off that line.
+    xs = np.concatenate([events['mstime_uncorrected'].astype(float),
+                         events['mstime'].astype(float)])
+    ys = np.concatenate([events['eegoffset_uncorrected'].astype(float),
+                         events['eegoffset'].astype(float)])
+    if np.unique(xs).size >= 2:
+        rate_slope, eeg_intercept = np.polyfit(xs, ys, 1)
+        off_resid = np.abs(ys - (rate_slope * xs + eeg_intercept))
+        worst_off = float(off_resid.max())
+        assert worst_off <= 1.0, (
+            '%d/%d eegoffsets deviate from the mstime->sample line by >1 sample '
+            '(worst=%.3f); eegoffset is not its own mstime in samples'
+            % (int((off_resid > 1.0).sum()), len(off_resid), worst_off))

@@ -626,9 +626,10 @@ class System4AlignerCorrection:
         # only the slope (sample-rate drift) applies, computed from the uncorrected host
         # mstime so the constant task<->host offset cancels (matches the submodule README's
         # "eegoffset: slope only"). Locked (host-originated) rows are restored below.
-        corrected['eegoffset'] = np.round(
-            slope * (corrected['mstime_uncorrected'] - self.eeg_start_ms)
-            * self.sample_rate / 1000.).astype(int)
+        corrected['eegoffset'] = self._calc_eegoffset(corrected["mstime"])
+        # np.round(
+        #     slope * (corrected['mstime_uncorrected'] - self.eeg_start_ms)
+        #     * self.sample_rate / 1000.).astype(int)
         corrected['eegoffset_uncorrected'] = self._calc_eegoffset(corrected["mstime_uncorrected"])
         if locked.any():
             corrected['eegoffset'][locked] = corrected['eegoffset_uncorrected'][locked]
