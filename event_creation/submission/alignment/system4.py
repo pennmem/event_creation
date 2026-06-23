@@ -488,13 +488,34 @@ class System4AlignerCorrection:
         return (np.array(task_pooled, dtype=float),
                 np.array(host_pooled, dtype=float))
 
+    def _fit_relative(self, task_ms, host_ms, residual_threshold):
+        """
+        Fit ``th_rel = slope*tt_rel + b`` on RELATIVE timestamps, anchoring the
+        task side at its first matched heartbeat (``Tt0``) and the host side at
+        ``eeg_start_ms``. Doing the regression in relative space keeps the
+        ~9 h task<->host clock skew and the ~1.6e12 absolute magnitude out of
+        the fit, so ``slope``/residuals are well conditioned (sub-ms RANSAC
+        thresholds are meaningful again).
+
+        :return: (slope, b, Tt0, n_inliers).
+        """
+        task_ms = np.asarray(task_ms, dtype=float)
+        host_ms = np.asarray(host_ms, dtype=float)
+        Tt0 = float(task_ms[0])
+        tt_rel = task_ms - Tt0
+        th_rel = host_ms - self.eeg_start_ms
+        # _ransac_fit(X, Y) fits Y = slope*X + intercept, i.e. th_rel = slope*tt_rel + b.
+        slope, b, n_inliers = _ransac_fit(tt_rel, th_rel,
+                                          residual_threshold=residual_threshold)
+        return slope, b, Tt0, n_inliers
+
     def _fit_heartbeats_filtered(self):
         """
         Heartbeat-only step (filter then fit): keep only heartbeats whose
         task-laptop one-way latency is < 1 ms, require >= TARGET_MATCHES of
-        them, then RANSAC-fit with a 1 ms residual threshold.
+        them, then RANSAC-fit (on relative times) with a 1 ms residual threshold.
 
-        :return: (slope, offset) or None on failure (after warning).
+        :return: (slope, b, Tt0) or None on failure (after warning).
         """
         task_ms, host_ms = _heartbeat_points_filtered(self.behav_log, self.eeg_log)
         if len(task_ms) < self.TARGET_MATCHES:
@@ -503,18 +524,17 @@ class System4AlignerCorrection:
                            'this step.' % (len(task_ms), self.TARGET_MATCHES))
             return None
 
-        # Fit task = slope*host + offset (host is X, the uncorrected event mstime), so the
-        # correction maps host-clock event times back to the task-laptop timeline.
-        slope, offset, n_inliers = _ransac_fit(host_ms, task_ms, residual_threshold=1.0)
+        slope, b, Tt0, n_inliers = self._fit_relative(task_ms, host_ms,
+                                                      residual_threshold=1.0)
         if n_inliers < self.TARGET_MATCHES:
             logger.warn('Heartbeat step: 1 ms RANSAC produced only %d inliers '
                            '(target %d); failed to get enough messages in this step.'
                            % (n_inliers, self.TARGET_MATCHES))
             return None
 
-        logger.debug('Heartbeat fit: slope=%s, offset=%s (%d inliers)'
-                     % (slope, offset, n_inliers))
-        return slope, offset
+        logger.debug('Heartbeat fit (relative): slope=%s, b=%s, Tt0=%s (%d inliers)'
+                     % (slope, b, Tt0, n_inliers))
+        return slope, b, Tt0
 
     def _fit_sweep(self, pairs):
         """
@@ -523,7 +543,7 @@ class System4AlignerCorrection:
         threshold yielding >= TARGET_MATCHES inliers. Warns at each iteration
         that falls short.
 
-        :return: (slope, offset) or None on failure.
+        :return: (slope, b, Tt0) or None on failure.
         """
         task_ms, host_ms = self._gather(pairs)
         if len(task_ms) < 2:
@@ -533,13 +553,13 @@ class System4AlignerCorrection:
             return None
 
         for thresh in range(1, 6):
-            # Fit task = slope*host + offset (host is X); see _fit_heartbeats_filtered.
-            slope, offset, n_inliers = _ransac_fit(host_ms, task_ms,
-                                                   residual_threshold=float(thresh))
+            slope, b, Tt0, n_inliers = self._fit_relative(
+                task_ms, host_ms, residual_threshold=float(thresh))
             if n_inliers >= self.TARGET_MATCHES:
-                logger.debug('Sweep fit at threshold %d ms: slope=%s, offset=%s '
-                             '(%d inliers)' % (thresh, slope, offset, n_inliers))
-                return slope, offset
+                logger.debug('Sweep fit (relative) at threshold %d ms: slope=%s, '
+                             'b=%s, Tt0=%s (%d inliers)'
+                             % (thresh, slope, b, Tt0, n_inliers))
+                return slope, b, Tt0
             logger.warn('Sweep step: threshold %d ms produced only %d inliers '
                            '(target %d); failed to get enough messages at threshold '
                            '%d ms.' % (thresh, n_inliers, self.TARGET_MATCHES, thresh))
@@ -584,54 +604,61 @@ class System4AlignerCorrection:
             raise AlignmentError('System4AlignerCorrection failed to fit a clock '
                                  'correction for source=%s' % self.source)
 
-        slope, offset = fit
-        logger.debug('Fit: slope=%s, offset=%s' % (slope, offset))
+        slope, b, Tt0 = fit
+        logger.debug('Fit: slope=%s, b=%s, Tt0=%s' % (slope, b, Tt0))
 
-        self.events = self._correct_events(self.events, slope, offset)
+        self.events = self._correct_events(self.events, slope, b, Tt0)
         return self.events
-    
-    def _correct_events(self, events, slope, offset):
+
+    def _correct_events(self, events, slope, b, Tt0):
         """
-        Apply a fitted ``time_host = slope*time_task + offset`` correction to both
-        time fields of an events recarray, mirroring the submodule's
-        ``fix_heartbeats_for_session``:
+        Apply the relative-time heartbeat correction ``th_rel = slope*tt_rel + b``
+        (anchored at ``Tt0`` on the task side and ``eeg_start_ms`` on the host
+        side) to the events recarray.
 
-        - ``mstime``   — an absolute task-laptop timestamp, so the full slope+offset
-        correction applies.
-        - ``eegoffset`` — a sample index whose origin is the EEG file start (already
-        in the host-PC reference), so only the slope (sample-rate drift) applies;
-        it is rounded back to its original integer dtype.
+        The event ``mstime`` is already on the host/EEG clock (same clock as
+        ``eeg_start_ms``), so we work in host-relative time and the constant ~9 h
+        task<->host skew never enters. ``mstime`` and ``eegoffset`` are computed
+        INDEPENDENTLY from the continuous fit (mstime is not round-tripped through
+        the integer eegoffset, which would inject ~0.25 ms quantization and drop
+        the drift from inter-event spacing):
 
-        Reuses ``correct_event_times`` (which does ``events.copy()`` + column
-        assignment, working on the numpy recarray) and returns the corrected
-        recarray.
+        - ``mstime``    — one formula for every event: the continuous inverse fit
+          onto the task clock, ``Tt0 + (mstime - eeg_start_ms - b)/slope``. No
+          quantization; inter-event spacing scales by ``1/slope``, following the fit.
+        - ``eegoffset`` — task (behavioral) events are slope-fitted
+          (``round(slope*(mstime - eeg_start_ms)*sr/1000)``); host (STIM/Elemem-
+          originated) events keep the plain host sample (no slope), since they are
+          timestamped natively on the host/EEG clock.
 
-        Adds column for uncorrected offset and mstime
+        ``*_uncorrected`` columns keep the originals: ``mstime`` untouched and
+        ``eegoffset`` computed directly from the uncorrected ``mstime``.
         """
-        logger.debug('Applying clock correction to mstime and eegoffset...')
+        logger.debug('Applying relative-time clock correction to mstime and eegoffset...')
+        M = np.asarray(events["mstime"], dtype=float)
         events["mstime_uncorrected"] = events["mstime"]
-        corrected = correct_event_times(events, offset, slope, time_col='mstime')
-        logger.debug('Correct mstime')
+        events["eegoffset_uncorrected"] = self._calc_eegoffset(M)
 
-        # STIM and Elemem-originated events are timestamped on the host (elemem) clock
-        # already and are accurate, so the host->task correction must NOT be applied to them.
-        # Restore their original mstime (eegoffset is likewise restored below).
+        corrected = events.copy()
+
+        # mstime: continuous inverse fit onto the task clock, computed directly from
+        # the fitted line (NOT from the rounded eegoffset). th_rel = slope*tt_rel + b
+        # with th_rel = M - eeg_start_ms inverts to tt = Tt0 + (M - eeg_start_ms - b)/slope.
+        # Applied to every event; inter-event spacing scales by 1/slope per the fit.
+        corrected['mstime'] = Tt0 + (M - self.eeg_start_ms - b) / slope
+
+        # eegoffset: task (behavioral) events are slope-fitted; the constant
+        # task<->host skew cancels because we stay relative to eeg_start_ms.
+        corrected['eegoffset'] = np.round(
+            slope * (M - self.eeg_start_ms) * self.sample_rate / 1000.).astype(int)
+
+        # STIM / Elemem-originated events are timestamped natively on the host (EEG)
+        # clock, so their eegoffset is the plain host sample (NOT slope-fitted); their
+        # mstime keeps the inverse-fit value, same as every other event.
         locked = self._locked_mask(corrected)
         if locked.any():
-            logger.debug('Leaving %d host-clock (STIM/Elemem-originated) events uncorrected'
+            logger.debug('Taking %d host-clock (STIM/Elemem-originated) eegoffsets direct'
                          % int(locked.sum()))
-            corrected['mstime'][locked] = corrected['mstime_uncorrected'][locked]
-
-        # eegoffset indexes the host-recorded EEG, so it stays in the host/EEG-sample frame:
-        # only the slope (sample-rate drift) applies, computed from the uncorrected host
-        # mstime so the constant task<->host offset cancels (matches the submodule README's
-        # "eegoffset: slope only"). Locked (host-originated) rows are restored below.
-        corrected['eegoffset'] = self._calc_eegoffset(corrected["mstime"])
-        # np.round(
-        #     slope * (corrected['mstime_uncorrected'] - self.eeg_start_ms)
-        #     * self.sample_rate / 1000.).astype(int)
-        corrected['eegoffset_uncorrected'] = self._calc_eegoffset(corrected["mstime_uncorrected"])
-        if locked.any():
             corrected['eegoffset'][locked] = corrected['eegoffset_uncorrected'][locked]
         return corrected.view(np.recarray)
 
