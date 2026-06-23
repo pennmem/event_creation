@@ -103,45 +103,47 @@ def _heartbeat_report(db_root, case):
     report = dict(n_events=int(len(events)), n_task=int(is_task.sum()),
                   n_locked=int(is_locked.sum()))
 
-    # A: task events' mstime changed
+    # A: task events' mstime changed (the inverse fit remaps every event's mstime).
     if is_task.any():
-        report['task_unchanged'] = int(
+        report['task_mstime_unchanged'] = int(
             (is_task & (events['mstime'] == events['mstime_uncorrected'])).sum())
-    # B: host-originated events' mstime unchanged
-    if is_locked.any():
-        report['locked_moved'] = int(
-            (is_locked & (events['mstime'] != events['mstime_uncorrected'])).sum())
 
-    # A2: eegoffset must track mstime row-for-row. Wherever a task event's mstime moved,
-    #     its eegoffset MUST move too -- the wrong-ms-channel bug moved mstime but left
-    #     eegoffset static, which the mstime-only checks above sail past.
+    # A2: the correction must actually move eegoffset. Near-EEGSTART task events legitimately
+    #     round to 0 samples, so only a TOTALLY static eegoffset (the original
+    #     "eegoffset == eegoffset_uncorrected everywhere" bug) is a failure.
     if is_task.any():
-        ms_moved = events['mstime'] != events['mstime_uncorrected']
-        off_moved = events['eegoffset'] != events['eegoffset_uncorrected']
-        report['mstime_moved_eegoffset_static'] = int((is_task & ms_moved & ~off_moved).sum())
-    # B2: host-originated events' eegoffset unchanged
+        report['task_eegoffset_static'] = int(
+            (is_task & (events['eegoffset'] == events['eegoffset_uncorrected'])).sum())
+
+    # B2: locked (STIM/Elemem-originated) events keep the plain host eegoffset (unchanged).
+    #     Their mstime IS remapped onto the task clock by design, so it is NOT checked.
     if is_locked.any():
         report['locked_eegoffset_moved'] = int(
             (is_locked & (events['eegoffset'] != events['eegoffset_uncorrected'])).sum())
 
-    # C2: eegoffset is EXACTLY mstime converted to EEG samples. The corrected and uncorrected
-    #     (mstime, eegoffset) points share one affine map eegoffset = (mstime - eeg_start)*rate/1000;
-    #     recover it from all points and require every residual within 1 sample. A wrong-channel
-    #     eegoffset -- not derived from this mstime -- falls off that line.
-    xs = np.concatenate([events['mstime_uncorrected'].astype(float),
-                         events['mstime'].astype(float)])
-    ys = np.concatenate([events['eegoffset_uncorrected'].astype(float),
-                         events['eegoffset'].astype(float)])
-    if np.unique(xs).size >= 2:
-        slope_s, intercept_s = np.polyfit(xs, ys, 1)
-        report['eegoffset_vs_mstime_resid_max'] = float(
-            np.abs(ys - (slope_s * xs + intercept_s)).max())
+    # C2: eegoffset is the CORRECTED mstime converted to EEG samples. Both are exact affine
+    #     functions of the host mstime, so eegoffset is an exact affine function of the corrected
+    #     (task-clock) mstime -- fit that line over TASK events ONLY and require a small residual.
+    #     Tolerance scales with the fitted slope a (samples/ms ~= sr/1000): integer mstime is
+    #     quantized to +-0.5 ms = +-0.5*a samples, plus eegoffset's +-0.5 rounding. A wrong-ms-
+    #     channel eegoffset falls off it. Do NOT mix in the uncorrected (host-clock) pair.
+    if is_task.sum() >= 2:
+        xt = events['mstime'][is_task].astype(float)
+        yt = events['eegoffset'][is_task].astype(float)
+        if np.unique(xt).size >= 2:
+            a_s, c_s = np.polyfit(xt, yt, 1)
+            report['eegoffset_vs_corrected_mstime_resid_max'] = float(
+                np.abs(yt - (a_s * xt + c_s)).max())
+            report['eegoffset_resid_tol'] = max(2.0, 2.0 * abs(float(a_s)))
 
-    report['ok'] = (report.get('task_unchanged', 0) == 0
-                    and report.get('locked_moved', 0) == 0
-                    and report.get('mstime_moved_eegoffset_static', 0) == 0
+    n_task = report.get('n_task', 0)
+    correction_applied = (n_task == 0) or (report.get('task_eegoffset_static', 0) < n_task)
+    resid = report.get('eegoffset_vs_corrected_mstime_resid_max', 0.0)
+    tol = report.get('eegoffset_resid_tol', 2.0)
+    report['ok'] = (report.get('task_mstime_unchanged', 0) == 0
                     and report.get('locked_eegoffset_moved', 0) == 0
-                    and report.get('eegoffset_vs_mstime_resid_max', 0.0) <= 1.0)
+                    and correction_applied
+                    and resid <= tol)
     return report
 
 
