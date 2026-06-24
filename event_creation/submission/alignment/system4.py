@@ -131,7 +131,7 @@ class System4Offset:
         self.eeg_file_stem = list(eeg_sources.keys())[0]
         self.eeg_log = files['event_log'][0]
         self.eeg_file = sorted(glob.glob(os.path.join(eeg_dir, '*.edf')), key=os.path.getmtime, reverse=True)[0]
-        self.eeg = mne.io.read_raw_edf(self.eeg_file, preload=True)
+        self.eeg = mne.io.read_raw_edf(self.eeg_file, preload=False)  # header only (n_times/sfreq)
         self.ev_ms = events.view(np.recarray).mstime
         self.events = events.view(np.recarray)
         #logger.debug("Event fields = {}".format(events.view(np.recarray).dtype.names))
@@ -237,7 +237,7 @@ class System4Aligner:
         self.eeg = {}
         for f in self.eeg_files:
             basename = os.path.basename(f)
-            self.eeg[basename] = mne.io.read_raw_edf(f, preload=True)
+            self.eeg[basename] = mne.io.read_raw_edf(f, preload=False)  # header only (n_times/sfreq)
 
         self.num_samples = None
         self.sample_rate = None
@@ -427,8 +427,11 @@ class System4AlignerCorrection:
         # Single source (eeg_sources asserted len==1 above); align() uses self.eeg as one
         # MNE Raw (self.eeg.n_times / .info), mirroring System4Offset. Pick the most recent
         # .edf. None when there is no EEG; align() returns early in that case.
+        # preload=False: we only read header metadata (n_times, sfreq) -- never the signal --
+        # so do NOT load the samples. High-rate sessions (e.g. 30 kHz, ~70M samples) would be
+        # tens of GB and OOM the worker on preload=True.
         self.eeg = (mne.io.read_raw_edf(
-            sorted(self.eeg_files, key=os.path.getmtime, reverse=True)[0], preload=True)
+            sorted(self.eeg_files, key=os.path.getmtime, reverse=True)[0], preload=False)
             if self.eeg_files else None)
 
         self.num_samples = None
