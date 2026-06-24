@@ -638,6 +638,7 @@ class System4AlignerCorrection:
         ``eegoffset`` computed directly from the uncorrected ``mstime``.
         """
         logger.debug('Applying relative-time clock correction to mstime and eegoffset...')
+        events = self._ensure_uncorrected_fields(events)
         M = np.asarray(events["mstime"], dtype=float)
         events["mstime_uncorrected"] = events["mstime"]
         events["eegoffset_uncorrected"] = self._calc_eegoffset(M)
@@ -664,6 +665,29 @@ class System4AlignerCorrection:
                          % int(locked.sum()))
             corrected['eegoffset'][locked] = corrected['eegoffset_uncorrected'][locked]
         return corrected.view(np.recarray)
+
+    @staticmethod
+    def _ensure_uncorrected_fields(events):
+        """Guarantee the events recarray has the ``mstime_uncorrected`` /
+        ``eegoffset_uncorrected`` int64 columns that the correction populates.
+
+        They are part of the base event dtype, but some parsers reach the aligner
+        without them -- notably the Elemem math/distractor parser, which is why
+        System-4 catFR/FR math events previously failed here with 'no field of name
+        mstime_uncorrected' (a non-critical task, so the import continued but produced
+        no math_events.json). Append the missing fields (default -1) so math events get
+        corrected and saved like task events. No-op when they are already present.
+        """
+        missing = [f for f in ('mstime_uncorrected', 'eegoffset_uncorrected')
+                   if f not in events.dtype.names]
+        if not missing:
+            return events
+        out = np.zeros(events.shape, dtype=events.dtype.descr + [(f, '<i8') for f in missing])
+        for name in events.dtype.names:
+            out[name] = events[name]
+        for f in missing:
+            out[f] = -1
+        return out.view(np.recarray)
 
     def _locked_mask(self, events):
         """Boolean mask of events that must NOT be clock-corrected: STIM events and
