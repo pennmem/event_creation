@@ -335,16 +335,25 @@ class TransferFile(object):
 
         new_origin_paths = []
         new_destination_directories = []
+        seen_real = set()  # os.path.realpath of every file already collected
 
         for origin_filename in self.formatted_origin_filenames:
             origin_path = os.path.join(containing_directory, origin_filename)
             logger.debug('Looking for {}'.format(origin_path))
-            # de-dup against already-collected paths: a single physical file can
-            # match more than one origin_file pattern (e.g. a newer config named
-            # R1589T_..._mono_L0M0_STIM.csv matches both the mono and L0M0STIM
-            # globs). Count it once so it doesn't falsely trip the multiple==False
-            # guard below.
-            new_files = [f for f in glob.glob(origin_path) if f not in new_origin_paths]
+            # de-dup by REAL path: a single physical file can be reached under more
+            # than one name that matches different origin_file patterns -- either the
+            # same file (R1589T_..._mono_L0M0_STIM.csv matches both the mono and
+            # L0M0STIM globs) or a symlink and its target (R1204T_1_mono_*.csv ->
+            # R1204T_1_*L0M0STIM.csv). Count each physical file once so it doesn't
+            # falsely trip the multiple==False guard below. Genuinely distinct files
+            # still (correctly) trip it.
+            new_files = []
+            for f in glob.glob(origin_path):
+                rp = os.path.realpath(f)
+                if rp in seen_real:
+                    continue
+                seen_real.add(rp)
+                new_files.append(f)
 
             if len(new_files) == 0:
                 logger.debug("Could not find files at {}".format(os.path.abspath(origin_path)))
