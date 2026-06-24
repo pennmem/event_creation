@@ -6,6 +6,8 @@
 source ~/.bashrc
 cd ~/event_creation
 rm *.png
-source activate event_creation
+source /usr/global/ubuntu/miniforge3/25.3.1/etc/profile.d/conda.sh
+conda activate workshop_311_rhino2b
 
-python -m event_creation.tests.regression_tests --db-root=/scratch/db_root
+EC_PYTHON="${CONDA_PREFIX:-/usr/global/ubuntu/miniforge3/25.3.1/envs/workshop_311_rhino2b}/bin/python"
+"$EC_PYTHON" -m event_creation.tests.regression_tests --db-root=/scratch/db_root

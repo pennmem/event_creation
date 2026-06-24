@@ -1,5 +1,5 @@
 #!/bin/bash
-source /usr/global/Anaconda/2019-10/etc/profile.d/conda.sh
+source /usr/global/ubuntu/miniforge3/25.3.1/etc/profile.d/conda.sh
 
 USR=${USER:-maint}
 
@@ -58,7 +58,7 @@ fi
 #xauth add $XAUTH_LINE
 #source ~/.bashrc
 
-STANDARD_ENV="workshop"
+STANDARD_ENV="workshop_311_rhino2b"
 if [ "$CONDA_DEFAULT_ENV" == "" -o "$CONDA_DEFAULT" == "" ]
 then
   CONDA_EXISTS="$(which conda >/dev/null 2>/dev/null && echo "yes" || echo "no")"
@@ -73,4 +73,9 @@ then
   fi
 fi
 
-python -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"
+# Invoke the env interpreter explicitly: after `conda activate`, base miniforge's
+# bin can still sit ahead of the env's bin in PATH, so a bare `python` may resolve
+# to the wrong interpreter. CONDA_PREFIX points at the activated env; fall back to
+# the known workshop_311_rhino2b path if activation was skipped.
+EC_PYTHON="${CONDA_PREFIX:-/usr/global/ubuntu/miniforge3/25.3.1/envs/workshop_311_rhino2b}/bin/python"
+"$EC_PYTHON" -m event_creation.submission.convenience "${SCRIPT_ARGS[@]}"
