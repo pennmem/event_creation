@@ -157,6 +157,8 @@ def _assert_heartbeat_correction(db_root, case):
     B. STIM/Elemem-originated events keep the plain host ``eegoffset`` (mstime is remapped by design);
     C. every clock-fit anchor point — incl. RANSAC outliers — lands <= 1 ms after correction;
     D. ``eegoffset`` is the CORRECTED ``mstime`` converted to EEG samples (task events).
+    E. ``eegfile`` is stamped on the aligned events (regression guard for the
+       2026-06-12 bug where the corrector ran without setting eegfile).
     """
     events = _load_task_events(db_root, case)
     if events is None or events.shape == () or len(events) == 0:
@@ -167,6 +169,21 @@ def _assert_heartbeat_correction(db_root, case):
             '%s missing from saved events; dtype change did not persist to JSON' % field)
 
     is_task, is_locked = _masks(events, case['experiment'])
+
+    # --- Check E: eegfile is populated ----------------------------------------
+    # The aligner must stamp the EEG source filename on aligned events. A blank
+    # eegfile everywhere is the exact signature of the 2026-06-12 regression (the
+    # corrector ran standalone without System4Offset), which silently broke
+    # downstream EEG loading for every System-4 session. Task events of a good
+    # session are within the recording, so each must carry a non-empty eegfile.
+    assert 'eegfile' in events.dtype.names, 'eegfile column missing from saved events'
+    ef = np.array([str(x) for x in events['eegfile']])
+    assert np.any(ef != ''), 'eegfile is blank on EVERY event — alignment did not stamp eegfile'
+    if is_task.any():
+        blank_task = is_task & (ef == '')
+        assert not blank_task.any(), (
+            '%d/%d task events have a blank eegfile after alignment'
+            % (int(blank_task.sum()), int(is_task.sum())))
 
     # --- Check A: task events changed -----------------------------------------
     if is_task.any():

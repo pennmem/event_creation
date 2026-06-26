@@ -391,10 +391,10 @@ class EventCreationTask(PipelineTask):
                 elif self.r1_sys_num == 4.0:
                     ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)),
                                             'ephys', 'current_source', 'elemem', f'{self.subject}*')
-                    # aligner = System4Offset(unaligned_events, files, ephys_dir)
-                    # events = aligner.align()
-                    # Refine the EEGSTART-anchored offsets with the robust clock
-                    # correction fit from HEARTBEAT / non-heartbeat messages.
+                    # System4AlignerCorrection is the complete System-4 aligner: it
+                    # fits the task->host clock correction from HEARTBEAT / non-heartbeat
+                    # messages, sets eegoffset/mstime, AND stamps eegfile on every
+                    # in-bounds event (no separate System4Offset pass needed).
                     corrector = System4AlignerCorrection(unaligned_events, files, ephys_dir, source='auto')
                     events = corrector.align()
                 else:

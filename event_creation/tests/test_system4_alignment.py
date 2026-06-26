@@ -38,6 +38,10 @@ SAMPLE_RATE = 1000.0
 SLOPE = 1.0002
 B = 0.0
 TT0 = EEG_START_MS
+# EEG source stem stamped onto in-bounds events, and a recording length long
+# enough that every synthetic event falls inside it (so eegfile is stamped).
+EEG_FILE_STEM = 'R1999X_catFR1_0_01Jan20_0000'
+NUM_SAMPLES = 10_000_000
 
 
 def _make_events():
@@ -70,12 +74,15 @@ def _make_events():
     return np.array(rows, dtype=dtype).view(np.recarray)
 
 
-def _make_aligner(experiment='catFR1', eeg_start_ms=EEG_START_MS, sample_rate=SAMPLE_RATE):
+def _make_aligner(experiment='catFR1', eeg_start_ms=EEG_START_MS, sample_rate=SAMPLE_RATE,
+                  eeg_file_stem=EEG_FILE_STEM, num_samples=NUM_SAMPLES):
     """A bare aligner with only the attributes ``_correct_events`` reads."""
     aligner = System4AlignerCorrection.__new__(System4AlignerCorrection)
     aligner.experiment = experiment
     aligner.eeg_start_ms = eeg_start_ms
     aligner.sample_rate = sample_rate
+    aligner.eeg_file_stem = eeg_file_stem
+    aligner.num_samples = num_samples
     return aligner
 
 
@@ -83,7 +90,12 @@ def _correct(events):
     return _make_aligner()._correct_events(events, slope=SLOPE, b=B, Tt0=TT0)
 
 
-def test_correct_events_changes_only_time_fields():
+# The correction is also permitted to (re)write eegfile -- it is the field the
+# aligner stamps now that it is the complete standalone System-4 aligner.
+MUTABLE_FIELDS = TIME_FIELDS | {'eegfile'}
+
+
+def test_correct_events_changes_only_time_and_eegfile_fields():
     events = _make_events()
     # Snapshot BEFORE: _correct_events fills mstime_uncorrected on the input in place.
     original = events.copy()
@@ -93,12 +105,39 @@ def test_correct_events_changes_only_time_fields():
     # No column added, dropped, or renamed.
     assert out.dtype.names == original.dtype.names
 
-    # Every non-time column is byte-identical to the input.
+    # Every column except the time fields and eegfile is byte-identical to the input.
     for name in original.dtype.names:
-        if name in TIME_FIELDS:
+        if name in MUTABLE_FIELDS:
             continue
         assert np.array_equal(out[name], original[name]), \
-            'correction modified non-time column %r' % name
+            'correction modified column %r it should not touch' % name
+
+
+def test_correct_events_stamps_eegfile_on_in_bounds_events():
+    """Regression guard for the 2026-06-12 bug where System4Offset was commented
+    out and the corrector ran standalone, leaving eegfile BLANK on every System-4
+    session. The corrector must now stamp the EEG source stem on in-bounds events."""
+    events = _make_events()
+    out = _correct(events)  # default aligner: NUM_SAMPLES covers all events
+
+    # Every event is in-bounds here, so all must carry the EEG file stem...
+    assert np.all(out['eegfile'] == EEG_FILE_STEM)
+    # ...and none may be left blank (the exact failure the bug produced).
+    assert not np.any(out['eegfile'] == '')
+
+
+def test_correct_events_blanks_eegfile_when_out_of_bounds():
+    """Events whose corrected sample falls outside the recording keep an empty
+    eegfile (mirroring System4Offset), so downstream readers skip them."""
+    events = _make_events()
+    # Recording shorter than the later events: only the first event stays in-bounds.
+    aligner = _make_aligner(num_samples=200_000)
+    out = aligner._correct_events(events, slope=SLOPE, b=B, Tt0=TT0)
+
+    in_bounds = (out['eegoffset'] >= 0) & (out['eegoffset'] <= aligner.num_samples)
+    assert in_bounds.any() and not in_bounds.all(), 'test needs a mix of in/out-of-bounds'
+    assert np.all(out['eegfile'][in_bounds] == EEG_FILE_STEM)
+    assert np.all(out['eegfile'][~in_bounds] == '')
 
 
 def test_task_corrected_locked_eegoffset_restored():

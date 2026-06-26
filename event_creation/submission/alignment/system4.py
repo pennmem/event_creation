@@ -571,9 +571,12 @@ class System4AlignerCorrection:
     def align(self):
         """
         Fit the task->host clock correction from the selected message source and
-        apply it to the events' ``mstime`` and ``eegoffset``.
+        apply it to the events' ``mstime`` and ``eegoffset``, then stamp ``eegfile``
+        on every in-bounds event. This is the complete System-4 aligner: it both
+        anchors offsets (via the fit + EEGSTART) and populates ``eegfile``, so no
+        separate System4Offset pass is required.
 
-        :return: The corrected events structure.
+        :return: The aligned events structure (eegfile + eegoffset + mstime filled).
         """
         
         # Skip alignment if there are no events or no EEG
@@ -664,6 +667,19 @@ class System4AlignerCorrection:
             logger.debug('Taking %d host-clock (STIM/Elemem-originated) eegoffsets direct'
                          % int(locked.sum()))
             corrected['eegoffset'][locked] = corrected['eegoffset_uncorrected'][locked]
+
+        # Stamp the EEG source filename onto every in-bounds event. This makes the
+        # corrector a complete System-4 aligner (it no longer relies on a prior
+        # System4Offset pass to populate ``eegfile``). Out-of-bounds events -- those
+        # whose corrected sample falls outside the recording -- keep an empty
+        # ``eegfile`` so downstream readers skip them, exactly as System4Offset did.
+        in_bounds = (corrected['eegoffset'] >= 0) & (corrected['eegoffset'] <= self.num_samples)
+        corrected['eegfile'] = ''
+        corrected['eegfile'][in_bounds] = self.eeg_file_stem
+        n_oob = int((~in_bounds).sum())
+        if n_oob:
+            logger.error('%d events are out of bounds of the EEG file; '
+                         'eegfile left blank for those events.' % n_oob)
         return corrected.view(np.recarray)
 
     @staticmethod
