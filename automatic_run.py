@@ -40,17 +40,23 @@ with open(logfile, 'w') as fw:
 
 os.chdir(script_dir)
 
+# NOTE: os.system runs under /bin/sh (dash on this host), where `&>>file` is
+# NOT "append stdout+stderr" (that's a bashism). dash parses `cmd &>>file` as
+# `cmd &` (background) + `>>file` (empty redirect), so the command is
+# backgrounded, os.system returns immediately, and its output is lost. When the
+# Slurm task then exits, the orphaned background job is killed before it can do
+# any work. Use POSIX `>>file 2>&1` instead.
 os.system(f'squeue -o "%.11i %.5P %.8j %.8u %.2t %.11M %.11L %.2c %.5m %.6N"'
-    + f' -j {slurm_jobid} &>>{logfile}')
+    + f' -j {slurm_jobid} >>{logfile} 2>&1')
 
 if exp == 'CourierReinstate1':
   fix_script = os.path.join(os.environ['HOME'], 'reinstatement_fix_scripts',
       'fix_one_session_jsonl.sh')
-  os.system(f'{fix_script} {sub} {sess} &>>{logfile}')
+  os.system(f'{fix_script} {sub} {sess} >>{logfile} 2>&1')
 
 os.system('./submit --set-input ' +
     f'"protocol=ltp:code={sub}:experiment={exp}:session={sess}:montage=0.0"' +
-    f' &>>{logfile}')
+    f' >>{logfile} 2>&1')
 
 def TotalTimeStr(time_delta):
   total = time_delta.total_seconds()
