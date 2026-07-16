@@ -19,9 +19,13 @@ def confirm(prompt):
 
 def submit():
     usr = getpass.getuser()
-    expected_users = ["RAM_maint", "RAM_clinical:"]
+    # scalp/LTP data is owned by maint; RAM/iEEG data is owned by RAM_maint.
+    # Run as the account that owns the data you are processing so output files
+    # get the correct owner.
+    expected_users = ["maint", "RAM_maint", "RAM_clinical"]
     if usr not in expected_users:
-        print("This script is meant to be run from RAM_maint not", usr)
+        print("This script is meant to be run from maint (scalp/LTP) or "
+              "RAM_maint (RAM/iEEG), not", usr)
         confirm("Are you sure you want to continue? ")
     host = socket.gethostname()
     if "node" not in host:

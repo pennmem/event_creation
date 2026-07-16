@@ -11,7 +11,8 @@
 #   - If session is omitted: confirm; remove ALL sessions for that experiment; then prune.
 #   - Console output is minimal: only whether we found & deleted JSON/paths.
 #   - All details (plans, JSON content, paths) are written to the log file.
-#   - After a successful write, runs cp→rm→mv as RAM_maint so owner is RAM_maint, then chmod g+rw.
+#   - After a successful write, sets the LTP index to owner/group maint (scalp/LTP data is
+#     owned by maint; RAM/iEEG data is owned by RAM_maint), then chmod 644.
 #
 # Requirements: python3, sudo (for the owner-fix step)
 
@@ -112,8 +113,8 @@ fix_owner_with_copy() {
 
   # Dry run
   if (( DRY_RUN )); then
-    echo "Ownership: planned (maint:RAM_maint, chmod 644)"
-    log "OWNER-FIX PLAN: chown maint:RAM_maint \"$json\" && chmod 644 \"$json\""
+    echo "Ownership: planned (maint:maint, chmod 644)"
+    log "OWNER-FIX PLAN: chown maint:maint \"$json\" && chmod 644 \"$json\""
     return 0
   fi
 
@@ -124,8 +125,8 @@ fix_owner_with_copy() {
   fi
 
   # Apply ownership and permissions
-  if chown maint:RAM_maint "$json" && chmod 644 "$json"; then
-    echo "Ownership: set to maint:RAM_maint (rw-r--r--)"
+  if chown maint:maint "$json" && chmod 644 "$json"; then
+    echo "Ownership: set to maint:maint (rw-r--r--)"
     log "OWNER-FIX DONE: $(ls -l "$json" 2>/dev/null || true)"
   else
     echo "Ownership: chown/chmod failed ⚠️"

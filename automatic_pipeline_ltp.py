@@ -71,9 +71,13 @@ def automatic_event_creator(check_index=True):
         random.shuffle(inputs)
 
         outdir = os.path.join(os.environ['HOME'], 'logs', 'stdouterr')
-        # Use sbatch to launch automatic_run.py,
-        # which in turn will call ./submit
-        os.system(f'sbatch --mem-per-cpu=60G -t 23:00:00 ' +
+        # Use sbatch to launch automatic_run.py, which in turn will call ./submit.
+        # --wait blocks until every array task finishes, so the downstream
+        # IndexAggregatorTask runs AFTER event creation has actually written the
+        # processed events to /protocols. Without it, sbatch returns immediately
+        # and the aggregator races ahead of event creation, so freshly-created
+        # sessions never make it into ltp.json on the same run.
+        os.system(f'sbatch --wait --mem-per-cpu=60G -t 23:00:00 ' +
             f'-o {outdir}/slurm-%A_%a.out -e {outdir}/slurm-%A_%a.err ' +
             f'-a 0-{n_jobs-1}%16 ' +
             f'{script_dir}/automatic_run.py {script_dir} ' +
