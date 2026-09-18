@@ -303,6 +303,7 @@ class EventCreationTask(PipelineTask):
                     'CourierReinstate1': CourierReinstate1SessionLogParser,
                     'ValueCourier': ValueCourierSessionLogParser,
                     'VCBehOnly': ValueCourierSessionLogParser,
+                    'VCFROP': ValueCourierSessionLogParser,
                   }
 
     @property
@@ -364,16 +365,24 @@ class EventCreationTask(PipelineTask):
         if self.protocol == 'ltp':
             sync_log = files['eeg_log'] if 'eeg_log' in files else []
             ephys_dir = os.path.join(os.path.dirname(os.path.dirname(db_folder)), 'ephys', 'current_processed')
-            # Align scalp EEG data with events
-            aligner = LTPAligner(unaligned_events, sync_log, ephys_dir)
-            events = aligner.align()
-            # Detect trials contaminated by blinks and other artifacts
-            artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir, self.experiment)
-            del aligner
-            events = artifact_detector.run()
-            # Create a cleaned version of the EEG data using localized component filtering
-            run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
-            del artifact_detector
+            if not os.path.isdir(ephys_dir):
+                # Behavioral-only session (no ephys import was run): there is no EEG
+                # to align to, detect artifacts in, or clean. Events keep their
+                # default eegfile='' / eegoffset=-1.
+                logger.info('No ephys directory for this session; skipping alignment, '
+                            'artifact detection and EEG cleaning')
+                events = unaligned_events
+            else:
+                # Align scalp EEG data with events
+                aligner = LTPAligner(unaligned_events, sync_log, ephys_dir)
+                events = aligner.align()
+                # Detect trials contaminated by blinks and other artifacts
+                artifact_detector = ArtifactDetector(events, aligner.eeg, ephys_dir, self.experiment)
+                del aligner
+                events = artifact_detector.run()
+                # Create a cleaned version of the EEG data using localized component filtering
+                run_lcf(events, artifact_detector.eeg, ephys_dir, method='infomax', highpass_freq=.5, iqr_thresh=3, lcf_winsize=.25)
+                del artifact_detector
         # RAM SPECIFIC PROCESSING - Alignment
         elif self.protocol == 'r1':
             self.pipeline.register_info('system_version', self.r1_sys_num)
