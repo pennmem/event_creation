@@ -325,6 +325,7 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
             events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
             success, attempts = attempt_importers([events_builder], force_events)
             attempted_importers.extend(attempts)
+            successes.append(success)  # was missing: an events failure used to report overall "Success"
             if success:
                 return all(successes), ImporterCollection(attempted_importers)
             else:
