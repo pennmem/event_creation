@@ -183,7 +183,13 @@ class BaseLogParser(object):
         :param template:
         :return:
         """
-        dtypes = [(entry[0], entry[2], entry[3] if len(entry) > 3 else 1) for entry in template]
+        # A template entry is (name, default, dtype) or (name, default, dtype, shape).
+        # Only pass a shape when one was given: numpy < 2 treated a trailing 1 as
+        # "scalar field" (with a deprecation warning), but numpy >= 2 treats it as a
+        # 1-element subarray, which makes every field 2-D and breaks masking such
+        # as events[events['type'] == 'WORD'].
+        dtypes = [(entry[0], entry[2], entry[3]) if len(entry) > 3 else (entry[0], entry[2])
+                  for entry in template]
         return dtypes
 
     @property

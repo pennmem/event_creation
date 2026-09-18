@@ -28,6 +28,7 @@ from .tasks import CleanDbTask, IndexAggregatorTask
 from .events_tasks import ReportLaunchTask
 from .log import logger
 from .automation import Importer, ImporterCollection
+from .pipelines import is_behavioral_only
 
 try:
     from ptsa.data.readers import BaseEventReader, JsonIndexReader
@@ -303,11 +304,23 @@ def run_session_import(kwargs, do_import=True, do_convert=False, force_events=Fa
         force_eeg = kwargs['force_eeg']
 
 
+    # Behavioral-only scalp experiments (see pipelines.GROUPS / BEH_ONLY_GROUP)
+    # record no EEG, so there is nothing for the ephys builder to import.
+    # Skip it rather than failing on the missing raw EEG file; event creation
+    # handles the absence of an ephys directory on its own.
+    experiment = kwargs.get('new_experiment') or kwargs.get('experiment', '')
+    beh_only = kwargs.get('protocol') == 'ltp' and is_behavioral_only(experiment)
+
     if do_import:
-        ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
-        success, attempts = attempt_importers([ephys_builder], force_eeg)
-        attempted_importers.extend(attempts)
-        successes.append(success)
+        if beh_only:
+            logger.info('{} is a behavioral-only experiment: skipping ephys import'.format(experiment))
+            ephys_builder = None
+            success = True
+        else:
+            ephys_builder = Importer(Importer.BUILD_EPHYS, **kwargs)
+            success, attempts = attempt_importers([ephys_builder], force_eeg)
+            attempted_importers.extend(attempts)
+            successes.append(success)
         if success:
             events_builder = Importer(Importer.BUILD_EVENTS, **kwargs)
             success, attempts = attempt_importers([events_builder], force_events)

@@ -48,8 +48,28 @@ GROUPS = {
     'EFRCourierOpenLoop': ('verbal', 'unity', 'courier', 'stim'),
     'ltpDelayRepFRReadOnly': ('verbal', 'unity'),
     'ValueCourier': ('verbal', 'unity', 'courier'),
-    'VCBehOnly': ('verbal', 'unity', 'courier'),
+    # Behavioral-only scalp experiments: no EEG is recorded, so the ephys
+    # pipeline is skipped entirely (see BEH_ONLY_GROUP / is_behavioral_only).
+    'VCBehOnly': ('verbal', 'unity', 'courier', 'beh_only'),
+    'VCFROP': ('verbal', 'unity', 'courier', 'beh_only'),
 }
+
+# Group tag marking an experiment as behavioral-only (no EEG recording).
+# Sessions of such experiments skip the ephys import and never require a
+# raw EEG file; event creation still runs, with alignment, artifact
+# detection and cleaning skipped because there is no EEG to apply them to.
+BEH_ONLY_GROUP = 'beh_only'
+
+
+def experiment_type(experiment):
+    """Strip digits/punctuation from an experiment name, matching how
+    determine_groups() looks names up in GROUPS (e.g. 'catFR1' -> 'catFR')."""
+    return re.sub(r'[^A-Za-z]', '', experiment)
+
+
+def is_behavioral_only(experiment):
+    """True if the experiment is tagged BEH_ONLY_GROUP in GROUPS."""
+    return BEH_ONLY_GROUP in GROUPS.get(experiment_type(experiment), ())
 
 MATLAB_CONVERSION_TYPE = 'MATLAB_CONVERSION'
 SOURCE_IMPORT_TYPE = 'IMPORT'
@@ -67,7 +87,7 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
         experiment = full_experiment
     if protocol == 'r1' and 'FR5' in experiment and recog:    # understand and refactor
         groups += ('recog',)
-    exp_type = re.sub(r'[^A-Za-z]', '', experiment)
+    exp_type = experiment_type(experiment)
 
     if exp_type in GROUPS:
         groups += GROUPS[exp_type]
