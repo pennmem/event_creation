@@ -247,12 +247,19 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             df_md = self.add_field(df_md, 'category')
             df_md = self.add_field(df_md, 'category_num')
         # add list number field
-        list_col = np.zeros(len(df_md.index), dtype=int)
-        l = -1
-        for idx in range(len(list_col)):
-            if idx in df_md.loc[df_md['type']=='DISTRACT_START'].index:
-                l += 1
-            list_col[idx] = int(l)
+        # take the list from data.trial when every MATH/DISTRACT message carries it (e.g. PAL1),
+        # practice (trial 0) as -1 like the task events; counting DISTRACTs mis-numbers every
+        # list after a restarted one. Tasks that do not send it (FR) are counted as before.
+        trials = [row.data.get('trial') if isinstance(row.data, dict) else None for _, row in md.iterrows()]
+        if len(trials) and all(t is not None for t in trials):
+            list_col = np.array([-1 if int(t) == 0 else int(t) for t in trials], dtype=int)
+        else:
+            list_col = np.zeros(len(df_md.index), dtype=int)
+            l = -1
+            for idx in range(len(list_col)):
+                if idx in df_md.loc[df_md['type']=='DISTRACT_START'].index:
+                    l += 1
+                list_col[idx] = int(l)
         df_md['list'] = list_col
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
         dtype = np.dtype([(key, self.fields.query("field == @key").iloc[0].datatype) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
