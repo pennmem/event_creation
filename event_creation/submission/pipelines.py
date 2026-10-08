@@ -29,6 +29,7 @@ GROUPS = {
     'FR': ('verbal', 'stim', 'math'),   # math events in FR, PAL, catFR
     'IFR': ('verbal', 'stim'),          # add IFR support
     'PAL': ('verbal', 'stim', 'math'),
+    'IPAL': ('verbal',),                # fixation retention interval, no math
     'catFR': ('verbal', 'stim', 'math'),
     'CatFR': ('verbal', 'stim', 'math'),
     'ICatFR': ('verbal', 'stim'),       # add ICatFR support

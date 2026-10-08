@@ -49,6 +49,7 @@ from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
 from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
         ElememCatFRLogParser, ElememEFRCourierParser, ElememCPSParser
+from .parsers.elemem_pal_parser import ElememPALLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -285,6 +286,8 @@ class EventCreationTask(PipelineTask):
                 'ICatFR': ElememCatFRLogParser,
                 'EFRCourierReadOnly': ElememEFRCourierParser,
                 'EFRCourierOpenLoop': ElememEFRCourierParser,
+                'PAL': ElememPALLogParser,
+                'IPAL': ElememPALLogParser,
             }
         else:
             raise KeyError

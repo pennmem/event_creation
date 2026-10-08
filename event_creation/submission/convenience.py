@@ -432,7 +432,8 @@ def build_session_inputs(subject, new_experiment, session, info):
     if experiment.startswith('PS') or experiment.startswith('TH') or experiment.startswith('YC'):
         inputs['do_math'] = False
 
-    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):
+    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL') \
+            or experiment.startswith('IPAL'):
         inputs['groups'] += ('verbal', )
 
     if experiment.endswith("3"):
@@ -748,7 +749,8 @@ def prompt_for_session_inputs(inputs, **opts):
     if any(experiment.startswith(exp) for exp in ['PS', 'TH', 'Location']):
         inputs['do_math'] = False
 
-    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL'):
+    if experiment.startswith('FR') or experiment.startswith('catFR') or experiment.startswith('PAL') \
+            or experiment.startswith('IPAL'):
         inputs['groups'] += ('verbal',)
 
     return inputs
