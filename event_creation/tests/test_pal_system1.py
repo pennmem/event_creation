@@ -18,6 +18,7 @@ The session is synthetic. One timeline of task events is written three ways:
   jitter, after a 0.5 Hz high-pass, with 8 "Test Syncbox" pulses before the session that
   the task log does not have.
 """
+import datetime
 import glob
 import json
 import os
@@ -273,7 +274,7 @@ def write_event_log(folder, timeline):
         json.dump({'experiment': {'type': timeline.experiment}}, f)
 
 
-def write_edf(path, n_samples, edges_samples, rng, negative=False):
+def write_edf(path, n_samples, edges_samples, rng, negative=False, start=None):
     """EEG noise channels, the two sync inputs, and an EKG channel."""
     t = np.zeros(n_samples)
     width = int(round(0.020 * SAMPLE_RATE))
@@ -291,6 +292,9 @@ def write_edf(path, n_samples, edges_samples, rng, negative=False):
                rng.normal(0, 100, n_samples)]
     labels = ['LA1', 'LA2', 'EEG %s-Ref' % SYNC_LABELS[0], 'EEG %s-Ref' % SYNC_LABELS[1], 'EKG1']
     w = pyedflib.EdfWriter(path, len(labels), file_type=pyedflib.FILETYPE_EDFPLUS)
+    if start is not None:
+        # the split names its files by start minute: files of one session must differ
+        w.setStartdatetime(start)
     w.setSignalHeaders([dict(label=l, dimension='uV', sample_frequency=SAMPLE_RATE,
                              physical_max=3000, physical_min=-3000, digital_max=32767,
                              digital_min=-32768) for l in labels])
@@ -346,7 +350,10 @@ def make_session(out, experiment, n_files=1, seed=11):
         start_ms = EEG_START + bounds[i] * 1000. / SAMPLE_RATE
         n = bounds[i + 1] - bounds[i]
         samples = (eeg_edges - start_ms) * SAMPLE_RATE / 1000.
-        write_edf(os.path.join(raw, name), n, np.ceil(samples), np_rng, negative=(i == 1))
+        start = datetime.datetime(2026, 10, 8, 9, 0, 0) + \
+            datetime.timedelta(seconds=int((start_ms - EEG_START) / 1000.))
+        write_edf(os.path.join(raw, name), n, np.ceil(samples), np_rng, negative=(i == 1),
+                  start=start)
         files.append(dict(name=name, start_ms=start_ms, n_samples=n,
                           edges=np.sort(samples[(samples >= 0) & (samples < n)]),
                           key='%s_%s_0_part%d' % (SUBJECT, experiment, i + 1)))
