@@ -49,6 +49,8 @@ from .parsers.hostpc_parsers import FRHostPCLogParser, catFRHostPCLogParser,\
         TiclFRParser
 from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, ElememFRLogParser, \
         ElememCatFRLogParser, ElememEFRCourierParser, ElememCPSParser
+from .parsers.elemem_pal_parser import ElememPALLogParser
+from .parsers.pal_tasklog_parser import PALTaskLogParser, PALSystem1Parser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -202,7 +204,8 @@ class EventCreationTask(PipelineTask):
             return {
 
             'FR': FRSessionLogParser,
-            'PAL': PALSessionLogParser,
+            'PAL': PALSystem1Parser,      # PyEPL session.log, or the UnityEPL task's pal_events.jsonl
+            'IPAL': PALTaskLogParser,     # pal_events.jsonl (System 1: sync box)
             'catFR': CatFRSessionLogParser,
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
@@ -285,6 +288,8 @@ class EventCreationTask(PipelineTask):
                 'ICatFR': ElememCatFRLogParser,
                 'EFRCourierReadOnly': ElememEFRCourierParser,
                 'EFRCourierOpenLoop': ElememEFRCourierParser,
+                'PAL': ElememPALLogParser,
+                'IPAL': ElememPALLogParser,
             }
         else:
             raise KeyError
@@ -390,7 +395,10 @@ class EventCreationTask(PipelineTask):
                 events = unaligned_events
             else:
                 if self.r1_sys_num == 1.0:
-                    aligner = System1Aligner(unaligned_events, files)
+                    # A parser may name its own System 1 aligner (the PAL task-log parsers
+                    # align per launch from pal_events.jsonl); otherwise System1Aligner.
+                    aligner_type = getattr(parser, 'SYSTEM1_ALIGNER', None) or System1Aligner
+                    aligner = aligner_type(unaligned_events, files)
                     events = aligner.align()
                 elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME
                     aligner = FreiburgAligner(unaligned_events, files)

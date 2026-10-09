@@ -86,6 +86,9 @@ options:
   - dest: view_only
     arg: view-only
     help: 'View information about already-submitted subjects'
+  - dest: sys1
+    arg: sys1
+    help: 'Process the session as System 1 (sync pulses, no host PC). Overrides the system the subject code suffix implies (A/S = System 3.3, J/T/E/H = System 4), e.g. for Colorado sync-box sessions'
   - dest: show_plots
     arg: show-plots
     help: 'Show plots of fit and residuals when aligning data (not available when running with sudo)'

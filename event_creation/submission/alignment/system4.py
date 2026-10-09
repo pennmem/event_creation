@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import json
 from ..log import logger
+from ..exc import AlignmentError
 
 class System4Offset:
     def __init__(self, events, files, eeg_dir):

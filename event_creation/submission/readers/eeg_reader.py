@@ -832,6 +832,9 @@ class EDF_reader(EEG_reader):
                 header = reader.getSignalHeader(i)
             except:
                 continue
+            # pyedflib 0.1.25+ calls it sample_frequency; older releases sample_rate.
+            if 'sample_rate' not in header:
+                header['sample_rate'] = header.get('sample_frequency')
             if header['label']!= '' and header['label'][0]!= '_' and "EKG" not in header['label']:
                 headers[i] = header
         return headers

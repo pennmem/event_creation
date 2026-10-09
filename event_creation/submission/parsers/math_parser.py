@@ -1,5 +1,9 @@
+import os
+
 from .base_log_parser import BaseSessionLogParser,BaseSys3_1LogParser
 from .elemem_parsers import BaseElememLogParser
+from .pal_task_log import read_task_log, to_wire_messages
+from ..alignment.system1_tasklog import TaskLogSystem1Aligner
 from .system2_log_parser import System2LogParser
 import pandas as pd
 import numpy as np
@@ -26,6 +30,9 @@ def MathLogParser(protocol,subject,montage,experiment,session,files):
         return MathSessionLogParser(protocol,subject,montage,experiment,session,files)
     elif 'session_log_json' in files:
         return MathUnityLogParser(protocol,subject,montage,experiment,session,files)
+    elif os.path.basename(str(files.get('session_log', ''))) == 'pal_events.jsonl':
+        # PAL1 on System 1: the math is in the task's own log (no math.log, no event.log)
+        return MathPALTaskLogParser(protocol, subject, montage, experiment, session, files)
     elif 'event_log' in files:       # conditioning on 'event_log' may also match system 3 (ok because of logic order)
         return MathElememLogParser(protocol, subject, montage, experiment, session, files)
     else:
@@ -222,7 +229,10 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
 
     # override method in BaseElememLogParser -> only reading MATH and DISTRACT events
     def _read_event_log(self, filename):
-        df = pd.read_json(filename, lines=True)
+        return self._math_events(pd.read_json(filename, lines=True))
+
+    def _math_events(self, df):
+        """Math records from a frame of messages with columns type, data, time."""
         md = df[(df['type']=='MATH') | (df['type']=='DISTRACT')]       # math and distract events
         # have to convert from dataframe to grab necessary info
         md_ra = [{'answer': int(row.data[self.ANSWER_FIELD]), 
@@ -247,12 +257,19 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
             df_md = self.add_field(df_md, 'category')
             df_md = self.add_field(df_md, 'category_num')
         # add list number field
-        list_col = np.zeros(len(df_md.index), dtype=int)
-        l = -1
-        for idx in range(len(list_col)):
-            if idx in df_md.loc[df_md['type']=='DISTRACT_START'].index:
-                l += 1
-            list_col[idx] = int(l)
+        # take the list from data.trial when every MATH/DISTRACT message carries it (e.g. PAL1),
+        # practice (trial 0) as -1 like the task events; counting DISTRACTs mis-numbers every
+        # list after a restarted one. Tasks that do not send it (FR) are counted as before.
+        trials = [row.data.get('trial') if isinstance(row.data, dict) else None for _, row in md.iterrows()]
+        if len(trials) and all(t is not None for t in trials):
+            list_col = np.array([-1 if int(t) == 0 else int(t) for t in trials], dtype=int)
+        else:
+            list_col = np.zeros(len(df_md.index), dtype=int)
+            l = -1
+            for idx in range(len(list_col)):
+                if idx in df_md.loc[df_md['type']=='DISTRACT_START'].index:
+                    l += 1
+                list_col[idx] = int(l)
         df_md['list'] = list_col
         md_dl = [e.to_dict() for _, e in df_md.iterrows()]    # list of dictionaries
         dtype = np.dtype([(key, self.fields.query("field == @key").iloc[0].datatype) for key in md_dl[0].keys()])   # dtypes of each field (order invariant)
@@ -288,3 +305,39 @@ class MathElememLogParser(BaseElememLogParser):    # parse events.log for math/d
         event['rectime'] = event_json[self.RECTIME_FIELD]
         event['mstime'] = event_json['mstime']     # timestamp of start of math problem
         return event
+
+
+class MathPALTaskLogParser(MathElememLogParser):
+    """PAL1 math events under System 1, from the task's pal_events.jsonl.
+
+    The task log's DISTRACT_START / MATH lines are mapped to the messages the task sends
+    Elemem (pal_task_log.to_wire_messages), so the events are exactly those
+    MathElememLogParser makes on System 4: DISTRACT_START and PROB, the list from
+    data.trial (practice -1), mstime = the answer's time minus its response time. mstime is
+    on the task clock (LAUNCH.epochUnixMs + time); TaskLogSystem1Aligner maps it per launch.
+    """
+
+    SYSTEM1_ALIGNER = TaskLogSystem1Aligner
+
+    def __init__(self, protocol, subject, montage, experiment, session, files):
+        BaseElememLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
+                                     primary_log='session_log')
+        self._add_fields(*MathSessionLogParser._math_fields())
+        self._add_type_to_new_event(
+            MATH = self.events_math,
+            DISTRACT = self.events_distract,
+        )
+
+    def _set_experiment_config(self):
+        return None     # no experiment_config.json without Elemem
+
+    def _read_primary_log(self):
+        if isinstance(self._primary_log, (list, tuple)):
+            self._primary_log = self._primary_log[0]
+        return []       # parse() reads the log itself
+
+    def _read_event_log(self, filename):
+        messages = to_wire_messages(read_task_log(filename))
+        df = pd.DataFrame([dict(type=m['type'], data=m['data'], time=m['time']) for m in messages],
+                          columns=['type', 'data', 'time'])
+        return self._math_events(df)
