@@ -164,6 +164,10 @@ In the most basic use case, creation of events can be executed with just
     - `./submit --set subject=R1001P:session=0:experiment=FR1`
 - **`--paths`**: Useful for testing (export to non-official location), if rhino is mounted,
     or if creating a database for export
+- **`--sys1`**: Process the session as System 1 (sync pulses), whatever the subject code's
+    suffix implies (A/S are otherwise System 3.3, J/T/E/H System 4). Needed for Colorado
+    sync-box sessions. For PAL1/IPAL1 run with the UnityEPL task, see
+    [PAL_SYSTEM1.md](PAL_SYSTEM1.md) for the layout, the sync-pulse extractor and the command.
     
     
 ## For Developers
