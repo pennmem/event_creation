@@ -715,3 +715,29 @@ def test_routing(data_root):
 def test_sys1_option():
     from ..submission.configuration import config
     assert 'sys1' in config.options
+
+
+def _pulse_train(n, late=(), late_ms=9.0, seed=3):
+    """Task pulse times (ms) and the EEG's, 35 ppm fast and 2 s offset; some pulses late."""
+    rng = np.random.RandomState(seed)
+    task = 1000. + np.cumsum(rng.randint(800, 1201, n)).astype(float)
+    eeg = task * (1 + 35e-6) + 2000.
+    eeg[list(late)] += late_ms
+    return task, eeg
+
+
+def test_a_short_train_survives_one_late_pulse():
+    """A LabJack pulse can be tens of ms late; one in a 43-pulse train is not a bad session."""
+    task, eeg = _pulse_train(43, late=[20])
+    aligner = object.__new__(TaskLogSystem1Aligner)
+    fit = aligner.match(task, eeg, 'test')
+    assert fit['n_outliers'] == 1 and fit['n_matched'] == 42
+    assert fit['max_residual_ms'] < 1.0
+    assert abs((fit['slope'] - 1) * 1e6 - 35) < 1
+
+
+def test_many_late_pulses_still_refuse():
+    task, eeg = _pulse_train(43, late=range(5, 40, 5))      # 7 of 43, 16 %
+    aligner = object.__new__(TaskLogSystem1Aligner)
+    with pytest.raises(AlignmentError, match='more than 5 ms off the fit'):
+        aligner.match(task, eeg, 'test')

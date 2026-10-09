@@ -36,9 +36,12 @@ For every launch and every EEG file:
 3. Gates, each an AlignmentError naming the launch and file:
    * slope more than ``MAX_SLOPE_ERROR`` (1 %) from 1: a sample-rate mismatch between the
      .sync.txt and sources.json, not clock drift;
-   * more than ``MAX_OUTLIER_FRACTION`` of matched pulses off the line by more than
-     ``MAX_RESIDUAL_MS`` (5 ms); fewer outliers are dropped and the line refitted, so
-     every pulse kept is within 5 ms;
+   * more matched pulses off the line by more than ``MAX_RESIDUAL_MS`` (5 ms) than
+     ``MAX_OUTLIER_FRACTION`` (5 %) of them, or ``MIN_OUTLIERS_ALLOWED`` (2) in a short
+     train; fewer are dropped and the line refitted, so every pulse kept is within 5 ms.
+     A LabJack pulse is sometimes tens of ms late (USB scheduling), so a few late pulses
+     are expected; a wrong match puts many off the line, which this and the matched
+     fraction below catch;
    * fewer than ``MIN_MATCHED_FRACTION`` of the task pulses that fall inside the file's
      pulse span matched, or fewer than ``MIN_MATCHED_PULSES`` in all.
 
@@ -94,7 +97,8 @@ class TaskLogSystem1Aligner(object):
     ANCHOR_SCALE = (0.9, 1.1)    # scales considered when anchoring (the slope gate is 1 %)
     MATCH_TOLERANCE_MS = 10.     # a task pulse matches the nearest EEG pulse within this
     MAX_RESIDUAL_MS = 5.         # max |residual| of a pulse kept in the fit
-    MAX_OUTLIER_FRACTION = 0.01  # more matched pulses than this beyond MAX_RESIDUAL_MS: error
+    MAX_OUTLIER_FRACTION = 0.05  # more matched pulses than this beyond MAX_RESIDUAL_MS: error
+    MIN_OUTLIERS_ALLOWED = 2     # ... but a short train may always drop this many
     MAX_SLOPE_ERROR = 0.01       # |slope - 1|
     MIN_MATCHED_PULSES = 10
     MIN_MATCHED_FRACTION = 0.9   # of the task pulses inside the file's pulse span
@@ -245,7 +249,7 @@ class TaskLogSystem1Aligner(object):
                 % (where, slope, 100 * self.MAX_SLOPE_ERROR))
         resid = eeg_ms[ei] - (slope * task_ms[ti] + offset)
         out = np.abs(resid) > self.MAX_RESIDUAL_MS
-        if out.sum() > self.MAX_OUTLIER_FRACTION * len(ti):
+        if out.sum() > max(self.MIN_OUTLIERS_ALLOWED, self.MAX_OUTLIER_FRACTION * len(ti)):
             raise AlignmentError(
                 '%s: %d of %d matched pulses are more than %g ms off the fit (max %.1f ms, '
                 'RMS %.2f ms); the pulse train is unreliable'
