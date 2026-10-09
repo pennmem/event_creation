@@ -393,7 +393,10 @@ class EventCreationTask(PipelineTask):
                 events = unaligned_events
             else:
                 if self.r1_sys_num == 1.0:
-                    aligner = System1Aligner(unaligned_events, files)
+                    # A parser may name its own System 1 aligner (the PAL task-log parsers
+                    # align per launch from pal_events.jsonl); otherwise System1Aligner.
+                    aligner_type = getattr(parser, 'SYSTEM1_ALIGNER', None) or System1Aligner
+                    aligner = aligner_type(unaligned_events, files)
                     events = aligner.align()
                 elif 'DBOY' in self.experiment and self.subject.startswith('FR'): # FIXME
                     aligner = FreiburgAligner(unaligned_events, files)

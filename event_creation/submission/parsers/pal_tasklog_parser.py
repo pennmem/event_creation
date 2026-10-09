@@ -39,6 +39,7 @@ Files
 
 import warnings
 
+from ..alignment.system1_tasklog import TaskLogSystem1Aligner
 from .base_log_parser import BaseLogParser
 from .pal_base import PALParserMixin
 from .pal_task_log import read_task_log, to_wire_messages
@@ -46,6 +47,9 @@ from .pal_task_log import read_task_log, to_wire_messages
 
 class PALTaskLogParser(PALParserMixin, BaseLogParser):
     """PAL1 / IPAL1 events from pal_events.jsonl. See the module docstring."""
+
+    # EventCreationTask aligns System 1 events with this instead of System1Aligner
+    SYSTEM1_ALIGNER = TaskLogSystem1Aligner
 
     def __init__(self, protocol, subject, montage, experiment, session, files):
         BaseLogParser.__init__(self, protocol, subject, montage, experiment, session, files,
