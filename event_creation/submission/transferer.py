@@ -347,7 +347,9 @@ def generate_session_transferer(subject, experiment, session, protocol='r1', gro
 
     kwarg_inputs['subject'] = subject
 
-    if 'system_1' in groups and 'transfer' in groups:
+    # PAL task-log sessions take every raw/<exp>_<sess>/*.sync.txt (one per EEG file) from
+    # their own transfer entry; the single-file search does not apply to them.
+    if 'system_1' in groups and 'transfer' in groups and 'pal_task_log' not in groups:
         try:
             kwarg_inputs['sync_folder'], kwarg_inputs['sync_filename'] = \
                 find_sync_file(code, experiment, original_session)
