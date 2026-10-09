@@ -21,12 +21,15 @@ Method
 For every launch and every EEG file:
 
 1. Anchor: find a window of ``ANCHOR_INTERVALS`` consecutive task inter-pulse intervals
-   that matches exactly one window of EEG intervals, by the median absolute difference
-   after the best common scale (as LTPAligner.times_to_offsets matches on medians). The
-   pulses are 800-1200 ms apart at random, so ~20 intervals identify a stretch uniquely;
-   missing or extra pulses only cost the windows that contain them, and no common start
-   is assumed (a launch need not be inside the file, and a file need not start before the
-   launch).
+   that matches exactly one window of EEG intervals: after the common scale (the median
+   ratio of the intervals), the 75th percentile of the absolute interval differences must
+   be under ``ANCHOR_TOLERANCE_MS``. This is LTPAligner.times_to_offsets' median match
+   made stricter, so that a launch and a file that do not overlap practically never
+   anchor by chance. The pulses are 800-1200 ms apart at random, so ~20 intervals
+   identify a stretch uniquely; a missing or extra pulse only costs the windows that
+   contain it, and no common start is assumed (a launch need not be inside the file, and
+   a file need not start before the launch). The line is seeded from the intervals that
+   match one by one (median offset), not from the window paired by index.
 2. Grow: fit a line on the anchor, match every task pulse within ``MATCH_TOLERANCE_MS`` of
    its predicted EEG time to the nearest EEG pulse, refit, doubling the stretch of the
    launch used each time, so drift is followed outwards.
@@ -86,7 +89,8 @@ class TaskLogSystem1Aligner(object):
 
     ANCHOR_INTERVALS = 20        # intervals in an anchor window
     MIN_ANCHOR_INTERVALS = 8     # shortest usable window (a launch with ~10 pulses)
-    ANCHOR_TOLERANCE_MS = 10.    # median |EEG interval - scale * task interval| of a match
+    ANCHOR_TOLERANCE_MS = 10.    # |EEG interval - scale * task interval| of a matching interval
+    ANCHOR_QUANTILE = 75         # this percentile of a window's differences must be within it
     ANCHOR_SCALE = (0.9, 1.1)    # scales considered when anchoring (the slope gate is 1 %)
     MATCH_TOLERANCE_MS = 10.     # a task pulse matches the nearest EEG pulse within this
     MAX_RESIDUAL_MS = 5.         # max |residual| of a pulse kept in the fit
@@ -176,7 +180,8 @@ class TaskLogSystem1Aligner(object):
         for i in range(0, len(d_task) - w + 1, max(1, w // 2)):
             seg = d_task[i:i + w]
             scale = np.median(eeg_win / seg, axis=1)
-            cost = np.median(np.abs(eeg_win - scale[:, None] * seg), axis=1)
+            cost = np.percentile(np.abs(eeg_win - scale[:, None] * seg), self.ANCHOR_QUANTILE,
+                                 axis=1)
             cost[(scale < self.ANCHOR_SCALE[0]) | (scale > self.ANCHOR_SCALE[1])] = np.inf
             good = np.flatnonzero(cost < self.ANCHOR_TOLERANCE_MS)
             if len(good) == 1:

@@ -574,8 +574,12 @@ def test_gate_slope(session, tmp_path):
 
 
 def test_gate_matched_fraction(session, tmp_path):
-    rng = np.random.default_rng(5)
-    files = corrupt(session, tmp_path, lambda idx: idx[rng.random(len(idx)) > 0.3])
+    # after the first 60 pulses of each file, every fourth pulse is lost
+    def drop(idx):
+        keep = np.ones(len(idx), bool)
+        keep[60::4] = False
+        return idx[keep]
+    files = corrupt(session, tmp_path, drop)
     with pytest.raises(AlignmentError, match='matched'):
         align(session, files=files)
 
