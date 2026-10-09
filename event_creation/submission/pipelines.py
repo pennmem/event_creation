@@ -105,7 +105,11 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
     match_sys = True            # toggle whether to run system matching
     sys3 = ['A', 'S']
     sys4 = ['J', 'T', 'E', 'H']      # add Harvard  = H
-    if suj[-1] in sys3:
+    # An explicit System 1 choice (--sys1, or "system_1": true in a JSON import) wins over
+    # the suffix: Colorado (A) records with a sync box now, not System 3.3.
+    if 'system_1' in groups:
+        logger.info("System 1 requested for {}; the subject-code suffix rule is not applied".format(subject))
+    elif suj[-1] in sys3:
         groups += ('system_3_3',)
         match_sys = False
     elif suj[-1] in sys4:
@@ -159,7 +163,24 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
         groups += (sys,)
 
+    if protocol == 'r1' and exp_type in ('PAL', 'IPAL') and \
+            (exp_type == 'IPAL' or has_pal_task_log(subject, experiment, session)):
+        groups += (PAL_TASK_LOG_GROUP,)
+
     return groups
+
+
+# PAL1/IPAL1 run with the UnityEPL task (pennmem PAL1_UnityEPL) write their events to
+# pal_events.jsonl; the PyEPL PAL1 wrote session.log. Sessions with the task log get this
+# group, which selects the task log, sync files and parser for System 1
+# (transfer_inputs/behavioral_inputs.yml, parsers/pal_tasklog_parser.py). IPAL1 exists only
+# as the UnityEPL task.
+PAL_TASK_LOG_GROUP = 'pal_task_log'
+
+
+def has_pal_task_log(code, experiment, original_session):
+    return os.path.exists(os.path.join(paths.data_root, code, 'behavioral', experiment,
+                                       'session_{}'.format(original_session), 'pal_events.jsonl'))
 
 
 def r1_system_match(experiment, transfer_cfg, sys):
