@@ -281,6 +281,44 @@ files:
     origin_directory: *SYNC_DIR
     origin_file: '{sync_filename}'
     destination: logs/extracted_syncs.txt
+  ## PAL1 / IPAL1 run with the UnityEPL task on System 1 (sync box, no host PC)
+  # Group pal_task_log: pipelines.determine_groups adds it to IPAL, and to PAL when the
+  # session folder has pal_events.jsonl. The task log replaces session.log, and one
+  # .sync.txt per EEG file comes from raw/<exp>_<session>/ (readers/sync_pulse_extractor.py),
+  # instead of the single file find_sync_file looks for.
+
+  - name: session_log
+    << : *FILE
+    groups: [ r1, transfer, verbal, pal_task_log, system_1 ]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: 'pal_events.jsonl'
+    destination: logs/pal_events.jsonl
+
+  - name: sync_pulses
+    << : *FILE
+    multiple: true
+    groups: [ r1, transfer, pal_task_log, system_1 ]
+    origin_directory: *RAW_DIR
+    origin_file: '*.sync.txt'
+    destination: 'logs/sync_pulses/'
+
+  - name: sync_channel
+    << : *FILE
+    required: false
+    groups: [ r1, transfer, pal_task_log, system_1 ]
+    origin_directory: *RAW_DIR
+    origin_file: 'sync_channel.json'
+    destination: logs/sync_channel.json
+
+  - name: probe_lists
+    << : *FILE
+    multiple: true
+    required: false
+    groups: [ r1, transfer, verbal, pal_task_log, system_1 ]
+    origin_directory: *BEH_SESS_DIR
+    origin_file: '*.lst'
+    destination: 'annotations/'
+
   # System 2
 
   - name: host_logs
