@@ -94,7 +94,7 @@ and the interval range; check that the width is about 20 ms and intervals 800-12
 The import logs one line per fit, e.g.
 
 ```
-Sync fit launch 1, R1765A_IPAL1_0_part1.edf: 328/328 pulses matched, slope +35.0 ppm, RMS 0.62 ms, max 1.88 ms, 0 outliers dropped
+Sync fit launch 2, R1765A_IPAL1_0_part2.edf: 117 of the 117 task pulses inside the file matched (174 in the launch), slope +37.8 ppm, RMS 0.62 ms, max 2.04 ms, 0 outliers dropped
 ```
 
 ## What the alignment does and refuses

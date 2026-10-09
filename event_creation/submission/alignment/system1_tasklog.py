@@ -294,11 +294,11 @@ class TaskLogSystem1Aligner(object):
                            n_eeg_pulses=int(len(eeg_ms)))
                 fits.setdefault(launch['launch'], []).append(fit)
                 self.fits.append(fit)
-                logger.info('Sync fit %s: %d/%d pulses matched, slope %+.1f ppm, RMS %.2f ms, '
-                            'max %.2f ms, %d outliers dropped'
-                            % (where, fit['n_matched'], fit['n_task_pulses'],
-                               (fit['slope'] - 1) * 1e6, fit['rms_ms'], fit['max_residual_ms'],
-                               fit['n_outliers']))
+                logger.info('Sync fit %s: %d of the %d task pulses inside the file matched (%d in '
+                            'the launch), slope %+.1f ppm, RMS %.2f ms, max %.2f ms, %d outliers '
+                            'dropped' % (where, fit['n_matched'], fit['n_inside'],
+                                         fit['n_task_pulses'], (fit['slope'] - 1) * 1e6,
+                                         fit['rms_ms'], fit['max_residual_ms'], fit['n_outliers']))
             if launch['launch'] not in fits:
                 logger.warn('Launch %d: its %d pulses match no EEG file; its events stay unaligned'
                             % (launch['launch'], len(task_ms)))
