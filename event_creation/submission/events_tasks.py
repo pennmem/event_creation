@@ -51,6 +51,7 @@ from .parsers.elemem_parsers import BaseElememLogParser, ElememRepFRLogParser, E
         ElememCatFRLogParser, ElememEFRCourierParser, ElememCPSParser
 from .parsers.elemem_pal_parser import ElememPALLogParser
 from .parsers.pal_tasklog_parser import PALTaskLogParser, PALSystem1Parser
+from .parsers.palu_parsers import ElememPALULogParser, PALUTaskLogParser
 from .readers.eeg_reader import get_eeg_reader
 from .tasks import PipelineTask
 from .quality.util import get_time_field
@@ -206,6 +207,8 @@ class EventCreationTask(PipelineTask):
             'FR': FRSessionLogParser,
             'PAL': PALSystem1Parser,      # PyEPL session.log, or the UnityEPL task's pal_events.jsonl
             'IPAL': PALTaskLogParser,     # pal_events.jsonl (System 1: sync box)
+            'IPALN': PALUTaskLogParser,   # PAL-U (word-number, typed answers)
+            'PALN': PALUTaskLogParser,
             'catFR': CatFRSessionLogParser,
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
@@ -290,6 +293,8 @@ class EventCreationTask(PipelineTask):
                 'EFRCourierOpenLoop': ElememEFRCourierParser,
                 'PAL': ElememPALLogParser,
                 'IPAL': ElememPALLogParser,
+                'IPALN': ElememPALULogParser,   # PAL-U (word-number, typed answers)
+                'PALN': ElememPALULogParser,
             }
         else:
             raise KeyError

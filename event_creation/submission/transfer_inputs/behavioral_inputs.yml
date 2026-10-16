@@ -118,7 +118,7 @@ files:
   - name: annotations
     << : *FILE
     multiple: true
-    groups: [r1, transfer, verbal, '!ps4']
+    groups: [r1, transfer, verbal, '!ps4', '!typed']
     origin_directory: *BEH_SESS_DIR
     origin_file: '*.ann'
     destination: 'annotations/'

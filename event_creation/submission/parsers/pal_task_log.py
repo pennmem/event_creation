@@ -194,6 +194,19 @@ def to_wire_messages(launches):
                 d.update(file=data.get('file', ''), probepos=_slot_from_stem(data.get('file')))
             elif t == 'RECALL_END':
                 wire = 'TRIALEND'
+            elif t == 'RESPONSE_KEY':        # PAL-U: typed answers
+                wire = 'RESPONSE_KEY'
+                _copy(data, d, 'slot', 'key', 'typed', 'accepted')
+            elif t == 'RESPONSE':
+                wire = 'RESPONSE'
+                _copy(data, d, 'slot', 'serialpos', 'probe', 'expected', 'answer', 'error',
+                      'points', 'correct', 'rt_first_key_ms', 'answer_complete_ms',
+                      'rt_answer_ms', 'rt_ms')
+            elif t == 'LIST_FEEDBACK':
+                wire = 'FEEDBACK'
+                _copy(data, d, 'points', 'max_points', 'session_points', 'practice')
+            elif t == 'LIST_FEEDBACK_END':
+                wire = 'FEEDBACK_END'
             elif t in ('LIST_RESTARTED', 'PRACTICE_REPEATED'):
                 wire = t
             elif t == LAUNCH:
