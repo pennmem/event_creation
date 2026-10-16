@@ -30,8 +30,7 @@ GROUPS = {
     'IFR': ('verbal', 'stim'),          # add IFR support
     'PAL': ('verbal', 'stim', 'math'),
     'IPAL': ('verbal',),                # fixation retention interval, no math
-    'PALN': ('verbal', 'math'),         # PAL-U with the arithmetic distractor
-    'IPALN': ('verbal',),               # PAL-U, fixation retention interval
+    'PALU': ('verbal', 'math'),         # PAL-U: arithmetic optional (a setting)
     'catFR': ('verbal', 'stim', 'math'),
     'CatFR': ('verbal', 'stim', 'math'),
     'ICatFR': ('verbal', 'stim'),       # add ICatFR support
@@ -165,11 +164,11 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
         groups += (sys,)
 
-    if protocol == 'r1' and exp_type in ('PAL', 'IPAL', 'PALN', 'IPALN') and \
+    if protocol == 'r1' and exp_type in ('PAL', 'IPAL', 'PALU') and \
             (exp_type != 'PAL' or has_pal_task_log(subject, experiment, session)):
         groups += (PAL_TASK_LOG_GROUP,)
-    # PAL-U (IPALN1, PALN1) answers are typed and logged, not spoken and annotated.
-    if protocol == 'r1' and exp_type in ('PALN', 'IPALN'):
+    # PAL-U answers are typed and logged, not spoken and annotated.
+    if protocol == 'r1' and exp_type == 'PALU':
         groups += (TYPED_GROUP,)
 
     return groups

@@ -1,7 +1,7 @@
 """
-PAL-U (IPALN1, PALN1): word-number paired associates with typed answers.
+PAL-U: word-number paired associates with typed answers.
 
-The task (pennmem IPAL1_UnityEPL, experiments IPALN1 and PALN1) shows a word with a
+The task (pennmem IPAL1_UnityEPL, experiment PAL-U) shows a word with a
 two-digit number and later the word alone; the participant types the number into two
 boxes and confirms with Enter. Nothing is recorded or annotated: the answers are in the
 log. Beside the PAL1/IPAL1 messages the task sends
@@ -206,8 +206,8 @@ class PALUMixin(object):
 
 
 class ElememPALULogParser(PALUMixin, ElememPALLogParser):
-    """PAL-U (IPALN1, PALN1) on System 4: Elemem's event.log. See the module docstring."""
+    """PAL-U on System 4: Elemem's event.log. See the module docstring."""
 
 
 class PALUTaskLogParser(PALUMixin, PALTaskLogParser):
-    """PAL-U (IPALN1, PALN1) on System 1: the task's pal_events.jsonl."""
+    """PAL-U on System 1: the task's pal_events.jsonl."""

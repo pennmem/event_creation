@@ -207,8 +207,7 @@ class EventCreationTask(PipelineTask):
             'FR': FRSessionLogParser,
             'PAL': PALSystem1Parser,      # PyEPL session.log, or the UnityEPL task's pal_events.jsonl
             'IPAL': PALTaskLogParser,     # pal_events.jsonl (System 1: sync box)
-            'IPALN': PALUTaskLogParser,   # PAL-U (word-number, typed answers)
-            'PALN': PALUTaskLogParser,
+            'PALU': PALUTaskLogParser,    # PAL-U (word-number, typed answers)
             'catFR': CatFRSessionLogParser,
             'PS': PSLogParser,  # which has its own dispatching system ...
             'TH': THSessionLogParser,
@@ -293,8 +292,7 @@ class EventCreationTask(PipelineTask):
                 'EFRCourierOpenLoop': ElememEFRCourierParser,
                 'PAL': ElememPALLogParser,
                 'IPAL': ElememPALLogParser,
-                'IPALN': ElememPALULogParser,   # PAL-U (word-number, typed answers)
-                'PALN': ElememPALULogParser,
+                'PALU': ElememPALULogParser,    # PAL-U (word-number, typed answers)
             }
         else:
             raise KeyError
