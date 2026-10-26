@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from . import dtypes
 from .valuecourier_log_parser import ValueCourierSessionLogParser
 
 
@@ -63,6 +62,16 @@ class VCFROPSessionLogParser(ValueCourierSessionLogParser):
                 f"{self._subject}, session {self._session}, trial {event.trial}"
             )
         return event
+
+    def _new_rec_event(self, recall, evdata):
+        # The Courier parser strips trailing '.' and '1' characters from every
+        # annotation token (to drop a stray ".1" suffix on words). For a spoken
+        # value that turns 41 into 4 and 1 into nothing, so keep digit tokens intact.
+        new_event = super()._new_rec_event(recall, evdata)
+        token = str(recall[-1]).strip()
+        if token.isdigit():
+            new_event["item"] = token
+        return new_event
 
     def _classify_recall(self, new_event):
         """
@@ -129,32 +138,49 @@ class VCFROPSessionLogParser(ValueCourierSessionLogParser):
     def modify_after_final_compensation(self, events):
         full = pd.DataFrame.from_records(events)
 
-        # ITEM_VALUE_RECALL events are now derived from numeric audio annotations during the
-        # recall phase, so they all follow the WORD presentations in event order. Associate
-        # each one with its WORD by matching the annotation item number (itemno) rather than
-        # by event position.
-        word_mask = full.type.isin(["WORD", "PRACTICE_WORD"])
-        word_by_itemno = {
-            full.at[idx, "itemno"]: idx
-            for idx in full.index[word_mask]
-        }
-
+        # ITEM_VALUE_RECALL events come from numeric tokens in the recall annotation
+        # files. A spoken value belongs to the word the participant said just before
+        # it, so pair each one with the most recent REC_WORD of the same recall period
+        # (same trial, earlier time). Pairing by item number is not possible: WORD
+        # events carry no item number, and Penn TotalRecall writes -1 for a token that
+        # is not in the wordpool. A value with no preceding word in its recall period
+        # (or one following an extra-list intrusion) stays unpaired, with
+        # itemvaluecorrect left at -999.
         ivr_mask = full.type.isin(["ITEM_VALUE_RECALL", "PRACTICE_ITEM_VALUE_RECALL"])
         ivr_rows = list(full.index[ivr_mask])
+        rec_mask = full.type.isin(["REC_WORD", "PRACTICE_REC_WORD"])
+        word_mask = full.type.isin(["WORD", "PRACTICE_WORD"])
 
         copy_cols = ["serialpos", "store", "storepointtype", "itemvaluecorrect", "itemno"]
         ivr_to_word = {}
         for ivr_idx in ivr_rows:
-            word_idx = word_by_itemno.get(full.at[ivr_idx, "itemno"])
-            if word_idx is None:
+            trial = full.at[ivr_idx, "trial"]
+            when = full.at[ivr_idx, "mstime"]
+            earlier = full.index[rec_mask & (full.trial == trial) & (full.mstime <= when)]
+            if len(earlier) == 0:
                 continue
-            ivr_to_word[ivr_idx] = word_idx
+            rec_idx = earlier[-1]
+            # the presentation this recall refers to (PLIs point at an earlier trial)
+            intrusion = full.at[rec_idx, "intrusion"]
+            if intrusion < 0:
+                continue
+            pres_trial = trial - intrusion
+            candidates = full.index[word_mask & (full.item == full.at[rec_idx, "item"])
+                                    & (full.trial == pres_trial)]
+            if len(candidates) == 0:
+                continue
+            word_idx = candidates[0]
+            ivr_to_word[ivr_idx] = rec_idx
             for col in copy_cols:
                 full.at[ivr_idx, col] = full.at[word_idx, col]
+            full.at[ivr_idx, "item"] = full.at[word_idx, "item"]
+            full.at[ivr_idx, "intrusion"] = intrusion
 
+        # If the participant corrected a value ("forty... forty-one"), keep the last
+        # value given for that recall.
         by_word = {}
-        for ivr_idx, word_idx in ivr_to_word.items():
-            by_word.setdefault(word_idx, []).append(ivr_idx)
+        for ivr_idx, rec_idx in ivr_to_word.items():
+            by_word.setdefault(rec_idx, []).append(ivr_idx)
         drops = []
         for word_idx, ivrs in by_word.items():
             if len(ivrs) <= 1:
