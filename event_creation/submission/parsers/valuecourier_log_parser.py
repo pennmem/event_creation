@@ -12,8 +12,14 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         pd.set_option('display.max_columns', None)
         self.phase = '1'
 
-        self._add_fields(*dtypes.vc_fields)
+        self._itemvalue_field = "itemvalue"
+        self._actualvalue_field = "actualvalue"
 
+        self._add_fields(*dtypes.vc_fields)
+        self._add_valuerecall_field()
+        self._add_compensation_field()
+        self._add_itemvalue_field()
+        self._add_actualvalue_field()
 
         self._add_type_to_new_event(
            start_movie=self.event_movie_start,
@@ -44,6 +50,18 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
            stop_deliveries=self.modify_pointer_on,
               final_compensation=self.modify_after_final_compensation,
         )
+
+    def _add_valuerecall_field(self):
+        self._add_fields(('valuerecall', -999, 'int16'))
+
+    def _add_compensation_field(self):
+        self._add_fields(('compensation', -999, 'float32'))
+
+    def _add_itemvalue_field(self):
+        self._add_fields(('itemvalue', -999, 'int16'))
+
+    def _add_actualvalue_field(self):
+        self._add_fields(('actualvalue', -999, 'float32'))
 
     ####################
     # Functions to add new events from a single line in the log
@@ -155,9 +173,9 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         value_recall = self.stringify_list(evdata['data']['typed response'])
         event.valuerecall = int(value_recall)
         if 'actual value' in evdata['data']:
-            event.actualvalue = evdata['data']['actual value']
+            event[self._actualvalue_field] = evdata['data']['actual value']
         else:
-            event.actualvalue = -1
+            event[self._actualvalue_field] = -1
             print(
                 f"Missing 'actual value' field in VALUE_RECALL event for subject " +
                 f"{self._subject}, session {self._session}, trial {event.trial}"
@@ -229,7 +247,7 @@ class ValueCourierSessionLogParser(CourierSessionLogParser):
         
         event.primacybuf = evdata['data']['primacy buffer']
         event.recencybuf = evdata['data']['recency buffer']
-        event.itemvalue = evdata['data']['store value']
+        event[self._itemvalue_field] = evdata['data']['store value']
 
         event.numingroupchosen = evdata['data']['number of in group chosen']
 
