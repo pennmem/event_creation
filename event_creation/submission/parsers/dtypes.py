@@ -339,16 +339,15 @@ ps_state_fields = (
                                  # to JSON
 )
 
+# The value-recall, compensation, item-value and actual-value fields are added by
+# the ValueCourier parser's _add_*_field hooks, so that VCFROP (which stores
+# guesses and correct values under different names) can override them.
 vc_fields = (
     ('primacybuf', -999, 'int16'),
     ('recencybuf', -999, 'int16'),
     ('numingroupchosen', -999, 'int16'),
-    ('valuerecall', -999, 'int16'),
-    ('actualvalue', -999, 'float32'),
-    ('compensation', -999, 'float32'),
     ('multiplier', -999, 'float32'),
     ('storepointtype', '', 'U64'),
-    ('itemvalue', -999, 'int16'),
     ('playerrotY', -999, 'float32'),
     # ('playerrotX', -999, 'float32'),
     # ('playerrotZ', -999, 'float32')
