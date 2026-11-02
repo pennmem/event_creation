@@ -431,11 +431,11 @@ def pal_comparison_exceptions(event1, event2, field, parent_field=None):
                     event1['type'] == 'STUDY_PAIR':
         return True
 
-    if event1 and event1['type'] in ('PAIR_OFF', 'RETRIEVAL_ORIENT_OFF', 'PROBE_OFF', 'TEST_ORIENT') and \
+    if event1 and event1['type'] in ('PAIR_OFF', 'RETRIEVAL_ORIENT_OFF', 'TEST_ORIENT_OFF', 'PROBE_OFF', 'TEST_ORIENT') and \
                     event2 and event2[field] == -999:
         return True
 
-    if event1 and event1['type'] == 'RETRIEVAL_ORIENT_OFF':
+    if event1 and event1['type'] in ('RETRIEVAL_ORIENT_OFF', 'TEST_ORIENT_OFF'):
         return True
 
     if event1 and event1['type'] in ('TEST_PROBE', 'PRACTICE_PROBE') and field in ('study_1', 'study_2'):

@@ -104,7 +104,7 @@ class PALSessionLogParser(BaseSessionLogParser):
             RECALL_END=self.event_recall_end,
             TEST_ORIENT=self.event_test_orient,
             RETRIEVAL_ORIENT=self.event_retrieval_orient,
-            RETRIEVAL_ORIENT_OFF=self.event_default,
+            RETRIEVAL_ORIENT_OFF=self.event_retrieval_orient_off,
             TEST_PROBE=self.event_test_probe,
             PROBE_OFF=self.event_default,
             REC_START=self.event_default,
