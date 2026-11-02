@@ -295,7 +295,8 @@ def test_restarts_keep_last_attempt(session):
         field = 'serialpos' if kind == 'STUDY_PAIR' else 'probepos'
         e = ev[(ev.type == kind) & (ev.list == lst) & (getattr(ev, field) == int(key[-1]) + 1)]
         assert len(e) == 1
-        assert abs(e[0].mstime - truth[key]) < 2
+        # the earlier attempts are seconds away; receive lag is under 5 ms
+        assert -0.5 <= e[0].mstime - truth[key] <= 5.0
     assert (ev[ev.list == 2].type == 'RECALL_END').sum() == 1
 
 
@@ -320,13 +321,9 @@ def test_incomplete_list_reported_and_optionally_dropped(session, tmp_path):
     assert not (ev.list == 2).any()
 
 
-def test_clock_fit(session):
-    fits = session['parser'].clock_fits
-    assert len(fits) == 2    # one per task connection
-    for fit in fits:
-        assert fit['method'] == 'heartbeat_fit'
-        assert abs(fit['slope'] - (1 + DRIFT)) < 2e-6
-        assert fit['n_lead_violations'] == 0
+def test_mstime_is_elemem_receive_time(session):
+    # mstime is Elemem's receive time, as in BaseElememLogParser: every event lands
+    # after its true onset by the task's send queue plus the network (0.3-4.5 ms here)
     ev, truth = session['events'], session['truth']
     errors = []
     for e in ev[(ev.type == 'TEST_PROBE') | (ev.type == 'STUDY_PAIR')]:
@@ -343,27 +340,8 @@ def test_clock_fit(session):
         assert len(mstimes) == len(onsets)
         errors.extend(mstimes - truth['%d/RS%d' % (L, slot)] - np.array(onsets))
     assert len(errors) > 48
-    assert np.abs(errors).max() <= 2.0
-
-
-def test_clock_fit_falls_back_to_offset_only(session, tmp_path):
-    # keep only 10 heartbeats after the relaunch
-    lines = open(session['files']['event_log'][0]).read().splitlines()
-    kept, connections, n = [], 0, 0
-    for l in lines:
-        msg_type = json.loads(l)['type']
-        connections += msg_type == 'CONNECTED'
-        if msg_type == 'HEARTBEAT' and connections == 2:
-            n += 1
-            if n > 10:
-                continue
-        kept.append(l)
-    log = str(tmp_path / 'event.log')
-    with open(log, 'w') as f:
-        f.write('\n'.join(kept) + '\n')
-    parser, ev, _ = parse(session_files(session['out'], event_log=log), session['experiment'])
-    assert [fit['method'] for fit in parser.clock_fits] == ['heartbeat_fit', 'offset_only']
-    assert len(ev[ev.type == 'TEST_PROBE']) == 24
+    assert min(errors) >= -0.5
+    assert max(errors) <= 5.0
 
 
 def test_scoring(session):
