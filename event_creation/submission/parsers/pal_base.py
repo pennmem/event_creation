@@ -150,6 +150,7 @@ class PALParserMixin(object):
         self._list = -999
         self._phase = ''
         self._orient_scope = None
+        self._orient_pos = (-999, -999)   # (serialpos, probepos) of the last orient
         self._distract_kind = None
         self._version = ''
 
@@ -288,6 +289,7 @@ class PALParserMixin(object):
             event.serialpos = int(d['serialpos']) + 1
         elif self._orient_scope == 'probe' and 'slot' in d:
             event.probepos = int(d['slot']) + 1
+        self._orient_pos = (event.serialpos, event.probepos)
         return event
 
     def event_orient_off(self, msg):
@@ -295,6 +297,9 @@ class PALParserMixin(object):
             return False
         event = self.event_default(msg)
         event.type = self.ORIENT_NAMES[self._orient_scope] + '_OFF'
+        # The offset's position is its onset's, so the back-fill gives it the same pair
+        # and probe fields (as legacy modify_test does for TEST_ORIENT_OFF).
+        event.serialpos, event.probepos = self._orient_pos
         return event
 
     def event_study_pair(self, msg):

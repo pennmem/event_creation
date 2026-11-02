@@ -410,6 +410,21 @@ def test_only_legacy_orient_events(session):
     assert (ev.type == 'TEST_ORIENT').sum() == (ev.type == 'TEST_PROBE').sum()
 
 
+def test_orient_off_carries_its_onset_fields(session):
+    # each offset has the pair and probe fields of the orient it ends
+    ev = session['events']
+    fields = ['list', 'serialpos', 'probepos', 'study_1', 'study_2', 'probe_word',
+              'expecting_word', 'cue_direction']
+    for on in ('STUDY_ORIENT', 'TEST_ORIENT'):
+        ons, offs = ev[ev.type == on], ev[ev.type == on + '_OFF']
+        assert len(ons) == len(offs) > 0
+        for f in fields:
+            assert (ons[f] == offs[f]).all(), (on, f)
+    test_off = ev[ev.type == 'TEST_ORIENT_OFF']
+    assert (test_off.serialpos > 0).all() and (test_off.probepos > 0).all()
+    assert (test_off.probe_word != b'').all()
+
+
 def test_math_lists_numbered_from_trial(tmp_path):
     make_session(str(tmp_path), 'PAL1')
     math = MathElememLogParser('r1', SUBJECT, '0.0', 'PAL1', 0, session_files(str(tmp_path))).parse()
