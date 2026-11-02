@@ -295,7 +295,8 @@ def test_restarts_keep_last_attempt(session):
         field = 'serialpos' if kind == 'STUDY_PAIR' else 'probepos'
         e = ev[(ev.type == kind) & (ev.list == lst) & (getattr(ev, field) == int(key[-1]) + 1)]
         assert len(e) == 1
-        assert abs(e[0].mstime - truth[key]) < 2
+        # the earlier attempts are seconds away; receive lag is under 5 ms
+        assert -0.5 <= e[0].mstime - truth[key] <= 5.0
     assert (ev[ev.list == 2].type == 'RECALL_END').sum() == 1
 
 
@@ -320,13 +321,9 @@ def test_incomplete_list_reported_and_optionally_dropped(session, tmp_path):
     assert not (ev.list == 2).any()
 
 
-def test_clock_fit(session):
-    fits = session['parser'].clock_fits
-    assert len(fits) == 2    # one per task connection
-    for fit in fits:
-        assert fit['method'] == 'heartbeat_fit'
-        assert abs(fit['slope'] - (1 + DRIFT)) < 2e-6
-        assert fit['n_lead_violations'] == 0
+def test_mstime_is_elemem_receive_time(session):
+    # mstime is Elemem's receive time, as in BaseElememLogParser: every event lands
+    # after its true onset by the task's send queue plus the network (0.3-4.5 ms here)
     ev, truth = session['events'], session['truth']
     errors = []
     for e in ev[(ev.type == 'TEST_PROBE') | (ev.type == 'STUDY_PAIR')]:
@@ -343,27 +340,8 @@ def test_clock_fit(session):
         assert len(mstimes) == len(onsets)
         errors.extend(mstimes - truth['%d/RS%d' % (L, slot)] - np.array(onsets))
     assert len(errors) > 48
-    assert np.abs(errors).max() <= 2.0
-
-
-def test_clock_fit_falls_back_to_offset_only(session, tmp_path):
-    # keep only 10 heartbeats after the relaunch
-    lines = open(session['files']['event_log'][0]).read().splitlines()
-    kept, connections, n = [], 0, 0
-    for l in lines:
-        msg_type = json.loads(l)['type']
-        connections += msg_type == 'CONNECTED'
-        if msg_type == 'HEARTBEAT' and connections == 2:
-            n += 1
-            if n > 10:
-                continue
-        kept.append(l)
-    log = str(tmp_path / 'event.log')
-    with open(log, 'w') as f:
-        f.write('\n'.join(kept) + '\n')
-    parser, ev, _ = parse(session_files(session['out'], event_log=log), session['experiment'])
-    assert [fit['method'] for fit in parser.clock_fits] == ['heartbeat_fit', 'offset_only']
-    assert len(ev[ev.type == 'TEST_PROBE']) == 24
+    assert min(errors) >= -0.5
+    assert max(errors) <= 5.0
 
 
 def test_scoring(session):
@@ -383,7 +361,7 @@ def test_scoring(session):
         if scenario['scen'] == 'voc_then_correct':
             assert recs.vocalization.tolist() == [1, 0]
         if scenario['scen'] == 'empty':
-            assert probe.resp_word == ''
+            assert probe.resp_word == b''   # legacy S16: bytes in memory, text in the JSON
     assert seen == set(EXPECTED)
 
 
@@ -415,13 +393,36 @@ def test_missing_ann(session):
 
 
 def test_retention_interval_events(session):
+    # PAL1's math gives MATH_START/END; IPAL1's fixation gives no event (as RepFR's rest)
     ev = session['events']
-    starts, ends = ('FIXATION_START', 'FIXATION_END') if session['experiment'] == 'IPAL1' \
-        else ('MATH_START', 'MATH_END')
-    others = {'FIXATION_START', 'FIXATION_END', 'MATH_START', 'MATH_END'} - {starts, ends}
-    assert ev[ev.type == starts].list.tolist() == [-1, 1, 2, 3]
-    assert ev[ev.type == ends].list.tolist() == [-1, 1, 2, 3]
-    assert not np.isin(ev.type, list(others)).any()
+    for t in ('MATH_START', 'MATH_END'):
+        want = [-1, 1, 2, 3] if session['experiment'] == 'PAL1' else []
+        assert ev[ev.type == t].list.tolist() == want
+    assert not np.isin(ev.type, ['FIXATION_START', 'FIXATION_END']).any()
+
+
+def test_only_legacy_orient_events(session):
+    # an orient before each pair and each probe; the one before the test phase makes none
+    ev = session['events']
+    assert set(t for t in ev.type if 'ORIENT' in t) == {
+        'STUDY_ORIENT', 'STUDY_ORIENT_OFF', 'TEST_ORIENT', 'TEST_ORIENT_OFF'}
+    assert (ev.type == 'STUDY_ORIENT').sum() == (ev.type == 'STUDY_PAIR').sum()
+    assert (ev.type == 'TEST_ORIENT').sum() == (ev.type == 'TEST_PROBE').sum()
+
+
+def test_orient_off_carries_its_onset_fields(session):
+    # each offset has the pair and probe fields of the orient it ends
+    ev = session['events']
+    fields = ['list', 'serialpos', 'probepos', 'study_1', 'study_2', 'probe_word',
+              'expecting_word', 'cue_direction']
+    for on in ('STUDY_ORIENT', 'TEST_ORIENT'):
+        ons, offs = ev[ev.type == on], ev[ev.type == on + '_OFF']
+        assert len(ons) == len(offs) > 0
+        for f in fields:
+            assert (ons[f] == offs[f]).all(), (on, f)
+    test_off = ev[ev.type == 'TEST_ORIENT_OFF']
+    assert (test_off.serialpos > 0).all() and (test_off.probepos > 0).all()
+    assert (test_off.probe_word != b'').all()
 
 
 def test_math_lists_numbered_from_trial(tmp_path):

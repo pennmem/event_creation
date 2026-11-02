@@ -30,6 +30,7 @@ GROUPS = {
     'IFR': ('verbal', 'stim'),          # add IFR support
     'PAL': ('verbal', 'stim', 'math'),
     'IPAL': ('verbal',),                # fixation retention interval, no math
+    'PALU': ('verbal', 'math'),         # PAL-U: arithmetic optional (a setting)
     'catFR': ('verbal', 'stim', 'math'),
     'CatFR': ('verbal', 'stim', 'math'),
     'ICatFR': ('verbal', 'stim'),       # add ICatFR support
@@ -163,9 +164,12 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 
         groups += (sys,)
 
-    if protocol == 'r1' and exp_type in ('PAL', 'IPAL') and \
-            (exp_type == 'IPAL' or has_pal_task_log(subject, experiment, session)):
+    if protocol == 'r1' and exp_type in ('PAL', 'IPAL', 'PALU') and \
+            (exp_type != 'PAL' or has_pal_task_log(subject, experiment, session)):
         groups += (PAL_TASK_LOG_GROUP,)
+    # PAL-U answers are typed and logged, not spoken and annotated.
+    if protocol == 'r1' and exp_type == 'PALU':
+        groups += (TYPED_GROUP,)
 
     return groups
 
@@ -176,6 +180,9 @@ def determine_groups(protocol, subject, full_experiment, session, transfer_cfg_f
 # (transfer_inputs/behavioral_inputs.yml, parsers/pal_tasklog_parser.py). IPAL1 exists only
 # as the UnityEPL task.
 PAL_TASK_LOG_GROUP = 'pal_task_log'
+
+# Sessions whose answers are typed into the task (PAL-U): no annotation files.
+TYPED_GROUP = 'typed'
 
 
 def has_pal_task_log(code, experiment, original_session):

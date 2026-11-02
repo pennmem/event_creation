@@ -12,9 +12,9 @@ nothing here applies; see `parsers/elemem_pal_parser.py`.
 | Events | `parsers/pal_tasklog_parser.py` (`PALTaskLogParser`) reads the task's `pal_events.jsonl` and builds the same events and fields as the System 4 parser (`parsers/pal_base.py` holds the shared scoring) |
 | PAL1 math | `parsers/math_parser.py` (`MathPALTaskLogParser`), from the same file |
 | Sync pulses on the EEG | `readers/sync_pulse_extractor.py`, run by hand before the import (below) |
-| Alignment | `alignment/system1_tasklog.py` (`TaskLogSystem1Aligner`): one fit per task launch and EEG file, with slope, residual and matched-fraction gates |
+| Alignment | `alignment/system1_tasklog.py` (`TaskLogSystem1Aligner`): the lab's `System1Aligner`, with the task's pulse times read from `pal_events.jsonl` on the clock its events are on |
 | Routing | `--sys1` puts `system_1` in the groups; it overrides the subject-suffix rule (A would otherwise be System 3.3). `pipelines.determine_groups` adds `pal_task_log` for IPAL, and for PAL when the session has `pal_events.jsonl` |
-| Transfer | `transfer_inputs/behavioral_inputs.yml`, entries with groups `[pal_task_log, system_1]` |
+| Transfer | `transfer_inputs/behavioral_inputs.yml`, entries with groups `[pal_task_log, system_1]`; the sync pulses are the standard System 1 entry (`find_sync_file`) |
 
 ## Layout
 
@@ -31,9 +31,8 @@ R1765A/
   raw/IPAL1_0/
       <recording>.edf             the clinical EEG, exported to EDF (preferred), or
       <recording>.EEG + .21E      a Nihon Kohden recording (reader untested on real files)
-      <recording 2>.edf           a second file if the recording was split (NK splits at 90 min / 6 h)
       sync_channel.json           which input(s) carry the pulses (below)
-      <recording>.sync.txt        one per recording, written by the extractor
+      <recording>.sync.txt        written by the extractor
 ```
 
 The folder names use the experiment and the task's session number
@@ -91,29 +90,27 @@ and the interval range; check that the width is about 20 ms and intervals 800-12
 (except gaps between launches). Its indices are at the rate the split writes to
 `sources.json`: an EDF at 10 kHz or more is split at 1 kHz, and the extractor converts.
 
-The import logs one line per fit, e.g.
-
-```
-Sync fit launch 2, R1765A_IPAL1_0_part2.edf: 117 of the 117 task pulses inside the file matched (174 in the launch), slope +37.8 ppm, RMS 0.62 ms, max 2.04 ms, 0 outliers dropped
-```
+The aligner logs its fit (slope, intercept, residuals) at debug level only.
 
 ## What the alignment does and refuses
 
 - The task's stopwatch restarts at each launch (a resumed session has several
-  `LAUNCH` lines). Event `mstime` is `LAUNCH.epochUnixMs + time`; each launch's
-  `syncPulse` lines are fitted separately against the EEG pulses of each file.
-- Pulses are matched on their intervals (median difference over ~20 intervals), so
-  missing EEG pulses, pre-session "Test Syncbox" pulses and a recording that starts
-  after the task are fine.
-- `AlignmentError` if a fit's slope is more than 1 % from 1 (a sample-rate mismatch, not
-  drift), if more than 1 % of matched pulses are over 5 ms off the line, or if fewer than
-  90 % of the task pulses inside a file's pulse span match.
-- Events outside every EEG file (or in a launch whose pulses match no file) get
-  `eegoffset` -1.
-- With several EEG files, each `.sync.txt` is paired with the file of the same stem.
-  Two files whose EDF headers start in the same minute get the same split name and
-  overwrite each other: do not set every export's start time to one fixed value when
-  anonymising (shift them, or keep their order).
+  `LAUNCH` lines). Event `mstime` is `LAUNCH.epochUnixMs + time`, and the `syncPulse`
+  times are read on the same clock, all launches together. Everything after that is
+  `System1Aligner`, as for every other System 1 experiment.
+- It matches a window of pulse intervals (100 pulses, shrinking by 10 to 5) at the start
+  and at the end of the session, each interval within 10 ms, and fits one line through
+  the matched pulses. Missing pulses between the two windows, pre-session "Test Syncbox"
+  pulses and a recording that starts after the task are fine. There are no checks on the
+  slope or the residuals of the fit.
+- `AlignmentError('Could not align window')` if no window of 5 or more matches at either
+  end; `AlignmentError('Could not align any events.')` if every event falls outside the
+  recording.
+- Events outside the recording get `eegoffset` -1 and an empty `eegfile`.
+- One EEG file only: `AlignmentError('Cannot align EEG with N sources')` if
+  `sources.json` lists more than one, and `find_sync_file` needs exactly one `.sync.txt`
+  in `raw/<experiment>_<session>/`. If the clinical system split the recording
+  (Nihon Kohden splits at 90 min / 6 h), export the session as one EDF.
 
 ## Not covered
 

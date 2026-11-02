@@ -16,8 +16,8 @@ The task (pennmem PAL1_UnityEPL) writes one JSON object per line::
 Both the System 1 parser (PALTaskLogParser) and the System 1 aligner
 (TaskLogSystem1Aligner) read the file through ``read_task_log`` so they agree on what a
 launch is and on the absolute time of every line: ``_abs = epochUnixMs + time`` of the
-launch the line belongs to. The parser uses ``_abs`` as ``mstime``; the aligner fits each
-launch's pulses separately and finds an event's launch from its ``mstime``.
+launch the line belongs to. The parser uses ``_abs`` as ``mstime``; the aligner uses the
+``_abs`` of the syncPulse lines as the task's pulse times.
 
 ``to_wire_messages`` turns the task's event names into the System 4 wire vocabulary that
 the task sends Elemem (the task's ``ElememReporter.Map``: TRIAL{listno} -> TRIAL{trial},
@@ -194,6 +194,19 @@ def to_wire_messages(launches):
                 d.update(file=data.get('file', ''), probepos=_slot_from_stem(data.get('file')))
             elif t == 'RECALL_END':
                 wire = 'TRIALEND'
+            elif t == 'RESPONSE_KEY':        # PAL-U: typed answers
+                wire = 'RESPONSE_KEY'
+                _copy(data, d, 'slot', 'key', 'typed', 'accepted')
+            elif t == 'RESPONSE':
+                wire = 'RESPONSE'
+                _copy(data, d, 'slot', 'serialpos', 'probe', 'expected', 'answer', 'error',
+                      'points', 'correct', 'rt_first_key_ms', 'answer_complete_ms',
+                      'rt_answer_ms', 'rt_ms')
+            elif t == 'LIST_FEEDBACK':
+                wire = 'FEEDBACK'
+                _copy(data, d, 'points', 'max_points', 'session_points', 'practice')
+            elif t == 'LIST_FEEDBACK_END':
+                wire = 'FEEDBACK_END'
             elif t in ('LIST_RESTARTED', 'PRACTICE_REPEATED'):
                 wire = t
             elif t == LAUNCH:

@@ -6,8 +6,8 @@ the only record of the session is the task's log, ``pal_events.jsonl`` in the se
 folder (format: pal_task_log.py). This parser builds from it exactly the events that the
 System 4 parser (ElememPALLogParser) builds from event.log, with the same types and
 fields: practice is list -1, positions are 1-based, the last attempt of a list is kept
-after LIST_RESTARTED / PRACTICE_REPEATED, IPAL1's retention interval is FIXATION_START /
-FIXATION_END and PAL1's MATH_START / MATH_END, and every probe is scored from its
+after LIST_RESTARTED / PRACTICE_REPEATED, PAL1's math is MATH_START / MATH_END (IPAL1's
+fixation retention interval makes no event), and every probe is scored from its
 ``<list>_<slot>.ann`` with REC_EVENTs made from the annotation lines. It does so by turning
 the task's lines into the wire messages the task would have sent Elemem
 (``pal_task_log.to_wire_messages``) and running the shared PALParserMixin (pal_base.py);
@@ -17,12 +17,10 @@ Timing
 ------
 ``mstime`` is the event's time on the task computer: the launch's ``LAUNCH.epochUnixMs``
 plus the line's ``time`` (the task's stopwatch, which restarts at each launch). It is NOT
-on the EEG clock: TaskLogSystem1Aligner (alignment/system1_tasklog.py) maps it to EEG
-samples with a separate fit for each launch, from the ``syncPulse`` lines of the same log
-and the pulses extracted from the clinical EEG. The launch an event belongs to is not
-stored in the events (the field set is System 4's); the aligner recovers it from mstime,
-since each launch's absolute times start at its own epoch. ``self.launches`` lists the
-launches the parser saw.
+on the EEG clock: TaskLogSystem1Aligner (alignment/system1_tasklog.py), the lab's
+System1Aligner reading the ``syncPulse`` lines of the same log on the same clock, maps it
+to EEG samples with one line through the pulses extracted from the clinical EEG.
+``self.launches`` lists the launches the parser saw.
 
 Differences from the System 4 output
 ------------------------------------
