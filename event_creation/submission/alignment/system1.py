@@ -70,7 +70,10 @@ class System1Aligner:
         slope, intercept = self.get_coefficient(task_times, eeg_times)
 
         # Apply to the events structure
-        self.events[self.EEG_TIME_FIELD] = (self.events[self.TASK_TIME_FIELD] * slope + intercept) * self.samplerate/1000.
+        # eegoffset is an integer field: round, rather than let the assignment truncate
+        # (truncation puts every event up to one sample early)
+        self.events[self.EEG_TIME_FIELD] = np.round(
+            (self.events[self.TASK_TIME_FIELD] * slope + intercept) * self.samplerate/1000.)
         self.events[self.EEG_FILE_FIELD] = self.eeg_file_stem
 
         # Check to make sure that all of the events aren't beyond the end or beginning of the recording
@@ -217,9 +220,10 @@ class System1Aligner:
         task_start_ind = None
         eeg_start_ind = None
 
-        # Define the indices of interest, and the direction of iteration
+        # Define the indices of interest, and the direction of iteration. Both ends are
+        # included: windows may start anywhere from 0 to len(eeg_diff) - alignment_window.
         start_i = 0 if from_front else len(eeg_diff) - alignment_window
-        end_i = len(eeg_diff) - alignment_window if from_front else 0
+        end_i = len(eeg_diff) - alignment_window + 1 if from_front else -1
         step_i = 1 if from_front else -1
 
         # Slide the window, looking for one that fits the differences
@@ -227,13 +231,13 @@ class System1Aligner:
             task_start_ind = cls.get_best_offset(eeg_diff[i:i + alignment_window],
                                             task_diff,
                                             cls.ALIGNMENT_THRESHOLD)
-            # If it finds an offset, we can stop looking
-            if task_start_ind:
+            # If it finds an offset, we can stop looking (an offset of 0 is a match too)
+            if task_start_ind is not None:
                 eeg_start_ind = i
                 break
 
         # If it didn't find an offset, reduce the window and try again
-        if not task_start_ind:
+        if task_start_ind is None:
             # If the window gets too small, raise an error
             if alignment_window - cls.ALIGNMENT_WINDOW_STEP < cls.MIN_ALIGNMENT_WINDOW:
                 raise AlignmentError("Could not align window")
