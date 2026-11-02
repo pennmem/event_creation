@@ -10,7 +10,8 @@ log. Beside the PAL1/IPAL1 messages the task sends
 * ``RESPONSE {slot, serialpos, probe, expected, answer, error, points, correct,
   rt_first_key_ms, answer_complete_ms, rt_answer_ms, rt_ms}`` when Enter confirms,
 * ``FEEDBACK {points, max_points, session_points, practice}`` when the end-of-list screen
-  appears, and ``FEEDBACK_END`` when Enter closes it.
+  appears, and ``FEEDBACK_END`` when Enter closes it. These make no events; the points
+  and the other RESPONSE fields stay in the task's log.
 
 The PAL1/IPAL1 parsers' message handling, restart rule and clocks are reused unchanged
 (``ElememPALLogParser`` for System 4, ``PALTaskLogParser`` for System 1); this module
@@ -23,15 +24,15 @@ the last RESPONSE_KEY of that probe, before its RESPONSE, that filled the second
 Backspace from two digits and a new second digit moves it; Enter does not. Its ``mstime``
 is that key message's own time on the EEG clock, mapped as every other message is.
 
-Fields added to the PAL schema
-------------------------------
-``number`` (the pair's number), ``resp_number`` (the answer), ``num_error``
-(answer - number), ``points`` (100 x e^(-|error|/6), as the task scored it),
-``rt_first_key`` and ``rt_enter`` (ms from the probe's onset to the first digit and to
-Enter). ``RT`` is ms from the probe's onset to the moment of recall. ``correct`` is an
-exact answer. ``resp_word`` holds the answer as digits, and ``intrusion`` treats the
-answer like a word: 0 if it is another pair's number in the same list, k if it was last
-shown k lists back, -1 otherwise.
+The PAL fields
+--------------
+The legacy PAL schema, nothing added. ``study_2`` and ``expecting_word`` hold the
+number as digits (the cue is always the word), ``resp_word`` the typed answer as digits.
+``correct`` is an exact answer. ``intrusion`` treats the answer like a word: 0 if it is
+another pair's number in the same list, k if it was last shown k lists back, -1
+otherwise. ``vocalization`` and ``resp_pass`` are 0 (no speech, no pass). ``RT`` is ms
+from the probe's onset to the moment of recall; it is int32 here, not the legacy int16,
+because the answer is self-paced and int16 ends at 32.8 s.
 """
 
 import warnings
@@ -64,14 +65,9 @@ class PALUMixin(object):
 
     @classmethod
     def _pal_fields(cls):
-        return super(PALUMixin, cls)._pal_fields() + (
-            ('number', -999, 'int16'),
-            ('resp_number', -999, 'int16'),
-            ('num_error', -999, 'int16'),
-            ('points', -999, 'int16'),
-            ('rt_first_key', -999, 'int32'),
-            ('rt_enter', -999, 'int32'),
-        )
+        # RT in int32: a self-paced answer can take longer than int16's 32.8 s
+        return tuple(('RT', -999, 'int32') if f[0] == 'RT' else f
+                     for f in super(PALUMixin, cls)._pal_fields())
 
     def _init_pal(self):
         super(PALUMixin, self)._init_pal()
@@ -80,19 +76,7 @@ class PALUMixin(object):
         self._add_type_to_new_event(
             response_key=self.event_response_key,
             response=self.event_response,
-            feedback=self.event_feedback,
-            feedback_end=self.event_feedback_end,
         )
-
-    def event_study_pair(self, msg):
-        event = super(PALUMixin, self).event_study_pair(msg)
-        event.number = _int(msg['data'].get('number', msg['data'].get('word2')))
-        return event
-
-    def event_test_probe(self, msg):
-        event = super(PALUMixin, self).event_test_probe(msg)
-        event.number = _int(msg['data'].get('number', msg['data'].get('expecting')))
-        return event
 
     def event_response_key(self, msg):
         pp = _int(msg['data'].get('slot')) + 1
@@ -105,16 +89,6 @@ class PALUMixin(object):
         event = self.event_default(msg)
         event.type = 'RESPONSE_ENTER'
         event.probepos = pp
-        return event
-
-    def event_feedback(self, msg):
-        event = self.event_default(msg)
-        event.type = 'FEEDBACK_START'
-        return event
-
-    def event_feedback_end(self, msg):
-        event = self.event_default(msg)
-        event.type = 'FEEDBACK_END'
         return event
 
     def _completion(self, lst, pp, response):
@@ -161,26 +135,17 @@ class PALUMixin(object):
                 rt = _int(recall_ms - float(p['probe_mstime']))
             else:
                 rt = _int(d.get('rt_answer_ms'))
-            rt_first, rt_enter = _int(d.get('rt_first_key_ms')), _int(d.get('rt_ms'))
-
-            points = _int(d.get('points'))
             correct = int(error == 0)
             word = str(answer)
             intrusion = 0 if correct else self._intrusion(word, lst)
 
             pair = (events.list == lst) & (events.serialpos == p['serialpos'])
-            events.number[pair] = number
             events.resp_word[pair] = word
-            events.resp_number[pair] = answer
-            events.num_error[pair] = error
-            events.points[pair] = points
             events.correct[pair] = correct
             events.intrusion[pair] = intrusion
             events.vocalization[pair] = 0
             events.resp_pass[pair] = 0
             events.RT[pair] = rt
-            events.rt_first_key[pair] = rt_first
-            events.rt_enter[pair] = rt_enter
 
             ev = self._empty_event
             ev.type = 'REC_EVENT'
@@ -192,10 +157,9 @@ class PALUMixin(object):
             ev.probe_word, ev.expecting_word = p['probe'], p['expecting']
             ev.cue_direction = p['direction']
             ev.study_1, ev.study_2 = p['study_1'], p['study_2']
-            ev.number, ev.resp_number, ev.num_error = number, answer, error
-            ev.resp_word, ev.points, ev.correct = word, points, correct
+            ev.resp_word, ev.correct = word, correct
             ev.intrusion, ev.vocalization, ev.resp_pass = intrusion, 0, 0
-            ev.RT, ev.rt_first_key, ev.rt_enter = rt, rt_first, rt_enter
+            ev.RT = rt
             ev.exp_version = self._version
             new_events.append(ev)
 
