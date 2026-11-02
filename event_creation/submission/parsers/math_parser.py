@@ -314,7 +314,7 @@ class MathPALTaskLogParser(MathElememLogParser):
     Elemem (pal_task_log.to_wire_messages), so the events are exactly those
     MathElememLogParser makes on System 4: DISTRACT_START and PROB, the list from
     data.trial (practice -1), mstime = the answer's time minus its response time. mstime is
-    on the task clock (LAUNCH.epochUnixMs + time); TaskLogSystem1Aligner maps it per launch.
+    on the task clock (LAUNCH.epochUnixMs + time); TaskLogSystem1Aligner maps it to the EEG.
     """
 
     SYSTEM1_ALIGNER = TaskLogSystem1Aligner

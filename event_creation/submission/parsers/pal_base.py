@@ -97,10 +97,14 @@ class PALParserMixin(object):
         'list_restarted': 'LIST_RESTARTED',
         'practice_repeated': 'PRACTICE_REPEATED',
     }
-    ORIENT_NAMES = {'pair': 'STUDY_ORIENT', 'probe': 'TEST_ORIENT', 'recall': 'RECALL_ORIENT'}
-    # DISTRACT data.type -> (start, end). PAL1 sends no type (arithmetic).
-    DISTRACT_NAMES = {'fixation': ('FIXATION_START', 'FIXATION_END'),
-                      None: ('MATH_START', 'MATH_END')}
+    # ORIENT data.scope -> event type. Legacy PAL has an orient before each pair and each
+    # probe; any other orient (before the test phase, before an encoding block) makes no
+    # event, as the System 4 FR parsers skip their orient events.
+    ORIENT_NAMES = {'pair': 'STUDY_ORIENT', 'probe': 'TEST_ORIENT'}
+    # DISTRACT data.type -> (start, end). PAL1 sends no type (arithmetic). IPAL1's
+    # retention interval (type 'fixation') makes no event, as RepFR skips its rest
+    # intervals; ENCODING_END and RECALL_START bound it.
+    DISTRACT_NAMES = {None: ('MATH_START', 'MATH_END')}
 
     # Messages that are not part of any list attempt (never dropped by the restart rule).
     # The restart markers are kept too (they are logged before the rerun's TRIAL, so
@@ -114,25 +118,25 @@ class PALParserMixin(object):
 
     @classmethod
     def _pal_fields(cls):
-        # The legacy PAL fields, with strings widened to U32 and RT to int32.
+        # The legacy PAL fields (pal_log_parser.py), with the same types.
         return (
             ('list', -999, 'int16'),
             ('serialpos', -999, 'int16'),
             ('probepos', -999, 'int16'),
-            ('study_1', '', 'U32'),
-            ('study_2', '', 'U32'),
+            ('study_1', '', 'S16'),
+            ('study_2', '', 'S16'),
             ('cue_direction', -999, 'int16'),
-            ('probe_word', '', 'U32'),
-            ('expecting_word', '', 'U32'),
-            ('resp_word', '', 'U32'),
+            ('probe_word', '', 'S16'),
+            ('expecting_word', '', 'S16'),
+            ('resp_word', '', 'S16'),
             ('correct', -999, 'int16'),
             ('intrusion', -999, 'int16'),
             ('resp_pass', 0, 'int16'),
             ('vocalization', -999, 'int16'),
-            ('RT', -999, 'int32'),
-            ('exp_version', '', 'U32'),
-            ('stim_type', '', 'U16'),
-            ('stim_list', False, 'b1'),
+            ('RT', -999, 'int16'),
+            ('exp_version', '', 'S16'),
+            ('stim_type', '', 'S16'),
+            ('stim_list', 0, 'b1'),
             ('is_stim', False, 'b1'),
         )
 
@@ -276,8 +280,10 @@ class PALParserMixin(object):
     def event_orient(self, msg):
         d = msg['data']
         self._orient_scope = d.get('scope')
+        if self._orient_scope not in self.ORIENT_NAMES:
+            return False
         event = self.event_default(msg)
-        event.type = self.ORIENT_NAMES.get(self._orient_scope, 'ORIENT')
+        event.type = self.ORIENT_NAMES[self._orient_scope]
         if self._orient_scope == 'pair' and 'serialpos' in d:
             event.serialpos = int(d['serialpos']) + 1
         elif self._orient_scope == 'probe' and 'slot' in d:
@@ -285,8 +291,10 @@ class PALParserMixin(object):
         return event
 
     def event_orient_off(self, msg):
+        if self._orient_scope not in self.ORIENT_NAMES:
+            return False
         event = self.event_default(msg)
-        event.type = self.ORIENT_NAMES.get(self._orient_scope, 'ORIENT') + '_OFF'
+        event.type = self.ORIENT_NAMES[self._orient_scope] + '_OFF'
         return event
 
     def event_study_pair(self, msg):
@@ -313,19 +321,21 @@ class PALParserMixin(object):
 
     def event_distract(self, msg):
         self._distract_kind = msg['data'].get('type')
-        names = self.DISTRACT_NAMES.get(self._distract_kind, self.DISTRACT_NAMES[None])
         self._phase = 'PRACTICE' if self._list == -1 else 'DISTRACT'
+        if self._distract_kind not in self.DISTRACT_NAMES:
+            return False
         event = self.event_default(msg)
-        event.type = names[0]
+        event.type = self.DISTRACT_NAMES[self._distract_kind][0]
         return event
 
     def event_distract_end(self, msg):
         kind = msg['data'].get('type', self._distract_kind)
-        names = self.DISTRACT_NAMES.get(kind, self.DISTRACT_NAMES[None])
-        event = self.event_default(msg)
-        event.type = names[1]
         if self._list != -1:
             self._phase = 'RETRIEVAL'
+        if kind not in self.DISTRACT_NAMES:
+            return False
+        event = self.event_default(msg)
+        event.type = self.DISTRACT_NAMES[kind][1]
         return event
 
     def event_test_probe(self, msg):
