@@ -16,8 +16,8 @@ The task (pennmem PAL1_UnityEPL) writes one JSON object per line::
 Both the System 1 parser (PALTaskLogParser) and the System 1 aligner
 (TaskLogSystem1Aligner) read the file through ``read_task_log`` so they agree on what a
 launch is and on the absolute time of every line: ``_abs = epochUnixMs + time`` of the
-launch the line belongs to. The parser uses ``_abs`` as ``mstime``; the aligner fits each
-launch's pulses separately and finds an event's launch from its ``mstime``.
+launch the line belongs to. The parser uses ``_abs`` as ``mstime``; the aligner uses the
+``_abs`` of the syncPulse lines as the task's pulse times.
 
 ``to_wire_messages`` turns the task's event names into the System 4 wire vocabulary that
 the task sends Elemem (the task's ``ElememReporter.Map``: TRIAL{listno} -> TRIAL{trial},

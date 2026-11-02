@@ -399,7 +399,7 @@ class EventCreationTask(PipelineTask):
             else:
                 if self.r1_sys_num == 1.0:
                     # A parser may name its own System 1 aligner (the PAL task-log parsers
-                    # align per launch from pal_events.jsonl); otherwise System1Aligner.
+                    # read their pulse times from pal_events.jsonl); otherwise System1Aligner.
                     aligner_type = getattr(parser, 'SYSTEM1_ALIGNER', None) or System1Aligner
                     aligner = aligner_type(unaligned_events, files)
                     events = aligner.align()

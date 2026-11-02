@@ -1,7 +1,8 @@
 """
 Tests for PAL1/IPAL1 on System 1 (sync box, no host PC): the task-log parser
-(PALTaskLogParser), the sync-pulse extractor, the per-launch aligner
-(TaskLogSystem1Aligner), the PAL1 task-log math parser, and the routing/registry.
+(PALTaskLogParser), the sync-pulse extractor, the aligner (TaskLogSystem1Aligner, the
+lab's System1Aligner reading pal_events.jsonl), the PAL1 task-log math parser, and the
+routing/registry.
 
 The session is synthetic. One timeline of task events is written three ways:
 
@@ -14,8 +15,8 @@ The session is synthetic. One timeline of task events is written three ways:
 * an Elemem event.log of the same session (what the task would have sent on System 4),
   for comparing the two parsers;
 * one or two EDF files (pyedflib) whose sync channels carry 20 ms pulses at the task's
-  pulse times mapped through a known clock: a per-launch offset, 35 ppm drift and 0.5 ms
-  jitter, after a 0.5 Hz high-pass, with 8 "Test Syncbox" pulses before the session that
+  pulse times mapped through a known clock: the task computer's wall clock (continuous
+  across launches) with 35 ppm drift and 0.5 ms jitter, after a 0.5 Hz high-pass, with 8 "Test Syncbox" pulses before the session that
   the task log does not have.
 """
 import datetime
@@ -36,6 +37,7 @@ if not os.path.isdir(os.path.join(paths.db_root, 'protocols')):
     paths.set('db_root', tempfile.mkdtemp())
 
 from ..submission.exc import AlignmentError
+from ..submission.alignment.system1 import System1Aligner
 from ..submission.alignment.system1_tasklog import TaskLogSystem1Aligner
 from ..submission.parsers.elemem_pal_parser import ElememPALLogParser
 from ..submission.parsers.pal_tasklog_parser import PALTaskLogParser, PALSystem1Parser
@@ -317,7 +319,8 @@ def make_session(out, experiment, n_files=1, seed=11):
     tl.run_list(1, *lists[1])
     tl.run_list(2, *lists[2], stop_after_slot=2)
     end1 = tl.t
-    tl.launch(EPOCHS[0] + int(end1) + 60000, tl.eeg_ms(0, end1) + 60000.)
+    # the wall clock runs on between launches: launch 2's epoch is on launch 1's line
+    tl.launch(EPOCHS[0] + int(end1) + 60000, tl.eeg_ms(0, int(end1) + 60000))
     tl.log('LIST_RESTARTED', {'listno': 2, 'movedTo': 'interrupted/x', 'files': '2_0,2_1,2_2'})
     tl.run_list(2, *lists[2])
     tl.run_list(3, *lists[3])
@@ -417,8 +420,10 @@ def session(request, tmp_path_factory):
     s['extracted'] = extract(s)
     s['sources'] = os.path.join(out, 'sources.json')
     write_sources(s['sources'], s)
+    # one EEG file: the one .sync.txt find_sync_file transfers
+    syncs = [x['out'] for x in s['extracted']]
     s['files_dict'] = dict(behavioral_files(s), eeg_sources=s['sources'],
-                           sync_pulses=[x['out'] for x in s['extracted']])
+                           sync_pulses=syncs[0] if n_files == 1 else syncs)
     s['parser'], s['events'], s['warnings'] = parse(s['files_dict'], experiment)
     return s
 
@@ -461,12 +466,9 @@ def test_scoring(session):
 
 def test_retention_interval_events(session):
     ev = session['events']
-    if session['experiment'] == 'IPAL1':
-        assert ev[ev.type == 'FIXATION_START'].list.tolist() == [-1, 1, 2, 3]
-        assert not np.isin(ev.type, ['MATH_START', 'MATH_END']).any()
-    else:
-        assert ev[ev.type == 'MATH_START'].list.tolist() == [-1, 1, 2, 3]
-        assert not np.isin(ev.type, ['FIXATION_START', 'FIXATION_END']).any()
+    want = [-1, 1, 2, 3] if session['experiment'] == 'PAL1' else []
+    assert ev[ev.type == 'MATH_START'].list.tolist() == want
+    assert not np.isin(ev.type, ['FIXATION_START', 'FIXATION_END']).any()
 
 
 def test_same_events_as_system4_parser(session):
@@ -514,100 +516,77 @@ def align(session, events=None, files=None, aligner=TaskLogSystem1Aligner):
     return a, a.align()
 
 
+def one_file(session):
+    if len(session['files']) > 1:
+        pytest.skip('System1Aligner aligns one EEG file')
+
+
 def test_alignment_every_event(session):
+    one_file(session)
     a, ev = align(session)
     truth = truth_samples(session, ev)
-    keys = [k for k, _ in truth]
-    assert ev.eegfile.tolist() == keys
+    assert ev.eegfile.tolist() == [k for k, _ in truth]
     err = ev.eegoffset - np.array([s for _, s in truth])
     assert (ev.eegoffset >= 0).all()
     assert np.abs(err).max() < 2, np.abs(err).max()
-    # one fit per launch and file the launch overlaps
-    n_files = len(session['files'])
-    assert sorted((f['launch'], f['source']) for f in a.fits) == (
-        [(1, session['files'][0]['key']), (2, session['files'][0]['key'])] if n_files == 1 else
-        [(1, session['files'][0]['key']), (2, session['files'][0]['key']),
-         (2, session['files'][1]['key'])])
-    for f in a.fits:
-        assert abs(f['slope'] - (1 + DRIFT)) < 2e-5    # short fits (2 min) are ~7 ppm off
-        assert f['max_residual_ms'] < 3 and f['n_outliers'] == 0
-        assert f['matched_fraction'] == 1.0
+
+
+def test_several_eeg_files_refused(session):
+    if len(session['files']) == 1:
+        pytest.skip('one EEG file')
+    with pytest.raises(AlignmentError, match='Cannot align EEG with 2 sources'):
+        align(session)
+
+
+def test_task_pulses_on_the_event_clock(session):
+    one_file(session)
+    # the syncPulse lines' stopwatch time plus their launch's epoch, as the events' mstime
+    a = TaskLogSystem1Aligner(session['events'].copy(), session['files_dict'])
+    pulses = np.array(a.get_task_pulses())
+    tl = session['timeline']
+    want = [L['epoch'] + l['time'] for L in tl.launches for l in L['lines']
+            if l['type'] == 'syncPulse']
+    assert pulses.tolist() == want
 
 
 def test_alignment_robust_to_missing_pulses(session, tmp_path):
+    one_file(session)
     # 5 % of the EEG pulses lost
     rng = np.random.default_rng(3)
-    syncs = []
-    for s in session['extracted']:
-        idx = np.loadtxt(s['out'], ndmin=1)
-        keep = rng.random(len(idx)) > 0.05
-        p = str(tmp_path / os.path.basename(s['out']))
-        np.savetxt(p, idx[keep], fmt='%d')
-        syncs.append(p)
-    a, ev = align(session, files=dict(session['files_dict'], sync_pulses=syncs))
+    idx = np.loadtxt(session['extracted'][0]['out'], ndmin=1)
+    keep = rng.random(len(idx)) > 0.05
+    p = str(tmp_path / os.path.basename(session['extracted'][0]['out']))
+    np.savetxt(p, idx[keep], fmt='%d')
+    a, ev = align(session, files=dict(session['files_dict'], sync_pulses=p))
     err = ev.eegoffset - np.array([s for _, s in truth_samples(session, ev)])
-    assert np.abs(err).max() < 2
-
-
-def corrupt(session, tmp_path, fn):
-    syncs = []
-    for s in session['extracted']:
-        idx = np.loadtxt(s['out'], ndmin=1)
-        p = str(tmp_path / os.path.basename(s['out']))
-        np.savetxt(p, fn(idx), fmt='%.3f')
-        syncs.append(p)
-    return dict(session['files_dict'], sync_pulses=syncs)
-
-
-def test_gate_residual(session, tmp_path):
-    rng = np.random.default_rng(4)
-    files = corrupt(session, tmp_path, lambda idx: idx + rng.normal(0, 4, len(idx)))
-    with pytest.raises(AlignmentError, match='more than 5 ms off the fit'):
-        align(session, files=files)
-
-
-def test_gate_slope(session, tmp_path):
-    # sync indices written at 1015 Hz while sources.json says 1000 Hz
-    files = corrupt(session, tmp_path, lambda idx: idx * 1.015)
-    with pytest.raises(AlignmentError, match='slope'):
-        align(session, files=files)
-
-
-def test_gate_matched_fraction(session, tmp_path):
-    # after the first 60 pulses of each file, every fourth pulse is lost
-    def drop(idx):
-        keep = np.ones(len(idx), bool)
-        keep[60::4] = False
-        return idx[keep]
-    files = corrupt(session, tmp_path, drop)
-    with pytest.raises(AlignmentError, match='matched'):
-        align(session, files=files)
+    # the matched windows shrink around the lost pulses, so the line is a little looser
+    assert np.abs(err).max() < 5
 
 
 def test_unrelated_pulses_do_not_align(session, tmp_path):
+    one_file(session)
     rng = np.random.default_rng(6)
-    files = corrupt(session, tmp_path,
-                    lambda idx: idx[0] + np.cumsum(rng.uniform(800, 1200, len(idx))))
-    with pytest.raises(AlignmentError, match='matches the pulses of no|No launch'):
-        align(session, files=files)
+    idx = np.loadtxt(session['extracted'][0]['out'], ndmin=1)
+    p = str(tmp_path / os.path.basename(session['extracted'][0]['out']))
+    np.savetxt(p, idx[0] + np.cumsum(rng.uniform(800, 1200, len(idx))), fmt='%.3f')
+    with pytest.raises(AlignmentError):
+        align(session, files=dict(session['files_dict'], sync_pulses=p))
 
 
 def test_events_outside_the_recording(session, tmp_path):
+    one_file(session)
     # the recording cut 90 s into launch 2: later events get -1
     tl = session['timeline']
-    last = session['files'][-1]
-    cut = int((tl.eeg_ms(1, 90000) - last["start_ms"]) * SAMPLE_RATE / 1000.)
-    if cut <= 0:
-        pytest.skip('launch 2 at 90 s is not in the last file')
+    fl = session['files'][0]
+    cut = int((tl.eeg_ms(1, 90000) - fl["start_ms"]) * SAMPLE_RATE / 1000.)
     sources = json.load(open(session['sources']))
-    sources[last['key']]['n_samples'] = cut
+    sources[fl['key']]['n_samples'] = cut
     path = str(tmp_path / 'sources.json')
     json.dump(sources, open(path, 'w'))
-    idx = np.loadtxt(session['extracted'][-1]['out'], ndmin=1)
-    p = str(tmp_path / os.path.basename(session['extracted'][-1]['out']))
+    idx = np.loadtxt(session['extracted'][0]['out'], ndmin=1)
+    p = str(tmp_path / os.path.basename(session['extracted'][0]['out']))
     np.savetxt(p, idx[idx < cut], fmt='%d')
-    syncs = [x['out'] for x in session['extracted'][:-1]] + [p]
-    a, ev = align(session, files=dict(session['files_dict'], eeg_sources=path, sync_pulses=syncs))
+    a, ev = align(session, files=dict(session['files_dict'], eeg_sources=path, sync_pulses=p))
     late = ev.mstime > tl.launches[1]['epoch'] + 90000
     early = ev.mstime < tl.launches[1]['epoch'] + 89000
     assert late.sum() > 50 and early.sum() > 50
@@ -638,7 +617,9 @@ def test_math_from_task_log(session):
     assert distract['list'].tolist() == [-1, -1, 1, 2, 2, 3]
     probs = math[math['type'] == 'PROB']
     assert len(probs) == 24 and (probs['iscorrect'] == 1).all()
-    # aligned per launch like the task events
+    if len(session['files']) > 1:
+        return
+    # aligned like the task events
     ev = TaskLogSystem1Aligner(math, files).align()
     assert (ev['eegoffset'] >= 0).all()
     err = ev['eegoffset'] - np.array([s for _, s in truth_samples(session, ev)])
@@ -653,6 +634,7 @@ def test_registry():
     assert EventCreationTask.R1_PARSERS(1.0)['IPAL'] is PALTaskLogParser
     assert EventCreationTask.R1_PARSERS(1.0)['PAL'] is PALSystem1Parser
     assert PALTaskLogParser.SYSTEM1_ALIGNER is TaskLogSystem1Aligner
+    assert issubclass(TaskLogSystem1Aligner, System1Aligner)
     # System 4 is unchanged
     assert EventCreationTask.R1_PARSERS(4.0)['IPAL'] is ElememPALLogParser
 
@@ -687,6 +669,7 @@ def test_routing(data_root):
     from ..submission.pipelines import determine_groups
     from ..submission.transfer_inputs import TRANSFER_INPUTS
     from ..submission.transfer_config import TransferConfig
+    from ..submission.transferer import find_sync_file
     beh = TRANSFER_INPUTS['behavioral']
     # Unchanged without an explicit choice: suffix A is System 3.3
     groups = determine_groups('r1', SUBJECT, 'IPAL1', 0, beh, 'transfer')
@@ -696,10 +679,12 @@ def test_routing(data_root):
         groups = determine_groups('r1', SUBJECT, exp, 0, beh, 'transfer', 'system_1')
         assert 'system_1' in groups and 'system_3_3' not in groups and 'system_4' not in groups
         assert 'pal_task_log' in groups and 'verbal' in groups
+        sync_folder, sync_filename = find_sync_file(SUBJECT, exp, 0)
         cfg = TransferConfig(beh, groups, protocol='r1', subject=SUBJECT, code=SUBJECT,
                              experiment=exp, new_experiment=exp, original_session=0, session=0,
                              localization=0, montage_num=0, db_root=paths.db_root,
-                             data_root=data_root, events_root='', ram_experiment='RAM_' + exp)
+                             data_root=data_root, events_root='', ram_experiment='RAM_' + exp,
+                             sync_folder=sync_folder, sync_filename=sync_filename)
         cfg.locate_origin_files()
         names = lambda n: [os.path.basename(p) for p in cfg.get_file(n).origin_paths]
         assert names('session_log') == ['pal_events.jsonl']
@@ -715,29 +700,3 @@ def test_routing(data_root):
 def test_sys1_option():
     from ..submission.configuration import config
     assert 'sys1' in config.options
-
-
-def _pulse_train(n, late=(), late_ms=9.0, seed=3):
-    """Task pulse times (ms) and the EEG's, 35 ppm fast and 2 s offset; some pulses late."""
-    rng = np.random.RandomState(seed)
-    task = 1000. + np.cumsum(rng.randint(800, 1201, n)).astype(float)
-    eeg = task * (1 + 35e-6) + 2000.
-    eeg[list(late)] += late_ms
-    return task, eeg
-
-
-def test_a_short_train_survives_one_late_pulse():
-    """A LabJack pulse can be tens of ms late; one in a 43-pulse train is not a bad session."""
-    task, eeg = _pulse_train(43, late=[20])
-    aligner = object.__new__(TaskLogSystem1Aligner)
-    fit = aligner.match(task, eeg, 'test')
-    assert fit['n_outliers'] == 1 and fit['n_matched'] == 42
-    assert fit['max_residual_ms'] < 1.0
-    assert abs((fit['slope'] - 1) * 1e6 - 35) < 1
-
-
-def test_many_late_pulses_still_refuse():
-    task, eeg = _pulse_train(43, late=range(5, 40, 5))      # 7 of 43, 16 %
-    aligner = object.__new__(TaskLogSystem1Aligner)
-    with pytest.raises(AlignmentError, match='more than 5 ms off the fit'):
-        aligner.match(task, eeg, 'test')

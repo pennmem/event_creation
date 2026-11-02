@@ -361,7 +361,7 @@ def test_scoring(session):
         if scenario['scen'] == 'voc_then_correct':
             assert recs.vocalization.tolist() == [1, 0]
         if scenario['scen'] == 'empty':
-            assert probe.resp_word == ''
+            assert probe.resp_word == b''   # legacy S16: bytes in memory, text in the JSON
     assert seen == set(EXPECTED)
 
 
@@ -393,13 +393,21 @@ def test_missing_ann(session):
 
 
 def test_retention_interval_events(session):
+    # PAL1's math gives MATH_START/END; IPAL1's fixation gives no event (as RepFR's rest)
     ev = session['events']
-    starts, ends = ('FIXATION_START', 'FIXATION_END') if session['experiment'] == 'IPAL1' \
-        else ('MATH_START', 'MATH_END')
-    others = {'FIXATION_START', 'FIXATION_END', 'MATH_START', 'MATH_END'} - {starts, ends}
-    assert ev[ev.type == starts].list.tolist() == [-1, 1, 2, 3]
-    assert ev[ev.type == ends].list.tolist() == [-1, 1, 2, 3]
-    assert not np.isin(ev.type, list(others)).any()
+    for t in ('MATH_START', 'MATH_END'):
+        want = [-1, 1, 2, 3] if session['experiment'] == 'PAL1' else []
+        assert ev[ev.type == t].list.tolist() == want
+    assert not np.isin(ev.type, ['FIXATION_START', 'FIXATION_END']).any()
+
+
+def test_only_legacy_orient_events(session):
+    # an orient before each pair and each probe; the one before the test phase makes none
+    ev = session['events']
+    assert set(t for t in ev.type if 'ORIENT' in t) == {
+        'STUDY_ORIENT', 'STUDY_ORIENT_OFF', 'TEST_ORIENT', 'TEST_ORIENT_OFF'}
+    assert (ev.type == 'STUDY_ORIENT').sum() == (ev.type == 'STUDY_PAIR').sum()
+    assert (ev.type == 'TEST_ORIENT').sum() == (ev.type == 'TEST_PROBE').sum()
 
 
 def test_math_lists_numbered_from_trial(tmp_path):
